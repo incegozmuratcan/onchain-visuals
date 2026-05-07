@@ -79,6 +79,7 @@ export const datasetGroups: DatasetGroup[] = [
     name: "Assets",
     description: "Tokenized assets, stable assets and RWA-style market views.",
     metrics: [
+      { id: "rwa_network_value", label: "RWA Value", status: "active", queries: [{ id: "rwa_network_value", label: "RWA value by network", prompt: "Top 10 networks by RWA value", status: "active", source: "RWA.xyz", chip: "Value" }] },
       { id: "rwa_assets", label: "RWA AUM", status: "coming_soon", queries: [{ id: "rwa_aum", label: "RWA assets by AUM", prompt: "Top tokenized treasury products by AUM", status: "coming_soon", source: "RWA.xyz", chip: "Soon" }] },
     ],
   },
@@ -97,7 +98,7 @@ export const activeQueries = datasetGroups.flatMap((group) =>
 );
 
 export const activeDataset = {
-  id: "chain_metrics",
-  name: "Chain Metrics",
+  id: "market_metrics",
+  name: "Market Metrics",
   examplePrompts: activeQueries.map((query) => query.prompt),
 };
