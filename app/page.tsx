@@ -5,10 +5,8 @@ import { toPng } from "html-to-image";
 import { Bell, Download, Sparkles } from "lucide-react";
 import { DatasetLibrary } from "@/components/DatasetLibrary";
 import { PromptPanel } from "@/components/PromptPanel";
-import { RevenueChart } from "@/components/RevenueChart";
-import { RevenueTable } from "@/components/RevenueTable";
 import { ShareCard } from "@/components/ShareCard";
-import { datasets, activeDatasets } from "@/lib/datasets";
+import { activeDataset, datasetGroups } from "@/lib/datasets";
 import type { ChainRevenueRow } from "@/lib/defillama";
 
 type ApiResult = {
@@ -19,8 +17,6 @@ type ApiResult = {
   query?: { timeframe: string; limit: number };
   error?: string;
 };
-
-const activeDataset = activeDatasets[0];
 
 export default function Home() {
   const [prompt, setPrompt] = useState("Top 10 chains by 30D revenue");
@@ -88,11 +84,11 @@ export default function Home() {
         </h1>
 
         <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 md:text-lg">
-          learnDeFi turns trusted DeFi datasets into clean visual intelligence. Start with chain revenue, then export a branded chart card.
+          learnDeFi turns trusted DeFi datasets into clean visual intelligence. Start with a ready-made query or ask for a supported chart.
         </p>
       </header>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <section className="grid gap-6 lg:grid-cols-[1fr_390px]">
         <div className="grid gap-5">
           <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} />
 
@@ -107,35 +103,28 @@ export default function Home() {
             <div className="rounded-[30px] border border-dashed border-slate-300 bg-white/60 p-10 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white"><Sparkles size={20} /></div>
               <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-slate-950">Your visual will appear here</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-500">Run a supported query to generate a chart, table and share-ready learnDeFi card.</p>
+              <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-500">Run a supported query to generate a share-ready learnDeFi card.</p>
             </div>
           )}
 
           {hasGenerated && (
-            <div className="grid gap-6">
-              <RevenueChart rows={rows} />
-              <RevenueTable rows={rows} />
+            <div className="grid gap-4">
+              <ShareCard rows={rows} timeframe={timeframe} updatedAt={updatedAt} source={source} />
+              <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
+                <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
+                  <Download size={18} /> Download X-ready PNG
+                </button>
+                <button disabled className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-400">Save this report — coming soon</button>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
+                Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.
+              </div>
             </div>
           )}
         </div>
 
-        <DatasetLibrary datasets={datasets} onSelectPrompt={selectPrompt} />
+        <DatasetLibrary groups={datasetGroups} onSelectPrompt={selectPrompt} />
       </section>
-
-      {hasGenerated && (
-        <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_360px]">
-          <ShareCard rows={rows} timeframe={timeframe} updatedAt={updatedAt} source={source} />
-          <div className="grid content-start gap-3">
-            <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
-              <Download size={18} /> Download X-ready PNG
-            </button>
-            <button disabled className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-400">Save this report — coming soon</button>
-            <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
-              Methodology: Chain revenue only. Protocol and dApp revenue are excluded. Source attribution is kept on every export.
-            </div>
-          </div>
-        </section>
-      )}
     </main>
   );
 }
