@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toPng } from "html-to-image";
-import { Bell, Download, Sparkles } from "lucide-react";
+import { Bell, Download } from "lucide-react";
 import { DatasetLibrary } from "@/components/DatasetLibrary";
 import { PromptPanel } from "@/components/PromptPanel";
 import { ShareCard } from "@/components/ShareCard";
@@ -75,20 +75,15 @@ export default function Home() {
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-6 md:px-8 md:py-10">
       <header className="mx-auto mb-8 max-w-5xl text-center">
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-slate-500 shadow-sm">
-          <Sparkles size={14} /> learnDeFi v0.2
-        </div>
-
-        <h1 className="mt-5 text-4xl font-black tracking-[-0.06em] text-slate-950 md:text-7xl">
-          Ask DeFi data. Get X-ready visuals.
+        <h1 className="text-5xl font-black tracking-[-0.07em] text-slate-950 md:text-8xl">
+          learnDeFi
         </h1>
-
-        <p className="mx-auto mt-4 max-w-2xl text-base font-medium leading-7 text-slate-600 md:text-lg">
-          learnDeFi turns trusted DeFi datasets into clean visual intelligence. Start with a ready-made query or ask for a supported chart.
+        <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-7 text-slate-600 md:text-lg">
+          Ask supported DeFi datasets and generate clean, share-ready visual cards.
         </p>
       </header>
 
-      <section className="grid gap-6 lg:grid-cols-[1fr_390px]">
+      <section className="grid gap-6 lg:grid-cols-[1fr_390px] lg:items-start">
         <div className="grid gap-5">
           <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} />
 
@@ -98,14 +93,6 @@ export default function Home() {
           </div>
 
           {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
-
-          {!hasGenerated && !loading && (
-            <div className="rounded-[30px] border border-dashed border-slate-300 bg-white/60 p-10 text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white"><Sparkles size={20} /></div>
-              <h2 className="mt-4 text-2xl font-black tracking-[-0.04em] text-slate-950">Your visual will appear here</h2>
-              <p className="mx-auto mt-2 max-w-md text-sm font-medium leading-6 text-slate-500">Run a supported query to generate a share-ready learnDeFi card.</p>
-            </div>
-          )}
 
           {hasGenerated && (
             <div className="grid gap-4">
