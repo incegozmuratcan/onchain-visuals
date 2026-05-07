@@ -1,83 +1,51 @@
 "use client";
 
+import { getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 
-export function ShareCard({
-  rows,
-  timeframe,
-  updatedAt,
-  source,
-}: {
-  rows: ChainRevenueRow[];
-  timeframe: string;
-  updatedAt: string;
-  source: string;
-}) {
+export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainRevenueRow[]; timeframe: string; updatedAt: string; source: string }) {
   const leader = rows[0];
+  const runnerUp = rows[1];
 
   return (
-    <div
-      id="share-card"
-      className="card-grid-bg relative overflow-hidden rounded-[32px] border border-slate-200 bg-white p-8 shadow-soft"
-    >
-      <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-900">
+    <div id="share-card" className="card-grid-bg relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
+      <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
         learnDeFi
       </div>
 
-      <div className="max-w-[72%]">
-        <p className="text-sm font-bold uppercase tracking-[0.22em] text-slate-400">
-          Chain Revenue
-        </p>
-        <h2 className="mt-2 text-4xl font-black tracking-[-0.04em] text-slate-950">
-          Top chains by {timeframe} revenue
-        </h2>
-        <p className="mt-3 text-sm leading-6 text-slate-500">
-          A clean AI-ready view of chain-level revenue captured by networks.
-        </p>
+      <div className="max-w-[74%]">
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">Chain Revenue</p>
+        <h2 className="mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">Top chains by {timeframe} revenue</h2>
+        <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">Chain-level revenue captured by networks. App and protocol revenues are excluded.</p>
       </div>
 
-      <div className="mt-8 grid gap-3">
+      <div className="mt-9 grid gap-3.5">
         {rows.slice(0, 10).map((row) => {
           const pct = leader?.value ? Math.max(7, (row.value / leader.value) * 100) : 0;
-
           return (
-            <div
-              key={row.name}
-              className="grid grid-cols-[36px_150px_1fr_104px] items-center gap-3"
-            >
-              <div className="text-right text-sm font-bold text-slate-400">
-                {row.rank}
+            <div key={row.name} className="grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]">
+              <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500">
+                  {row.logo ? <img src={row.logo} alt="chain logo" className="h-full w-full object-cover" /> : getInitials(row.name)}
+                </div>
+                <div className="truncate text-base font-black text-slate-950">{row.name}</div>
               </div>
-              <div className="truncate text-base font-bold text-slate-900">
-                {row.name}
-              </div>
-              <div className="h-3 rounded-full bg-slate-100">
-                <div
-                  className="h-3 rounded-full bg-slate-950"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <div className="text-right text-sm font-black text-slate-900">
-                {formatUsd(row.value)}
-              </div>
+              <div className="h-3.5 rounded-full bg-slate-100"><div className="h-3.5 rounded-full bg-slate-950" style={{ width: `${pct}%` }} /></div>
+              <div className="text-right text-sm font-black text-slate-950 md:text-base">{formatUsd(row.value)}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="mt-8 rounded-2xl bg-slate-950 p-4 text-white">
-        <p className="text-sm leading-6 text-slate-200">
-          <span className="font-bold text-white">AI note:</span>{" "}
-          {leader?.name ?? "The leading chain"} currently leads this chain revenue
-          ranking. This view focuses on revenue captured by chains, not dApp or
-          protocol revenue.
-        </p>
+      <div className="mt-9 rounded-[24px] bg-slate-950 p-5 text-white shadow-sm">
+        <p className="text-sm font-medium leading-7 text-slate-200 md:text-base"><span className="font-black text-white">Insight note:</span> {leader?.name ?? "The leading chain"} leads {timeframe} chain revenue{runnerUp ? `, followed by ${runnerUp.name}.` : "."} This card measures revenue captured by chains only.</p>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-4 text-xs font-semibold text-slate-400">
+      <div className="mt-7 grid gap-3 text-xs font-bold text-slate-400 md:grid-cols-[1fr_2fr] md:items-end">
         <span>Generated by learnDeFi</span>
-        <span className="text-right">Data: {source} · Updated: {updatedAt}</span>
+        <span className="md:text-right">Data: {source} · Updated: {updatedAt}</span>
       </div>
     </div>
   );
