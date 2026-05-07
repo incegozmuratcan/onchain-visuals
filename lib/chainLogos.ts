@@ -9,22 +9,46 @@ const chainSlugs: Record<string, string> = {
   "bnb chain": "bsc",
   canton: "canton-network",
   cardano: "cardano",
+  celo: "celo",
   cosmos: "cosmos",
+  cronos: "cronos",
   ethereum: "ethereum",
   fantom: "fantom",
   hyperliquid: "hyperliquid",
   "hyperliquid l1": "hyperliquid",
+  ink: "ink",
+  kaia: "kaia",
   mantle: "mantle",
+  megaeth: "megaeth",
+  monad: "monad",
   near: "near",
   optimism: "optimism",
   "op mainnet": "optimism",
+  plasma: "plasma",
+  "plume mainnet": "plume",
   polygon: "polygon",
+  provenance: "provenance",
+  saga: "saga",
   sei: "sei",
   solana: "solana",
+  starknet: "starknet",
+  stellar: "stellar",
   sui: "sui",
   ton: "ton",
   tron: "tron",
+  "x layer": "x-layer",
+  xlayer: "x-layer",
   xrpl: "ripple",
+};
+
+const directLogos: Record<string, string> = {
+  bsc: "https://icons.llama.fi/bsc.jpg",
+  "bnb chain": "https://icons.llama.fi/bsc.jpg",
+  avalanche: "https://icons.llama.fi/avax.jpg",
+  "op mainnet": "https://icons.llama.fi/optimism.jpg",
+  optimism: "https://icons.llama.fi/optimism.jpg",
+  hyperliquid: "https://icons.llama.fi/hyperliquid.jpg",
+  "hyperliquid l1": "https://icons.llama.fi/hyperliquid.jpg",
 };
 
 function normalizeChainKey(name: string) {
@@ -36,7 +60,9 @@ function getChainSlug(name: string) {
 }
 
 export function getChainLogo(name: string, logo?: string | null) {
+  const key = normalizeChainKey(name);
   if (logo && /^https:\/\//.test(logo)) return logo;
+  if (directLogos[key]) return directLogos[key];
   return `https://icons.llama.fi/chains/rsz_${getChainSlug(name)}.jpg`;
 }
 
