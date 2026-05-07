@@ -18,18 +18,52 @@ function toNumber(value: unknown): number {
 
 function pickValue(row: any, timeframe: Timeframe): number {
   if (timeframe === "24h") {
-    return toNumber(row.total24h ?? row.revenue24h ?? row.dailyRevenue ?? row.total1d);
+    return toNumber(row.total24h ?? row.total1d ?? row.dailyRevenue);
   }
 
   if (timeframe === "7d") {
-    return toNumber(row.total7d ?? row.revenue7d ?? row.weeklyRevenue);
+    return toNumber(row.total7d ?? row.weeklyRevenue);
   }
 
-  return toNumber(row.total30d ?? row.revenue30d ?? row.monthlyRevenue);
+  return toNumber(row.total30d ?? row.monthlyRevenue);
 }
 
 function normalizeName(row: any): string {
-  return String(row.name ?? row.displayName ?? row.chain ?? row.module ?? "Unknown").trim();
+  return String(row.name ?? row.displayName ?? row.module ?? "Unknown").trim();
+}
+
+function isChainRevenueRow(row: any): boolean {
+  const category = String(row.category ?? "").toLowerCase();
+  const name = String(row.name ?? row.displayName ?? "").toLowerCase();
+
+  // DefiLlama's Revenue by Chain rows appear inside the fees/revenue overview
+  // as the "Chains" category. This avoids mixing dApp/protocol revenues.
+  if (category === "chains" || category === "chain") return true;
+
+  // Small fallback for rows where category is missing but chain rows are named clearly.
+  const knownChains = new Set([
+    "ethereum",
+    "solana",
+    "tron",
+    "bitcoin",
+    "bsc",
+    "bnb chain",
+    "base",
+    "arbitrum",
+    "polygon",
+    "optimism",
+    "avalanche",
+    "near",
+    "sui",
+    "aptos",
+    "sei",
+    "ton",
+    "cardano",
+    "cosmos",
+    "fantom",
+  ]);
+
+  return knownChains.has(name);
 }
 
 async function fetchJson(url: string) {
@@ -48,22 +82,22 @@ async function fetchJson(url: string) {
 }
 
 export async function getChainRevenue(limit: number, timeframe: Timeframe) {
-  // This endpoint targets DefiLlama's chain revenue dataset, not protocol/app revenue.
-  // It should match the Revenue (Chains) page: https://defillama.com/revenue/chains
+  // Working DefiLlama free endpoint.
+  // We filter category=Chains to match https://defillama.com/revenue/chains
+  // and avoid mixing protocol/dApp revenue.
   const endpoint =
-    "https://api.llama.fi/overview/fees/chains?dataType=dailyRevenue";
+    "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue";
 
   const json = await fetchJson(endpoint);
 
   const sourceRows = Array.isArray(json.protocols)
     ? json.protocols
-    : Array.isArray(json.chains)
-      ? json.chains
-      : Array.isArray(json.data)
-        ? json.data
-        : [];
+    : Array.isArray(json.data)
+      ? json.data
+      : [];
 
   const rows: ChainRevenueRow[] = sourceRows
+    .filter(isChainRevenueRow)
     .map((row: any) => {
       const name = normalizeName(row);
 
