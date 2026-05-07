@@ -14,7 +14,11 @@ type ApiResult = {
   rows?: ChainRevenueRow[];
   source?: string;
   updatedAt?: string;
-  query?: { timeframe: string; limit: number };
+  title?: string;
+  eyebrow?: string;
+  description?: string;
+  methodology?: string;
+  query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
   error?: string;
 };
 
@@ -23,7 +27,11 @@ export default function Home() {
   const [rows, setRows] = useState<ChainRevenueRow[]>([]);
   const [source, setSource] = useState("DefiLlama Revenue by Chain");
   const [updatedAt, setUpdatedAt] = useState("-");
-  const [timeframe, setTimeframe] = useState("30D");
+  const [title, setTitle] = useState("Top 10 chains by 30D revenue");
+  const [eyebrow, setEyebrow] = useState("Chain Revenue");
+  const [description, setDescription] = useState("Chain-level revenue captured by networks. App and protocol revenues are excluded.");
+  const [methodology, setMethodology] = useState("Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.");
+  const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Revenue", "Top 10", "30D"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -41,9 +49,13 @@ export default function Home() {
       }
 
       setRows(json.rows);
-      setSource(json.source || "DefiLlama Revenue by Chain");
+      setSource(json.source || "DefiLlama");
       setUpdatedAt(json.updatedAt || "-");
-      setTimeframe((json.query?.timeframe || "30d").toUpperCase());
+      setTitle(json.title || "Generated metric");
+      setEyebrow(json.eyebrow || "learnDeFi Metric");
+      setDescription(json.description || "A clean visual generated from supported DeFi datasets.");
+      setMethodology(json.methodology || "Methodology: Source attribution is kept on every export.");
+      setQueryLabels(json.query?.labels || []);
       setHasGenerated(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -63,7 +75,7 @@ export default function Home() {
     });
 
     const link = document.createElement("a");
-    link.download = `learndefi-chain-revenue-${timeframe.toLowerCase()}.png`;
+    link.download = `learndefi-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
     link.href = dataUrl;
     link.click();
   }
@@ -72,12 +84,16 @@ export default function Home() {
     setPrompt(nextPrompt);
   }
 
+  function goHome() {
+    window.location.href = "/";
+  }
+
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-6 md:px-8 md:py-10">
       <header className="mx-auto mb-8 max-w-5xl text-center">
-        <h1 className="text-5xl font-black tracking-[-0.07em] text-slate-950 md:text-8xl">
+        <button onClick={goHome} className="text-5xl font-black tracking-[-0.07em] text-slate-950 transition hover:opacity-75 md:text-8xl">
           learnDeFi
-        </h1>
+        </button>
         <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-7 text-slate-600 md:text-lg">
           Ask supported DeFi datasets and generate clean, share-ready visual cards.
         </p>
@@ -85,7 +101,7 @@ export default function Home() {
 
       <section className="grid gap-6 lg:grid-cols-[1fr_390px] lg:items-start">
         <div className="grid gap-5">
-          <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} />
+          <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} queryLabels={queryLabels} />
 
           <div className="rounded-[26px] border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500 shadow-soft md:flex md:items-center md:justify-between md:gap-4">
             <div className="flex items-center gap-2 font-black text-slate-950"><Bell size={16} /> Scheduled reports</div>
@@ -96,7 +112,7 @@ export default function Home() {
 
           {hasGenerated && (
             <div className="grid gap-4">
-              <ShareCard rows={rows} timeframe={timeframe} updatedAt={updatedAt} source={source} />
+              <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={methodology.replace(/^Methodology:\s*/i, "")} updatedAt={updatedAt} source={source} />
               <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
                 <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
                   <Download size={18} /> Download X-ready PNG
@@ -104,7 +120,7 @@ export default function Home() {
                 <button disabled className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-400">Save this report — coming soon</button>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
-                Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.
+                {methodology}
               </div>
             </div>
           )}
