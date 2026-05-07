@@ -21,9 +21,24 @@ function barWidth(value: number, maxValue?: number) {
   return `${Math.max(0.8, Math.min(100, pct))}%`;
 }
 
-export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainRevenueRow[]; timeframe: string; updatedAt: string; source: string }) {
+export function ShareCard({
+  rows,
+  updatedAt,
+  source,
+  title,
+  eyebrow,
+  description,
+  insight,
+}: {
+  rows: ChainRevenueRow[];
+  updatedAt: string;
+  source: string;
+  title: string;
+  eyebrow: string;
+  description: string;
+  insight: string;
+}) {
   const leader = rows[0];
-  const runnerUp = rows[1];
   const count = rows.length;
 
   return (
@@ -33,9 +48,9 @@ export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainR
       </div>
 
       <div className="max-w-[74%]">
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">Chain Revenue</p>
-        <h2 className={titleSizeClass(count)}>Top {count} chains by {timeframe} revenue</h2>
-        <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">Chain-level revenue captured by networks. App and protocol revenues are excluded.</p>
+        <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">{eyebrow}</p>
+        <h2 className={titleSizeClass(count)}>{title}</h2>
+        <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">{description}</p>
       </div>
 
       <div className={rowLayoutClass(count)}>
@@ -61,7 +76,7 @@ export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainR
       </div>
 
       <div className="mt-9 rounded-[24px] bg-slate-950 p-5 text-white shadow-sm">
-        <p className="text-sm font-medium leading-7 text-slate-200 md:text-base"><span className="font-black text-white">Insight note:</span> {leader?.name ?? "The leading chain"} leads {timeframe} chain revenue{runnerUp ? `, followed by ${runnerUp.name}.` : "."} This card measures revenue captured by chains only.</p>
+        <p className="text-sm font-medium leading-7 text-slate-200 md:text-base"><span className="font-black text-white">Insight note:</span> {insight}</p>
       </div>
 
       <div className="mt-7 grid gap-3 text-xs font-bold text-slate-400 md:grid-cols-[1fr_2fr] md:items-end">
