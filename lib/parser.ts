@@ -1,6 +1,6 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl";
 
 export type ParsedQuery = {
   limit: number;
@@ -26,7 +26,7 @@ function parseLimit(text: string) {
 }
 
 function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
-  if (metric === "chain_stablecoin_supply") return "current";
+  if (metric === "chain_stablecoin_supply" || metric === "chain_tvl") return "current";
 
   if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
   if (/(7d|week|weekly|hafta|son 7)/.test(text)) return "7d";
@@ -38,11 +38,16 @@ function parseMetric(text: string): QueryMetric {
     return "chain_stablecoin_supply";
   }
 
+  if (/(tvl|total value locked|defi tvl|liquidity locked|kilitli değer|kilitli deger)/.test(text)) {
+    return "chain_tvl";
+  }
+
   return "chain_revenue";
 }
 
 function metricLabel(metric: QueryMetric) {
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
+  if (metric === "chain_tvl") return "DeFi TVL";
   return "Revenue";
 }
 
