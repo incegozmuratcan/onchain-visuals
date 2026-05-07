@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getChainRevenue, getStablecoinSupplyByChain } from "@/lib/defillama";
+import { getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
     const data =
       parsed.metric === "chain_stablecoin_supply"
         ? await getStablecoinSupplyByChain(parsed.limit)
-        : await getChainRevenue(parsed.limit, parsed.timeframe);
+        : parsed.metric === "chain_tvl"
+          ? await getChainTvl(parsed.limit)
+          : await getChainRevenue(parsed.limit, parsed.timeframe);
 
     return NextResponse.json({ ok: true, query: parsed, ...data });
   } catch (error) {
