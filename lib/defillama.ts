@@ -65,7 +65,7 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
 
   const rows: ChainRevenueRow[] = sourceRows
     .filter(isChainRevenueRow)
-    .map((row: any) => {
+    .map((row: any): ChainRevenueRow => {
       const name = normalizeName(row);
       return {
         rank: 0,
@@ -82,9 +82,9 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
       const name = row.name.toLowerCase();
       return row.value > 0 && name !== "total" && name !== "all";
     })
-    .sort((a, b) => b.value - a.value)
+    .sort((a: ChainRevenueRow, b: ChainRevenueRow) => b.value - a.value)
     .slice(0, limit)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+    .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
   return {
     rows,
@@ -126,14 +126,14 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
   }
 
   const rows: ChainRevenueRow[] = Array.from(buckets.entries())
-    .map(([name, value]) => ({ rank: 0, name, value, logo: getChainLogo(name) }))
-    .filter((row) => {
+    .map(([name, value]): ChainRevenueRow => ({ rank: 0, name, value, logo: getChainLogo(name) }))
+    .filter((row: ChainRevenueRow) => {
       const name = row.name.toLowerCase();
       return row.value > 0 && name !== "total" && name !== "all";
     })
-    .sort((a, b) => b.value - a.value)
+    .sort((a: ChainRevenueRow, b: ChainRevenueRow) => b.value - a.value)
     .slice(0, limit)
-    .map((row, index) => ({ ...row, rank: index + 1 }));
+    .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
   return {
     rows,
