@@ -15,6 +15,12 @@ function titleSizeClass(count: number) {
   return "mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl";
 }
 
+function barWidth(value: number, maxValue?: number) {
+  if (!maxValue || maxValue <= 0) return "0%";
+  const pct = (value / maxValue) * 100;
+  return `${Math.max(0.8, Math.min(100, pct))}%`;
+}
+
 export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainRevenueRow[]; timeframe: string; updatedAt: string; source: string }) {
   const leader = rows[0];
   const runnerUp = rows[1];
@@ -34,8 +40,8 @@ export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainR
 
       <div className={rowLayoutClass(count)}>
         {rows.map((row) => {
-          const pct = leader?.value ? Math.max(7, (row.value / leader.value) * 100) : 0;
           const compact = count > 10;
+          const width = barWidth(row.value, leader?.value);
           return (
             <div key={row.name} className="grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]">
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
@@ -45,7 +51,9 @@ export function ShareCard({ rows, timeframe, updatedAt, source }: { rows: ChainR
                 </div>
                 <div className={`${compact ? "text-sm" : "text-base"} truncate font-black text-slate-950`}>{row.name}</div>
               </div>
-              <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-100`}><div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-950`} style={{ width: `${pct}%` }} /></div>
+              <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-100`}>
+                <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-950`} style={{ width }} />
+              </div>
               <div className="text-right text-sm font-black text-slate-950 md:text-base">{formatUsd(row.value)}</div>
             </div>
           );
