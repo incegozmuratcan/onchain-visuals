@@ -1,13 +1,13 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "rwa_network_value";
 
 export type ParsedQuery = {
   limit: number;
   timeframe: Timeframe;
   metric: QueryMetric;
-  scope: "chains";
-  entity: "all_chains";
+  scope: "chains" | "assets";
+  entity: "all_chains" | "all_networks";
   visualType: "leaderboard_card";
   labels: string[];
 };
@@ -21,12 +21,12 @@ function clampLimit(value: number) {
 }
 
 function parseLimit(text: string) {
-  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+chains?/);
+  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?)/);
   return clampLimit(Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10));
 }
 
 function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
-  if (metric === "chain_stablecoin_supply" || metric === "chain_tvl") return "current";
+  if (metric === "chain_stablecoin_supply" || metric === "chain_tvl" || metric === "rwa_network_value") return "current";
 
   if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
   if (/(7d|week|weekly|hafta|son 7)/.test(text)) return "7d";
@@ -34,6 +34,10 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
+  if (/(rwa|real world asset|tokenized asset|tokenized rwa|network value|distributed rwa|represented rwa)/.test(text)) {
+    return "rwa_network_value";
+  }
+
   if (/(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text)) {
     return "chain_stablecoin_supply";
   }
@@ -48,6 +52,7 @@ function parseMetric(text: string): QueryMetric {
 function metricLabel(metric: QueryMetric) {
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
   if (metric === "chain_tvl") return "DeFi TVL";
+  if (metric === "rwa_network_value") return "RWA Value";
   return "Revenue";
 }
 
@@ -61,14 +66,15 @@ export function parsePrompt(input: string): ParsedQuery {
   const metric = parseMetric(text);
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
+  const isRwa = metric === "rwa_network_value";
 
   return {
     limit,
     timeframe,
     metric,
-    scope: "chains",
-    entity: "all_chains",
+    scope: isRwa ? "assets" : "chains",
+    entity: isRwa ? "all_networks" : "all_chains",
     visualType: "leaderboard_card",
-    labels: ["Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isRwa ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }
