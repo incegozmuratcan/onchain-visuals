@@ -110,6 +110,31 @@ function getStablecoinChainValue(asset: any, chain: string): number {
   );
 }
 
+function normalizeStablecoinChainName(name: string) {
+  const aliases: Record<string, string> = {
+    avax: "Avalanche",
+    avalanche: "Avalanche",
+    bsc: "BSC",
+    binance: "BSC",
+    "binance smart chain": "BSC",
+    ethereum: "Ethereum",
+    tron: "Tron",
+    solana: "Solana",
+    base: "Base",
+    arbitrum: "Arbitrum",
+    polygon: "Polygon",
+    optimism: "OP Mainnet",
+    "op mainnet": "OP Mainnet",
+    hyperliquid: "Hyperliquid L1",
+    "hyperliquid l1": "Hyperliquid L1",
+    xlayer: "X Layer",
+    "x layer": "X Layer",
+    ton: "TON",
+    xrpl: "XRPL",
+  };
+  return aliases[name.toLowerCase().trim()] ?? name.trim();
+}
+
 export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://stablecoins.llama.fi/stablecoins?includePrices=true";
   const json = await fetchJson(endpoint);
@@ -118,16 +143,17 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
 
   for (const asset of assets) {
     const chains = asset?.chainCirculating && typeof asset.chainCirculating === "object" ? Object.keys(asset.chainCirculating) : [];
-    for (const chain of chains) {
-      const value = getStablecoinChainValue(asset, chain);
+    for (const rawChain of chains) {
+      const value = getStablecoinChainValue(asset, rawChain);
       if (value <= 0) continue;
+      const chain = normalizeStablecoinChainName(rawChain);
       buckets.set(chain, (buckets.get(chain) ?? 0) + value);
     }
   }
 
   const rows: ChainRevenueRow[] = Array.from(buckets.entries())
     .map(([name, value]): ChainRevenueRow => ({ rank: 0, name, value, logo: getChainLogo(name) }))
-    .filter((row: ChainRevenueRow) => {
+    .filter((row) => {
       const name = row.name.toLowerCase();
       return row.value > 0 && name !== "total" && name !== "all";
     })
