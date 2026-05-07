@@ -1,5 +1,6 @@
 import { formatDateTime } from "./format";
 import type { Timeframe } from "./parser";
+import { getChainLogo } from "./chainLogos";
 
 export type ChainRevenueRow = {
   rank: number;
@@ -9,6 +10,7 @@ export type ChainRevenueRow = {
   value7d?: number;
   value30d?: number;
   change7d?: number | null;
+  logo?: string | null;
 };
 
 function toNumber(value: unknown): number {
@@ -36,11 +38,8 @@ function isChainRevenueRow(row: any): boolean {
   const category = String(row.category ?? "").toLowerCase();
   const name = String(row.name ?? row.displayName ?? "").toLowerCase();
 
-  // DefiLlama's Revenue by Chain rows appear inside the fees/revenue overview
-  // as the "Chains" category. This avoids mixing dApp/protocol revenues.
   if (category === "chains" || category === "chain") return true;
 
-  // Small fallback for rows where category is missing but chain rows are named clearly.
   const knownChains = new Set([
     "ethereum",
     "solana",
@@ -61,6 +60,9 @@ function isChainRevenueRow(row: any): boolean {
     "cardano",
     "cosmos",
     "fantom",
+    "canton",
+    "abstract",
+    "hyperliquid l1",
   ]);
 
   return knownChains.has(name);
@@ -82,9 +84,6 @@ async function fetchJson(url: string) {
 }
 
 export async function getChainRevenue(limit: number, timeframe: Timeframe) {
-  // Working DefiLlama free endpoint.
-  // We filter category=Chains to match https://defillama.com/revenue/chains
-  // and avoid mixing protocol/dApp revenue.
   const endpoint =
     "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue";
 
@@ -100,6 +99,7 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe) {
     .filter(isChainRevenueRow)
     .map((row: any) => {
       const name = normalizeName(row);
+      const logo = getChainLogo(name, row.logo ?? row.logoUrl ?? row.logoURI ?? null);
 
       return {
         rank: 0,
@@ -109,6 +109,7 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe) {
         value7d: pickValue(row, "7d"),
         value30d: pickValue(row, "30d"),
         change7d: row.change_7d ?? row.change7d ?? null,
+        logo,
       };
     })
     .filter((row: ChainRevenueRow) => {
