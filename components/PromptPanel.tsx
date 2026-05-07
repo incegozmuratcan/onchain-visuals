@@ -9,6 +9,21 @@ type ActiveDataset = {
 const limitOptions = [5, 10, 15, 20, 25, 30];
 const timeframeOptions = ["24H", "7D", "30D"];
 
+function parsePromptLabels(prompt: string) {
+  const text = prompt.toLowerCase();
+  const isStablecoin = /(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text);
+  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+chains?/);
+  const rawLimit = Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10);
+  const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10, 3), 30);
+
+  let timeframe = "30D";
+  if (isStablecoin) timeframe = "Current";
+  else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
+  else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
+
+  return ["Chains", isStablecoin ? "Stablecoin Supply" : "Revenue", `Top ${limit}`, timeframe];
+}
+
 function replaceLimit(prompt: string, nextLimit: number) {
   if (/top\s+\d+/i.test(prompt)) return prompt.replace(/top\s+\d+/i, `Top ${nextLimit}`);
   return `Top ${nextLimit} ${prompt}`;
@@ -35,9 +50,10 @@ export function PromptPanel({
   activeDataset: ActiveDataset;
   queryLabels: string[];
 }) {
-  const currentLimit = queryLabels.find((label) => label.startsWith("Top "))?.replace("Top ", "") ?? "10";
-  const currentTimeframe = queryLabels.find((label) => ["24H", "7D", "30D", "Current"].includes(label)) ?? "30D";
-  const isStablecoin = queryLabels.some((label) => label.toLowerCase().includes("stablecoin"));
+  const liveLabels = parsePromptLabels(prompt || queryLabels.join(" "));
+  const currentLimit = liveLabels.find((label) => label.startsWith("Top "))?.replace("Top ", "") ?? "10";
+  const currentTimeframe = liveLabels.find((label) => ["24H", "7D", "30D", "Current"].includes(label)) ?? "30D";
+  const isStablecoin = liveLabels.some((label) => label.toLowerCase().includes("stablecoin"));
 
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
@@ -72,7 +88,7 @@ export function PromptPanel({
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Detected query</div>
         <div className="flex flex-wrap gap-2">
-          {queryLabels.filter((label) => !label.startsWith("Top ") && !["24H", "7D", "30D", "Current"].includes(label)).map((label) => (
+          {liveLabels.filter((label) => !label.startsWith("Top ") && !["24H", "7D", "30D", "Current"].includes(label)).map((label) => (
             <span key={label} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
               {label}
             </span>
