@@ -1,67 +1,127 @@
 export type DatasetStatus = "active" | "coming_soon";
 
-export type DatasetDefinition = {
+export type QueryDefinition = {
+  id: string;
+  label: string;
+  prompt: string;
+  status: DatasetStatus;
+  source: string;
+};
+
+export type DatasetGroup = {
   id: string;
   name: string;
   description: string;
-  source: string;
-  status: DatasetStatus;
-  examplePrompts: string[];
+  queries: QueryDefinition[];
 };
 
-export const datasets: DatasetDefinition[] = [
+export const datasetGroups: DatasetGroup[] = [
   {
-    id: "chain_revenue",
-    name: "Chain Revenue",
-    description: "Revenue captured by chains only. Protocol and dApp revenues are excluded.",
-    source: "DefiLlama",
-    status: "active",
-    examplePrompts: [
-      "Top 10 chains by 30D revenue",
-      "Top 15 chains by 7D revenue",
-      "Top 20 chains by 24H revenue",
+    id: "chains",
+    name: "Chains",
+    description: "Network-level metrics for comparing chain fundamentals and liquidity.",
+    queries: [
+      {
+        id: "chain_revenue_30d",
+        label: "Chain revenue · 30D",
+        prompt: "Top 10 chains by 30D revenue",
+        status: "active",
+        source: "DefiLlama",
+      },
+      {
+        id: "chain_revenue_7d",
+        label: "Chain revenue · 7D",
+        prompt: "Top 15 chains by 7D revenue",
+        status: "active",
+        source: "DefiLlama",
+      },
+      {
+        id: "chain_revenue_24h",
+        label: "Chain revenue · 24H",
+        prompt: "Top 20 chains by 24H revenue",
+        status: "active",
+        source: "DefiLlama",
+      },
+      {
+        id: "stablecoin_supply",
+        label: "Stablecoin supply by chain",
+        prompt: "Top 10 chains by stablecoin supply",
+        status: "coming_soon",
+        source: "DefiLlama / Artemis",
+      },
+      {
+        id: "chain_net_flows",
+        label: "Net flows by chain",
+        prompt: "Top 10 chains by 1D net inflow",
+        status: "coming_soon",
+        source: "Artemis / DefiLlama",
+      },
     ],
   },
   {
-    id: "protocol_revenue",
-    name: "Protocol Revenue",
-    description: "Rank DeFi protocols by fees and revenue capture.",
-    source: "DefiLlama",
-    status: "coming_soon",
-    examplePrompts: ["Top 10 protocols by 30D revenue"],
+    id: "protocols",
+    name: "Protocols",
+    description: "Protocol-level revenue, fees, TVL and efficiency views.",
+    queries: [
+      {
+        id: "protocol_revenue",
+        label: "Protocol revenue",
+        prompt: "Top 10 protocols by 30D revenue",
+        status: "coming_soon",
+        source: "DefiLlama",
+      },
+      {
+        id: "protocol_fees",
+        label: "Protocol fees",
+        prompt: "Top 10 protocols by 30D fees",
+        status: "coming_soon",
+        source: "DefiLlama",
+      },
+    ],
   },
   {
-    id: "stablecoin_liquidity",
-    name: "Stablecoin Liquidity",
-    description: "Track onchain dollar liquidity by chain and timeframe.",
-    source: "DefiLlama / Artemis",
-    status: "coming_soon",
-    examplePrompts: ["Top 10 chains by 7D stablecoin growth"],
+    id: "assets",
+    name: "Assets",
+    description: "Tokenized assets, stable assets and RWA-style market views.",
+    queries: [
+      {
+        id: "rwa_aum",
+        label: "RWA assets by AUM",
+        prompt: "Top tokenized treasury products by AUM",
+        status: "coming_soon",
+        source: "RWA.xyz",
+      },
+      {
+        id: "yield_stable_assets",
+        label: "Yield-bearing stable assets",
+        prompt: "Top yield-bearing stable assets by supply",
+        status: "coming_soon",
+        source: "DefiLlama / RWA.xyz",
+      },
+    ],
   },
   {
-    id: "capital_flows",
-    name: "Capital Flows",
-    description: "Track bridge inflows, outflows and net flows across chains.",
-    source: "Artemis / DefiLlama",
-    status: "coming_soon",
-    examplePrompts: ["Top 10 chains by 1D net inflow"],
-  },
-  {
-    id: "rwa_assets",
-    name: "RWA Assets",
-    description: "Tokenized asset AUM, APY, issuer and chain distribution.",
-    source: "RWA.xyz",
-    status: "coming_soon",
-    examplePrompts: ["Top tokenized treasury products by AUM"],
-  },
-  {
-    id: "network_fundamentals",
-    name: "Network Fundamentals",
-    description: "TPS, finality, validators and decentralization metrics.",
-    source: "Chainspect",
-    status: "coming_soon",
-    examplePrompts: ["Compare chains by TPS and finality"],
+    id: "infrastructure",
+    name: "Infrastructure",
+    description: "Network performance, finality, decentralization and throughput.",
+    queries: [
+      {
+        id: "network_fundamentals",
+        label: "Network fundamentals",
+        prompt: "Compare chains by TPS and finality",
+        status: "coming_soon",
+        source: "Chainspect",
+      },
+    ],
   },
 ];
 
-export const activeDatasets = datasets.filter((dataset) => dataset.status === "active");
+export const activeQueries = datasetGroups.flatMap((group) =>
+  group.queries.filter((query) => query.status === "active")
+);
+
+export const activeDataset = {
+  id: "chain_revenue",
+  name: "Chain Revenue",
+  examplePrompts: activeQueries.map((query) => query.prompt),
+};
