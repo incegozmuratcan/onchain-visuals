@@ -12,12 +12,14 @@ export function PromptPanel({
   onRun,
   loading,
   activeDataset,
+  queryLabels,
 }: {
   prompt: string;
   setPrompt: (v: string) => void;
   onRun: () => void;
   loading: boolean;
   activeDataset: ActiveDataset;
+  queryLabels: string[];
 }) {
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
@@ -37,7 +39,8 @@ export function PromptPanel({
             if (event.key === "Enter") onRun();
           }}
           className="min-h-16 flex-1 rounded-3xl border border-slate-200 bg-slate-50/60 px-5 text-base font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 focus:bg-white"
-          placeholder="Top 10 chains by 30D revenue"
+          placeholder="Top 10 chains by stablecoin supply"
+          maxLength={240}
         />
         <button
           onClick={onRun}
@@ -46,6 +49,17 @@ export function PromptPanel({
         >
           {loading ? "Loading..." : "Generate"}
         </button>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+        <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Detected query</div>
+        <div className="flex flex-wrap gap-2">
+          {queryLabels.map((label) => (
+            <span key={label} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
 
       <div className="mt-3 flex flex-wrap gap-2">

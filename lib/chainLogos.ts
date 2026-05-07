@@ -1,34 +1,52 @@
-const logoFallbacks: Record<string, string> = {
-  ethereum: "https://icons.llama.fi/ethereum.jpg",
-  tron: "https://icons.llama.fi/tron.jpg",
-  solana: "https://icons.llama.fi/solana.jpg",
-  base: "https://icons.llama.fi/base.jpg",
-  polygon: "https://icons.llama.fi/polygon.jpg",
-  bsc: "https://icons.llama.fi/bsc.jpg",
-  "bnb chain": "https://icons.llama.fi/bsc.jpg",
-  arbitrum: "https://icons.llama.fi/arbitrum.jpg",
-  optimism: "https://icons.llama.fi/optimism.jpg",
-  avalanche: "https://icons.llama.fi/avax.jpg",
-  bitcoin: "https://icons.llama.fi/bitcoin.jpg",
-  sui: "https://icons.llama.fi/sui.jpg",
-  aptos: "https://icons.llama.fi/aptos.jpg",
-  near: "https://icons.llama.fi/near.jpg",
-  ton: "https://icons.llama.fi/ton.jpg",
-  cardano: "https://icons.llama.fi/cardano.jpg",
-  sei: "https://icons.llama.fi/sei.jpg",
-  fantom: "https://icons.llama.fi/fantom.jpg",
+const chainSlugs: Record<string, string> = {
+  abstract: "abstract",
+  aptos: "aptos",
+  arbitrum: "arbitrum",
+  avalanche: "avax",
+  base: "base",
+  bitcoin: "bitcoin",
+  bsc: "bsc",
+  "bnb chain": "bsc",
+  canton: "canton-network",
+  cardano: "cardano",
+  cosmos: "cosmos",
+  ethereum: "ethereum",
+  fantom: "fantom",
+  hyperliquid: "hyperliquid",
+  "hyperliquid l1": "hyperliquid",
+  mantle: "mantle",
+  near: "near",
+  optimism: "optimism",
+  "op mainnet": "optimism",
+  polygon: "polygon",
+  sei: "sei",
+  solana: "solana",
+  sui: "sui",
+  ton: "ton",
+  tron: "tron",
+  xrpl: "ripple",
 };
 
+function normalizeChainKey(name: string) {
+  return name.toLowerCase().trim();
+}
+
+function getChainSlug(name: string) {
+  return chainSlugs[normalizeChainKey(name)] ?? normalizeChainKey(name).replace(/\s+/g, "-");
+}
+
 export function getChainLogo(name: string, logo?: string | null) {
-  if (logo) return logo;
-  return logoFallbacks[name.toLowerCase()] ?? null;
+  if (logo && /^https:\/\//.test(logo)) return logo;
+  return `https://icons.llama.fi/chains/rsz_${getChainSlug(name)}.jpg`;
 }
 
 export function getInitials(name: string) {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "?";
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase())
+      .join("") || "?"
+  );
 }
