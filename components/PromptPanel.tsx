@@ -1,6 +1,10 @@
 "use client";
 
-import type { DatasetDefinition } from "@/lib/datasets";
+type ActiveDataset = {
+  id: string;
+  name: string;
+  examplePrompts: string[];
+};
 
 export function PromptPanel({
   prompt,
@@ -13,14 +17,14 @@ export function PromptPanel({
   setPrompt: (v: string) => void;
   onRun: () => void;
   loading: boolean;
-  activeDataset: DatasetDefinition;
+  activeDataset: ActiveDataset;
 }) {
   return (
     <div className="rounded-[30px] border border-slate-200 bg-white p-4 shadow-soft md:p-5">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
           <label className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Ask learnDeFi</label>
-          <p className="mt-1 text-sm font-medium text-slate-500">Type a supported query or start from the dataset library.</p>
+          <p className="mt-1 text-sm font-medium text-slate-500">Type a supported query or start from the data library.</p>
         </div>
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">{activeDataset.name}</div>
       </div>
