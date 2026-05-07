@@ -172,3 +172,34 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
     methodology: "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
   };
 }
+
+export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
+  const endpoint = "https://api.llama.fi/v2/chains";
+  const json = await fetchJson(endpoint);
+  const rows: ChainRevenueRow[] = (Array.isArray(json) ? json : [])
+    .map((row: any): ChainRevenueRow => {
+      const name = normalizeName(row);
+      return {
+        rank: 0,
+        name,
+        value: toNumber(row.tvl),
+        change7d: row.change_7d ?? null,
+        logo: getChainLogo(name, row.logo ?? null),
+      };
+    })
+    .filter((row: ChainRevenueRow) => row.value > 0 && row.name.toLowerCase() !== "all")
+    .sort((a: ChainRevenueRow, b: ChainRevenueRow) => b.value - a.value)
+    .slice(0, limit)
+    .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
+
+  return {
+    rows,
+    source: "DefiLlama Chains TVL",
+    updatedAt: formatDateTime(),
+    endpoint,
+    title: `Top ${rows.length} chains by DeFi TVL`,
+    eyebrow: "DeFi TVL",
+    description: "Total value locked across DeFi protocols on each chain, tracked by DefiLlama.",
+    methodology: "Methodology: Current DeFi TVL by chain. Stablecoin supply, revenue and bridge flows are not included in this view.",
+  };
+}
