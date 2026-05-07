@@ -6,6 +6,20 @@ type ActiveDataset = {
   examplePrompts: string[];
 };
 
+const limitOptions = [5, 10, 15, 20, 25, 30];
+const timeframeOptions = ["24H", "7D", "30D"];
+
+function replaceLimit(prompt: string, nextLimit: number) {
+  if (/top\s+\d+/i.test(prompt)) return prompt.replace(/top\s+\d+/i, `Top ${nextLimit}`);
+  return `Top ${nextLimit} ${prompt}`;
+}
+
+function replaceTimeframe(prompt: string, nextTimeframe: string) {
+  if (/stablecoin|stablecoins|supply/i.test(prompt)) return prompt;
+  if (/(24h|7d|30d|daily|weekly|monthly)/i.test(prompt)) return prompt.replace(/(24h|7d|30d|daily|weekly|monthly)/i, nextTimeframe);
+  return prompt.replace(/revenue/i, `${nextTimeframe} revenue`);
+}
+
 export function PromptPanel({
   prompt,
   setPrompt,
@@ -21,6 +35,10 @@ export function PromptPanel({
   activeDataset: ActiveDataset;
   queryLabels: string[];
 }) {
+  const currentLimit = queryLabels.find((label) => label.startsWith("Top "))?.replace("Top ", "") ?? "10";
+  const currentTimeframe = queryLabels.find((label) => ["24H", "7D", "30D", "Current"].includes(label)) ?? "30D";
+  const isStablecoin = queryLabels.some((label) => label.toLowerCase().includes("stablecoin"));
+
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
@@ -54,11 +72,32 @@ export function PromptPanel({
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Detected query</div>
         <div className="flex flex-wrap gap-2">
-          {queryLabels.map((label) => (
+          {queryLabels.filter((label) => !label.startsWith("Top ") && !["24H", "7D", "30D", "Current"].includes(label)).map((label) => (
             <span key={label} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
               {label}
             </span>
           ))}
+
+          <select
+            aria-label="Select result count"
+            value={currentLimit}
+            onChange={(event) => setPrompt(replaceLimit(prompt, Number(event.target.value)))}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
+          >
+            {limitOptions.map((limit) => (
+              <option key={limit} value={String(limit)}>Top {limit}</option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Select timeframe"
+            value={currentTimeframe}
+            disabled={isStablecoin}
+            onChange={(event) => setPrompt(replaceTimeframe(prompt, event.target.value))}
+            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none disabled:text-slate-400"
+          >
+            {isStablecoin ? <option value="Current">Current</option> : timeframeOptions.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
+          </select>
         </div>
       </div>
 
