@@ -28,31 +28,24 @@ export function DatasetLibrary({
             </div>
             <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{group.description}</p>
 
-            <div className="mt-4 grid gap-3">
-              {group.metrics.map((metric) => (
-                <div key={metric.id} className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
+            <div className="mt-4 grid gap-1.5">
+              {group.metrics.map((metric) => {
+                const defaultQuery = metric.queries[0];
+                return (
+                  <button
+                    key={metric.id}
+                    onClick={() => metric.status === "active" && defaultQuery && onSelectPrompt(defaultQuery.prompt)}
+                    disabled={metric.status !== "active" || !defaultQuery}
+                    title={defaultQuery ? `${defaultQuery.label} · Source: ${defaultQuery.source}` : metric.label}
+                    className={metric.status === "active" ? "flex items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-slate-950 hover:bg-slate-50" : "flex cursor-not-allowed items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white/60 px-3 py-2.5 text-left opacity-60"}
+                  >
                     <span className="text-sm font-black text-slate-950">{metric.label}</span>
-                    <span className={metric.status === "active" ? "rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700" : "rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-slate-400"}>
+                    <span className={metric.status === "active" ? "rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-black text-emerald-700" : "rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-black text-slate-400"}>
                       {metric.status === "active" ? "Active" : "Soon"}
                     </span>
-                  </div>
-
-                  <div className="flex flex-wrap gap-1.5">
-                    {metric.queries.map((query) => (
-                      <button
-                        key={query.id}
-                        onClick={() => query.status === "active" && onSelectPrompt(query.prompt)}
-                        disabled={query.status !== "active"}
-                        title={`${query.label} · Source: ${query.source}`}
-                        className={query.status === "active" ? "rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 transition hover:border-slate-950 hover:text-slate-950" : "cursor-not-allowed rounded-full border border-slate-200 bg-white/60 px-3 py-1.5 text-xs font-black text-slate-400"}
-                      >
-                        {query.chip}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}
