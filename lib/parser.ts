@@ -1,6 +1,6 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "rwa_network_value";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value";
 
 export type ParsedQuery = {
   limit: number;
@@ -26,7 +26,7 @@ function parseLimit(text: string) {
 }
 
 function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
-  if (metric === "chain_stablecoin_supply" || metric === "chain_tvl" || metric === "rwa_network_value") return "current";
+  if (metric !== "chain_revenue") return "current";
 
   if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
   if (/(7d|week|weekly|hafta|son 7)/.test(text)) return "7d";
@@ -34,8 +34,8 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
-  if (/(rwa|real world asset|tokenized asset|tokenized rwa|network value|distributed rwa|represented rwa)/.test(text)) {
-    return "rwa_network_value";
+  if (/(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text)) {
+    return "buidl_network_value";
   }
 
   if (/(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text)) {
@@ -52,7 +52,7 @@ function parseMetric(text: string): QueryMetric {
 function metricLabel(metric: QueryMetric) {
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
   if (metric === "chain_tvl") return "DeFi TVL";
-  if (metric === "rwa_network_value") return "RWA Value";
+  if (metric === "buidl_network_value") return "Build";
   return "Revenue";
 }
 
@@ -66,15 +66,15 @@ export function parsePrompt(input: string): ParsedQuery {
   const metric = parseMetric(text);
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
-  const isRwa = metric === "rwa_network_value";
+  const isAssetMetric = metric === "buidl_network_value";
 
   return {
     limit,
     timeframe,
     metric,
-    scope: isRwa ? "assets" : "chains",
-    entity: isRwa ? "all_networks" : "all_chains",
+    scope: isAssetMetric ? "assets" : "chains",
+    entity: isAssetMetric ? "all_networks" : "all_chains",
     visualType: "leaderboard_card",
-    labels: [isRwa ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }

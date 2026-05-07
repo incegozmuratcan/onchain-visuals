@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
+import { getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
-import { getRwaValueByNetwork } from "@/lib/rwa";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +11,8 @@ export async function GET(request: NextRequest) {
 
   try {
     const data =
-      parsed.metric === "rwa_network_value"
-        ? await getRwaValueByNetwork(parsed.limit)
+      parsed.metric === "buidl_network_value"
+        ? await getBuidlValueByNetwork(parsed.limit)
         : parsed.metric === "chain_stablecoin_supply"
           ? await getStablecoinSupplyByChain(parsed.limit)
           : parsed.metric === "chain_tvl"

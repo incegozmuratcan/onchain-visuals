@@ -11,17 +11,22 @@ const timeframeOptions = ["24H", "7D", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
+  const isBuidl = /(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text);
   const isStablecoin = /(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text);
-  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+chains?/);
+  const isTvl = /(tvl|total value locked|defi tvl|liquidity locked|kilitli değer|kilitli deger)/.test(text);
+  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?)/);
   const rawLimit = Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10);
   const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10, 3), 30);
 
+  const isCurrentOnly = isBuidl || isStablecoin || isTvl;
   let timeframe = "30D";
-  if (isStablecoin) timeframe = "Current";
+  if (isCurrentOnly) timeframe = "Current";
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
-  return ["Chains", isStablecoin ? "Stablecoin Supply" : "Revenue", `Top ${limit}`, timeframe];
+  const category = isBuidl ? "Assets" : "Chains";
+  const metric = isBuidl ? "Build" : isStablecoin ? "Stablecoin Supply" : isTvl ? "DeFi TVL" : "Revenue";
+  return [category, metric, `Top ${limit}`, timeframe];
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -30,7 +35,7 @@ function replaceLimit(prompt: string, nextLimit: number) {
 }
 
 function replaceTimeframe(prompt: string, nextTimeframe: string) {
-  if (/stablecoin|stablecoins|supply/i.test(prompt)) return prompt;
+  if (/stablecoin|stablecoins|supply|tvl|buidl|build|blackrock/i.test(prompt)) return prompt;
   if (/(24h|7d|30d|daily|weekly|monthly)/i.test(prompt)) return prompt.replace(/(24h|7d|30d|daily|weekly|monthly)/i, nextTimeframe);
   return prompt.replace(/revenue/i, `${nextTimeframe} revenue`);
 }
@@ -53,7 +58,7 @@ export function PromptPanel({
   const liveLabels = parsePromptLabels(prompt || queryLabels.join(" "));
   const currentLimit = liveLabels.find((label) => label.startsWith("Top "))?.replace("Top ", "") ?? "10";
   const currentTimeframe = liveLabels.find((label) => ["24H", "7D", "30D", "Current"].includes(label)) ?? "30D";
-  const isStablecoin = liveLabels.some((label) => label.toLowerCase().includes("stablecoin"));
+  const isCurrentOnly = liveLabels.includes("Current");
 
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
@@ -108,11 +113,11 @@ export function PromptPanel({
           <select
             aria-label="Select timeframe"
             value={currentTimeframe}
-            disabled={isStablecoin}
+            disabled={isCurrentOnly}
             onChange={(event) => setPrompt(replaceTimeframe(prompt, event.target.value))}
             className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none disabled:text-slate-400"
           >
-            {isStablecoin ? <option value="Current">Current</option> : timeframeOptions.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
+            {isCurrentOnly ? <option value="Current">Current</option> : timeframeOptions.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
           </select>
         </div>
       </div>

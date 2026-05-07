@@ -22,6 +22,7 @@ export type ChainMetricResult = {
   eyebrow: string;
   description: string;
   methodology: string;
+  insight: string;
 };
 
 function toNumber(value: unknown): number {
@@ -86,14 +87,16 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
+  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
-    source: "DefiLlama Revenue by Chain",
+    source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint,
     title: `Top ${rows.length} chains by ${timeframe.toUpperCase()} revenue`,
     eyebrow: "Chain Revenue",
     description: "Chain-level revenue captured by networks. App and protocol revenues are excluded.",
+    insight: `${leader} leads ${timeframe.toUpperCase()} chain revenue among supported networks.`,
     methodology: "Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.",
   };
 }
@@ -161,14 +164,16 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
+  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
-    source: "DefiLlama Stablecoins by Chain",
+    source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint,
     title: `Top ${rows.length} chains by stablecoin supply`,
     eyebrow: "Stablecoin Supply",
     description: "Stablecoin supply held across chains. Growth and net-flow metrics are not included in this view yet.",
+    insight: `${leader} currently holds the largest stablecoin supply among supported chains.`,
     methodology: "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
   };
 }
@@ -192,14 +197,58 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
+  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
-    source: "DefiLlama Chains TVL",
+    source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint,
     title: `Top ${rows.length} chains by DeFi TVL`,
     eyebrow: "DeFi TVL",
     description: "Total value locked across DeFi protocols on each chain, tracked by DefiLlama.",
+    insight: `${leader} leads current DeFi TVL among supported chains.`,
     methodology: "Methodology: Current DeFi TVL by chain. Stablecoin supply, revenue and bridge flows are not included in this view.",
+  };
+}
+
+export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetricResult> {
+  const endpoint = "https://stablecoins.llama.fi/stablecoins?includePrices=true";
+  const json = await fetchJson(endpoint);
+  const assets = Array.isArray(json.peggedAssets) ? json.peggedAssets : [];
+  const buidl = assets.find((asset: any) => {
+    const name = String(asset.name ?? "").toLowerCase();
+    const symbol = String(asset.symbol ?? "").toLowerCase();
+    return name.includes("buidl") || symbol === "buidl";
+  });
+
+  if (!buidl) throw new Error("BUIDL data was not found in DefiLlama stable assets data.");
+
+  const chains = buidl?.chainCirculating && typeof buidl.chainCirculating === "object" ? Object.keys(buidl.chainCirculating) : [];
+  const rows: ChainRevenueRow[] = chains
+    .map((rawChain): ChainRevenueRow => {
+      const name = normalizeStablecoinChainName(rawChain);
+      return {
+        rank: 0,
+        name,
+        value: getStablecoinChainValue(buidl, rawChain),
+        logo: getChainLogo(name),
+      };
+    })
+    .filter((row) => row.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+
+  const leader = rows[0]?.name ?? "The leading network";
+  return {
+    rows,
+    source: "DefiLlama",
+    updatedAt: formatDateTime(),
+    endpoint,
+    title: `Top ${rows.length} networks by BUIDL value`,
+    eyebrow: "Build",
+    description: "BUIDL value by network, based on DefiLlama stable asset chain distribution.",
+    insight: `${leader} currently has the largest BUIDL value among supported networks.`,
+    methodology: "Methodology: BUIDL value by network from DefiLlama stable asset chain distribution. Values are grouped by network and shown in USD terms.",
   };
 }

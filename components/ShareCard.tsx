@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
@@ -19,6 +20,14 @@ function barWidth(value: number, maxValue?: number) {
   if (!maxValue || maxValue <= 0) return "0%";
   const pct = (value / maxValue) * 100;
   return `${Math.max(0.8, Math.min(100, pct))}%`;
+}
+
+function ChainLogo({ name, logo, compact }: { name: string; logo?: string | null; compact: boolean }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!logo || failed) return <>{getInitials(name)}</>;
+
+  return <img src={logo} alt={`${name} logo`} className="h-full w-full object-cover" onError={() => setFailed(true)} />;
 }
 
 export function ShareCard({
@@ -62,7 +71,7 @@ export function ShareCard({
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`${compact ? "h-6 w-6" : "h-7 w-7"} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500`}>
-                  {row.logo ? <img src={row.logo} alt="chain logo" className="h-full w-full object-cover" /> : getInitials(row.name)}
+                  <ChainLogo name={row.name} logo={row.logo} compact={compact} />
                 </div>
                 <div className={`${compact ? "text-sm" : "text-base"} truncate font-black text-slate-950`}>{row.name}</div>
               </div>

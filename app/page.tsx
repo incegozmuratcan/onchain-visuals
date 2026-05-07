@@ -18,6 +18,7 @@ type ApiResult = {
   eyebrow?: string;
   description?: string;
   methodology?: string;
+  insight?: string;
   query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
   error?: string;
 };
@@ -25,12 +26,13 @@ type ApiResult = {
 export default function Home() {
   const [prompt, setPrompt] = useState("Top 10 chains by 30D revenue");
   const [rows, setRows] = useState<ChainRevenueRow[]>([]);
-  const [source, setSource] = useState("DefiLlama Revenue by Chain");
+  const [source, setSource] = useState("DefiLlama");
   const [updatedAt, setUpdatedAt] = useState("-");
   const [title, setTitle] = useState("Top 10 chains by 30D revenue");
   const [eyebrow, setEyebrow] = useState("Chain Revenue");
   const [description, setDescription] = useState("Chain-level revenue captured by networks. App and protocol revenues are excluded.");
   const [methodology, setMethodology] = useState("Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.");
+  const [insight, setInsight] = useState("Ethereum leads chain revenue among supported networks.");
   const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Revenue", "Top 10", "30D"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,6 +57,7 @@ export default function Home() {
       setEyebrow(json.eyebrow || "learnDeFi Metric");
       setDescription(json.description || "A clean visual generated from supported DeFi datasets.");
       setMethodology(json.methodology || "Methodology: Source attribution is kept on every export.");
+      setInsight(json.insight || "Generated from supported learnDeFi data sources.");
       setQueryLabels(json.query?.labels || []);
       setHasGenerated(true);
     } catch (err) {
@@ -112,13 +115,10 @@ export default function Home() {
 
           {hasGenerated && (
             <div className="grid gap-4">
-              <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={methodology.replace(/^Methodology:\s*/i, "")} updatedAt={updatedAt} source={source} />
-              <div className="grid gap-3 md:grid-cols-[1fr_1fr]">
-                <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
-                  <Download size={18} /> Download X-ready PNG
-                </button>
-                <button disabled className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-400">Save this report — coming soon</button>
-              </div>
+              <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} />
+              <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
+                <Download size={18} /> Download PNG
+              </button>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
                 {methodology}
               </div>

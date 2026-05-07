@@ -83,15 +83,17 @@ export async function getRwaValueByNetwork(limit: number): Promise<ChainMetricRe
   }
 
   const rows = toMetricRows(parsedRows.length >= 3 ? parsedRows : RWA_NETWORK_SNAPSHOT, limit);
+  const leader = rows[0]?.name ?? "The leading network";
 
   return {
     rows,
-    source: "RWA.xyz Networks",
+    source: "RWA.xyz",
     updatedAt: formatDateTime(),
     endpoint,
     title: `Top ${rows.length} networks by RWA value`,
     eyebrow: "RWA Value",
     description: "Distributed tokenized real-world asset value by network, excluding stablecoins.",
+    insight: `${leader} leads distributed tokenized real-world asset value among supported networks.`,
     methodology: "Methodology: Distributed RWA value by network from RWA.xyz Networks. If the public table is unavailable at request time, learnDeFi uses the latest bundled public snapshot.",
   };
 }
