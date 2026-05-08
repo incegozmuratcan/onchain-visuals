@@ -70,6 +70,15 @@ export const datasetGroups: DatasetGroup[] = [
     name: "Protocols",
     description: "Protocol-level revenue, fees, TVL and efficiency views.",
     metrics: [
+      {
+        id: "depin_revenue",
+        label: "DePIN",
+        status: "active",
+        queries: [
+          { id: "depin_revenue_30d", label: "DePIN · 30D annualized", prompt: "Top 10 DePIN projects by 30D annualized revenue", status: "active", source: "DePIN Pulse", chip: "30D" },
+          { id: "depin_revenue_24h", label: "DePIN · 24H", prompt: "Top 10 DePIN projects by 24H revenue", status: "active", source: "DePIN Pulse", chip: "24H" },
+        ],
+      },
       { id: "protocol_revenue", label: "Revenue", status: "coming_soon", queries: [{ id: "protocol_revenue_30d", label: "Protocol revenue", prompt: "Top 10 protocols by 30D revenue", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
       { id: "protocol_fees", label: "Fees", status: "coming_soon", queries: [{ id: "protocol_fees_30d", label: "Protocol fees", prompt: "Top 10 protocols by 30D fees", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
     ],
@@ -94,15 +103,6 @@ export const datasetGroups: DatasetGroup[] = [
       { id: "chain_avg_tx_fee", label: "Tx Fee", status: "active", queries: [{ id: "chain_avg_tx_fee", label: "Avg tx fee by chain", prompt: "Top 10 chains by avg tx fee", status: "active", source: "Chainspect", chip: "Fee" }] },
       { id: "chain_developers", label: "Developers", status: "active", queries: [{ id: "chain_developers", label: "Developers by chain", prompt: "Top 10 chains by developers", status: "active", source: "Chainspect", chip: "Devs" }] },
       { id: "network_fundamentals", label: "Network fundamentals", status: "coming_soon", queries: [{ id: "network_fundamentals_compare", label: "Compare chain fundamentals", prompt: "Compare chains by TPS and finality", status: "coming_soon", source: "Chainspect", chip: "Soon" }] },
-    ],
-  },
-  {
-    id: "depin",
-    name: "DePIN",
-    description: "Revenue views for decentralized physical infrastructure projects.",
-    metrics: [
-      { id: "depin_revenue_30d", label: "30D Annualized Revenue", status: "active", queries: [{ id: "depin_revenue_30d", label: "DePIN revenue · 30D annualized", prompt: "Top 10 DePIN projects by 30D annualized revenue", status: "active", source: "DePIN Pulse", chip: "30D" }] },
-      { id: "depin_revenue_24h", label: "24H Revenue", status: "active", queries: [{ id: "depin_revenue_24h", label: "DePIN revenue · 24H", prompt: "Top 10 DePIN projects by 24H revenue", status: "active", source: "DePIN Pulse", chip: "24H" }] },
     ],
   },
 ];
