@@ -1,13 +1,13 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time" | "chain_avg_tx_fee" | "chain_developers";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time" | "chain_avg_tx_fee" | "chain_developers" | "depin_revenue";
 
 export type ParsedQuery = {
   limit: number;
   timeframe: Timeframe;
   metric: QueryMetric;
-  scope: "chains" | "assets" | "infrastructure" | "developers";
-  entity: "all_chains" | "all_networks";
+  scope: "chains" | "assets" | "infrastructure" | "developers" | "depin";
+  entity: "all_chains" | "all_networks" | "all_projects";
   visualType: "leaderboard_card";
   labels: string[];
 };
@@ -21,11 +21,15 @@ function clampLimit(value: number) {
 }
 
 function parseLimit(text: string) {
-  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?)/);
+  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?|projects?)/);
   return clampLimit(Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10));
 }
 
 function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
+  if (metric === "depin_revenue") {
+    if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
+    return "30d";
+  }
   if (metric !== "chain_revenue") return "current";
   if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
   if (/(7d|week|weekly|hafta|son 7)/.test(text)) return "7d";
@@ -33,6 +37,7 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
+  if (/(depin|physical infrastructure|infrastructure network)/.test(text)) return "depin_revenue";
   if (/(developers|developer|devs|dev count|geliştirici|gelistirici)/.test(text)) return "chain_developers";
   if (/(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text)) return "chain_avg_tx_fee";
   if (/(block time|blocktime|blok süresi|blok suresi)/.test(text)) return "chain_block_time";
@@ -45,6 +50,7 @@ function parseMetric(text: string): QueryMetric {
 }
 
 function metricLabel(metric: QueryMetric) {
+  if (metric === "depin_revenue") return "Revenue";
   if (metric === "chain_developers") return "Developers";
   if (metric === "chain_avg_tx_fee") return "Avg Tx Fee";
   if (metric === "chain_block_time") return "Block Time";
@@ -66,6 +72,7 @@ export function parsePrompt(input: string): ParsedQuery {
   const metric = parseMetric(text);
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
+  const isDepinMetric = metric === "depin_revenue";
   const isAssetMetric = metric === "buidl_network_value" || metric === "benji_network_value";
   const isDeveloperMetric = metric === "chain_developers";
   const isInfrastructureMetric = metric === "chain_realtime_tps" || metric === "chain_block_time" || metric === "chain_avg_tx_fee";
@@ -74,9 +81,9 @@ export function parsePrompt(input: string): ParsedQuery {
     limit,
     timeframe,
     metric,
-    scope: isDeveloperMetric ? "developers" : isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
-    entity: "all_chains",
+    scope: isDepinMetric ? "depin" : isDeveloperMetric ? "developers" : isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
+    entity: isDepinMetric ? "all_projects" : "all_chains",
     visualType: "leaderboard_card",
-    labels: [isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isDepinMetric ? "DePIN" : isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }
