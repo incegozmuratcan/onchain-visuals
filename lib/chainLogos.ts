@@ -2,18 +2,27 @@ type ChainIdentity = {
   name: string;
   aliases: string[];
   slug: string;
+  logoCandidates?: string[];
 };
+
+function llamaChain(slug: string) {
+  return `https://icons.llama.fi/chains/rsz_${slug}.jpg`;
+}
+
+function llamaIcon(slug: string) {
+  return `https://icons.llama.fi/${slug}.jpg`;
+}
 
 const identities: ChainIdentity[] = [
   { name: "Ethereum", aliases: ["ethereum", "eth"], slug: "ethereum" },
   { name: "Solana", aliases: ["solana", "sol"], slug: "solana" },
   { name: "Tron", aliases: ["tron", "trx"], slug: "tron" },
-  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc" },
-  { name: "Base", aliases: ["base"], slug: "base" },
+  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc", logoCandidates: [llamaChain("bsc"), llamaIcon("bsc")] },
+  { name: "Base", aliases: ["base"], slug: "base", logoCandidates: [llamaChain("base"), llamaIcon("base")] },
   { name: "Arbitrum", aliases: ["arbitrum", "arbitrum one"], slug: "arbitrum" },
   { name: "Polygon", aliases: ["polygon", "polygon pos", "matic"], slug: "polygon" },
-  { name: "Avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], slug: "avalanche" },
-  { name: "OP Mainnet", aliases: ["op mainnet", "optimism", "op"], slug: "optimism" },
+  { name: "Avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], slug: "avalanche", logoCandidates: [llamaChain("avalanche"), llamaIcon("avax")] },
+  { name: "OP Mainnet", aliases: ["op mainnet", "optimism", "op"], slug: "optimism", logoCandidates: [llamaChain("optimism"), llamaIcon("optimism")] },
   { name: "Aptos", aliases: ["aptos"], slug: "aptos" },
   { name: "Stellar", aliases: ["stellar", "xlm"], slug: "stellar" },
   { name: "XRP Ledger", aliases: ["xrp ledger", "xrpl", "ripple"], slug: "ripple" },
@@ -26,7 +35,7 @@ const identities: ChainIdentity[] = [
   { name: "Algorand", aliases: ["algorand", "algo"], slug: "algorand" },
   { name: "Plume", aliases: ["plume", "plume mainnet"], slug: "plume" },
   { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era"], slug: "zksync era" },
-  { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid" },
+  { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid", logoCandidates: [llamaChain("hyperliquid"), llamaIcon("hyperliquid")] },
   { name: "Canton", aliases: ["canton", "canton network"], slug: "canton-network" },
   { name: "Abstract", aliases: ["abstract"], slug: "abstract" },
   { name: "Bitcoin", aliases: ["bitcoin", "btc"], slug: "bitcoin" },
@@ -42,8 +51,13 @@ const identities: ChainIdentity[] = [
   { name: "Plasma", aliases: ["plasma"], slug: "plasma" },
   { name: "Provenance", aliases: ["provenance"], slug: "provenance" },
   { name: "Saga", aliases: ["saga"], slug: "saga" },
-  { name: "Starknet", aliases: ["starknet", "starknet"], slug: "starknet" },
+  { name: "Starknet", aliases: ["starknet"], slug: "starknet" },
   { name: "X Layer", aliases: ["x layer", "xlayer"], slug: "x-layer" },
+  { name: "Katana", aliases: ["katana"], slug: "katana" },
+  { name: "Movement", aliases: ["movement"], slug: "movement" },
+  { name: "Flare", aliases: ["flare"], slug: "flare" },
+  { name: "Stacks", aliases: ["stacks", "stx"], slug: "stacks" },
+  { name: "Rootstock", aliases: ["rootstock", "rsk"], slug: "rootstock" },
 ];
 
 const aliasMap = new Map<string, ChainIdentity>();
@@ -70,10 +84,19 @@ export function normalizeChainName(name: string) {
   return getChainIdentity(name).name;
 }
 
-export function getChainLogo(name: string, logo?: string | null) {
-  if (logo && /^https:\/\//.test(logo)) return logo;
+export function getChainLogoCandidates(name: string, logo?: string | null) {
   const identity = getChainIdentity(name);
-  return `https://icons.llama.fi/chains/rsz_${identity.slug}.jpg`;
+  const candidates = [
+    ...(logo && /^https:\/\//.test(logo) ? [logo] : []),
+    ...(identity.logoCandidates ?? []),
+    llamaChain(identity.slug),
+    llamaIcon(identity.slug),
+  ];
+  return Array.from(new Set(candidates));
+}
+
+export function getChainLogo(name: string, logo?: string | null) {
+  return getChainLogoCandidates(name, logo)[0] ?? null;
 }
 
 export function getInitials(name: string) {
