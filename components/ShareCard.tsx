@@ -22,6 +22,13 @@ function barWidth(value: number, maxValue?: number) {
   return `${Math.max(0.8, Math.min(100, pct))}%`;
 }
 
+function formatNumber(value: number, suffix?: string) {
+  const formatted = new Intl.NumberFormat("en-US", {
+    maximumFractionDigits: value >= 100 ? 0 : value >= 10 ? 1 : 2,
+  }).format(value);
+  return suffix ? `${formatted} ${suffix}` : formatted;
+}
+
 function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact: boolean }) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
@@ -47,6 +54,8 @@ export function ShareCard({
   eyebrow,
   description,
   insight,
+  valueFormat = "usd",
+  valueSuffix = "",
 }: {
   rows: ChainRevenueRow[];
   updatedAt: string;
@@ -55,6 +64,8 @@ export function ShareCard({
   eyebrow: string;
   description: string;
   insight: string;
+  valueFormat?: "usd" | "number";
+  valueSuffix?: string;
 }) {
   const leader = rows[0];
   const count = rows.length;
@@ -75,6 +86,7 @@ export function ShareCard({
         {rows.map((row) => {
           const compact = count > 10;
           const width = barWidth(row.value, leader?.value);
+          const valueLabel = valueFormat === "number" ? formatNumber(row.value, valueSuffix) : formatUsd(row.value);
           return (
             <div key={row.name} className="grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]">
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
@@ -87,7 +99,7 @@ export function ShareCard({
               <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-100`}>
                 <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-950`} style={{ width }} />
               </div>
-              <div className="text-right text-sm font-black text-slate-950 md:text-base">{formatUsd(row.value)}</div>
+              <div className="text-right text-sm font-black text-slate-950 md:text-base">{valueLabel}</div>
             </div>
           );
         })}
