@@ -13,16 +13,20 @@ function llamaIcon(slug: string) {
   return `https://icons.llama.fi/${slug}.jpg`;
 }
 
+function coinLogo(id: string) {
+  return `https://assets.coingecko.com/coins/images/${id}/large.png`;
+}
+
 const identities: ChainIdentity[] = [
   { name: "Ethereum", aliases: ["ethereum", "eth"], slug: "ethereum" },
   { name: "Solana", aliases: ["solana", "sol"], slug: "solana" },
   { name: "Tron", aliases: ["tron", "trx"], slug: "tron" },
-  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc", logoCandidates: [llamaChain("bsc"), llamaIcon("bsc")] },
-  { name: "Base", aliases: ["base"], slug: "base", logoCandidates: [llamaChain("base"), llamaIcon("base")] },
+  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc", logoCandidates: [llamaChain("bsc"), llamaIcon("bsc"), coinLogo("825")] },
+  { name: "Base", aliases: ["base"], slug: "base", logoCandidates: [llamaChain("base"), llamaIcon("base"), coinLogo("31199")] },
   { name: "Arbitrum", aliases: ["arbitrum", "arbitrum one"], slug: "arbitrum" },
   { name: "Polygon", aliases: ["polygon", "polygon pos", "matic"], slug: "polygon" },
-  { name: "Avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], slug: "avalanche", logoCandidates: [llamaChain("avalanche"), llamaIcon("avax")] },
-  { name: "OP Mainnet", aliases: ["op mainnet", "optimism", "op"], slug: "optimism", logoCandidates: [llamaChain("optimism"), llamaIcon("optimism")] },
+  { name: "Avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], slug: "avalanche", logoCandidates: [llamaChain("avalanche"), llamaIcon("avax"), coinLogo("12559")] },
+  { name: "OP Mainnet", aliases: ["op mainnet", "optimism", "op"], slug: "optimism", logoCandidates: [llamaChain("optimism"), llamaIcon("optimism"), coinLogo("25244")] },
   { name: "Aptos", aliases: ["aptos"], slug: "aptos" },
   { name: "Stellar", aliases: ["stellar", "xlm"], slug: "stellar" },
   { name: "XRP Ledger", aliases: ["xrp ledger", "xrpl", "ripple"], slug: "ripple" },
@@ -35,7 +39,7 @@ const identities: ChainIdentity[] = [
   { name: "Algorand", aliases: ["algorand", "algo"], slug: "algorand" },
   { name: "Plume", aliases: ["plume", "plume mainnet"], slug: "plume" },
   { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era"], slug: "zksync era" },
-  { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid", logoCandidates: [llamaChain("hyperliquid"), llamaIcon("hyperliquid")] },
+  { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid", logoCandidates: [llamaChain("hyperliquid"), llamaIcon("hyperliquid"), coinLogo("50882")] },
   { name: "Canton", aliases: ["canton", "canton network"], slug: "canton-network" },
   { name: "Abstract", aliases: ["abstract"], slug: "abstract" },
   { name: "Bitcoin", aliases: ["bitcoin", "btc"], slug: "bitcoin" },
@@ -45,11 +49,11 @@ const identities: ChainIdentity[] = [
   { name: "Fantom", aliases: ["fantom"], slug: "fantom" },
   { name: "Ink", aliases: ["ink"], slug: "ink" },
   { name: "Kaia", aliases: ["kaia"], slug: "kaia" },
-  { name: "MegaETH", aliases: ["megaeth", "mega eth"], slug: "megaeth" },
+  { name: "MegaETH", aliases: ["megaeth", "mega eth"], slug: "megaeth", logoCandidates: [llamaChain("megaeth"), llamaIcon("megaeth")] },
   { name: "Monad", aliases: ["monad"], slug: "monad" },
   { name: "Near", aliases: ["near"], slug: "near" },
   { name: "Plasma", aliases: ["plasma"], slug: "plasma" },
-  { name: "Provenance", aliases: ["provenance"], slug: "provenance" },
+  { name: "Provenance", aliases: ["provenance"], slug: "provenance", logoCandidates: [llamaChain("provenance"), llamaIcon("provenance")] },
   { name: "Saga", aliases: ["saga"], slug: "saga" },
   { name: "Starknet", aliases: ["starknet"], slug: "starknet" },
   { name: "X Layer", aliases: ["x layer", "xlayer"], slug: "x-layer" },
