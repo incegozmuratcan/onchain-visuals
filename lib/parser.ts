@@ -1,12 +1,12 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps";
 
 export type ParsedQuery = {
   limit: number;
   timeframe: Timeframe;
   metric: QueryMetric;
-  scope: "chains" | "assets";
+  scope: "chains" | "assets" | "infrastructure";
   entity: "all_chains" | "all_networks";
   visualType: "leaderboard_card";
   labels: string[];
@@ -34,6 +34,10 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
+  if (/(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text)) {
+    return "chain_realtime_tps";
+  }
+
   if (/(benji|franklin|benjamin)/.test(text)) {
     return "benji_network_value";
   }
@@ -54,6 +58,7 @@ function parseMetric(text: string): QueryMetric {
 }
 
 function metricLabel(metric: QueryMetric) {
+  if (metric === "chain_realtime_tps") return "Real-time TPS";
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
   if (metric === "chain_tvl") return "DeFi TVL";
   if (metric === "buidl_network_value") return "Build";
@@ -72,14 +77,15 @@ export function parsePrompt(input: string): ParsedQuery {
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
   const isAssetMetric = metric === "buidl_network_value" || metric === "benji_network_value";
+  const isInfrastructureMetric = metric === "chain_realtime_tps";
 
   return {
     limit,
     timeframe,
     metric,
-    scope: isAssetMetric ? "assets" : "chains",
-    entity: isAssetMetric ? "all_networks" : "all_chains",
+    scope: isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
+    entity: "all_chains",
     visualType: "leaderboard_card",
-    labels: [isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }
