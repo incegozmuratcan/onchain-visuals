@@ -96,6 +96,15 @@ export const datasetGroups: DatasetGroup[] = [
       { id: "network_fundamentals", label: "Network fundamentals", status: "coming_soon", queries: [{ id: "network_fundamentals_compare", label: "Compare chain fundamentals", prompt: "Compare chains by TPS and finality", status: "coming_soon", source: "Chainspect", chip: "Soon" }] },
     ],
   },
+  {
+    id: "depin",
+    name: "DePIN",
+    description: "Revenue views for decentralized physical infrastructure projects.",
+    metrics: [
+      { id: "depin_revenue_30d", label: "30D Annualized Revenue", status: "active", queries: [{ id: "depin_revenue_30d", label: "DePIN revenue · 30D annualized", prompt: "Top 10 DePIN projects by 30D annualized revenue", status: "active", source: "DePIN Pulse", chip: "30D" }] },
+      { id: "depin_revenue_24h", label: "24H Revenue", status: "active", queries: [{ id: "depin_revenue_24h", label: "DePIN revenue · 24H", prompt: "Top 10 DePIN projects by 24H revenue", status: "active", source: "DePIN Pulse", chip: "24H" }] },
+    ],
+  },
 ];
 
 export const activeQueries = datasetGroups.flatMap((group) =>
