@@ -1,12 +1,12 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time" | "chain_avg_tx_fee";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time" | "chain_avg_tx_fee" | "chain_developers";
 
 export type ParsedQuery = {
   limit: number;
   timeframe: Timeframe;
   metric: QueryMetric;
-  scope: "chains" | "assets" | "infrastructure";
+  scope: "chains" | "assets" | "infrastructure" | "developers";
   entity: "all_chains" | "all_networks";
   visualType: "leaderboard_card";
   labels: string[];
@@ -33,6 +33,7 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
+  if (/(developers|developer|devs|dev count|geliştirici|gelistirici)/.test(text)) return "chain_developers";
   if (/(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text)) return "chain_avg_tx_fee";
   if (/(block time|blocktime|blok süresi|blok suresi)/.test(text)) return "chain_block_time";
   if (/(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text)) return "chain_realtime_tps";
@@ -44,6 +45,7 @@ function parseMetric(text: string): QueryMetric {
 }
 
 function metricLabel(metric: QueryMetric) {
+  if (metric === "chain_developers") return "Developers";
   if (metric === "chain_avg_tx_fee") return "Avg Tx Fee";
   if (metric === "chain_block_time") return "Block Time";
   if (metric === "chain_realtime_tps") return "Real-time TPS";
@@ -65,15 +67,16 @@ export function parsePrompt(input: string): ParsedQuery {
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
   const isAssetMetric = metric === "buidl_network_value" || metric === "benji_network_value";
+  const isDeveloperMetric = metric === "chain_developers";
   const isInfrastructureMetric = metric === "chain_realtime_tps" || metric === "chain_block_time" || metric === "chain_avg_tx_fee";
 
   return {
     limit,
     timeframe,
     metric,
-    scope: isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
+    scope: isDeveloperMetric ? "developers" : isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
     entity: "all_chains",
     visualType: "leaderboard_card",
-    labels: [isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }

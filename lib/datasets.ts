@@ -95,6 +95,14 @@ export const datasetGroups: DatasetGroup[] = [
       { id: "network_fundamentals", label: "Network fundamentals", status: "coming_soon", queries: [{ id: "network_fundamentals_compare", label: "Compare chain fundamentals", prompt: "Compare chains by TPS and finality", status: "coming_soon", source: "Chainspect", chip: "Soon" }] },
     ],
   },
+  {
+    id: "developers",
+    name: "Developers",
+    description: "Developer activity signals for ecosystem health.",
+    metrics: [
+      { id: "chain_developers", label: "Developers", status: "active", queries: [{ id: "chain_developers", label: "Developers by chain", prompt: "Top 10 chains by developers", status: "active", source: "Chainspect", chip: "Devs" }] },
+    ],
+  },
 ];
 
 export const activeQueries = datasetGroups.flatMap((group) =>
