@@ -25,9 +25,9 @@ function parsePromptLabels(prompt: string) {
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
-  const category = isBenji || isBuidl ? "Assets" : "Chains";
-  const metric = isBenji ? "BENJI" : isBuidl ? "Build" : isStablecoin ? "Stablecoin Supply" : isTvl ? "DeFi TVL" : "Revenue";
-  return [category, metric, `Top ${limit}`, timeframe];
+  const scope = isBenji || isBuidl ? "Networks" : "Chains";
+  const metric = isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
+  return { scope, metric, limit, timeframe, isCurrentOnly };
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -56,10 +56,10 @@ export function PromptPanel({
   activeDataset: ActiveDataset;
   queryLabels: string[];
 }) {
-  const liveLabels = parsePromptLabels(prompt || queryLabels.join(" "));
-  const currentLimit = liveLabels.find((label) => label.startsWith("Top "))?.replace("Top ", "") ?? "10";
-  const currentTimeframe = liveLabels.find((label) => ["24H", "7D", "30D", "Current"].includes(label)) ?? "30D";
-  const isCurrentOnly = liveLabels.includes("Current");
+  const detected = parsePromptLabels(prompt || queryLabels.join(" "));
+  const currentLimit = String(detected.limit);
+  const currentTimeframe = detected.timeframe;
+  const isCurrentOnly = detected.isCurrentOnly;
 
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
@@ -94,12 +94,6 @@ export function PromptPanel({
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Detected query</div>
         <div className="flex flex-wrap gap-2">
-          {liveLabels.filter((label) => !label.startsWith("Top ") && !["24H", "7D", "30D", "Current"].includes(label)).map((label) => (
-            <span key={label} className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
-              {label}
-            </span>
-          ))}
-
           <select
             aria-label="Select result count"
             value={currentLimit}
@@ -111,6 +105,10 @@ export function PromptPanel({
             ))}
           </select>
 
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
+            {detected.scope}
+          </span>
+
           {!isCurrentOnly && (
             <select
               aria-label="Select timeframe"
@@ -121,15 +119,11 @@ export function PromptPanel({
               {timeframeOptions.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
             </select>
           )}
-        </div>
-      </div>
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {activeDataset.examplePrompts.map((example) => (
-          <button key={example} onClick={() => setPrompt(example)} className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:border-slate-400">
-            {example}
-          </button>
-        ))}
+          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
+            {detected.metric}
+          </span>
+        </div>
       </div>
     </div>
   );
