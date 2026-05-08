@@ -49,7 +49,7 @@ export const datasetGroups: DatasetGroup[] = [
       },
       {
         id: "chain_tvl",
-        label: "DeFi TVL",
+        label: "TVL",
         status: "active",
         queries: [
           { id: "chain_tvl_current", label: "DeFi TVL by chain", prompt: "Top 10 chains by DeFi TVL", status: "active", source: "DefiLlama", chip: "TVL" },
@@ -60,7 +60,7 @@ export const datasetGroups: DatasetGroup[] = [
         label: "Net Flows",
         status: "coming_soon",
         queries: [
-          { id: "chain_net_flows_1d", label: "Net flows by chain", prompt: "Top 10 chains by 1D net inflow", status: "coming_soon", source: "Artemis / DefiLlama", chip: "Soon" },
+          { id: "chain_net_flows_1d", label: "Net flows by chain", prompt: "Top 10 chains by 1D net inflow", status: "coming_soon", source: "Artemis", chip: "Soon" },
         ],
       },
     ],
