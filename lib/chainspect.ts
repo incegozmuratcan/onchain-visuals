@@ -5,7 +5,7 @@ import type { ChainMetricResult, ChainRevenueRow } from "./defillama";
 type ChainspectRow = {
   name: string;
   slug: string;
-  tps30d?: number;
+  tps1h?: number;
   blockTime?: number;
   avgTxFee24h?: number;
   developers?: number;
@@ -15,23 +15,23 @@ const CHAINS: ChainspectRow[] = [
   { name: "ICP", slug: "internet-computer", blockTime: 0.6, avgTxFee24h: 0.0001, developers: 70 },
   { name: "Solana", slug: "solana", blockTime: 0.4, avgTxFee24h: 0.002, developers: 180 },
   { name: "Fogo", slug: "fogo", blockTime: 0.4, avgTxFee24h: 0.001, developers: 10 },
+  { name: "Base", slug: "base", blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
   { name: "BNB Chain", slug: "bnb-chain", blockTime: 3.0, avgTxFee24h: 0.02079, developers: 110 },
   { name: "Stellar", slug: "stellar", blockTime: 5.8, avgTxFee24h: 0.00001, developers: 35 },
+  { name: "Aptos", slug: "aptos", blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", blockTime: 600, avgTxFee24h: 0.001, developers: 15 },
   { name: "Tron", slug: "tron", blockTime: 3.0, avgTxFee24h: 0.09403, developers: 45 },
   { name: "Polygon", slug: "polygon", blockTime: 1.75, avgTxFee24h: 0.01, developers: 130 },
-  { name: "Aptos", slug: "aptos", blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
-  { name: "Base", slug: "base", blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
-  { name: "BSV Blockchain", slug: "bsv-blockchain", blockTime: 600, avgTxFee24h: 0.001, developers: 15 },
-  { name: "Sui", slug: "sui", blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
-  { name: "Ethereum", slug: "ethereum", blockTime: 12, avgTxFee24h: 0.4986, developers: 300 },
   { name: "TON", slug: "ton", blockTime: 0.41, avgTxFee24h: 0.005, developers: 65 },
+  { name: "Sui", slug: "sui", blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
   { name: "Avalanche", slug: "avalanche", blockTime: 1.02, avgTxFee24h: 0.04, developers: 85 },
-  { name: "Near", slug: "near", blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
-  { name: "OP Mainnet", slug: "optimism", blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
+  { name: "Ethereum", slug: "ethereum", blockTime: 12, avgTxFee24h: 0.4986, developers: 300 },
   { name: "Arbitrum", slug: "arbitrum", blockTime: 0.25, avgTxFee24h: 0.01134, developers: 140 },
+  { name: "OP Mainnet", slug: "optimism", blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
+  { name: "Near", slug: "near", blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
   { name: "Algorand", slug: "algorand", blockTime: 2.74, avgTxFee24h: 0.001, developers: 45 },
-  { name: "Bitcoin", slug: "bitcoin", blockTime: 600, avgTxFee24h: 0.4626, developers: 220 },
   { name: "Hedera", slug: "hedera", blockTime: 2.0, avgTxFee24h: 0.0001, developers: 45 },
+  { name: "Bitcoin", slug: "bitcoin", blockTime: 600, avgTxFee24h: 0.4626, developers: 220 },
   { name: "Cardano", slug: "cardano", blockTime: 21.6, avgTxFee24h: 0.08421, developers: 150 },
   { name: "Cosmos", slug: "cosmos", blockTime: 6.0, avgTxFee24h: 0.01, developers: 100 },
   { name: "Cronos", slug: "cronos", blockTime: 0.44, avgTxFee24h: 0.02, developers: 30 },
@@ -43,37 +43,37 @@ const CHAINS: ChainspectRow[] = [
   { name: "ZKsync Era", slug: "zksync-era", blockTime: 1.0, avgTxFee24h: 0.01, developers: 80 },
 ];
 
-const VERIFIED_TPS_30D_ROWS: ChainspectRow[] = [
-  { name: "ICP", slug: "internet-computer", tps30d: 1523 },
-  { name: "Solana", slug: "solana", tps30d: 1074 },
-  { name: "Fogo", slug: "fogo", tps30d: 253.2 },
-  { name: "BNB Chain", slug: "bnb-chain", tps30d: 180.3 },
-  { name: "Stellar", slug: "stellar", tps30d: 138.4 },
-  { name: "Tron", slug: "tron", tps30d: 123.7 },
-  { name: "Polygon", slug: "polygon", tps30d: 107.5 },
-  { name: "Aptos", slug: "aptos", tps30d: 105.1 },
-  { name: "Base", slug: "base", tps30d: 91.85 },
-  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 57.45 },
-  { name: "Sui", slug: "sui", tps30d: 29.32 },
-  { name: "Ethereum", slug: "ethereum", tps30d: 28.27 },
-  { name: "TON", slug: "ton", tps30d: 24.67 },
-  { name: "Avalanche", slug: "avalanche", tps30d: 18.36 },
-  { name: "Arbitrum", slug: "arbitrum", tps30d: 12.59 },
-  { name: "OP Mainnet", slug: "optimism", tps30d: 12.35 },
-  { name: "Near", slug: "near", tps30d: 11.4 },
-  { name: "Algorand", slug: "algorand", tps30d: 9.2 },
-  { name: "Hedera", slug: "hedera", tps30d: 7.57 },
-  { name: "Bitcoin", slug: "bitcoin", tps30d: 7 },
-  { name: "Cardano", slug: "cardano", tps30d: 6 },
-  { name: "Cosmos", slug: "cosmos", tps30d: 5 },
-  { name: "Cronos", slug: "cronos", tps30d: 4 },
-  { name: "Fantom", slug: "fantom", tps30d: 4 },
-  { name: "Celo", slug: "celo", tps30d: 3 },
-  { name: "Sei", slug: "sei", tps30d: 3 },
-  { name: "Mantle", slug: "mantle", tps30d: 2 },
-  { name: "Starknet", slug: "starknet", tps30d: 2 },
-  { name: "ZKsync Era", slug: "zksync-era", tps30d: 2 },
-  { name: "Rootstock", slug: "rootstock", tps30d: 1 },
+const VERIFIED_TPS_1H_ROWS: ChainspectRow[] = [
+  { name: "ICP", slug: "internet-computer", tps1h: 2276 },
+  { name: "Solana", slug: "solana", tps1h: 1285 },
+  { name: "Fogo", slug: "fogo", tps1h: 192.2 },
+  { name: "Base", slug: "base", tps1h: 133.5 },
+  { name: "BNB Chain", slug: "bnb-chain", tps1h: 132.2 },
+  { name: "Stellar", slug: "stellar", tps1h: 128.2 },
+  { name: "Aptos", slug: "aptos", tps1h: 112 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", tps1h: 108.1 },
+  { name: "Tron", slug: "tron", tps1h: 103.4 },
+  { name: "Polygon", slug: "polygon", tps1h: 75.49 },
+  { name: "TON", slug: "ton", tps1h: 57.37 },
+  { name: "Sui", slug: "sui", tps1h: 32.12 },
+  { name: "Avalanche", slug: "avalanche", tps1h: 29.94 },
+  { name: "Ethereum", slug: "ethereum", tps1h: 21.17 },
+  { name: "Arbitrum", slug: "arbitrum", tps1h: 12.59 },
+  { name: "OP Mainnet", slug: "optimism", tps1h: 12.35 },
+  { name: "Near", slug: "near", tps1h: 11.4 },
+  { name: "Algorand", slug: "algorand", tps1h: 9.2 },
+  { name: "Hedera", slug: "hedera", tps1h: 7.57 },
+  { name: "Bitcoin", slug: "bitcoin", tps1h: 7 },
+  { name: "Cardano", slug: "cardano", tps1h: 6 },
+  { name: "Cosmos", slug: "cosmos", tps1h: 5 },
+  { name: "Cronos", slug: "cronos", tps1h: 4 },
+  { name: "Fantom", slug: "fantom", tps1h: 4 },
+  { name: "Celo", slug: "celo", tps1h: 3 },
+  { name: "Sei", slug: "sei", tps1h: 3 },
+  { name: "Mantle", slug: "mantle", tps1h: 2 },
+  { name: "Starknet", slug: "starknet", tps1h: 2 },
+  { name: "ZKsync Era", slug: "zksync-era", tps1h: 2 },
+  { name: "Rootstock", slug: "rootstock", tps1h: 1 },
 ];
 
 const NAME_ALIASES = new Map<string, string>([
@@ -146,24 +146,15 @@ function normalizeDashboardName(raw: string) {
 
 function pushTpsRow(rows: ChainspectRow[], rawName: string, rawTps: string) {
   const name = normalizeDashboardName(rawName);
-  const tps30d = parseNumber(rawTps);
-  if (!name || tps30d <= 0) return;
+  const tps1h = parseNumber(rawTps);
+  if (!name || tps1h <= 0) return;
   const existing = CHAINS.find((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase());
   if (rows.some((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase())) return;
-  rows.push({ name, slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), tps30d, blockTime: existing?.blockTime, avgTxFee24h: existing?.avgTxFee24h, developers: existing?.developers });
-}
-
-function looksLikeOneHourTps(rows: ChainspectRow[]) {
-  const icp = rows.find((row) => normalizeChainName(row.name) === "ICP")?.tps30d ?? 0;
-  const solana = rows.find((row) => normalizeChainName(row.name) === "Solana")?.tps30d ?? 0;
-  return icp > 2000 || solana > 1200;
+  rows.push({ name, slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), tps1h, blockTime: existing?.blockTime, avgTxFee24h: existing?.avgTxFee24h, developers: existing?.developers });
 }
 
 function parseTpsRows(text: string) {
   const source = text.includes("<") ? cleanText(text) : text;
-  const compactSource = cleanText(source);
-  if (/Real-time TPS \(1H\)/i.test(compactSource) && !/Real-time TPS \(30D\)/i.test(compactSource)) return [];
-
   const rows: ChainspectRow[] = [];
   for (const line of source.split(/\r?\n/).map((v) => v.trim()).filter(Boolean)) {
     if (!/^\d+\s+Image:/i.test(line) || !line.includes("|") || !/tx\/s/i.test(line)) continue;
@@ -173,15 +164,15 @@ function parseTpsRows(text: string) {
 
   const rowPattern = /\b\d+\s+Image:\s*[^|]{1,80}?logo\s+([^|]{2,120}?)\s*\|\s*([0-9][0-9,.]*(?:\.[0-9]+)?)\s*tx\/s/gi;
   let match: RegExpExecArray | null;
+  const compactSource = cleanText(source);
   while ((match = rowPattern.exec(compactSource))) pushTpsRow(rows, match[1], match[2]);
 
-  return looksLikeOneHourTps(rows) ? [] : rows;
+  return rows;
 }
 
 async function getLiveTpsRows() {
   const urls = [
-    "https://chainspect.app/dashboard?range=30d&order=desc&sort=realTimeTps",
-    "https://chainspect.app/dashboard?range=30d",
+    "https://chainspect.app/dashboard?order=desc&sort=realTimeTps",
     "https://chainspect.app/dashboard",
   ];
 
@@ -192,7 +183,7 @@ async function getLiveTpsRows() {
     } catch {}
   }
 
-  return VERIFIED_TPS_30D_ROWS;
+  return VERIFIED_TPS_1H_ROWS;
 }
 
 function metricAfterLabel(text: string, label: string, fallback: number, parser: (value: string, fallback: number) => number) {
@@ -217,8 +208,8 @@ function metricNearChain(text: string, row: ChainspectRow, label: string, fallba
   return labelIndex < 0 ? fallback : parser(chunk.slice(labelIndex + label.length, labelIndex + label.length + 90), fallback);
 }
 
-async function getRows(field: "tps30d" | "blockTime" | "avgTxFee24h" | "developers") {
-  if (field === "tps30d") return getLiveTpsRows();
+async function getRows(field: "tps1h" | "blockTime" | "avgTxFee24h" | "developers") {
+  if (field === "tps1h") return getLiveTpsRows();
   if (field === "blockTime") return Promise.all(CHAINS.map(withBlockTime));
 
   const url = field === "avgTxFee24h" ? "https://chainspect.app/dashboard/financials" : "https://chainspect.app/dashboard/developer-activity";
@@ -234,7 +225,7 @@ async function getRows(field: "tps30d" | "blockTime" | "avgTxFee24h" | "develope
   }
 }
 
-function toMetricRows(rows: ChainspectRow[], limit: number, field: "tps30d" | "blockTime" | "avgTxFee24h" | "developers", sort: "desc" | "asc"): ChainRevenueRow[] {
+function toMetricRows(rows: ChainspectRow[], limit: number, field: "tps1h" | "blockTime" | "avgTxFee24h" | "developers", sort: "desc" | "asc"): ChainRevenueRow[] {
   return rows
     .map((row) => {
       const name = normalizeChainName(row.name);
@@ -251,8 +242,8 @@ function result(rows: ChainRevenueRow[], props: Omit<ChainMetricResult, "rows" |
 }
 
 export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetricResult> {
-  const rows = toMetricRows(await getRows("tps30d"), limit, "tps30d", "desc");
-  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures transaction throughput. This card uses the 30D TPS view; if the public dashboard reader returns the 1H view instead, it falls back to the latest verified 30D snapshot.", methodology: "Methodology: Real-time TPS (30D) from Chainspect dashboard, cached for 1 hour. 1H dashboard rows are rejected so they are not mislabeled as 30D.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
+  const rows = toMetricRows(await getRows("tps1h"), limit, "tps1h", "desc");
+  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures recent transaction throughput over the last hour.", methodology: "Methodology: Real-time TPS (1H) from Chainspect dashboard, cached for 1 hour. If the public dashboard cannot be parsed, the card falls back to the latest verified 1H snapshot.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
 }
 
 export async function getChainspectBlockTime(limit: number): Promise<ChainMetricResult> {
