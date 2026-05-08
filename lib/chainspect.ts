@@ -58,17 +58,29 @@ const CHAIN_NAME_ALIASES = new Map<string, string>([
 ]);
 
 async function fetchText(url: string) {
-  const response = await fetch(url, { next: { revalidate: 3600 }, headers: { accept: "text/html,text/plain,*/*", "user-agent": "Mozilla/5.0 learnDeFi" } });
+  const response = await fetch(url, {
+    next: { revalidate: 3600 },
+    headers: { accept: "text/html,text/plain,*/*", "user-agent": "Mozilla/5.0 learnDeFi" },
+  });
   if (!response.ok) throw new Error(`Chainspect request failed: ${response.status}`);
   return response.text();
 }
 
-async function fetchReadableText(url: string) {
-  try {
-    return await fetchText(url);
-  } catch {
-    return fetchText(`https://r.jina.ai/http://r.jina.ai/http://${url}`);
+function jinaUrl(url: string) {
+  return `https://r.jina.ai/${url}`;
+}
+
+async function fetchReadableText(url: string, preferReader = false) {
+  const attempts = preferReader ? [jinaUrl(url), url] : [url, jinaUrl(url)];
+  let lastError: unknown = null;
+  for (const attempt of attempts) {
+    try {
+      return await fetchText(attempt);
+    } catch (error) {
+      lastError = error;
+    }
   }
+  throw lastError instanceof Error ? lastError : new Error("Readable fetch failed");
 }
 
 function cleanText(html: string) {
@@ -181,7 +193,7 @@ async function getLiveTpsRows() {
 
   for (const url of urls) {
     try {
-      const text = await fetchReadableText(url);
+      const text = await fetchReadableText(url, true);
       const rows = parseDashboardTpsRows(text);
       if (rows.length >= 10) return rows;
     } catch {
@@ -206,7 +218,7 @@ async function getChainspectRows(field: "tps30d" | "blockTime" | "avgTxFee24h" |
 
   if (field === "avgTxFee24h") {
     try {
-      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/financials"));
+      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/financials", true));
       return Promise.all(CHAIN_SPECT_SNAPSHOT.map((row) => withFinancialMetrics(row, text)));
     } catch {
       return CHAIN_SPECT_SNAPSHOT;
@@ -215,7 +227,7 @@ async function getChainspectRows(field: "tps30d" | "blockTime" | "avgTxFee24h" |
 
   if (field === "developers") {
     try {
-      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/developer-activity"));
+      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/developer-activity", true));
       return Promise.all(CHAIN_SPECT_SNAPSHOT.map((row) => withDeveloperMetrics(row, text)));
     } catch {
       return CHAIN_SPECT_SNAPSHOT;
