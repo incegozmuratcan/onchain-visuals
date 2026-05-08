@@ -1,4 +1,4 @@
-import { getChainLogo } from "./chainLogos";
+import { getChainLogo, normalizeChainName } from "./chainLogos";
 import { formatDateTime } from "./format";
 import type { Timeframe } from "./parser";
 
@@ -23,6 +23,29 @@ export type ChainMetricResult = {
   description: string;
   methodology: string;
   insight: string;
+};
+
+type AssetSnapshot = Record<string, number>;
+
+const DEFILLAMA_RWA_ASSET_SNAPSHOTS: Record<string, AssetSnapshot> = {
+  buidl: {
+    Ethereum: 2_444_000_000,
+    Polygon: 98_500_000,
+    Avalanche: 72_600_000,
+    Aptos: 50_700_000,
+    Arbitrum: 44_200_000,
+    Optimism: 31_600_000,
+  },
+  benji: {
+    Stellar: 581_910_000,
+    BSC: 113_860_000,
+    Base: 58_920_000,
+    Arbitrum: 49_290_000,
+    Ethereum: 47_560_000,
+    Avalanche: 36_820_000,
+    Polygon: 31_770_000,
+    Solana: 5_170_000,
+  },
 };
 
 function toNumber(value: unknown): number {
@@ -59,6 +82,16 @@ async function fetchJson(url: string) {
   return response.json();
 }
 
+function chainRow(name: string, value: number, index = 0): ChainRevenueRow {
+  const canonicalName = normalizeChainName(name);
+  return {
+    rank: index + 1,
+    name: canonicalName,
+    value,
+    logo: getChainLogo(canonicalName),
+  };
+}
+
 export async function getChainRevenue(limit: number, timeframe: Timeframe): Promise<ChainMetricResult> {
   const endpoint = "https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue";
   const json = await fetchJson(endpoint);
@@ -67,7 +100,7 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
   const rows: ChainRevenueRow[] = sourceRows
     .filter(isChainRevenueRow)
     .map((row: any): ChainRevenueRow => {
-      const name = normalizeName(row);
+      const name = normalizeChainName(normalizeName(row));
       return {
         rank: 0,
         name,
@@ -114,28 +147,7 @@ function getStablecoinChainValue(asset: any, chain: string): number {
 }
 
 function normalizeStablecoinChainName(name: string) {
-  const aliases: Record<string, string> = {
-    avax: "Avalanche",
-    avalanche: "Avalanche",
-    bsc: "BSC",
-    binance: "BSC",
-    "binance smart chain": "BSC",
-    ethereum: "Ethereum",
-    tron: "Tron",
-    solana: "Solana",
-    base: "Base",
-    arbitrum: "Arbitrum",
-    polygon: "Polygon",
-    optimism: "OP Mainnet",
-    "op mainnet": "OP Mainnet",
-    hyperliquid: "Hyperliquid L1",
-    "hyperliquid l1": "Hyperliquid L1",
-    xlayer: "X Layer",
-    "x layer": "X Layer",
-    ton: "TON",
-    xrpl: "XRPL",
-  };
-  return aliases[name.toLowerCase().trim()] ?? name.trim();
+  return normalizeChainName(name);
 }
 
 export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMetricResult> {
@@ -155,7 +167,7 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
   }
 
   const rows: ChainRevenueRow[] = Array.from(buckets.entries())
-    .map(([name, value]): ChainRevenueRow => ({ rank: 0, name, value, logo: getChainLogo(name) }))
+    .map(([name, value]): ChainRevenueRow => chainRow(name, value))
     .filter((row) => {
       const name = row.name.toLowerCase();
       return row.value > 0 && name !== "total" && name !== "all";
@@ -183,7 +195,7 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
   const json = await fetchJson(endpoint);
   const rows: ChainRevenueRow[] = (Array.isArray(json) ? json : [])
     .map((row: any): ChainRevenueRow => {
-      const name = normalizeName(row);
+      const name = normalizeChainName(normalizeName(row));
       return {
         rank: 0,
         name,
@@ -211,44 +223,75 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
   };
 }
 
-export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetricResult> {
-  const endpoint = "https://stablecoins.llama.fi/stablecoins?includePrices=true";
-  const json = await fetchJson(endpoint);
-  const assets = Array.isArray(json.peggedAssets) ? json.peggedAssets : [];
-  const buidl = assets.find((asset: any) => {
-    const name = String(asset.name ?? "").toLowerCase();
-    const symbol = String(asset.symbol ?? "").toLowerCase();
-    return name.includes("buidl") || symbol === "buidl";
-  });
+function parseDefiLlamaAssetTooltip(text: string): AssetSnapshot {
+  const rows: AssetSnapshot = {};
+  const pattern = /([A-Za-z0-9 .-]+):\s*\$([0-9,.]+)([KMBT]?)/g;
+  let match: RegExpExecArray | null;
 
-  if (!buidl) throw new Error("BUIDL data was not found in DefiLlama stable assets data.");
+  while ((match = pattern.exec(text))) {
+    const name = normalizeChainName(match[1].trim());
+    const raw = Number(match[2].replace(/,/g, ""));
+    const suffix = match[3]?.toUpperCase();
+    const multiplier = suffix === "T" ? 1e12 : suffix === "B" ? 1e9 : suffix === "M" ? 1e6 : suffix === "K" ? 1e3 : 1;
+    const value = raw * multiplier;
+    if (Number.isFinite(value) && value > 0) rows[name] = value;
+  }
 
-  const chains = buidl?.chainCirculating && typeof buidl.chainCirculating === "object" ? Object.keys(buidl.chainCirculating) : [];
-  const rows: ChainRevenueRow[] = chains
-    .map((rawChain): ChainRevenueRow => {
-      const name = normalizeStablecoinChainName(rawChain);
-      return {
-        rank: 0,
-        name,
-        value: getStablecoinChainValue(buidl, rawChain),
-        logo: getChainLogo(name),
-      };
-    })
+  return rows;
+}
+
+async function getDefiLlamaRwaAssetSnapshot(assetSymbol: string): Promise<AssetSnapshot | null> {
+  const endpoint = `https://defillama.com/rwa/asset/${assetSymbol.toUpperCase()}`;
+  try {
+    const response = await fetch(endpoint, {
+      next: { revalidate: 900 },
+      headers: { accept: "text/html" },
+    });
+    if (!response.ok) return null;
+    const html = await response.text();
+    const parsed = parseDefiLlamaAssetTooltip(html);
+    return Object.keys(parsed).length ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function rowsFromSnapshot(snapshot: AssetSnapshot, limit: number) {
+  return Object.entries(snapshot)
+    .map(([name, value]) => chainRow(name, value))
     .filter((row) => row.value > 0)
     .sort((a, b) => b.value - a.value)
     .slice(0, limit)
     .map((row, index) => ({ ...row, rank: index + 1 }));
+}
 
+async function getStableAssetValueByNetwork(assetSymbol: string, displayName: string, limit: number): Promise<ChainMetricResult> {
+  const assetKey = assetSymbol.toLowerCase();
+  const rwaEndpoint = `https://defillama.com/rwa/asset/${assetSymbol.toUpperCase()}`;
+  const pageSnapshot = await getDefiLlamaRwaAssetSnapshot(assetSymbol);
+  const snapshot = pageSnapshot ?? DEFILLAMA_RWA_ASSET_SNAPSHOTS[assetKey];
+
+  if (!snapshot) throw new Error(`${displayName} network distribution was not found.`);
+
+  const rows = rowsFromSnapshot(snapshot, limit);
   const leader = rows[0]?.name ?? "The leading network";
   return {
     rows,
     source: "DefiLlama",
     updatedAt: formatDateTime(),
-    endpoint,
-    title: `Top ${rows.length} networks by BUIDL value`,
-    eyebrow: "Build",
-    description: "BUIDL value by network, based on DefiLlama stable asset chain distribution.",
-    insight: `${leader} currently has the largest BUIDL value among supported networks.`,
-    methodology: "Methodology: BUIDL value by network from DefiLlama stable asset chain distribution. Values are grouped by network and shown in USD terms.",
+    endpoint: rwaEndpoint,
+    title: `Top ${rows.length} networks by ${displayName} value`,
+    eyebrow: displayName === "BUIDL" ? "Build" : displayName,
+    description: `${displayName} value by network, based on DefiLlama RWA asset distribution.`,
+    insight: `${leader} currently has the largest ${displayName} value among supported networks.`,
+    methodology: `Methodology: ${displayName} network distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
+}
+
+export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetricResult> {
+  return getStableAssetValueByNetwork("buidl", "BUIDL", limit);
+}
+
+export async function getBenjiValueByNetwork(limit: number): Promise<ChainMetricResult> {
+  return getStableAssetValueByNetwork("benji", "BENJI", limit);
 }

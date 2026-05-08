@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
+import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
 
 export const dynamic = "force-dynamic";
@@ -11,13 +11,15 @@ export async function GET(request: NextRequest) {
 
   try {
     const data =
-      parsed.metric === "buidl_network_value"
-        ? await getBuidlValueByNetwork(parsed.limit)
-        : parsed.metric === "chain_stablecoin_supply"
-          ? await getStablecoinSupplyByChain(parsed.limit)
-          : parsed.metric === "chain_tvl"
-            ? await getChainTvl(parsed.limit)
-            : await getChainRevenue(parsed.limit, parsed.timeframe);
+      parsed.metric === "benji_network_value"
+        ? await getBenjiValueByNetwork(parsed.limit)
+        : parsed.metric === "buidl_network_value"
+          ? await getBuidlValueByNetwork(parsed.limit)
+          : parsed.metric === "chain_stablecoin_supply"
+            ? await getStablecoinSupplyByChain(parsed.limit)
+            : parsed.metric === "chain_tvl"
+              ? await getChainTvl(parsed.limit)
+              : await getChainRevenue(parsed.limit, parsed.timeframe);
 
     return NextResponse.json({ ok: true, query: parsed, ...data });
   } catch (error) {

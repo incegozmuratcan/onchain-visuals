@@ -1,69 +1,79 @@
-const chainSlugs: Record<string, string> = {
-  abstract: "abstract",
-  aptos: "aptos",
-  arbitrum: "arbitrum",
-  avalanche: "avax",
-  base: "base",
-  bitcoin: "bitcoin",
-  bsc: "bsc",
-  "bnb chain": "bsc",
-  canton: "canton-network",
-  cardano: "cardano",
-  celo: "celo",
-  cosmos: "cosmos",
-  cronos: "cronos",
-  ethereum: "ethereum",
-  fantom: "fantom",
-  hyperliquid: "hyperliquid",
-  "hyperliquid l1": "hyperliquid",
-  ink: "ink",
-  kaia: "kaia",
-  mantle: "mantle",
-  megaeth: "megaeth",
-  monad: "monad",
-  near: "near",
-  optimism: "optimism",
-  "op mainnet": "optimism",
-  plasma: "plasma",
-  "plume mainnet": "plume",
-  polygon: "polygon",
-  provenance: "provenance",
-  saga: "saga",
-  sei: "sei",
-  solana: "solana",
-  starknet: "starknet",
-  stellar: "stellar",
-  sui: "sui",
-  ton: "ton",
-  tron: "tron",
-  "x layer": "x-layer",
-  xlayer: "x-layer",
-  xrpl: "ripple",
+type ChainIdentity = {
+  name: string;
+  aliases: string[];
+  slug: string;
 };
 
-const directLogos: Record<string, string> = {
-  bsc: "https://icons.llama.fi/bsc.jpg",
-  "bnb chain": "https://icons.llama.fi/bsc.jpg",
-  avalanche: "https://icons.llama.fi/avax.jpg",
-  "op mainnet": "https://icons.llama.fi/optimism.jpg",
-  optimism: "https://icons.llama.fi/optimism.jpg",
-  hyperliquid: "https://icons.llama.fi/hyperliquid.jpg",
-  "hyperliquid l1": "https://icons.llama.fi/hyperliquid.jpg",
-};
+const identities: ChainIdentity[] = [
+  { name: "Ethereum", aliases: ["ethereum", "eth"], slug: "ethereum" },
+  { name: "Solana", aliases: ["solana", "sol"], slug: "solana" },
+  { name: "Tron", aliases: ["tron", "trx"], slug: "tron" },
+  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc" },
+  { name: "Base", aliases: ["base"], slug: "base" },
+  { name: "Arbitrum", aliases: ["arbitrum", "arbitrum one"], slug: "arbitrum" },
+  { name: "Polygon", aliases: ["polygon", "polygon pos", "matic"], slug: "polygon" },
+  { name: "Avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], slug: "avalanche" },
+  { name: "OP Mainnet", aliases: ["op mainnet", "optimism", "op"], slug: "optimism" },
+  { name: "Aptos", aliases: ["aptos"], slug: "aptos" },
+  { name: "Stellar", aliases: ["stellar", "xlm"], slug: "stellar" },
+  { name: "XRP Ledger", aliases: ["xrp ledger", "xrpl", "ripple"], slug: "ripple" },
+  { name: "Sui", aliases: ["sui"], slug: "sui" },
+  { name: "Mantle", aliases: ["mantle"], slug: "mantle" },
+  { name: "TON", aliases: ["ton", "the open network"], slug: "ton" },
+  { name: "Sei", aliases: ["sei"], slug: "sei" },
+  { name: "Celo", aliases: ["celo"], slug: "celo" },
+  { name: "Hedera", aliases: ["hedera", "hbar"], slug: "hedera" },
+  { name: "Algorand", aliases: ["algorand", "algo"], slug: "algorand" },
+  { name: "Plume", aliases: ["plume", "plume mainnet"], slug: "plume" },
+  { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era"], slug: "zksync era" },
+  { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid" },
+  { name: "Canton", aliases: ["canton", "canton network"], slug: "canton-network" },
+  { name: "Abstract", aliases: ["abstract"], slug: "abstract" },
+  { name: "Bitcoin", aliases: ["bitcoin", "btc"], slug: "bitcoin" },
+  { name: "Cardano", aliases: ["cardano", "ada"], slug: "cardano" },
+  { name: "Cosmos", aliases: ["cosmos", "atom"], slug: "cosmos" },
+  { name: "Cronos", aliases: ["cronos"], slug: "cronos" },
+  { name: "Fantom", aliases: ["fantom"], slug: "fantom" },
+  { name: "Ink", aliases: ["ink"], slug: "ink" },
+  { name: "Kaia", aliases: ["kaia"], slug: "kaia" },
+  { name: "MegaETH", aliases: ["megaeth", "mega eth"], slug: "megaeth" },
+  { name: "Monad", aliases: ["monad"], slug: "monad" },
+  { name: "Near", aliases: ["near"], slug: "near" },
+  { name: "Plasma", aliases: ["plasma"], slug: "plasma" },
+  { name: "Provenance", aliases: ["provenance"], slug: "provenance" },
+  { name: "Saga", aliases: ["saga"], slug: "saga" },
+  { name: "Starknet", aliases: ["starknet", "starknet"], slug: "starknet" },
+  { name: "X Layer", aliases: ["x layer", "xlayer"], slug: "x-layer" },
+];
 
-function normalizeChainKey(name: string) {
-  return name.toLowerCase().trim();
+const aliasMap = new Map<string, ChainIdentity>();
+for (const identity of identities) {
+  for (const alias of identity.aliases) aliasMap.set(alias.toLowerCase().trim(), identity);
 }
 
-function getChainSlug(name: string) {
-  return chainSlugs[normalizeChainKey(name)] ?? normalizeChainKey(name).replace(/\s+/g, "-");
+function normalizeKey(name: string) {
+  return name.toLowerCase().trim().replace(/\s+/g, " ");
+}
+
+function fallbackSlug(name: string) {
+  return normalizeKey(name).replace(/\s+/g, "-");
+}
+
+export function getChainIdentity(name: string) {
+  const key = normalizeKey(name);
+  const identity = aliasMap.get(key);
+  if (identity) return identity;
+  return { name: name.trim(), aliases: [key], slug: fallbackSlug(name) };
+}
+
+export function normalizeChainName(name: string) {
+  return getChainIdentity(name).name;
 }
 
 export function getChainLogo(name: string, logo?: string | null) {
-  const key = normalizeChainKey(name);
   if (logo && /^https:\/\//.test(logo)) return logo;
-  if (directLogos[key]) return directLogos[key];
-  return `https://icons.llama.fi/chains/rsz_${getChainSlug(name)}.jpg`;
+  const identity = getChainIdentity(name);
+  return `https://icons.llama.fi/chains/rsz_${identity.slug}.jpg`;
 }
 
 export function getInitials(name: string) {

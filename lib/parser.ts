@@ -1,6 +1,6 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value";
 
 export type ParsedQuery = {
   limit: number;
@@ -34,6 +34,10 @@ function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
 }
 
 function parseMetric(text: string): QueryMetric {
+  if (/(benji|franklin|benjamin)/.test(text)) {
+    return "benji_network_value";
+  }
+
   if (/(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text)) {
     return "buidl_network_value";
   }
@@ -53,6 +57,7 @@ function metricLabel(metric: QueryMetric) {
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
   if (metric === "chain_tvl") return "DeFi TVL";
   if (metric === "buidl_network_value") return "Build";
+  if (metric === "benji_network_value") return "BENJI";
   return "Revenue";
 }
 
@@ -66,7 +71,7 @@ export function parsePrompt(input: string): ParsedQuery {
   const metric = parseMetric(text);
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
-  const isAssetMetric = metric === "buidl_network_value";
+  const isAssetMetric = metric === "buidl_network_value" || metric === "benji_network_value";
 
   return {
     limit,
