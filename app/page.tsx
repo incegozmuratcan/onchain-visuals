@@ -27,6 +27,7 @@ type ApiResult = {
   insight?: string;
   valueFormat?: "usd" | "number";
   valueSuffix?: string;
+  valueDirection?: "higher" | "lower";
   query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
   error?: string;
 };
@@ -43,6 +44,7 @@ export default function Home() {
   const [insight, setInsight] = useState("Chain revenue measures value captured at the network level. It is different from protocol revenue and helps separate chain economics from app activity.");
   const [valueFormat, setValueFormat] = useState<"usd" | "number">("usd");
   const [valueSuffix, setValueSuffix] = useState("");
+  const [valueDirection, setValueDirection] = useState<"higher" | "lower">("higher");
   const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Revenue", "Top 10", "30D"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export default function Home() {
       setInsight(json.insight || "Generated from supported learnDeFi data sources.");
       setValueFormat(json.valueFormat || "usd");
       setValueSuffix(json.valueSuffix || "");
+      setValueDirection(json.valueDirection || "higher");
       setQueryLabels(json.query?.labels || []);
       setHasGenerated(true);
     } catch (err) {
@@ -128,7 +131,7 @@ export default function Home() {
 
           {hasGenerated && (
             <div className="grid gap-4">
-              <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} valueFormat={valueFormat} valueSuffix={valueSuffix} />
+              <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} valueFormat={valueFormat} valueSuffix={valueSuffix} valueDirection={valueDirection} />
               <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
                 <Download size={18} /> Download PNG
               </button>

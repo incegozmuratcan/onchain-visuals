@@ -25,6 +25,7 @@ export type ChainMetricResult = {
   insight: string;
   valueFormat?: "usd" | "number";
   valueSuffix?: string;
+  valueDirection?: "higher" | "lower";
 };
 
 type AssetSnapshot = Record<string, number>;
@@ -135,6 +136,7 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
     insight: "Chain revenue measures value captured at the network level. It is different from protocol revenue and helps separate chain economics from app activity.",
     methodology: "Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.",
     valueFormat: "usd",
+    valueDirection: "higher",
   };
 }
 
@@ -191,6 +193,7 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
     insight: "Stablecoin supply shows where dollar-linked liquidity lives onchain. Higher supply often points to deeper settlement liquidity and more available capital.",
     methodology: "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
     valueFormat: "usd",
+    valueDirection: "higher",
   };
 }
 
@@ -224,6 +227,7 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
     insight: "TVL measures value deposited in DeFi protocols. It is useful for liquidity context, but it does not measure revenue or real user activity by itself.",
     methodology: "Methodology: Current DeFi TVL by chain. Stablecoin supply, revenue and bridge flows are not included in this view.",
     valueFormat: "usd",
+    valueDirection: "higher",
   };
 }
 
@@ -290,6 +294,7 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     insight: `${displayName} is a tokenized fund. This chart shows where its token supply value is present onchain across supported chains.`,
     methodology: `Methodology: ${displayName} onchain marketcap distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
     valueFormat: "usd",
+    valueDirection: "higher",
   };
 }
 
