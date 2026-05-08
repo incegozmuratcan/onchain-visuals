@@ -30,7 +30,7 @@ type ApiResult = {
 };
 
 export default function Home() {
-  const [prompt, setPrompt] = useState("Top 10 chains by 30D revenue");
+  const [prompt, setPrompt] = useState("");
   const [rows, setRows] = useState<ChainRevenueRow[]>([]);
   const [source, setSource] = useState("DefiLlama");
   const [updatedAt, setUpdatedAt] = useState("-");
@@ -49,7 +49,8 @@ export default function Home() {
     setError(null);
 
     try {
-      const res = await fetch(`/api/chain-revenue?prompt=${encodeURIComponent(prompt)}`);
+      const effectivePrompt = prompt.trim() || "Top 10 chains by stablecoin supply";
+      const res = await fetch(`/api/chain-revenue?prompt=${encodeURIComponent(effectivePrompt)}`);
       const json = (await res.json()) as ApiResult;
 
       if (!res.ok || !json.ok || !json.rows) {
