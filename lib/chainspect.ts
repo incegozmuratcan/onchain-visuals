@@ -12,36 +12,36 @@ type ChainspectSnapshotRow = {
 };
 
 const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
-  { name: "ICP", slug: "internet-computer", tps30d: 1523, blockTime: 0.6, avgTxFee24h: 0.0001, developers: 70 },
-  { name: "Solana", slug: "solana", tps30d: 1074, blockTime: 0.4, avgTxFee24h: 0.002, developers: 180 },
-  { name: "Fogo", slug: "fogo", tps30d: 253.2, blockTime: 0.4, avgTxFee24h: 0.001, developers: 10 },
-  { name: "BNB Chain", slug: "bnb-chain", tps30d: 180.3, blockTime: 3.0, avgTxFee24h: 0.02079, developers: 110 },
-  { name: "Stellar", slug: "stellar", tps30d: 138.4, blockTime: 5.8, avgTxFee24h: 0.00001, developers: 35 },
-  { name: "Tron", slug: "tron", tps30d: 123.7, blockTime: 3.0, avgTxFee24h: 0.09403, developers: 45 },
-  { name: "Polygon", slug: "polygon", tps30d: 107.5, blockTime: 1.75, avgTxFee24h: 0.01, developers: 130 },
-  { name: "Aptos", slug: "aptos", tps30d: 105.1, blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
-  { name: "Base", slug: "base", tps30d: 91.85, blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
-  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 57.45, blockTime: 600.0, avgTxFee24h: 0.001, developers: 15 },
-  { name: "Sui", slug: "sui", tps30d: 29.32, blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
-  { name: "Ethereum", slug: "ethereum", tps30d: 28.27, blockTime: 12.0, avgTxFee24h: 0.4986, developers: 300 },
-  { name: "TON", slug: "ton", tps30d: 24.67, blockTime: 0.41, avgTxFee24h: 0.005, developers: 65 },
-  { name: "Avalanche", slug: "avalanche", tps30d: 18.36, blockTime: 1.02, avgTxFee24h: 0.04, developers: 85 },
-  { name: "Near", slug: "near", tps30d: 12, blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
-  { name: "OP Mainnet", slug: "optimism", tps30d: 11, blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
-  { name: "Algorand", slug: "algorand", tps30d: 9.2, blockTime: 2.74, avgTxFee24h: 0.001, developers: 45 },
-  { name: "Bitcoin", slug: "bitcoin", tps30d: 7, blockTime: 10.0, avgTxFee24h: 0.4626, developers: 220 },
-  { name: "Hedera", slug: "hedera", tps30d: 7.57, blockTime: 2.0, avgTxFee24h: 0.0001, developers: 45 },
-  { name: "Cardano", slug: "cardano", tps30d: 6, blockTime: 21.6, avgTxFee24h: 0.08421, developers: 150 },
-  { name: "Cosmos", slug: "cosmos", tps30d: 5, blockTime: 6.0, avgTxFee24h: 0.01, developers: 100 },
-  { name: "Cronos", slug: "cronos", tps30d: 4, blockTime: 0.44, avgTxFee24h: 0.02, developers: 30 },
-  { name: "Fantom", slug: "fantom", tps30d: 4, blockTime: 1.0, avgTxFee24h: 0.01, developers: 40 },
-  { name: "Celo", slug: "celo", tps30d: 3, blockTime: 5.0, avgTxFee24h: 0.001, developers: 55 },
-  { name: "Sei", slug: "sei", tps30d: 3, blockTime: 0.46, avgTxFee24h: 0.01, developers: 40 },
-  { name: "Mantle", slug: "mantle", tps30d: 2, blockTime: 2.0, avgTxFee24h: 0.01, developers: 35 },
-  { name: "Starknet", slug: "starknet", tps30d: 2, blockTime: 2.86, avgTxFee24h: 0.02427, developers: 90 },
-  { name: "ZKsync Era", slug: "zksync-era", tps30d: 2, blockTime: 1.0, avgTxFee24h: 0.01, developers: 80 },
-  { name: "Rootstock", slug: "rootstock", tps30d: 1, blockTime: 30.0, avgTxFee24h: 0.02, developers: 20 },
-  { name: "Stacks", slug: "stacks", tps30d: 1, blockTime: 300.0, avgTxFee24h: 0.05, developers: 35 },
+  { name: "ICP", slug: "internet-computer", tps30d: 0, blockTime: 0.6, avgTxFee24h: 0.0001, developers: 70 },
+  { name: "Solana", slug: "solana", tps30d: 0, blockTime: 0.4, avgTxFee24h: 0.002, developers: 180 },
+  { name: "Fogo", slug: "fogo", tps30d: 0, blockTime: 0.4, avgTxFee24h: 0.001, developers: 10 },
+  { name: "BNB Chain", slug: "bnb-chain", tps30d: 0, blockTime: 3.0, avgTxFee24h: 0.02079, developers: 110 },
+  { name: "Stellar", slug: "stellar", tps30d: 0, blockTime: 5.8, avgTxFee24h: 0.00001, developers: 35 },
+  { name: "Tron", slug: "tron", tps30d: 0, blockTime: 3.0, avgTxFee24h: 0.09403, developers: 45 },
+  { name: "Polygon", slug: "polygon", tps30d: 0, blockTime: 1.75, avgTxFee24h: 0.01, developers: 130 },
+  { name: "Aptos", slug: "aptos", tps30d: 0, blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
+  { name: "Base", slug: "base", tps30d: 0, blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 0, blockTime: 600.0, avgTxFee24h: 0.001, developers: 15 },
+  { name: "Sui", slug: "sui", tps30d: 0, blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
+  { name: "Ethereum", slug: "ethereum", tps30d: 0, blockTime: 12.0, avgTxFee24h: 0.4986, developers: 300 },
+  { name: "TON", slug: "ton", tps30d: 0, blockTime: 0.41, avgTxFee24h: 0.005, developers: 65 },
+  { name: "Avalanche", slug: "avalanche", tps30d: 0, blockTime: 1.02, avgTxFee24h: 0.04, developers: 85 },
+  { name: "Near", slug: "near", tps30d: 0, blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
+  { name: "OP Mainnet", slug: "optimism", tps30d: 0, blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
+  { name: "Algorand", slug: "algorand", tps30d: 0, blockTime: 2.74, avgTxFee24h: 0.001, developers: 45 },
+  { name: "Bitcoin", slug: "bitcoin", tps30d: 0, blockTime: 10.0, avgTxFee24h: 0.4626, developers: 220 },
+  { name: "Hedera", slug: "hedera", tps30d: 0, blockTime: 2.0, avgTxFee24h: 0.0001, developers: 45 },
+  { name: "Cardano", slug: "cardano", tps30d: 0, blockTime: 21.6, avgTxFee24h: 0.08421, developers: 150 },
+  { name: "Cosmos", slug: "cosmos", tps30d: 0, blockTime: 6.0, avgTxFee24h: 0.01, developers: 100 },
+  { name: "Cronos", slug: "cronos", tps30d: 0, blockTime: 0.44, avgTxFee24h: 0.02, developers: 30 },
+  { name: "Fantom", slug: "fantom", tps30d: 0, blockTime: 1.0, avgTxFee24h: 0.01, developers: 40 },
+  { name: "Celo", slug: "celo", tps30d: 0, blockTime: 5.0, avgTxFee24h: 0.001, developers: 55 },
+  { name: "Sei", slug: "sei", tps30d: 0, blockTime: 0.46, avgTxFee24h: 0.01, developers: 40 },
+  { name: "Mantle", slug: "mantle", tps30d: 0, blockTime: 2.0, avgTxFee24h: 0.01, developers: 35 },
+  { name: "Starknet", slug: "starknet", tps30d: 0, blockTime: 2.86, avgTxFee24h: 0.02427, developers: 90 },
+  { name: "ZKsync Era", slug: "zksync-era", tps30d: 0, blockTime: 1.0, avgTxFee24h: 0.01, developers: 80 },
+  { name: "Rootstock", slug: "rootstock", tps30d: 0, blockTime: 30.0, avgTxFee24h: 0.02, developers: 20 },
+  { name: "Stacks", slug: "stacks", tps30d: 0, blockTime: 300.0, avgTxFee24h: 0.05, developers: 35 },
 ];
 
 async function fetchText(url: string) {
@@ -96,7 +96,6 @@ async function withChainDetailMetrics(row: ChainspectSnapshotRow) {
     const text = cleanText(await fetchText(`https://chainspect.app/chain/${row.slug}`));
     return {
       ...row,
-      tps30d: parseMetricAfterLabel(text, "Real-time TPS (30D)", row.tps30d, parseNumber),
       blockTime: parseMetricAfterLabel(text, "Block Time (1H)", row.blockTime, parseSeconds),
     };
   } catch {
@@ -113,6 +112,34 @@ function findMetricNearChain(text: string, row: ChainspectSnapshotRow, label: st
   return parser(chunk.slice(labelIndex + label.length, labelIndex + label.length + 80), fallback);
 }
 
+function parseTpsNearChain(text: string, row: ChainspectSnapshotRow) {
+  const aliases = [row.name, row.slug.replace(/-/g, " ")];
+  for (const alias of aliases) {
+    const index = text.toLowerCase().indexOf(alias.toLowerCase());
+    if (index < 0) continue;
+    const chunk = text.slice(index, index + 700);
+    const metric = chunk.match(/([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)\s*(?:tx\/s|TPS)/i);
+    if (metric) {
+      const value = Number(metric[1].replace(/,/g, ""));
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+  }
+  return 0;
+}
+
+async function getLiveTpsRows() {
+  const text = cleanText(await fetchText("https://chainspect.app/dashboard"));
+  const rows = CHAIN_SPECT_SNAPSHOT
+    .map((row) => ({ ...row, tps30d: parseTpsNearChain(text, row) }))
+    .filter((row) => row.tps30d > 0);
+
+  if (rows.length < 10) {
+    throw new Error("Chainspect TPS table could not be parsed safely. No fallback snapshot was used, to avoid publishing stale or wrong TPS data.");
+  }
+
+  return rows;
+}
+
 async function withFinancialMetrics(row: ChainspectSnapshotRow, pageText: string) {
   return { ...row, avgTxFee24h: findMetricNearChain(pageText, row, "Average Tx Fee", row.avgTxFee24h, parseUsd) };
 }
@@ -122,7 +149,8 @@ async function withDeveloperMetrics(row: ChainspectSnapshotRow, pageText: string
 }
 
 async function getChainspectRows(field: "tps30d" | "blockTime" | "avgTxFee24h" | "developers") {
-  if (field === "tps30d" || field === "blockTime") return Promise.all(CHAIN_SPECT_SNAPSHOT.map(withChainDetailMetrics));
+  if (field === "tps30d") return getLiveTpsRows();
+  if (field === "blockTime") return Promise.all(CHAIN_SPECT_SNAPSHOT.map(withChainDetailMetrics));
 
   if (field === "avgTxFee24h") {
     try {
@@ -169,7 +197,7 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
     eyebrow: "Real-time TPS",
     description: "Shows which chains process the most transactions per second.",
     insight: "TPS measures transaction throughput. This card uses the 30D average real-time TPS to smooth short-term spikes.",
-    methodology: "Methodology: Real-time TPS (30D) from Chainspect chain detail pages, cached for 1 hour.",
+    methodology: "Methodology: Real-time TPS (30D) from Chainspect dashboard, cached for 1 hour. Fallback snapshots are disabled for TPS to prevent stale data from being shown as live data.",
     valueFormat: "number",
     valueSuffix: "TPS",
     valueDirection: "higher",
