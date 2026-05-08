@@ -51,7 +51,7 @@ const identities: ChainIdentity[] = [
   { name: "Kaia", aliases: ["kaia"], slug: "kaia" },
   { name: "MegaETH", aliases: ["megaeth", "mega eth"], slug: "megaeth", logoCandidates: [llamaChain("megaeth"), llamaIcon("megaeth")] },
   { name: "Monad", aliases: ["monad"], slug: "monad" },
-  { name: "Near", aliases: ["near"], slug: "near" },
+  { name: "Near", aliases: ["near", "near protocol"], slug: "near" },
   { name: "Plasma", aliases: ["plasma"], slug: "plasma" },
   { name: "Provenance", aliases: ["provenance"], slug: "provenance", logoCandidates: [llamaChain("provenance"), llamaIcon("provenance")] },
   { name: "Saga", aliases: ["saga"], slug: "saga" },
@@ -62,6 +62,8 @@ const identities: ChainIdentity[] = [
   { name: "Flare", aliases: ["flare"], slug: "flare" },
   { name: "Stacks", aliases: ["stacks", "stx"], slug: "stacks" },
   { name: "Rootstock", aliases: ["rootstock", "rsk"], slug: "rootstock" },
+  { name: "ICP", aliases: ["icp", "internet computer", "internet computer protocol"], slug: "internet-computer", logoCandidates: [llamaChain("internet-computer"), llamaIcon("internet-computer"), coinLogo("14495")] },
+  { name: "Kusama", aliases: ["kusama", "ksm"], slug: "kusama", logoCandidates: [llamaChain("kusama"), llamaIcon("kusama"), coinLogo("9568")] },
 ];
 
 const aliasMap = new Map<string, ChainIdentity>();
