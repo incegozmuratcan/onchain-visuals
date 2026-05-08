@@ -12,7 +12,7 @@ const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
   { name: "ICP", tps: 3200, blockTime: 0.6 },
   { name: "Solana", tps: 1100, blockTime: 0.4 },
   { name: "Base", tps: 170, blockTime: 2.0 },
-  { name: "BNB Chain", tps: 140, blockTime: 3.0 },
+  { name: "BSC", tps: 140, blockTime: 3.0 },
   { name: "Stellar", tps: 120, blockTime: 5.0 },
   { name: "Aptos", tps: 95, blockTime: 0.2 },
   { name: "Sui", tps: 75, blockTime: 0.25 },
@@ -21,7 +21,7 @@ const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
   { name: "Ethereum", tps: 15, blockTime: 12.0 },
   { name: "Avalanche", tps: 14, blockTime: 2.0 },
   { name: "Near", tps: 12, blockTime: 1.1 },
-  { name: "Optimism", tps: 11, blockTime: 2.0 },
+  { name: "OP Mainnet", tps: 11, blockTime: 2.0 },
   { name: "Tron", tps: 9, blockTime: 3.0 },
   { name: "Bitcoin", tps: 7, blockTime: 600.0 },
   { name: "Cardano", tps: 6, blockTime: 20.0 },
@@ -73,6 +73,10 @@ function parseDurationToSeconds(value: string) {
   return raw;
 }
 
+function looksLikeChainName(value: string) {
+  return /^[A-Za-z0-9 .-]{2,32}$/.test(value) && !/real-time|max|transaction|volume|block|finality|total|launch|date|metric|dashboard/i.test(value);
+}
+
 function parseRowsFromHtml(html: string): ChainspectSnapshotRow[] {
   const rows: ChainspectSnapshotRow[] = [];
   const rowMatches = html.match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
@@ -81,21 +85,21 @@ function parseRowsFromHtml(html: string): ChainspectSnapshotRow[] {
     const cells = [...rowHtml.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((match) => stripTags(match[1]));
     if (cells.length < 6) continue;
 
-    const name = cells[0]?.replace(/^#?\d+\s*/, "").trim();
-    if (!name || /real-time|max|transaction|block|finality/i.test(name)) continue;
+    const nameCell = cells.find(looksLikeChainName);
+    if (!nameCell) continue;
 
     const numericCells = cells.slice(1).filter((cell) => /^\d[\d,.]*$/.test(cell));
     const tps = numericCells[0] ? toNumber(numericCells[0]) : 0;
     const blockTimeCell = cells.find((cell) => /\d/.test(cell) && /\b(ms|s|sec|secs|second|seconds|min|mins|minute|minutes)\b/i.test(cell));
     const blockTime = blockTimeCell ? parseDurationToSeconds(blockTimeCell) : 0;
 
-    if (tps > 0 || blockTime > 0) rows.push({ name, tps, blockTime });
+    if ((tps > 0 || blockTime > 0) && looksLikeChainName(nameCell)) rows.push({ name: nameCell, tps, blockTime });
   }
 
   return rows;
 }
 
-async function getChainspectRows() {
+async function getChainspectRows(field: "tps" | "blockTime") {
   const endpoint = "https://chainspect.app/dashboard";
   try {
     const response = await fetch(endpoint, {
@@ -106,7 +110,8 @@ async function getChainspectRows() {
     if (!response.ok) return CHAIN_SPECT_SNAPSHOT;
     const html = await response.text();
     const liveRows = parseRowsFromHtml(html);
-    return liveRows.length >= 5 ? liveRows : CHAIN_SPECT_SNAPSHOT;
+    const validRows = liveRows.filter((row) => row[field] > 0 && looksLikeChainName(row.name));
+    return validRows.length >= 10 ? liveRows : CHAIN_SPECT_SNAPSHOT;
   } catch {
     return CHAIN_SPECT_SNAPSHOT;
   }
@@ -126,7 +131,7 @@ function toMetricRows(rows: ChainspectSnapshotRow[], limit: number, field: "tps"
 
 export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://chainspect.app/dashboard";
-  const rows = toMetricRows(await getChainspectRows(), limit, "tps", "desc");
+  const rows = toMetricRows(await getChainspectRows("tps"), limit, "tps", "desc");
 
   return {
     rows,
@@ -145,7 +150,7 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
 
 export async function getChainspectBlockTime(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://chainspect.app/dashboard";
-  const rows = toMetricRows(await getChainspectRows(), limit, "blockTime", "asc");
+  const rows = toMetricRows(await getChainspectRows("blockTime"), limit, "blockTime", "asc");
 
   return {
     rows,
