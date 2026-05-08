@@ -36,9 +36,9 @@ export default function Home() {
   const [updatedAt, setUpdatedAt] = useState("-");
   const [title, setTitle] = useState("Top 10 chains by 30D revenue");
   const [eyebrow, setEyebrow] = useState("Chain Revenue");
-  const [description, setDescription] = useState("Chain-level revenue captured by networks. App and protocol revenues are excluded.");
+  const [description, setDescription] = useState("Shows revenue captured by chains themselves, excluding app and protocol revenue.");
   const [methodology, setMethodology] = useState("Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.");
-  const [insight, setInsight] = useState("Ethereum leads chain revenue among supported networks.");
+  const [insight, setInsight] = useState("Chain revenue measures value captured at the network level. It is different from protocol revenue and helps separate chain economics from app activity.");
   const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Revenue", "Top 10", "30D"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -112,8 +112,8 @@ export default function Home() {
         <div className="grid gap-5">
           <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} queryLabels={queryLabels} />
 
-          <div className="rounded-[26px] border border-slate-200/70 bg-slate-50/50 p-4 text-sm font-semibold text-slate-400 shadow-sm md:flex md:items-center md:justify-between md:gap-4">
-            <div className="flex items-center gap-2 font-black text-slate-500"><Bell size={16} /> Scheduled reports <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-400">soon</span></div>
+          <div className="rounded-[26px] border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500 shadow-soft md:flex md:items-center md:justify-between md:gap-4">
+            <div className="flex items-center gap-2 font-black text-slate-950"><Bell size={16} /> Scheduled reports <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-400">soon</span></div>
             <div className="mt-2 md:mt-0">Free users will get 1 saved report. Paid users get more reports, alerts and templates.</div>
           </div>
 
