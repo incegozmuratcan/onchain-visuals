@@ -1,6 +1,6 @@
 export type Timeframe = "24h" | "7d" | "30d" | "current";
 
-export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time";
+export type QueryMetric = "chain_revenue" | "chain_stablecoin_supply" | "chain_tvl" | "buidl_network_value" | "benji_network_value" | "chain_realtime_tps" | "chain_block_time" | "chain_avg_tx_fee";
 
 export type ParsedQuery = {
   limit: number;
@@ -27,41 +27,24 @@ function parseLimit(text: string) {
 
 function parseTimeframe(text: string, metric: QueryMetric): Timeframe {
   if (metric !== "chain_revenue") return "current";
-
   if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) return "24h";
   if (/(7d|week|weekly|hafta|son 7)/.test(text)) return "7d";
   return "30d";
 }
 
 function parseMetric(text: string): QueryMetric {
-  if (/(block time|blocktime|blok süresi|blok suresi)/.test(text)) {
-    return "chain_block_time";
-  }
-
-  if (/(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text)) {
-    return "chain_realtime_tps";
-  }
-
-  if (/(benji|franklin|benjamin)/.test(text)) {
-    return "benji_network_value";
-  }
-
-  if (/(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text)) {
-    return "buidl_network_value";
-  }
-
-  if (/(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text)) {
-    return "chain_stablecoin_supply";
-  }
-
-  if (/(tvl|total value locked|defi tvl|liquidity locked|kilitli değer|kilitli deger)/.test(text)) {
-    return "chain_tvl";
-  }
-
+  if (/(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text)) return "chain_avg_tx_fee";
+  if (/(block time|blocktime|blok süresi|blok suresi)/.test(text)) return "chain_block_time";
+  if (/(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text)) return "chain_realtime_tps";
+  if (/(benji|franklin|benjamin)/.test(text)) return "benji_network_value";
+  if (/(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text)) return "buidl_network_value";
+  if (/(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text)) return "chain_stablecoin_supply";
+  if (/(tvl|total value locked|defi tvl|liquidity locked|kilitli değer|kilitli deger)/.test(text)) return "chain_tvl";
   return "chain_revenue";
 }
 
 function metricLabel(metric: QueryMetric) {
+  if (metric === "chain_avg_tx_fee") return "Avg Tx Fee";
   if (metric === "chain_block_time") return "Block Time";
   if (metric === "chain_realtime_tps") return "Real-time TPS";
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
@@ -82,7 +65,7 @@ export function parsePrompt(input: string): ParsedQuery {
   const limit = parseLimit(text);
   const timeframe = parseTimeframe(text, metric);
   const isAssetMetric = metric === "buidl_network_value" || metric === "benji_network_value";
-  const isInfrastructureMetric = metric === "chain_realtime_tps" || metric === "chain_block_time";
+  const isInfrastructureMetric = metric === "chain_realtime_tps" || metric === "chain_block_time" || metric === "chain_avg_tx_fee";
 
   return {
     limit,
