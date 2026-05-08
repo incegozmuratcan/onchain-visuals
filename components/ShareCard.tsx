@@ -77,6 +77,7 @@ export function ShareCard({
 }) {
   const leader = rows[0];
   const count = rows.length;
+  const hasChainColumn = rows.some((row) => Boolean(row.chain));
 
   return (
     <div id="share-card" className="card-grid-bg relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
@@ -96,7 +97,7 @@ export function ShareCard({
           const width = barWidth(row.value, leader?.value, valueDirection);
           const valueLabel = valueFormat === "number" ? formatNumber(row.value, valueSuffix) : formatUsd(row.value);
           return (
-            <div key={row.name} className="grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]">
+            <div key={`${row.name}-${row.chain ?? ""}`} className={hasChainColumn ? "grid grid-cols-[34px_minmax(126px,170px)_1fr_104px_72px] items-center gap-3 md:grid-cols-[36px_176px_1fr_118px_86px]" : "grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]"}>
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`${compact ? "h-6 w-6" : "h-7 w-7"} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500`}>
@@ -108,6 +109,7 @@ export function ShareCard({
                 <div className={`${compact ? "h-2.5" : "h-3.5"} rounded-full bg-slate-950`} style={{ width }} />
               </div>
               <div className="text-right text-sm font-black text-slate-950 md:text-base">{valueLabel}</div>
+              {hasChainColumn && <div className="truncate text-right text-xs font-black text-slate-400 md:text-sm">{row.chain}</div>}
             </div>
           );
         })}
