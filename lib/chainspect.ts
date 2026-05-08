@@ -65,7 +65,7 @@ function rowsFromSnapshot(snapshot: TpsSnapshotRow[], limit: number): ChainReven
       return { rank: 0, name, value: row.tps, logo: getChainLogo(name) };
     })
     .sort((a, b) => b.value - a.value)
-    .slice(0, limit)
+    .slice(0, Math.min(limit, 30))
     .map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
@@ -87,7 +87,8 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
     liveRows = [];
   }
 
-  const rows = rowsFromSnapshot(liveRows.length >= 5 ? liveRows : CHAIN_SPECT_TPS_SNAPSHOT, limit);
+  const sourceRows = liveRows.length >= 5 ? liveRows : CHAIN_SPECT_TPS_SNAPSHOT;
+  const rows = rowsFromSnapshot(sourceRows, limit);
 
   return {
     rows,
@@ -99,5 +100,7 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
     description: "Shows how many transactions chains are processing per second right now.",
     insight: "TPS measures current transaction throughput. Real-time TPS reflects present network activity, not theoretical capacity.",
     methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. If the public dashboard is unavailable at request time, learnDeFi uses the latest bundled public snapshot.",
+    valueFormat: "number",
+    valueSuffix: "TPS",
   };
 }
