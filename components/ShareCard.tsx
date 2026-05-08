@@ -16,13 +16,19 @@ function titleSizeClass(count: number) {
   return "mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl";
 }
 
-function barWidth(value: number, maxValue?: number) {
-  if (!maxValue || maxValue <= 0) return "0%";
-  const pct = (value / maxValue) * 100;
+function barWidth(value: number, leaderValue?: number, direction: "higher" | "lower" = "higher") {
+  if (!leaderValue || leaderValue <= 0) return "0%";
+  const raw = direction === "lower" ? leaderValue / value : value / leaderValue;
+  const pct = raw * 100;
   return `${Math.max(0.8, Math.min(100, pct))}%`;
 }
 
 function formatNumber(value: number, suffix?: string) {
+  if (suffix === "s") {
+    const formatted = value < 10 ? value.toFixed(2) : value.toFixed(1);
+    return `${formatted} s`;
+  }
+
   const formatted = new Intl.NumberFormat("en-US", {
     maximumFractionDigits: value >= 100 ? 0 : value >= 10 ? 1 : 2,
   }).format(value);
@@ -56,6 +62,7 @@ export function ShareCard({
   insight,
   valueFormat = "usd",
   valueSuffix = "",
+  valueDirection = "higher",
 }: {
   rows: ChainRevenueRow[];
   updatedAt: string;
@@ -66,6 +73,7 @@ export function ShareCard({
   insight: string;
   valueFormat?: "usd" | "number";
   valueSuffix?: string;
+  valueDirection?: "higher" | "lower";
 }) {
   const leader = rows[0];
   const count = rows.length;
@@ -85,7 +93,7 @@ export function ShareCard({
       <div className={rowLayoutClass(count)}>
         {rows.map((row) => {
           const compact = count > 10;
-          const width = barWidth(row.value, leader?.value);
+          const width = barWidth(row.value, leader?.value, valueDirection);
           const valueLabel = valueFormat === "number" ? formatNumber(row.value, valueSuffix) : formatUsd(row.value);
           return (
             <div key={row.name} className="grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]">
