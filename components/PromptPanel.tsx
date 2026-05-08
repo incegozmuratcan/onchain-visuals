@@ -25,7 +25,7 @@ function parsePromptLabels(prompt: string) {
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
-  const scope = isBenji || isBuidl ? "Networks" : "Chains";
+  const scope = "Chains";
   const metric = isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
   return { scope, metric, limit, timeframe, isCurrentOnly };
 }

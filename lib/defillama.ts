@@ -271,7 +271,7 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
   const pageSnapshot = await getDefiLlamaRwaAssetSnapshot(assetSymbol);
   const snapshot = pageSnapshot ?? DEFILLAMA_RWA_ASSET_SNAPSHOTS[assetKey];
 
-  if (!snapshot) throw new Error(`${displayName} network distribution was not found.`);
+  if (!snapshot) throw new Error(`${displayName} chain distribution was not found.`);
 
   const rows = rowsFromSnapshot(snapshot, limit);
   return {
@@ -279,10 +279,10 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint: rwaEndpoint,
-    title: `Top ${rows.length} networks by ${displayName} onchain marketcap`,
+    title: `Top ${rows.length} chains by ${displayName} onchain marketcap`,
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
-    description: `A network-level view of where ${displayName}'s onchain marketcap is distributed.`,
-    insight: `${displayName} is a tokenized fund. This chart shows where its token supply value is present onchain across supported networks.`,
+    description: `A chain-level view of where ${displayName}'s onchain marketcap is distributed.`,
+    insight: `${displayName} is a tokenized fund. This chart shows where its token supply value is present onchain across supported chains.`,
     methodology: `Methodology: ${displayName} onchain marketcap distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
 }
