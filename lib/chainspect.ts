@@ -57,17 +57,24 @@ const CHAIN_NAME_ALIASES = new Map<string, string>([
   ["icp", "ICP"],
 ]);
 
-async function fetchText(url: string) {
-  const response = await fetch(url, {
-    next: { revalidate: 3600 },
-    headers: { accept: "text/html,text/plain,*/*", "user-agent": "Mozilla/5.0 learnDeFi" },
-  });
-  if (!response.ok) throw new Error(`Chainspect request failed: ${response.status}`);
-  return response.text();
+async function fetchText(url: string, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      next: { revalidate: 3600 },
+      signal: controller.signal,
+      headers: { accept: "text/html,text/plain,*/*", "user-agent": "Mozilla/5.0 learnDeFi" },
+    });
+    if (!response.ok) throw new Error(`Chainspect request failed: ${response.status}`);
+    return await response.text();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function jinaUrl(url: string) {
-  return `https://r.jina.ai/${url}`;
+  return `https://r.jina.ai/http://r.jina.ai/http://${url}`;
 }
 
 async function fetchReadableText(url: string, preferReader = false) {
