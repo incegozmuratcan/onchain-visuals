@@ -6,8 +6,14 @@ import { Bell, Download } from "lucide-react";
 import { DatasetLibrary } from "@/components/DatasetLibrary";
 import { PromptPanel } from "@/components/PromptPanel";
 import { ShareCard } from "@/components/ShareCard";
-import { activeDataset, datasetGroups } from "@/lib/datasets";
+import { datasetGroups } from "@/lib/datasets";
 import type { ChainRevenueRow } from "@/lib/defillama";
+
+const activeDataset = {
+  id: "market_metrics",
+  name: "Market Metrics",
+  examplePrompts: [],
+};
 
 type ApiResult = {
   ok: boolean;
@@ -106,8 +112,8 @@ export default function Home() {
         <div className="grid gap-5">
           <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} queryLabels={queryLabels} />
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500 shadow-soft md:flex md:items-center md:justify-between md:gap-4">
-            <div className="flex items-center gap-2 font-black text-slate-950"><Bell size={16} /> Scheduled reports</div>
+          <div className="rounded-[26px] border border-slate-200/70 bg-slate-50/50 p-4 text-sm font-semibold text-slate-400 shadow-sm md:flex md:items-center md:justify-between md:gap-4">
+            <div className="flex items-center gap-2 font-black text-slate-500"><Bell size={16} /> Scheduled reports <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-400">soon</span></div>
             <div className="mt-2 md:mt-0">Free users will get 1 saved report. Paid users get more reports, alerts and templates.</div>
           </div>
 
