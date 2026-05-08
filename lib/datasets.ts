@@ -89,6 +89,7 @@ export const datasetGroups: DatasetGroup[] = [
     name: "Infrastructure",
     description: "Network performance, finality, decentralization and throughput.",
     metrics: [
+      { id: "chain_realtime_tps", label: "TPS", status: "active", queries: [{ id: "chain_realtime_tps", label: "Real-time TPS by chain", prompt: "Top 10 chains by real-time TPS", status: "active", source: "Chainspect", chip: "TPS" }] },
       { id: "network_fundamentals", label: "Network fundamentals", status: "coming_soon", queries: [{ id: "network_fundamentals_compare", label: "Network fundamentals", prompt: "Compare chains by TPS and finality", status: "coming_soon", source: "Chainspect", chip: "Soon" }] },
     ],
   },
