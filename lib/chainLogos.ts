@@ -2,7 +2,8 @@ const chainSlugs: Record<string, string> = {
   abstract: "abstract",
   aptos: "aptos",
   arbitrum: "arbitrum",
-  avalanche: "avax",
+  avalanche: "avalanche",
+  avax: "avalanche",
   base: "base",
   bitcoin: "bitcoin",
   bsc: "bsc",
@@ -42,13 +43,14 @@ const chainSlugs: Record<string, string> = {
 };
 
 const directLogos: Record<string, string> = {
-  bsc: "https://icons.llama.fi/bsc.jpg",
-  "bnb chain": "https://icons.llama.fi/bsc.jpg",
-  avalanche: "https://icons.llama.fi/avax.jpg",
-  "op mainnet": "https://icons.llama.fi/optimism.jpg",
-  optimism: "https://icons.llama.fi/optimism.jpg",
-  hyperliquid: "https://icons.llama.fi/hyperliquid.jpg",
-  "hyperliquid l1": "https://icons.llama.fi/hyperliquid.jpg",
+  avax: "https://icons.llama.fi/chains/rsz_avalanche.jpg",
+  avalanche: "https://icons.llama.fi/chains/rsz_avalanche.jpg",
+  bsc: "https://icons.llama.fi/chains/rsz_bsc.jpg",
+  "bnb chain": "https://icons.llama.fi/chains/rsz_bsc.jpg",
+  optimism: "https://icons.llama.fi/chains/rsz_optimism.jpg",
+  "op mainnet": "https://icons.llama.fi/chains/rsz_optimism.jpg",
+  hyperliquid: "https://icons.llama.fi/chains/rsz_hyperliquid.jpg",
+  "hyperliquid l1": "https://icons.llama.fi/chains/rsz_hyperliquid.jpg",
 };
 
 function normalizeChainKey(name: string) {
