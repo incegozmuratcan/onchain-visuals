@@ -103,8 +103,8 @@ export default function Home() {
         <button onClick={goHome} className="text-5xl font-black tracking-[-0.07em] text-slate-950 transition hover:opacity-75 md:text-8xl">
           learnDeFi
         </button>
-        <p className="mx-auto mt-4 max-w-xl text-base font-medium leading-7 text-slate-600 md:text-lg">
-          Ask supported DeFi datasets and generate clean, share-ready visual cards.
+        <p className="mx-auto mt-5 max-w-3xl text-balance text-base font-bold leading-7 text-slate-600 md:text-2xl md:leading-9">
+          Clean DeFi visuals. Simple explanations. Share-ready cards.
         </p>
       </header>
 
