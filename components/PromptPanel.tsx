@@ -11,6 +11,7 @@ const timeframeOptions = ["24H", "7D", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
+  const isTps = /(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text);
   const isBenji = /(benji|franklin|benjamin)/.test(text);
   const isBuidl = /(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text);
   const isStablecoin = /(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text);
@@ -19,14 +20,14 @@ function parsePromptLabels(prompt: string) {
   const rawLimit = Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10);
   const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10, 3), 30);
 
-  const isCurrentOnly = isBenji || isBuidl || isStablecoin || isTvl;
+  const isCurrentOnly = isTps || isBenji || isBuidl || isStablecoin || isTvl;
   let timeframe = "30D";
   if (isCurrentOnly) timeframe = "Current";
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
   const scope = "Chains";
-  const metric = isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
+  const metric = isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
   return { scope, metric, limit, timeframe, isCurrentOnly };
 }
 
@@ -36,7 +37,7 @@ function replaceLimit(prompt: string, nextLimit: number) {
 }
 
 function replaceTimeframe(prompt: string, nextTimeframe: string) {
-  if (/stablecoin|stablecoins|supply|tvl|buidl|build|blackrock|benji|franklin/i.test(prompt)) return prompt;
+  if (/stablecoin|stablecoins|supply|tvl|buidl|build|blackrock|benji|franklin|tps|throughput/i.test(prompt)) return prompt;
   if (/(24h|7d|30d|daily|weekly|monthly)/i.test(prompt)) return prompt.replace(/(24h|7d|30d|daily|weekly|monthly)/i, nextTimeframe);
   return prompt.replace(/revenue/i, `${nextTimeframe} revenue`);
 }
