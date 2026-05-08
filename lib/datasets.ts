@@ -80,6 +80,7 @@ export const datasetGroups: DatasetGroup[] = [
     description: "Tokenized assets and RWA-style market views.",
     metrics: [
       { id: "buidl_network_value", label: "Build", status: "active", queries: [{ id: "buidl_network_value", label: "BUIDL value by network", prompt: "Top 10 networks by BUIDL value", status: "active", source: "DefiLlama", chip: "Build" }] },
+      { id: "benji_network_value", label: "BENJI", status: "active", queries: [{ id: "benji_network_value", label: "BENJI value by network", prompt: "Top 10 networks by BENJI value", status: "active", source: "DefiLlama", chip: "BENJI" }] },
       { id: "rwa_assets", label: "RWA AUM", status: "coming_soon", queries: [{ id: "rwa_aum", label: "RWA assets by AUM", prompt: "Top tokenized treasury products by AUM", status: "coming_soon", source: "RWA.xyz", chip: "Soon" }] },
     ],
   },
