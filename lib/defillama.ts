@@ -29,12 +29,14 @@ type AssetSnapshot = Record<string, number>;
 
 const DEFILLAMA_RWA_ASSET_SNAPSHOTS: Record<string, AssetSnapshot> = {
   buidl: {
-    Ethereum: 2_444_000_000,
-    Polygon: 98_500_000,
-    Avalanche: 72_600_000,
-    Aptos: 50_700_000,
-    Arbitrum: 44_200_000,
-    Optimism: 31_600_000,
+    Ethereum: 1_269_000_000,
+    Aptos: 559_070_000,
+    BSC: 509_100_000,
+    Solana: 279_850_000,
+    Avalanche: 278_540_000,
+    "OP Mainnet": 26_140_000,
+    Arbitrum: 25_490_000,
+    Polygon: 14_140_000,
   },
   benji: {
     Stellar: 581_910_000,
@@ -222,10 +224,11 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
 
 function parseDefiLlamaAssetTooltip(text: string): AssetSnapshot {
   const rows: AssetSnapshot = {};
+  const onchainSection = text.split(/Total USD value\s+of token supply\s+present onchain/i)[1]?.split(/Active Marketcap|DeFi Active TVL|Token Properties/i)[0] ?? text;
   const pattern = /([A-Za-z0-9 .-]+):\s*\$([0-9,.]+)([KMBT]?)/g;
   let match: RegExpExecArray | null;
 
-  while ((match = pattern.exec(text))) {
+  while ((match = pattern.exec(onchainSection))) {
     const name = normalizeChainName(match[1].trim());
     const raw = Number(match[2].replace(/,/g, ""));
     const suffix = match[3]?.toUpperCase();
@@ -276,11 +279,11 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint: rwaEndpoint,
-    title: `Top ${rows.length} networks by ${displayName} value`,
+    title: `Top ${rows.length} networks by ${displayName} onchain marketcap`,
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
-    description: `A network-level view of where ${displayName}'s tokenized fund value lives onchain.`,
-    insight: `${displayName} is a tokenized fund. This chart shows how its onchain value is distributed across supported networks.`,
-    methodology: `Methodology: ${displayName} network distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
+    description: `A network-level view of where ${displayName}'s onchain marketcap is distributed.`,
+    insight: `${displayName} is a tokenized fund. This chart shows where its token supply value is present onchain across supported networks.`,
+    methodology: `Methodology: ${displayName} onchain marketcap distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
 }
 
