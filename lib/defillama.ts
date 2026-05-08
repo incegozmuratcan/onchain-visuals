@@ -282,7 +282,7 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     endpoint: rwaEndpoint,
     title: `Top ${rows.length} networks by ${displayName} value`,
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
-    description: `${displayName} value by network, based on DefiLlama RWA asset distribution.",
+    description: `${displayName} value by network, based on DefiLlama RWA asset distribution.`,
     insight: `${leader} currently has the largest ${displayName} value among supported networks.`,
     methodology: `Methodology: ${displayName} network distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
