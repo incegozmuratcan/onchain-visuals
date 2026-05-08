@@ -43,23 +43,19 @@ const CHAINS: ChainspectRow[] = [
   { name: "ZKsync Era", slug: "zksync-era", blockTime: 1.0, avgTxFee24h: 0.01, developers: 80 },
 ];
 
-const LAST_VERIFIED_TPS_ROWS: ChainspectRow[] = [
-  { name: "ICP", slug: "internet-computer", tps30d: 2276 },
-  { name: "Solana", slug: "solana", tps30d: 1285 },
-  { name: "Fogo", slug: "fogo", tps30d: 192.2 },
-  { name: "Base", slug: "base", tps30d: 133.5 },
-  { name: "BNB Chain", slug: "bnb-chain", tps30d: 132.2 },
-  { name: "Stellar", slug: "stellar", tps30d: 128.2 },
-  { name: "Aptos", slug: "aptos", tps30d: 112 },
-  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 108.1 },
-  { name: "Tron", slug: "tron", tps30d: 103.4 },
-  { name: "Polygon", slug: "polygon", tps30d: 75.49 },
-  { name: "TON", slug: "ton", tps30d: 57.37 },
-  { name: "Sui", slug: "sui", tps30d: 32.12 },
-  { name: "Avalanche", slug: "avalanche", tps30d: 29.94 },
-  { name: "Ethereum", slug: "ethereum", tps30d: 21.17 },
-  { name: "Arbitrum", slug: "arbitrum", tps30d: 12.59 },
-  { name: "OP Mainnet", slug: "optimism", tps30d: 12.35 },
+const VERIFIED_TPS_30D_ROWS: ChainspectRow[] = [
+  { name: "ICP", slug: "internet-computer", tps30d: 1523 },
+  { name: "Solana", slug: "solana", tps30d: 1074 },
+  { name: "Fogo", slug: "fogo", tps30d: 253.2 },
+  { name: "BNB Chain", slug: "bnb-chain", tps30d: 180.3 },
+  { name: "Stellar", slug: "stellar", tps30d: 138.4 },
+  { name: "Tron", slug: "tron", tps30d: 123.7 },
+  { name: "Polygon", slug: "polygon", tps30d: 107.5 },
+  { name: "Aptos", slug: "aptos", tps30d: 105.1 },
+  { name: "Base", slug: "base", tps30d: 91.85 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 57.45 },
+  { name: "Sui", slug: "sui", tps30d: 29.32 },
+  { name: "Ethereum", slug: "ethereum", tps30d: 28.27 },
 ];
 
 const NAME_ALIASES = new Map<string, string>([
@@ -139,22 +135,29 @@ function pushTpsRow(rows: ChainspectRow[], rawName: string, rawTps: string) {
   rows.push({ name, slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), tps30d, blockTime: existing?.blockTime, avgTxFee24h: existing?.avgTxFee24h, developers: existing?.developers });
 }
 
+function looksLikeOneHourTps(rows: ChainspectRow[]) {
+  const icp = rows.find((row) => normalizeChainName(row.name) === "ICP")?.tps30d ?? 0;
+  const solana = rows.find((row) => normalizeChainName(row.name) === "Solana")?.tps30d ?? 0;
+  return icp > 2000 || solana > 1200;
+}
+
 function parseTpsRows(text: string) {
   const source = text.includes("<") ? cleanText(text) : text;
-  const rows: ChainspectRow[] = [];
+  const compactSource = cleanText(source);
+  if (/Real-time TPS \(1H\)/i.test(compactSource) && !/Real-time TPS \(30D\)/i.test(compactSource)) return [];
 
+  const rows: ChainspectRow[] = [];
   for (const line of source.split(/\r?\n/).map((v) => v.trim()).filter(Boolean)) {
     if (!/^\d+\s+Image:/i.test(line) || !line.includes("|") || !/tx\/s/i.test(line)) continue;
     const [nameCell, tpsCell] = line.split("|").map((cell) => cell.trim());
     pushTpsRow(rows, nameCell, tpsCell);
   }
 
-  const compactSource = cleanText(source);
   const rowPattern = /\b\d+\s+Image:\s*[^|]{1,80}?logo\s+([^|]{2,120}?)\s*\|\s*([0-9][0-9,.]*(?:\.[0-9]+)?)\s*tx\/s/gi;
   let match: RegExpExecArray | null;
   while ((match = rowPattern.exec(compactSource))) pushTpsRow(rows, match[1], match[2]);
 
-  return rows;
+  return looksLikeOneHourTps(rows) ? [] : rows;
 }
 
 async function getLiveTpsRows() {
@@ -171,7 +174,7 @@ async function getLiveTpsRows() {
     } catch {}
   }
 
-  return LAST_VERIFIED_TPS_ROWS;
+  return VERIFIED_TPS_30D_ROWS;
 }
 
 function metricAfterLabel(text: string, label: string, fallback: number, parser: (value: string, fallback: number) => number) {
@@ -231,7 +234,7 @@ function result(rows: ChainRevenueRow[], props: Omit<ChainMetricResult, "rows" |
 
 export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetricResult> {
   const rows = toMetricRows(await getRows("tps30d"), limit, "tps30d", "desc");
-  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures transaction throughput. This card uses live Chainspect dashboard data when available, with a last verified snapshot only if the dashboard reader is unavailable.", methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. If the public dashboard cannot be parsed, the card falls back to the latest verified snapshot instead of incomplete row data.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
+  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures transaction throughput. This card uses the 30D TPS view; if the public dashboard reader returns the 1H view instead, it falls back to the latest verified 30D snapshot.", methodology: "Methodology: Real-time TPS (30D) from Chainspect dashboard, cached for 1 hour. 1H dashboard rows are rejected so they are not mislabeled as 30D.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
 }
 
 export async function getChainspectBlockTime(limit: number): Promise<ChainMetricResult> {
