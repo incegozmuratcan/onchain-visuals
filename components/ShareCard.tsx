@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { getInitials } from "@/lib/chainLogos";
+import { useMemo, useState } from "react";
+import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 
@@ -22,12 +22,21 @@ function barWidth(value: number, maxValue?: number) {
   return `${Math.max(0.8, Math.min(100, pct))}%`;
 }
 
-function ChainLogo({ name, logo, compact }: { name: string; logo?: string | null; compact: boolean }) {
-  const [failed, setFailed] = useState(false);
+function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact: boolean }) {
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
+  const src = candidates[candidateIndex];
 
-  if (!logo || failed) return <>{getInitials(name)}</>;
+  if (!src) return <>{getInitials(name)}</>;
 
-  return <img src={logo} alt={`${name} logo`} className="h-full w-full object-cover" onError={() => setFailed(true)} />;
+  return (
+    <img
+      src={src}
+      alt={`${name} logo`}
+      className="h-full w-full object-cover"
+      onError={() => setCandidateIndex((index) => index + 1)}
+    />
+  );
 }
 
 export function ShareCard({
@@ -85,7 +94,7 @@ export function ShareCard({
       </div>
 
       <div className="mt-9 rounded-[24px] bg-slate-950 p-5 text-white shadow-sm">
-        <p className="text-sm font-medium leading-7 text-slate-200 md:text-base"><span className="font-black text-white">Insight note:</span> {insight}</p>
+        <p className="text-sm font-medium leading-7 text-slate-200 md:text-base"><span className="font-black text-white">Learn note:</span> {insight}</p>
       </div>
 
       <div className="mt-7 grid gap-3 text-xs font-bold text-slate-400 md:grid-cols-[1fr_2fr] md:items-end">
