@@ -279,7 +279,7 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     title: `Top ${rows.length} networks by ${displayName} value`,
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
     description: `A network-level view of where ${displayName}'s tokenized fund value lives onchain.`,
-    insight: `${displayName} is a tokenized fund. This chart shows how its onchain value is distributed across supported networks.",
+    insight: `${displayName} is a tokenized fund. This chart shows how its onchain value is distributed across supported networks.`,
     methodology: `Methodology: ${displayName} network distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
 }
