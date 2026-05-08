@@ -120,7 +120,6 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
-  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
     source: "DefiLlama",
@@ -128,8 +127,8 @@ export async function getChainRevenue(limit: number, timeframe: Timeframe): Prom
     endpoint,
     title: `Top ${rows.length} chains by ${timeframe.toUpperCase()} revenue`,
     eyebrow: "Chain Revenue",
-    description: "Chain-level revenue captured by networks. App and protocol revenues are excluded.",
-    insight: `${leader} leads ${timeframe.toUpperCase()} chain revenue among supported networks.`,
+    description: "Shows revenue captured by chains themselves, excluding app and protocol revenue.",
+    insight: "Chain revenue measures value captured at the network level. It is different from protocol revenue and helps separate chain economics from app activity.",
     methodology: "Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.",
   };
 }
@@ -176,7 +175,6 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
-  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
     source: "DefiLlama",
@@ -184,8 +182,8 @@ export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMe
     endpoint,
     title: `Top ${rows.length} chains by stablecoin supply`,
     eyebrow: "Stablecoin Supply",
-    description: "Stablecoin supply held across chains. Growth and net-flow metrics are not included in this view yet.",
-    insight: `${leader} currently holds the largest stablecoin supply among supported chains.`,
+    description: "Shows where stablecoin liquidity is concentrated across chains.",
+    insight: "Stablecoin supply shows where dollar-linked liquidity lives onchain. Higher supply often points to deeper settlement liquidity and more available capital.",
     methodology: "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
   };
 }
@@ -209,7 +207,6 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
     .slice(0, limit)
     .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
 
-  const leader = rows[0]?.name ?? "The leading chain";
   return {
     rows,
     source: "DefiLlama",
@@ -217,8 +214,8 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
     endpoint,
     title: `Top ${rows.length} chains by DeFi TVL`,
     eyebrow: "DeFi TVL",
-    description: "Total value locked across DeFi protocols on each chain, tracked by DefiLlama.",
-    insight: `${leader} leads current DeFi TVL among supported chains.`,
+    description: "Shows how much value is deposited in DeFi protocols across chains.",
+    insight: "TVL measures value deposited in DeFi protocols. It is useful for liquidity context, but it does not measure revenue or real user activity by itself.",
     methodology: "Methodology: Current DeFi TVL by chain. Stablecoin supply, revenue and bridge flows are not included in this view.",
   };
 }
@@ -274,7 +271,6 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
   if (!snapshot) throw new Error(`${displayName} network distribution was not found.`);
 
   const rows = rowsFromSnapshot(snapshot, limit);
-  const leader = rows[0]?.name ?? "The leading network";
   return {
     rows,
     source: "DefiLlama",
@@ -282,8 +278,8 @@ async function getStableAssetValueByNetwork(assetSymbol: string, displayName: st
     endpoint: rwaEndpoint,
     title: `Top ${rows.length} networks by ${displayName} value`,
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
-    description: `${displayName} value by network, based on DefiLlama RWA asset distribution.`,
-    insight: `${leader} currently has the largest ${displayName} value among supported networks.`,
+    description: `A network-level view of where ${displayName}'s tokenized fund value lives onchain.`,
+    insight: `${displayName} is a tokenized fund. This chart shows how its onchain value is distributed across supported networks.`,
     methodology: `Methodology: ${displayName} network distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
   };
 }
