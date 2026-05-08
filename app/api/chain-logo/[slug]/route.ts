@@ -40,6 +40,8 @@ const logos: Record<string, LogoMeta> = {
   rootstock: { bg: "#050505", fg: "#f7931a", mark: "✹" },
   "internet-computer": { bg: "#0f172a", fg: "#ff4ecd", mark: "∞" },
   kusama: { bg: "#050505", fg: "#ffffff", mark: "✦" },
+  fogo: { bg: "#ff4b1f", fg: "#ffffff", mark: "F" },
+  "bsv-blockchain": { bg: "#3156d4", fg: "#ffffff", mark: "BSV" },
   ink: { bg: "#6d28d9", fg: "#ffffff", mark: "I" },
   kaia: { bg: "#ffffff", fg: "#111827", mark: "K" },
   megaeth: { bg: "#f8fafc", fg: "#64748b", mark: "M" },
@@ -61,7 +63,7 @@ function esc(value: string) {
 export async function GET(_request: NextRequest, { params }: { params: { slug: string } }) {
   const slug = params.slug.toLowerCase();
   const logo = logos[slug] || logos.default;
-  const fontSize = logo.mark.length > 1 ? 31 : 42;
+  const fontSize = logo.mark.length > 2 ? 24 : logo.mark.length > 1 ? 31 : 42;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="${esc(slug)} logo"><circle cx="64" cy="64" r="62" fill="${logo.bg}"/><circle cx="64" cy="64" r="61" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/><text x="64" y="70" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="${fontSize}" fill="${logo.fg}">${esc(logo.mark)}</text></svg>`;
 
   return new NextResponse(svg, {

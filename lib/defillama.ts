@@ -11,6 +11,7 @@ export type ChainRevenueRow = {
   value30d?: number;
   change7d?: number | null;
   logo?: string | null;
+  chain?: string;
 };
 
 export type ChainMetricResult = {

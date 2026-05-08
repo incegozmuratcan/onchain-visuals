@@ -70,6 +70,15 @@ export const datasetGroups: DatasetGroup[] = [
     name: "Protocols",
     description: "Protocol-level revenue, fees, TVL and efficiency views.",
     metrics: [
+      {
+        id: "depin_revenue",
+        label: "DePIN",
+        status: "active",
+        queries: [
+          { id: "depin_revenue_30d", label: "DePIN · 30D annualized", prompt: "Top 10 DePIN projects by 30D annualized revenue", status: "active", source: "DePIN Pulse", chip: "30D" },
+          { id: "depin_revenue_24h", label: "DePIN · 24H", prompt: "Top 10 DePIN projects by 24H revenue", status: "active", source: "DePIN Pulse", chip: "24H" },
+        ],
+      },
       { id: "protocol_revenue", label: "Revenue", status: "coming_soon", queries: [{ id: "protocol_revenue_30d", label: "Protocol revenue", prompt: "Top 10 protocols by 30D revenue", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
       { id: "protocol_fees", label: "Fees", status: "coming_soon", queries: [{ id: "protocol_fees_30d", label: "Protocol fees", prompt: "Top 10 protocols by 30D fees", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
     ],

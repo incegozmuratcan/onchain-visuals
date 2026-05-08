@@ -25,7 +25,7 @@ const identities: ChainIdentity[] = [
   { name: "Ethereum", aliases: ["ethereum", "eth"], slug: "ethereum" },
   { name: "Solana", aliases: ["solana", "sol"], slug: "solana" },
   { name: "Tron", aliases: ["tron", "trx"], slug: "tron" },
-  { name: "BSC", aliases: ["bsc", "bnb chain", "binance", "binance smart chain"], slug: "bsc", logoCandidates: [llamaChain("bsc"), llamaIcon("bsc"), coinLogo("825")] },
+  { name: "BNB Chain", aliases: ["bnb chain", "bsc", "binance", "binance smart chain"], slug: "bsc", logoCandidates: [llamaChain("bsc"), llamaIcon("bsc"), coinLogo("825")] },
   { name: "Base", aliases: ["base"], slug: "base", logoCandidates: [llamaChain("base"), llamaIcon("base"), coinLogo("31199")] },
   { name: "Arbitrum", aliases: ["arbitrum", "arbitrum one"], slug: "arbitrum" },
   { name: "Polygon", aliases: ["polygon", "polygon pos", "matic"], slug: "polygon" },
@@ -68,6 +68,8 @@ const identities: ChainIdentity[] = [
   { name: "Rootstock", aliases: ["rootstock", "rsk"], slug: "rootstock" },
   { name: "ICP", aliases: ["icp", "internet computer", "internet computer protocol"], slug: "internet-computer", logoCandidates: [llamaChain("internet-computer"), llamaIcon("internet-computer"), coinLogo("14495")] },
   { name: "Kusama", aliases: ["kusama", "ksm"], slug: "kusama", logoCandidates: [llamaChain("kusama"), llamaIcon("kusama"), coinLogo("9568")] },
+  { name: "Fogo", aliases: ["fogo"], slug: "fogo" },
+  { name: "BSV Blockchain", aliases: ["bsv blockchain", "bsv", "bitcoin sv"], slug: "bsv-blockchain" },
 ];
 
 const aliasMap = new Map<string, ChainIdentity>();
