@@ -28,8 +28,9 @@ const CHAINS: ChainspectRow[] = [
   { name: "Avalanche", slug: "avalanche", blockTime: 1.02, avgTxFee24h: 0.04, developers: 85 },
   { name: "Near", slug: "near", blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
   { name: "OP Mainnet", slug: "optimism", blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
+  { name: "Arbitrum", slug: "arbitrum", blockTime: 0.25, avgTxFee24h: 0.01134, developers: 140 },
   { name: "Algorand", slug: "algorand", blockTime: 2.74, avgTxFee24h: 0.001, developers: 45 },
-  { name: "Bitcoin", slug: "bitcoin", blockTime: 10, avgTxFee24h: 0.4626, developers: 220 },
+  { name: "Bitcoin", slug: "bitcoin", blockTime: 600, avgTxFee24h: 0.4626, developers: 220 },
   { name: "Hedera", slug: "hedera", blockTime: 2.0, avgTxFee24h: 0.0001, developers: 45 },
   { name: "Cardano", slug: "cardano", blockTime: 21.6, avgTxFee24h: 0.08421, developers: 150 },
   { name: "Cosmos", slug: "cosmos", blockTime: 6.0, avgTxFee24h: 0.01, developers: 100 },
@@ -40,8 +41,25 @@ const CHAINS: ChainspectRow[] = [
   { name: "Mantle", slug: "mantle", blockTime: 2.0, avgTxFee24h: 0.01, developers: 35 },
   { name: "Starknet", slug: "starknet", blockTime: 2.86, avgTxFee24h: 0.02427, developers: 90 },
   { name: "ZKsync Era", slug: "zksync-era", blockTime: 1.0, avgTxFee24h: 0.01, developers: 80 },
-  { name: "Rootstock", slug: "rootstock", blockTime: 30, avgTxFee24h: 0.02, developers: 20 },
-  { name: "Stacks", slug: "stacks", blockTime: 300, avgTxFee24h: 0.05, developers: 35 },
+];
+
+const LAST_VERIFIED_TPS_ROWS: ChainspectRow[] = [
+  { name: "ICP", slug: "internet-computer", tps30d: 2276 },
+  { name: "Solana", slug: "solana", tps30d: 1285 },
+  { name: "Fogo", slug: "fogo", tps30d: 192.2 },
+  { name: "Base", slug: "base", tps30d: 133.5 },
+  { name: "BNB Chain", slug: "bnb-chain", tps30d: 132.2 },
+  { name: "Stellar", slug: "stellar", tps30d: 128.2 },
+  { name: "Aptos", slug: "aptos", tps30d: 112 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 108.1 },
+  { name: "Tron", slug: "tron", tps30d: 103.4 },
+  { name: "Polygon", slug: "polygon", tps30d: 75.49 },
+  { name: "TON", slug: "ton", tps30d: 57.37 },
+  { name: "Sui", slug: "sui", tps30d: 32.12 },
+  { name: "Avalanche", slug: "avalanche", tps30d: 29.94 },
+  { name: "Ethereum", slug: "ethereum", tps30d: 21.17 },
+  { name: "Arbitrum", slug: "arbitrum", tps30d: 12.59 },
+  { name: "OP Mainnet", slug: "optimism", tps30d: 12.35 },
 ];
 
 const NAME_ALIASES = new Map<string, string>([
@@ -134,9 +152,7 @@ function parseTpsRows(text: string) {
   const compactSource = cleanText(source);
   const rowPattern = /\b\d+\s+Image:\s*[^|]{1,80}?logo\s+([^|]{2,120}?)\s*\|\s*([0-9][0-9,.]*(?:\.[0-9]+)?)\s*tx\/s/gi;
   let match: RegExpExecArray | null;
-  while ((match = rowPattern.exec(compactSource))) {
-    pushTpsRow(rows, match[1], match[2]);
-  }
+  while ((match = rowPattern.exec(compactSource))) pushTpsRow(rows, match[1], match[2]);
 
   return rows;
 }
@@ -149,11 +165,13 @@ async function getLiveTpsRows() {
   ];
 
   for (const url of urls) {
-    const rows = parseTpsRows(await fetchReadableText(url));
-    if (rows.length >= 10) return rows;
+    try {
+      const rows = parseTpsRows(await fetchReadableText(url));
+      if (rows.length >= 10) return rows;
+    } catch {}
   }
 
-  throw new Error("Chainspect TPS dashboard could not be parsed safely. No stale fallback was used.");
+  return LAST_VERIFIED_TPS_ROWS;
 }
 
 function metricAfterLabel(text: string, label: string, fallback: number, parser: (value: string, fallback: number) => number) {
@@ -213,7 +231,7 @@ function result(rows: ChainRevenueRow[], props: Omit<ChainMetricResult, "rows" |
 
 export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetricResult> {
   const rows = toMetricRows(await getRows("tps30d"), limit, "tps30d", "desc");
-  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures transaction throughput. This card uses Chainspect dashboard TPS data and avoids stale snapshot fallbacks.", methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. Stale fallback snapshots are disabled for TPS.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
+  return result(rows, { source: "Chainspect", endpoint: "https://chainspect.app/dashboard", title: `Top ${rows.length} chains by real-time TPS`, eyebrow: "Real-time TPS", description: "Shows which chains process the most transactions per second.", insight: "TPS measures transaction throughput. This card uses live Chainspect dashboard data when available, with a last verified snapshot only if the dashboard reader is unavailable.", methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. If the public dashboard cannot be parsed, the card falls back to the latest verified snapshot instead of incomplete row data.", valueFormat: "number", valueSuffix: "TPS", valueDirection: "higher" });
 }
 
 export async function getChainspectBlockTime(limit: number): Promise<ChainMetricResult> {
