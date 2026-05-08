@@ -12,20 +12,21 @@ type ChainspectSnapshotRow = {
 };
 
 const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
-  { name: "Solana", slug: "solana", tps30d: 1100, blockTime: 0.4, avgTxFee24h: 0.002, developers: 180 },
-  { name: "ICP", slug: "internet-computer", tps30d: 900, blockTime: 0.6, avgTxFee24h: 0.0001, developers: 70 },
-  { name: "Base", slug: "base", tps30d: 170, blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
-  { name: "BSC", slug: "bnb-chain", tps30d: 140, blockTime: 3.0, avgTxFee24h: 0.02079, developers: 110 },
-  { name: "Stellar", slug: "stellar", tps30d: 120, blockTime: 5.8, avgTxFee24h: 0.00001, developers: 35 },
-  { name: "Aptos", slug: "aptos", tps30d: 95, blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
-  { name: "Sui", slug: "sui", tps30d: 75, blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
-  { name: "Arbitrum", slug: "arbitrum", tps30d: 55, blockTime: 0.25, avgTxFee24h: 0.01134, developers: 140 },
-  { name: "Polygon", slug: "polygon", tps30d: 45, blockTime: 1.75, avgTxFee24h: 0.01, developers: 130 },
-  { name: "Ethereum", slug: "ethereum", tps30d: 15, blockTime: 12.0, avgTxFee24h: 0.4986, developers: 300 },
+  { name: "ICP", slug: "internet-computer", tps30d: 1523, blockTime: 0.6, avgTxFee24h: 0.0001, developers: 70 },
+  { name: "Solana", slug: "solana", tps30d: 1074, blockTime: 0.4, avgTxFee24h: 0.002, developers: 180 },
+  { name: "Fogo", slug: "fogo", tps30d: 253.2, blockTime: 0.4, avgTxFee24h: 0.001, developers: 10 },
+  { name: "BNB Chain", slug: "bnb-chain", tps30d: 180.3, blockTime: 3.0, avgTxFee24h: 0.02079, developers: 110 },
+  { name: "Stellar", slug: "stellar", tps30d: 138.4, blockTime: 5.8, avgTxFee24h: 0.00001, developers: 35 },
+  { name: "Tron", slug: "tron", tps30d: 123.7, blockTime: 3.0, avgTxFee24h: 0.09403, developers: 45 },
+  { name: "Polygon", slug: "polygon", tps30d: 107.5, blockTime: 1.75, avgTxFee24h: 0.01, developers: 130 },
+  { name: "Aptos", slug: "aptos", tps30d: 105.1, blockTime: 0.05, avgTxFee24h: 0.005, developers: 90 },
+  { name: "Base", slug: "base", tps30d: 91.85, blockTime: 2.0, avgTxFee24h: 0.00892, developers: 160 },
+  { name: "BSV Blockchain", slug: "bsv-blockchain", tps30d: 57.45, blockTime: 600.0, avgTxFee24h: 0.001, developers: 15 },
+  { name: "Sui", slug: "sui", tps30d: 29.32, blockTime: 0.08, avgTxFee24h: 0.003, developers: 120 },
+  { name: "Ethereum", slug: "ethereum", tps30d: 28.27, blockTime: 12.0, avgTxFee24h: 0.4986, developers: 300 },
   { name: "Avalanche", slug: "avalanche", tps30d: 14, blockTime: 1.02, avgTxFee24h: 0.04, developers: 85 },
   { name: "Near", slug: "near", tps30d: 12, blockTime: 0.62, avgTxFee24h: 0.001, developers: 95 },
   { name: "OP Mainnet", slug: "optimism", tps30d: 11, blockTime: 2.0, avgTxFee24h: 0.01, developers: 105 },
-  { name: "Tron", slug: "tron", tps30d: 9, blockTime: 3.0, avgTxFee24h: 0.09403, developers: 45 },
   { name: "Bitcoin", slug: "bitcoin", tps30d: 7, blockTime: 10.0, avgTxFee24h: 0.4626, developers: 220 },
   { name: "Cardano", slug: "cardano", tps30d: 6, blockTime: 21.6, avgTxFee24h: 0.08421, developers: 150 },
   { name: "Cosmos", slug: "cosmos", tps30d: 5, blockTime: 6.0, avgTxFee24h: 0.01, developers: 100 },
@@ -41,7 +42,6 @@ const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
   { name: "Rootstock", slug: "rootstock", tps30d: 1, blockTime: 30.0, avgTxFee24h: 0.02, developers: 20 },
   { name: "Stacks", slug: "stacks", tps30d: 1, blockTime: 300.0, avgTxFee24h: 0.05, developers: 35 },
   { name: "Hedera", slug: "hedera", tps30d: 1, blockTime: 2.0, avgTxFee24h: 0.0001, developers: 45 },
-  { name: "Kusama", slug: "kusama", tps30d: 1, blockTime: 6.12, avgTxFee24h: 0.02, developers: 25 },
 ];
 
 async function fetchText(url: string) {
