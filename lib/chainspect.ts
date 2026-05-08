@@ -227,7 +227,7 @@ export async function getChainspectDevelopers(limit: number): Promise<ChainMetri
     insight: "Developer count is a useful signal for ecosystem health, but it should be read together with usage, revenue and liquidity.",
     methodology: "Methodology: Developer count from Chainspect Developer Activity dashboard, cached for 1 hour.",
     valueFormat: "number",
-    valueSuffix: "developers",
+    valueSuffix: "devs",
     valueDirection: "higher",
   };
 }
