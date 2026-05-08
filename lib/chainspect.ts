@@ -44,10 +44,31 @@ const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
   { name: "Stacks", slug: "stacks", tps30d: 0, blockTime: 300.0, avgTxFee24h: 0.05, developers: 35 },
 ];
 
+const CHAIN_NAME_ALIASES = new Map<string, string>([
+  ["bnb chain", "BNB Chain"],
+  ["bsc", "BNB Chain"],
+  ["near", "Near"],
+  ["near protocol", "Near"],
+  ["tron", "Tron"],
+  ["ton", "TON"],
+  ["op mainnet", "OP Mainnet"],
+  ["optimism", "OP Mainnet"],
+  ["internet computer", "ICP"],
+  ["icp", "ICP"],
+]);
+
 async function fetchText(url: string) {
-  const response = await fetch(url, { next: { revalidate: 3600 }, headers: { accept: "text/html" } });
-  if (!response.ok) throw new Error("Chainspect request failed");
+  const response = await fetch(url, { next: { revalidate: 3600 }, headers: { accept: "text/html,text/plain,*/*", "user-agent": "Mozilla/5.0 learnDeFi" } });
+  if (!response.ok) throw new Error(`Chainspect request failed: ${response.status}`);
   return response.text();
+}
+
+async function fetchReadableText(url: string) {
+  try {
+    return await fetchText(url);
+  } catch {
+    return fetchText(`https://r.jina.ai/http://r.jina.ai/http://${url}`);
+  }
 }
 
 function cleanText(html: string) {
@@ -91,9 +112,48 @@ function parseMetricAfterLabel(text: string, label: string, fallback: number, pa
   return parser(text.slice(labelIndex + label.length, labelIndex + label.length + 80), fallback);
 }
 
+function normalizeDashboardName(raw: string) {
+  const cleaned = raw
+    .replace(/^\d+\s+/, "")
+    .replace(/Image:\s*[^|]+?logo\s*/gi, "")
+    .replace(/\b(Layer\s+[12]|Sidechain|Ecosystem|Testnet|Mainnet|Stake Now|New)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const key = cleaned.toLowerCase();
+  return CHAIN_NAME_ALIASES.get(key) ?? cleaned;
+}
+
+function parseDashboardTpsRows(markdownOrHtml: string) {
+  const text = markdownOrHtml.includes("<") ? cleanText(markdownOrHtml) : markdownOrHtml;
+  const rows: ChainspectSnapshotRow[] = [];
+  const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    if (!/^\d+\s+Image:/i.test(line) || !line.includes("|") || !/tx\/s/i.test(line)) continue;
+    const cells = line.split("|").map((cell) => cell.trim());
+    if (cells.length < 2) continue;
+
+    const name = normalizeDashboardName(cells[0]);
+    const tps = parseNumber(cells[1], 0);
+    if (!name || tps <= 0) continue;
+
+    const existing = CHAIN_SPECT_SNAPSHOT.find((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase());
+    rows.push({
+      name,
+      slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
+      tps30d: tps,
+      blockTime: existing?.blockTime ?? 0,
+      avgTxFee24h: existing?.avgTxFee24h ?? 0,
+      developers: existing?.developers ?? 0,
+    });
+  }
+
+  return rows;
+}
+
 async function withChainDetailMetrics(row: ChainspectSnapshotRow) {
   try {
-    const text = cleanText(await fetchText(`https://chainspect.app/chain/${row.slug}`));
+    const text = cleanText(await fetchReadableText(`https://chainspect.app/chain/${row.slug}`));
     return {
       ...row,
       blockTime: parseMetricAfterLabel(text, "Block Time (1H)", row.blockTime, parseSeconds),
@@ -112,32 +172,24 @@ function findMetricNearChain(text: string, row: ChainspectSnapshotRow, label: st
   return parser(chunk.slice(labelIndex + label.length, labelIndex + label.length + 80), fallback);
 }
 
-function parseTpsNearChain(text: string, row: ChainspectSnapshotRow) {
-  const aliases = [row.name, row.slug.replace(/-/g, " ")];
-  for (const alias of aliases) {
-    const index = text.toLowerCase().indexOf(alias.toLowerCase());
-    if (index < 0) continue;
-    const chunk = text.slice(index, index + 700);
-    const metric = chunk.match(/([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?|[0-9]+(?:\.[0-9]+)?)\s*(?:tx\/s|TPS)/i);
-    if (metric) {
-      const value = Number(metric[1].replace(/,/g, ""));
-      if (Number.isFinite(value) && value > 0) return value;
+async function getLiveTpsRows() {
+  const urls = [
+    "https://chainspect.app/dashboard?range=30d&order=desc&sort=realTimeTps",
+    "https://chainspect.app/dashboard?range=30d",
+    "https://chainspect.app/dashboard",
+  ];
+
+  for (const url of urls) {
+    try {
+      const text = await fetchReadableText(url);
+      const rows = parseDashboardTpsRows(text);
+      if (rows.length >= 10) return rows;
+    } catch {
+      // Try the next readable dashboard URL.
     }
   }
-  return 0;
-}
 
-async function getLiveTpsRows() {
-  const text = cleanText(await fetchText("https://chainspect.app/dashboard"));
-  const rows = CHAIN_SPECT_SNAPSHOT
-    .map((row) => ({ ...row, tps30d: parseTpsNearChain(text, row) }))
-    .filter((row) => row.tps30d > 0);
-
-  if (rows.length < 10) {
-    throw new Error("Chainspect TPS table could not be parsed safely. No fallback snapshot was used, to avoid publishing stale or wrong TPS data.");
-  }
-
-  return rows;
+  throw new Error("Chainspect TPS dashboard could not be parsed safely. No stale fallback was used.");
 }
 
 async function withFinancialMetrics(row: ChainspectSnapshotRow, pageText: string) {
@@ -154,7 +206,7 @@ async function getChainspectRows(field: "tps30d" | "blockTime" | "avgTxFee24h" |
 
   if (field === "avgTxFee24h") {
     try {
-      const text = cleanText(await fetchText("https://chainspect.app/dashboard/financials"));
+      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/financials"));
       return Promise.all(CHAIN_SPECT_SNAPSHOT.map((row) => withFinancialMetrics(row, text)));
     } catch {
       return CHAIN_SPECT_SNAPSHOT;
@@ -163,7 +215,7 @@ async function getChainspectRows(field: "tps30d" | "blockTime" | "avgTxFee24h" |
 
   if (field === "developers") {
     try {
-      const text = cleanText(await fetchText("https://chainspect.app/dashboard/developer-activity"));
+      const text = cleanText(await fetchReadableText("https://chainspect.app/dashboard/developer-activity"));
       return Promise.all(CHAIN_SPECT_SNAPSHOT.map((row) => withDeveloperMetrics(row, text)));
     } catch {
       return CHAIN_SPECT_SNAPSHOT;
@@ -196,8 +248,8 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
     title: `Top ${rows.length} chains by real-time TPS`,
     eyebrow: "Real-time TPS",
     description: "Shows which chains process the most transactions per second.",
-    insight: "TPS measures transaction throughput. This card uses the 30D average real-time TPS to smooth short-term spikes.",
-    methodology: "Methodology: Real-time TPS (30D) from Chainspect dashboard, cached for 1 hour. Fallback snapshots are disabled for TPS to prevent stale data from being shown as live data.",
+    insight: "TPS measures transaction throughput. This card uses Chainspect dashboard TPS data and avoids stale snapshot fallbacks.",
+    methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. Stale fallback snapshots are disabled for TPS.",
     valueFormat: "number",
     valueSuffix: "TPS",
     valueDirection: "higher",
