@@ -11,6 +11,7 @@ const timeframeOptions = ["24H", "7D", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
+  const isTxFee = /(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text);
   const isBlockTime = /(block time|blocktime|blok süresi|blok suresi)/.test(text);
   const isTps = /(tps|throughput|transactions per second|real-time tps|realtime tps)/.test(text);
   const isBenji = /(benji|franklin|benjamin)/.test(text);
@@ -21,14 +22,14 @@ function parsePromptLabels(prompt: string) {
   const rawLimit = Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10);
   const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10, 3), 30);
 
-  const isCurrentOnly = isBlockTime || isTps || isBenji || isBuidl || isStablecoin || isTvl;
+  const isCurrentOnly = isTxFee || isBlockTime || isTps || isBenji || isBuidl || isStablecoin || isTvl;
   let timeframe = "30D";
   if (isCurrentOnly) timeframe = "Current";
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
   const scope = "Chains";
-  const metric = isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
+  const metric = isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
   return { scope, metric, limit, timeframe, isCurrentOnly };
 }
 
@@ -38,7 +39,7 @@ function replaceLimit(prompt: string, nextLimit: number) {
 }
 
 function replaceTimeframe(prompt: string, nextTimeframe: string) {
-  if (/stablecoin|stablecoins|supply|tvl|buidl|build|blackrock|benji|franklin|tps|throughput|block time|blocktime/i.test(prompt)) return prompt;
+  if (/stablecoin|stablecoins|supply|tvl|buidl|build|blackrock|benji|franklin|tps|throughput|block time|blocktime|tx fee|transaction fee/i.test(prompt)) return prompt;
   if (/(24h|7d|30d|daily|weekly|monthly)/i.test(prompt)) return prompt.replace(/(24h|7d|30d|daily|weekly|monthly)/i, nextTimeframe);
   return prompt.replace(/revenue/i, `${nextTimeframe} revenue`);
 }

@@ -38,7 +38,7 @@ const identities: ChainIdentity[] = [
   { name: "Hedera", aliases: ["hedera", "hbar"], slug: "hedera" },
   { name: "Algorand", aliases: ["algorand", "algo"], slug: "algorand" },
   { name: "Plume", aliases: ["plume", "plume mainnet"], slug: "plume" },
-  { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era"], slug: "zksync era" },
+  { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era", "zk syncera", "zk-sync era", "zk-sync"], slug: "zksync era", logoCandidates: [llamaChain("zksync era"), llamaIcon("zksync era"), coinLogo("24091")] },
   { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid", logoCandidates: [llamaChain("hyperliquid"), llamaIcon("hyperliquid"), coinLogo("50882")] },
   { name: "Canton", aliases: ["canton", "canton network"], slug: "canton-network" },
   { name: "Abstract", aliases: ["abstract"], slug: "abstract" },
