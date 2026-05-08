@@ -41,80 +41,8 @@ const CHAIN_SPECT_SNAPSHOT: ChainspectSnapshotRow[] = [
   { name: "Kusama", tps: 1, blockTime: 6.0 },
 ];
 
-function toNumber(value: string) {
-  const cleaned = value.replace(/,/g, "").trim();
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function decodeHtml(text: string) {
-  return text
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">");
-}
-
-function stripTags(html: string) {
-  return decodeHtml(html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
-}
-
-function parseDurationToSeconds(value: string) {
-  const cleaned = value.toLowerCase().replace(/,/g, "").trim();
-  const match = cleaned.match(/([0-9]*\.?[0-9]+)\s*(ms|s|sec|secs|second|seconds|min|mins|minute|minutes)?/);
-  if (!match) return 0;
-  const raw = Number(match[1]);
-  if (!Number.isFinite(raw)) return 0;
-  const unit = match[2] ?? "s";
-  if (unit === "ms") return raw / 1000;
-  if (unit.startsWith("min")) return raw * 60;
-  return raw;
-}
-
-function looksLikeChainName(value: string) {
-  return /^[A-Za-z0-9 .-]{2,32}$/.test(value) && !/real-time|max|transaction|volume|block|finality|total|launch|date|metric|dashboard/i.test(value);
-}
-
-function parseRowsFromHtml(html: string): ChainspectSnapshotRow[] {
-  const rows: ChainspectSnapshotRow[] = [];
-  const rowMatches = html.match(/<tr[\s\S]*?<\/tr>/gi) ?? [];
-
-  for (const rowHtml of rowMatches) {
-    const cells = [...rowHtml.matchAll(/<t[dh][^>]*>([\s\S]*?)<\/t[dh]>/gi)].map((match) => stripTags(match[1]));
-    if (cells.length < 6) continue;
-
-    const nameCell = cells.find(looksLikeChainName);
-    if (!nameCell) continue;
-
-    const numericCells = cells.slice(1).filter((cell) => /^\d[\d,.]*$/.test(cell));
-    const tps = numericCells[0] ? toNumber(numericCells[0]) : 0;
-    const blockTimeCell = cells.find((cell) => /\d/.test(cell) && /\b(ms|s|sec|secs|second|seconds|min|mins|minute|minutes)\b/i.test(cell));
-    const blockTime = blockTimeCell ? parseDurationToSeconds(blockTimeCell) : 0;
-
-    if ((tps > 0 || blockTime > 0) && looksLikeChainName(nameCell)) rows.push({ name: nameCell, tps, blockTime });
-  }
-
-  return rows;
-}
-
-async function getChainspectRows(field: "tps" | "blockTime") {
-  const endpoint = "https://chainspect.app/dashboard";
-  try {
-    const response = await fetch(endpoint, {
-      next: { revalidate: 3600 },
-      headers: { accept: "text/html" },
-    });
-
-    if (!response.ok) return CHAIN_SPECT_SNAPSHOT;
-    const html = await response.text();
-    const liveRows = parseRowsFromHtml(html);
-    const validRows = liveRows.filter((row) => row[field] > 0 && looksLikeChainName(row.name));
-    return validRows.length >= 10 ? liveRows : CHAIN_SPECT_SNAPSHOT;
-  } catch {
-    return CHAIN_SPECT_SNAPSHOT;
-  }
+async function getChainspectRows() {
+  return CHAIN_SPECT_SNAPSHOT;
 }
 
 function toMetricRows(rows: ChainspectSnapshotRow[], limit: number, field: "tps" | "blockTime", sort: "desc" | "asc"): ChainRevenueRow[] {
@@ -131,7 +59,7 @@ function toMetricRows(rows: ChainspectSnapshotRow[], limit: number, field: "tps"
 
 export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://chainspect.app/dashboard";
-  const rows = toMetricRows(await getChainspectRows("tps"), limit, "tps", "desc");
+  const rows = toMetricRows(await getChainspectRows(), limit, "tps", "desc");
 
   return {
     rows,
@@ -142,7 +70,7 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
     eyebrow: "Real-time TPS",
     description: "Shows how many transactions chains are processing per second right now.",
     insight: "TPS measures current transaction throughput. Real-time TPS reflects present network activity, not theoretical capacity.",
-    methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. If the public dashboard is unavailable at request time, learnDeFi uses the latest bundled public snapshot.",
+    methodology: "Methodology: Real-time TPS from Chainspect dashboard, cached for 1 hour. The current implementation uses a bundled public snapshot until the public dashboard parser is stable enough for production.",
     valueFormat: "number",
     valueSuffix: "TPS",
   };
@@ -150,7 +78,7 @@ export async function getChainspectRealTimeTps(limit: number): Promise<ChainMetr
 
 export async function getChainspectBlockTime(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://chainspect.app/dashboard";
-  const rows = toMetricRows(await getChainspectRows("blockTime"), limit, "blockTime", "asc");
+  const rows = toMetricRows(await getChainspectRows(), limit, "blockTime", "asc");
 
   return {
     rows,
@@ -161,7 +89,7 @@ export async function getChainspectBlockTime(limit: number): Promise<ChainMetric
     eyebrow: "Block Time",
     description: "Shows the fastest current block times across chains.",
     insight: "Block time is the average time between new blocks. Lower block time can improve responsiveness, but it is not the same as finality.",
-    methodology: "Methodology: 1H block time from Chainspect dashboard, cached for 1 hour. If the public dashboard is unavailable at request time, learnDeFi uses the latest bundled public snapshot.",
+    methodology: "Methodology: 1H block time from Chainspect dashboard, cached for 1 hour. The current implementation uses a bundled public snapshot until the public dashboard parser is stable enough for production.",
     valueFormat: "number",
     valueSuffix: "s",
   };
