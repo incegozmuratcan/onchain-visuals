@@ -211,26 +211,27 @@ export async function getChainTvl(limit: number): Promise<ChainMetricResult> {
   };
 }
 
-export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetricResult> {
+async function getStableAssetValueByNetwork(assetSymbol: string, displayName: string, limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://stablecoins.llama.fi/stablecoins?includePrices=true";
   const json = await fetchJson(endpoint);
   const assets = Array.isArray(json.peggedAssets) ? json.peggedAssets : [];
-  const buidl = assets.find((asset: any) => {
+  const target = assets.find((asset: any) => {
     const name = String(asset.name ?? "").toLowerCase();
     const symbol = String(asset.symbol ?? "").toLowerCase();
-    return name.includes("buidl") || symbol === "buidl";
+    const wanted = assetSymbol.toLowerCase();
+    return name.includes(wanted) || symbol === wanted;
   });
 
-  if (!buidl) throw new Error("BUIDL data was not found in DefiLlama stable assets data.");
+  if (!target) throw new Error(`${displayName} data was not found in DefiLlama stable assets data.`);
 
-  const chains = buidl?.chainCirculating && typeof buidl.chainCirculating === "object" ? Object.keys(buidl.chainCirculating) : [];
+  const chains = target?.chainCirculating && typeof target.chainCirculating === "object" ? Object.keys(target.chainCirculating) : [];
   const rows: ChainRevenueRow[] = chains
     .map((rawChain): ChainRevenueRow => {
       const name = normalizeStablecoinChainName(rawChain);
       return {
         rank: 0,
         name,
-        value: getStablecoinChainValue(buidl, rawChain),
+        value: getStablecoinChainValue(target, rawChain),
         logo: getChainLogo(name),
       };
     })
@@ -245,10 +246,18 @@ export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetric
     source: "DefiLlama",
     updatedAt: formatDateTime(),
     endpoint,
-    title: `Top ${rows.length} networks by BUIDL value`,
-    eyebrow: "Build",
-    description: "BUIDL value by network, based on DefiLlama stable asset chain distribution.",
-    insight: `${leader} currently has the largest BUIDL value among supported networks.`,
-    methodology: "Methodology: BUIDL value by network from DefiLlama stable asset chain distribution. Values are grouped by network and shown in USD terms.",
+    title: `Top ${rows.length} networks by ${displayName} value`,
+    eyebrow: displayName === "BUIDL" ? "Build" : displayName,
+    description: `${displayName} value by network, based on DefiLlama stable asset chain distribution.`,
+    insight: `${leader} currently has the largest ${displayName} value among supported networks.`,
+    methodology: `Methodology: ${displayName} value by network from DefiLlama stable asset chain distribution. Values are grouped by network and shown in USD terms.`,
   };
+}
+
+export async function getBuidlValueByNetwork(limit: number): Promise<ChainMetricResult> {
+  return getStableAssetValueByNetwork("buidl", "BUIDL", limit);
+}
+
+export async function getBenjiValueByNetwork(limit: number): Promise<ChainMetricResult> {
+  return getStableAssetValueByNetwork("benji", "BENJI", limit);
 }
