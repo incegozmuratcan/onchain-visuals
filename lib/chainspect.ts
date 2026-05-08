@@ -67,7 +67,7 @@ async function fetchText(url: string, timeoutMs = 8000) {
 }
 
 async function fetchReadableText(url: string) {
-  const readerUrl = `https://r.jina.ai/${url}`;
+  const readerUrl = "https://r.jina.ai/" + url;
   try {
     return await fetchText(readerUrl);
   } catch {
@@ -112,6 +112,15 @@ function normalizeDashboardName(raw: string) {
   return NAME_ALIASES.get(cleaned.toLowerCase()) ?? cleaned;
 }
 
+function pushTpsRow(rows: ChainspectRow[], rawName: string, rawTps: string) {
+  const name = normalizeDashboardName(rawName);
+  const tps30d = parseNumber(rawTps);
+  if (!name || tps30d <= 0) return;
+  const existing = CHAINS.find((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase());
+  if (rows.some((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase())) return;
+  rows.push({ name, slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), tps30d, blockTime: existing?.blockTime, avgTxFee24h: existing?.avgTxFee24h, developers: existing?.developers });
+}
+
 function parseTpsRows(text: string) {
   const source = text.includes("<") ? cleanText(text) : text;
   const rows: ChainspectRow[] = [];
@@ -119,11 +128,14 @@ function parseTpsRows(text: string) {
   for (const line of source.split(/\r?\n/).map((v) => v.trim()).filter(Boolean)) {
     if (!/^\d+\s+Image:/i.test(line) || !line.includes("|") || !/tx\/s/i.test(line)) continue;
     const [nameCell, tpsCell] = line.split("|").map((cell) => cell.trim());
-    const name = normalizeDashboardName(nameCell);
-    const tps30d = parseNumber(tpsCell);
-    if (!name || tps30d <= 0) continue;
-    const existing = CHAINS.find((row) => normalizeChainName(row.name).toLowerCase() === normalizeChainName(name).toLowerCase());
-    rows.push({ name, slug: existing?.slug ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""), tps30d, blockTime: existing?.blockTime, avgTxFee24h: existing?.avgTxFee24h, developers: existing?.developers });
+    pushTpsRow(rows, nameCell, tpsCell);
+  }
+
+  const compactSource = cleanText(source);
+  const rowPattern = /\b\d+\s+Image:\s*[^|]{1,80}?logo\s+([^|]{2,120}?)\s*\|\s*([0-9][0-9,.]*(?:\.[0-9]+)?)\s*tx\/s/gi;
+  let match: RegExpExecArray | null;
+  while ((match = rowPattern.exec(compactSource))) {
+    pushTpsRow(rows, match[1], match[2]);
   }
 
   return rows;
