@@ -1,14 +1,30 @@
 "use client";
 
-import { getInitials } from "@/lib/chainLogos";
+import { useMemo, useState } from "react";
+import { getChainLogoCandidates } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
+
+function ChainLogo({ name, logo }: { name: string; logo?: string | null }) {
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
+  const src = candidates[Math.min(candidateIndex, candidates.length - 1)];
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="h-full w-full object-cover"
+      onError={() => setCandidateIndex((index) => Math.min(index + 1, candidates.length - 1))}
+    />
+  );
+}
 
 function ChainIdentity({ row }: { row: ChainRevenueRow }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">
-        {row.logo ? <img src={row.logo} alt="" className="h-full w-full object-cover" /> : getInitials(row.name)}
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+        <ChainLogo name={row.name} logo={row.logo} />
       </div>
       <span className="font-semibold text-slate-950">{row.name}</span>
     </div>

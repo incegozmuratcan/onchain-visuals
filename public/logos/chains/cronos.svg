@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="Cronos logo">
+  <defs>
+    <radialGradient id="shine" cx="32%" cy="24%" r="76%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0f172a" stop-opacity="0.10"/>
+    </radialGradient>
+  </defs>
+  <circle cx="64" cy="64" r="62" fill="#0f172a"/>
+  <circle cx="64" cy="64" r="62" fill="url(#shine)"/>
+  <circle cx="64" cy="64" r="60.5" fill="none" stroke="rgba(15,23,42,0.14)" stroke-width="3"/>
+  <text x="64" y="69" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="43" fill="#fff">C</text>
+</svg>

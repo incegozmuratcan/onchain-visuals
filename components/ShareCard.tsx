@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
+import { getChainLogoCandidates } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 
@@ -38,16 +38,14 @@ function formatNumber(value: number, suffix?: string) {
 function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact: boolean }) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
-  const src = candidates[candidateIndex];
-
-  if (!src) return <>{getInitials(name)}</>;
+  const src = candidates[Math.min(candidateIndex, candidates.length - 1)];
 
   return (
     <img
       src={src}
       alt={`${name} logo`}
       className="h-full w-full object-cover"
-      onError={() => setCandidateIndex((index) => index + 1)}
+      onError={() => setCandidateIndex((index) => Math.min(index + 1, candidates.length - 1))}
     />
   );
 }
@@ -100,7 +98,7 @@ export function ShareCard({
             <div key={`${row.name}-${row.chain ?? ""}`} className={hasChainColumn ? "grid grid-cols-[34px_minmax(126px,170px)_1fr_104px_72px] items-center gap-3 md:grid-cols-[36px_176px_1fr_118px_86px]" : "grid grid-cols-[34px_minmax(128px,170px)_1fr_104px] items-center gap-3 md:grid-cols-[36px_190px_1fr_120px]"}>
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
               <div className="flex min-w-0 items-center gap-3">
-                <div className={`${compact ? "h-6 w-6" : "h-7 w-7"} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500`}>
+                <div className={`${compact ? "h-6 w-6" : "h-7 w-7"} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm`}>
                   <ChainLogo name={row.name} logo={row.logo} compact={compact} />
                 </div>
                 <div className={`${compact ? "text-sm" : "text-base"} truncate font-black text-slate-950`}>{row.name}</div>
