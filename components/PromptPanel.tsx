@@ -8,9 +8,11 @@ type ActiveDataset = {
 
 const limitOptions = [5, 10, 15, 20, 25, 30];
 const timeframeOptions = ["24H", "7D", "30D"];
+const depinTimeframeOptions = ["24H", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
+  const isDepin = /(depin|physical infrastructure|infrastructure network)/.test(text);
   const isDevelopers = /(developers|developer|devs|dev count|geliştirici|gelistirici)/.test(text);
   const isTxFee = /(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text);
   const isBlockTime = /(block time|blocktime|blok süresi|blok suresi)/.test(text);
@@ -19,7 +21,7 @@ function parsePromptLabels(prompt: string) {
   const isBuidl = /(buidl|build|blackrock|tokenized fund|tokenized treasury)/.test(text);
   const isStablecoin = /(stablecoin|stablecoins|stable|stables|supply|mcap|market cap)/.test(text);
   const isTvl = /(tvl|total value locked|defi tvl|liquidity locked|kilitli değer|kilitli deger)/.test(text);
-  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?)/);
+  const limitMatch = text.match(/top\s+(\d+)|first\s+(\d+)|(\d+)\s+(chains?|networks?|projects?)/);
   const rawLimit = Number(limitMatch?.[1] || limitMatch?.[2] || limitMatch?.[3] || 10);
   const limit = Math.min(Math.max(Number.isFinite(rawLimit) ? Math.floor(rawLimit) : 10, 3), 30);
 
@@ -27,11 +29,11 @@ function parsePromptLabels(prompt: string) {
   let timeframe = "30D";
   if (isCurrentOnly) timeframe = "Current";
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
-  else if (/(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
+  else if (!isDepin && /(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
-  const scope = isDevelopers ? "Developers" : "Chains";
-  const metric = isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
-  return { scope, metric, limit, timeframe, isCurrentOnly };
+  const scope = isDepin ? "Protocols" : isDevelopers ? "Developers" : isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
+  const metric = isDepin ? "DePIN" : isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
+  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin };
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -64,6 +66,7 @@ export function PromptPanel({
   const currentLimit = String(detected.limit);
   const currentTimeframe = detected.timeframe;
   const isCurrentOnly = detected.isCurrentOnly;
+  const availableTimeframes = detected.isDepin ? depinTimeframeOptions : timeframeOptions;
 
   return (
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
@@ -120,7 +123,7 @@ export function PromptPanel({
               onChange={(event) => setPrompt(replaceTimeframe(prompt, event.target.value))}
               className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
             >
-              {timeframeOptions.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
+              {availableTimeframes.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
             </select>
           )}
 

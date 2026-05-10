@@ -84,6 +84,6 @@ export function parsePrompt(input: string): ParsedQuery {
     scope: isDepinMetric ? "depin" : isDeveloperMetric ? "developers" : isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
     entity: isDepinMetric ? "all_projects" : "all_chains",
     visualType: "leaderboard_card",
-    labels: [isDepinMetric ? "DePIN" : isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isDepinMetric ? "Protocols" : isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", isDepinMetric ? "DePIN" : metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }
