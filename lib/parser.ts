@@ -57,7 +57,7 @@ function metricLabel(metric: QueryMetric) {
   if (metric === "chain_realtime_tps") return "Real-time TPS";
   if (metric === "chain_stablecoin_supply") return "Stablecoin Supply";
   if (metric === "chain_tvl") return "DeFi TVL";
-  if (metric === "buidl_network_value") return "Build";
+  if (metric === "buidl_network_value") return "BUIDL";
   if (metric === "benji_network_value") return "BENJI";
   return "Revenue";
 }
@@ -81,9 +81,9 @@ export function parsePrompt(input: string): ParsedQuery {
     limit,
     timeframe,
     metric,
-    scope: isDepinMetric ? "depin" : isDeveloperMetric ? "developers" : isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
+    scope: isDepinMetric ? "depin" : isDeveloperMetric || isInfrastructureMetric ? "infrastructure" : isAssetMetric ? "assets" : "chains",
     entity: isDepinMetric ? "all_projects" : "all_chains",
     visualType: "leaderboard_card",
-    labels: [isDepinMetric ? "Protocols" : isDeveloperMetric ? "Developers" : isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", isDepinMetric ? "DePIN" : metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
+    labels: [isDepinMetric ? "Protocols" : isDeveloperMetric || isInfrastructureMetric ? "Infrastructure" : isAssetMetric ? "Assets" : "Chains", isDepinMetric ? "DePIN" : metricLabel(metric), `Top ${limit}`, timeframeLabel(timeframe)],
   };
 }

@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "learnDeFi",
-  description: "Ask DeFi data and generate clean, share-ready visual cards.",
+  description: "Create clean, source-backed market cards from trusted crypto data.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

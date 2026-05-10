@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toPng } from "html-to-image";
-import { Bell, Download } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import { DatasetLibrary } from "@/components/DatasetLibrary";
 import { PromptPanel } from "@/components/PromptPanel";
 import { ShareCard } from "@/components/ShareCard";
 import { datasetGroups } from "@/lib/datasets";
 import type { ChainRevenueRow } from "@/lib/defillama";
+
+const DEFAULT_CARD_INPUT = "Top 10 chains by stablecoin supply";
+
+const tryCards = [
+  "Top 10 chains by 30D revenue",
+  "Top 10 chains by stablecoin supply",
+  "Top 10 chains by DeFi TVL",
+  "Top 10 DePIN projects by 30D annualized revenue",
+  "Top 10 chains by real-time TPS",
+];
 
 const activeDataset = {
   id: "market_metrics",
@@ -33,29 +43,31 @@ type ApiResult = {
 };
 
 export default function Home() {
-  const [prompt, setPrompt] = useState("");
+  const [prompt, setPrompt] = useState(DEFAULT_CARD_INPUT);
   const [rows, setRows] = useState<ChainRevenueRow[]>([]);
   const [source, setSource] = useState("DefiLlama");
   const [updatedAt, setUpdatedAt] = useState("-");
-  const [title, setTitle] = useState("Top 10 chains by 30D revenue");
-  const [eyebrow, setEyebrow] = useState("Chain Revenue");
-  const [description, setDescription] = useState("Shows revenue captured by chains themselves, excluding app and protocol revenue.");
-  const [methodology, setMethodology] = useState("Methodology: Chain revenue only. Protocol and app revenue are excluded. Source attribution is kept on every export.");
-  const [insight, setInsight] = useState("Chain revenue measures value captured at the network level. It is different from protocol revenue and helps separate chain economics from app activity.");
+  const [title, setTitle] = useState("Top 10 chains by stablecoin supply");
+  const [eyebrow, setEyebrow] = useState("Stablecoin Supply");
+  const [description, setDescription] = useState("Current stablecoin supply by chain from a trusted market data source.");
+  const [methodology, setMethodology] = useState("Methodology: Current stablecoin supply by chain. Source attribution is kept on every export.");
+  const [insight, setInsight] = useState("Stablecoin supply shows where dollar-denominated liquidity is issued and circulating across crypto networks.");
   const [valueFormat, setValueFormat] = useState<"usd" | "number">("usd");
   const [valueSuffix, setValueSuffix] = useState("");
   const [valueDirection, setValueDirection] = useState<"higher" | "lower">("higher");
-  const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Revenue", "Top 10", "30D"]);
+  const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Stablecoin Supply", "Top 10", "Current"]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [captionCopied, setCaptionCopied] = useState(false);
+  const didLoadDefault = useRef(false);
 
-  async function runQuery() {
+  const runQuery = useCallback(async (overrideInput?: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const effectivePrompt = prompt.trim() || "Top 10 chains by stablecoin supply";
+      const effectivePrompt = (overrideInput ?? prompt).trim() || DEFAULT_CARD_INPUT;
       const res = await fetch(`/api/chain-revenue?prompt=${encodeURIComponent(effectivePrompt)}`);
       const json = (await res.json()) as ApiResult;
 
@@ -66,11 +78,11 @@ export default function Home() {
       setRows(json.rows);
       setSource(json.source || "DefiLlama");
       setUpdatedAt(json.updatedAt || "-");
-      setTitle(json.title || "Generated metric");
+      setTitle(json.title || "Market card");
       setEyebrow(json.eyebrow || "learnDeFi Metric");
-      setDescription(json.description || "A clean visual generated from supported DeFi datasets.");
+      setDescription(json.description || "A clean visual created from supported DeFi datasets.");
       setMethodology(json.methodology || "Methodology: Source attribution is kept on every export.");
-      setInsight(json.insight || "Generated from supported learnDeFi data sources.");
+      setInsight(json.insight || "Created from supported learnDeFi data sources.");
       setValueFormat(json.valueFormat || "usd");
       setValueSuffix(json.valueSuffix || "");
       setValueDirection(json.valueDirection || "higher");
@@ -81,7 +93,13 @@ export default function Home() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [prompt]);
+
+  useEffect(() => {
+    if (didLoadDefault.current) return;
+    didLoadDefault.current = true;
+    runQuery(DEFAULT_CARD_INPUT);
+  }, [runQuery]);
 
   async function downloadCard() {
     const node = document.getElementById("share-card");
@@ -101,6 +119,21 @@ export default function Home() {
 
   function selectPrompt(nextPrompt: string) {
     setPrompt(nextPrompt);
+    void runQuery(nextPrompt);
+  }
+
+  async function copyCaption() {
+    const lines = [
+      `${title}.`,
+      "",
+      ...rows.slice(0, 10).map((row) => `${row.rank}. ${row.name} — ${valueFormat === "number" ? `${row.value}${valueSuffix ? ` ${valueSuffix}` : ""}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(row.value)}`),
+      "",
+      `Data: ${source}`,
+      "Created with learnDeFi.",
+    ];
+    await navigator.clipboard.writeText(lines.join("\n"));
+    setCaptionCopied(true);
+    window.setTimeout(() => setCaptionCopied(false), 1400);
   }
 
   function goHome() {
@@ -113,28 +146,46 @@ export default function Home() {
         <button onClick={goHome} className="text-5xl font-black tracking-[-0.07em] text-slate-950 transition hover:opacity-75 md:text-8xl">
           learnDeFi
         </button>
+        <h1 className="mx-auto mt-5 max-w-4xl text-balance text-4xl font-black leading-[0.95] tracking-[-0.06em] text-slate-950 md:text-6xl">Make DeFi data share-ready.</h1>
         <p className="mx-auto mt-5 max-w-3xl text-balance text-base font-bold leading-7 text-slate-600 md:text-2xl md:leading-9">
-          Clean DeFi visuals. Simple explanations. Share-ready cards.
+          Create clean, source-backed market cards from trusted crypto data.
         </p>
+        <p className="mx-auto mt-3 max-w-2xl text-sm font-semibold text-slate-500 md:text-base">Clean DeFi visuals. Simple explanations. Share-ready cards.</p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {["Source-backed", "X-ready", "Simple learn notes"].map((chip) => (
+            <span key={chip} className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm">{chip}</span>
+          ))}
+        </div>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_390px] lg:items-start">
         <div className="grid gap-5">
           <PromptPanel prompt={prompt} setPrompt={setPrompt} onRun={runQuery} loading={loading} activeDataset={activeDataset} queryLabels={queryLabels} />
 
-          <div className="rounded-[26px] border border-slate-200 bg-white p-4 text-sm font-semibold text-slate-500 shadow-soft md:flex md:items-center md:justify-between md:gap-4">
-            <div className="flex items-center gap-2 font-black text-slate-950"><Bell size={16} /> Scheduled reports <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] uppercase tracking-[0.14em] text-slate-400">soon</span></div>
-            <div className="mt-2 md:mt-0">Free users will get 1 saved report. Paid users get more reports, alerts and templates.</div>
+          <div className="rounded-[26px] border border-slate-200 bg-white p-4 shadow-soft">
+            <div className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">Try these cards</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {tryCards.map((cardInput) => (
+                <button key={cardInput} onClick={() => selectPrompt(cardInput)} className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-black text-slate-950 transition hover:border-slate-950 hover:bg-white">
+                  {cardInput}
+                </button>
+              ))}
+            </div>
           </div>
 
           {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">{error}</div>}
 
-          {hasGenerated && (
+          {(hasGenerated || loading) && (
             <div className="grid gap-4">
               <ShareCard rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} valueFormat={valueFormat} valueSuffix={valueSuffix} valueDirection={valueDirection} />
-              <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
-                <Download size={18} /> Download PNG
-              </button>
+              <div className="grid gap-3 md:grid-cols-2">
+                <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
+                  <Download size={18} /> Download PNG
+                </button>
+                <button onClick={copyCaption} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-950 transition hover:border-slate-950 disabled:opacity-60">
+                  {captionCopied ? <Check size={18} /> : <Copy size={18} />} {captionCopied ? "Copied" : "Copy caption"}
+                </button>
+              </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
                 {methodology}
               </div>

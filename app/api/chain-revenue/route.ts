@@ -7,7 +7,7 @@ import { parsePrompt } from "@/lib/parser";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
-  const rawPrompt = request.nextUrl.searchParams.get("prompt") || "Top 10 chains by 30D revenue";
+  const rawPrompt = request.nextUrl.searchParams.get("prompt") || "Top 10 chains by stablecoin supply";
   const prompt = rawPrompt.slice(0, 240);
   const parsed = parsePrompt(prompt);
 

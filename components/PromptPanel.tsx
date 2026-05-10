@@ -31,7 +31,7 @@ function parsePromptLabels(prompt: string) {
   else if (/(1d|24h|daily|today|bugün|son 24)/.test(text)) timeframe = "24H";
   else if (!isDepin && /(7d|week|weekly|hafta|son 7)/.test(text)) timeframe = "7D";
 
-  const scope = isDepin ? "Protocols" : isDevelopers ? "Developers" : isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
+  const scope = isDepin ? "Protocols" : isDevelopers || isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
   const metric = isDepin ? "DePIN" : isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
   return { scope, metric, limit, timeframe, isCurrentOnly, isDepin };
 }
@@ -72,8 +72,8 @@ export function PromptPanel({
     <div className="rounded-[32px] border border-slate-200 bg-white/95 p-5 shadow-soft backdrop-blur md:p-6">
       <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-          <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Ask</label>
-          <p className="mt-1 text-sm font-medium text-slate-500">Run a supported query to generate a share-ready learnDeFi card.</p>
+          <label className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Create a market card</label>
+          <p className="mt-1 text-sm font-medium text-slate-500">Choose a supported metric or type a market question.</p>
         </div>
         <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-500">{activeDataset.name}</div>
       </div>
@@ -90,16 +90,16 @@ export function PromptPanel({
           maxLength={240}
         />
         <button
-          onClick={onRun}
+          onClick={() => onRun()}
           disabled={loading}
           className="rounded-3xl bg-slate-950 px-7 py-4 font-black text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? "Loading..." : "Generate"}
+          {loading ? "Loading..." : "Create card"}
         </button>
       </div>
 
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-        <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Detected query</div>
+        <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Card settings</div>
         <div className="flex flex-wrap gap-2">
           <select
             aria-label="Select result count"
