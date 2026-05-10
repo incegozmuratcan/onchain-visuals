@@ -1,11 +1,12 @@
 {
   "name": "web3-intel-demo",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "check:logos": "node scripts/audit-logos.mjs"
   },
   "dependencies": {
     "html-to-image": "^1.11.11",

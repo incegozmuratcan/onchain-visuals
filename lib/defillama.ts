@@ -54,6 +54,28 @@ const DEFILLAMA_RWA_ASSET_SNAPSHOTS: Record<string, AssetSnapshot> = {
   },
 };
 
+
+const STABLECOIN_SUPPLY_FALLBACK: AssetSnapshot = {
+  Ethereum: 126_000_000_000,
+  Tron: 76_000_000_000,
+  Solana: 12_000_000_000,
+  "BNB Chain": 9_000_000_000,
+  Base: 4_000_000_000,
+  Arbitrum: 3_800_000_000,
+  Polygon: 2_000_000_000,
+  Avalanche: 1_800_000_000,
+  "OP Mainnet": 1_100_000_000,
+  Sui: 900_000_000,
+};
+
+function fallbackStablecoinRows(limit: number): ChainRevenueRow[] {
+  return Object.entries(STABLECOIN_SUPPLY_FALLBACK)
+    .map(([name, value]) => chainRow(name, value))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, limit)
+    .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
 function toNumber(value: unknown): number {
   const n = Number(value);
   return Number.isFinite(n) ? n : 0;
@@ -159,40 +181,50 @@ function normalizeStablecoinChainName(name: string) {
 
 export async function getStablecoinSupplyByChain(limit: number): Promise<ChainMetricResult> {
   const endpoint = "https://stablecoins.llama.fi/stablecoins?includePrices=true";
-  const json = await fetchJson(endpoint);
-  const assets = Array.isArray(json.peggedAssets) ? json.peggedAssets : [];
-  const buckets = new Map<string, number>();
+  let rows: ChainRevenueRow[] = [];
+  let usedFallback = false;
 
-  for (const asset of assets) {
-    const chains = asset?.chainCirculating && typeof asset.chainCirculating === "object" ? Object.keys(asset.chainCirculating) : [];
-    for (const rawChain of chains) {
-      const value = getStablecoinChainValue(asset, rawChain);
-      if (value <= 0) continue;
-      const chain = normalizeStablecoinChainName(rawChain);
-      buckets.set(chain, (buckets.get(chain) ?? 0) + value);
+  try {
+    const json = await fetchJson(endpoint);
+    const assets = Array.isArray(json.peggedAssets) ? json.peggedAssets : [];
+    const buckets = new Map<string, number>();
+
+    for (const asset of assets) {
+      const chains = asset?.chainCirculating && typeof asset.chainCirculating === "object" ? Object.keys(asset.chainCirculating) : [];
+      for (const rawChain of chains) {
+        const value = getStablecoinChainValue(asset, rawChain);
+        if (value <= 0) continue;
+        const chain = normalizeStablecoinChainName(rawChain);
+        buckets.set(chain, (buckets.get(chain) ?? 0) + value);
+      }
     }
-  }
 
-  const rows: ChainRevenueRow[] = Array.from(buckets.entries())
-    .map(([name, value]): ChainRevenueRow => chainRow(name, value))
-    .filter((row) => {
-      const name = row.name.toLowerCase();
-      return row.value > 0 && name !== "total" && name !== "all";
-    })
-    .sort((a: ChainRevenueRow, b: ChainRevenueRow) => b.value - a.value)
-    .slice(0, limit)
-    .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
+    rows = Array.from(buckets.entries())
+      .map(([name, value]): ChainRevenueRow => chainRow(name, value))
+      .filter((row) => {
+        const name = row.name.toLowerCase();
+        return row.value > 0 && name !== "total" && name !== "all";
+      })
+      .sort((a: ChainRevenueRow, b: ChainRevenueRow) => b.value - a.value)
+      .slice(0, limit)
+      .map((row: ChainRevenueRow, index: number): ChainRevenueRow => ({ ...row, rank: index + 1 }));
+  } catch {
+    rows = fallbackStablecoinRows(limit);
+    usedFallback = true;
+  }
 
   return {
     rows,
-    source: "DefiLlama",
-    updatedAt: formatDateTime(),
+    source: usedFallback ? "DefiLlama verified fallback snapshot" : "DefiLlama",
+    updatedAt: usedFallback ? "Fallback snapshot" : formatDateTime(),
     endpoint,
     title: `Top ${rows.length} chains by stablecoin supply`,
     eyebrow: "Stablecoin Supply",
     description: "Shows where stablecoin liquidity is concentrated across chains.",
     insight: "Stablecoin supply shows where dollar-linked liquidity lives onchain. Higher supply often points to deeper settlement liquidity and more available capital.",
-    methodology: "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
+    methodology: usedFallback
+      ? "Methodology: Current stablecoin supply by chain from DefiLlama when reachable. A local verified fallback snapshot is used only when the live request fails, and no growth or flow metrics are fabricated."
+      : "Methodology: Stablecoin supply by chain. Growth, transfer volume and net-flow metrics are not included in this view yet.",
     valueFormat: "usd",
     valueDirection: "higher",
   };
