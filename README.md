@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.8 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
+learnDeFi v0.8.1 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
 
 ## Stack
 
@@ -60,25 +60,48 @@ learnDeFi v0.8 is not an AI product, not a paid SaaS and not a crypto data termi
 - Never label 1H data as 30D.
 - Never fabricate unsupported 7D DePIN metrics.
 - Developers belongs under Infrastructure.
-- Known active entities should use curated local logos instead of initials fallback.
+- Known active entities must use approved local logos instead of initials or generated fallback badges.
 - White, black and anthracite minimal styling should remain the visual baseline.
+
+## Logo system
+
+v0.8.1 adds a stricter local logo lifecycle for share-card reliability:
+
+- Logo assets live under `public/logos/chains`, `public/logos/projects` and `public/logos/assets`.
+- The source-backed registry lives in `lib/logos/logoRegistry.ts` and records canonical name, slug, category, aliases, local path, source/provenance, rights note, quality, fit, scale, padding, background and notes.
+- Runtime card rendering resolves known active entities to approved local registry paths first and does not hotlink external provider logos as the primary source.
+- Generated or initials fallbacks are reserved only for truly unknown future entities and must not pass active logo checks.
+- Future active metrics must add coverage in `lib/logos/metricLogoRequirements.ts` before shipping.
+
+Source priority for adding or replacing logos:
+
+1. Official brand kit, official website, official docs or official GitHub
+2. CryptoLogos
+3. Simple Icons
+4. Trust Wallet assets
+5. spothq cryptocurrency-icons
+6. Data provider logo URL only as a last-resort candidate for local review/storage
+7. Existing local file only if it is a real logo, not a generated badge
+8. No fake placeholder
+
+Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo registry.
 
 ## Logo QA
 
-v0.8 adds a curated logo manifest and an internal `/logo-audit` route for visual QA. The audit route shows each registered logo at multiple sizes, in a card-row context and with source and quality metadata.
-
-Run the lightweight logo check with:
+Run the static logo gate with:
 
 ```bash
 npm run check:logos
 ```
 
-## v0.8 summary
+`check:logos` reports total registry entries, approved local logos, missing files, external/data-provider entries, temporary or needs-review entries, fallback/generated entries, required active entity issues and active metrics without logo requirements. It fails when a required active entity lacks an approved local logo or when an active metric has no logo requirement mapping.
 
-- Repositioned learnDeFi around “Make DeFi data share-ready.”
-- Removed AI-like and monetization-heavy user-facing copy.
-- Added a first-run default card for “Top 10 chains by stablecoin supply.”
-- Added “Try these cards” shortcuts.
-- Added deterministic caption copy support.
-- Added a curated local logo registry, structured logo folders and logo QA tooling.
-- Updated docs and version metadata to v0.8.
+The internal `/logo-audit` route shows every registry entry with metadata, warnings, 24px/32px/48px circle previews, a ShareCard-style row preview and light/dark background checks. It includes filters for all, required active, missing, needs review, projects, chains and assets.
+
+## v0.8.1 summary
+
+- Preserves the v0.8 brand/copy/card UX direction.
+- Replaces active-output placeholder/initials treatment with a true local logo registry.
+- Adds metric-level logo requirements so new active metrics cannot ship without logo planning.
+- Strengthens `npm run check:logos` as a required PR gate.
+- Expands `/logo-audit` as internal visual QA for card-quality logo previews.
