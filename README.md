@@ -65,7 +65,7 @@ learnDeFi v0.8.1 is not an AI product, not a paid SaaS and not a crypto data ter
 
 ## Logo system
 
-v0.8.1 adds a stricter local logo lifecycle for share-card reliability:
+v0.8.2 keeps the logo lifecycle strict for share-card reliability:
 
 - Logo assets live under `public/logos/chains`, `public/logos/projects` and `public/logos/assets`.
 - The source-backed registry lives in `lib/logos/logoRegistry.ts` and records canonical name, slug, category, aliases, local path, source/provenance, rights note, quality, fit, scale, padding, background and notes.
@@ -94,9 +94,17 @@ Run the static logo gate with:
 npm run check:logos
 ```
 
-`check:logos` reports total registry entries, approved local logos, missing files, external/data-provider entries, temporary or needs-review entries, fallback/generated entries, required active entity issues and active metrics without logo requirements. It fails when a required active entity lacks an approved local logo or when an active metric has no logo requirement mapping.
+`check:logos` reports total registry entries, approved local logos, missing files, external/data-provider entries, needs-review entries, rejected entries, alias collisions, fallback/generated entries, required active entity issues and active metrics without logo requirements. It fails when a required active entity lacks an approved local logo, provenance, a local file, non-placeholder SVG markup, or when an active metric has no logo requirement mapping.
 
-The internal `/logo-audit` route shows every registry entry with metadata, warnings, 24px/32px/48px circle previews, a ShareCard-style row preview and light/dark background checks. It includes filters for all, required active, missing, needs review, projects, chains and assets.
+The internal `/logo-audit` route shows every registry entry with metadata, warnings, 24px/32px/48px circle previews, a ShareCard-style row preview and light/dark background checks. It includes filters for all, required active, chains, projects, assets, missing, needs review, rejected and source type.
+
+
+## v0.8.2 summary
+
+- Replaces visible fake text-circle and generic badge logo assets for required active chain, project and asset coverage.
+- Tightens `lib/logos/logoRegistry.ts` around the approved/needs-review/missing/rejected quality model and source priority.
+- Expands `npm run check:logos` to block active metrics without requirements, alias collisions, missing provenance, external runtime logo paths and required placeholder text markup.
+- Keeps `/logo-audit` as the internal QA surface for local previews, status badges, source metadata and visual fit checks.
 
 ## v0.8.1 summary
 

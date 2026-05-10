@@ -6,7 +6,7 @@ import { requiredActiveLogoKeys } from "@/lib/logos/metricLogoRequirements";
 
 const requiredKeys = new Set(requiredActiveLogoKeys);
 
-type Filter = "all" | "required" | "missing" | "needs-review" | "projects" | "chains" | "assets";
+type Filter = "all" | "required" | "missing" | "needs-review" | "rejected" | "source-type" | "projects" | "chains" | "assets";
 
 function localFileExists(logo: LogoRegistryEntry) {
   return Boolean(logo.localPath && existsSync(join(process.cwd(), "public", logo.localPath.replace(/^\//, ""))));
@@ -17,7 +17,7 @@ function warningsFor(logo: LogoRegistryEntry) {
   if (!logo.localPath) warnings.push("missing local asset");
   if (!localFileExists(logo)) warnings.push("file not found");
   if (logo.sourceType === "data-provider") warnings.push("data-provider provenance");
-  if (logo.sourceType === "temporary-review-needed") warnings.push("temporary source");
+  if (logo.quality === "rejected") warnings.push("rejected");
   if (logo.quality !== "approved") warnings.push(logo.quality);
   if (/placeholder|initial|fallback|generated/i.test(`${logo.sourceNote ?? ""} ${logo.notes}`)) warnings.push("fallback/generated review");
   if (requiredKeys.has(`${logo.category}:${logo.slug}`) && logo.quality !== "approved") warnings.push("required active not approved");
@@ -35,7 +35,9 @@ function filterLogos(filter: Filter) {
     const warnings = warningsFor(logo);
     if (filter === "required") return requiredKeys.has(`${logo.category}:${logo.slug}`);
     if (filter === "missing") return warnings.some((warning) => /missing|not found/.test(warning));
-    if (filter === "needs-review") return warnings.length > 0;
+    if (filter === "needs-review") return warnings.length > 0 && logo.quality !== "rejected";
+    if (filter === "rejected") return logo.quality === "rejected";
+    if (filter === "source-type") return true;
     if (filter === "projects") return logo.category === "project";
     if (filter === "chains") return logo.category === "chain";
     if (filter === "assets") return logo.category === "asset";
@@ -48,6 +50,8 @@ const filters: { id: Filter; label: string }[] = [
   { id: "required", label: "Required active" },
   { id: "missing", label: "Missing" },
   { id: "needs-review", label: "Needs review" },
+  { id: "rejected", label: "Rejected" },
+  { id: "source-type", label: "Source type" },
   { id: "projects", label: "Projects" },
   { id: "chains", label: "Chains" },
   { id: "assets", label: "Assets" },
@@ -55,7 +59,7 @@ const filters: { id: Filter; label: string }[] = [
 
 export default function LogoAuditPage({ searchParams }: { searchParams?: { filter?: Filter } }) {
   const activeFilter = filters.some((filter) => filter.id === searchParams?.filter) ? searchParams?.filter ?? "all" : "all";
-  const visibleLogos = filterLogos(activeFilter);
+  const visibleLogos = filterLogos(activeFilter).sort((a, b) => Number(requiredKeys.has(`${b.category}:${b.slug}`)) - Number(requiredKeys.has(`${a.category}:${a.slug}`)) || a.category.localeCompare(b.category) || a.canonicalName.localeCompare(b.canonicalName));
   const allWarnings = logoManifest.flatMap((logo) => warningsFor(logo));
   const missingLocalCount = logoManifest.filter((logo) => !localFileExists(logo)).length;
   const needsReviewCount = logoManifest.filter((logo) => warningsFor(logo).length > 0).length;
@@ -66,7 +70,7 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
         <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">learnDeFi QA</p>
         <h1 className="mt-2 text-4xl font-black tracking-[-0.06em] text-slate-950 md:text-6xl">Logo audit</h1>
         <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-500">
-          Internal logo audit for learnDeFi card quality. Known active entities must use approved local logos.
+          Internal logo audit for card quality. Required active entities must use approved local logos.
         </p>
         <div className="mt-5 flex flex-wrap gap-2 text-xs font-black">
           <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">{logoManifest.length} registered</span>
@@ -93,7 +97,7 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
           const warnings = warningsFor(logo);
           const required = requiredKeys.has(`${logo.category}:${logo.slug}`);
           return (
-            <article key={`${logo.category}-${logo.slug}`} className={`rounded-[28px] border p-4 shadow-soft ${statusClass(warnings)}`}>
+            <article key={`${logo.category}-${logo.slug}`} className={`rounded-[28px] border p-4 shadow-soft ${statusClass(warnings)} ${required ? "ring-1 ring-slate-950/10" : ""}`}>
               <div className="grid gap-4 lg:grid-cols-[270px_1fr_280px] lg:items-center">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
