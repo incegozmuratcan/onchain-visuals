@@ -38,15 +38,20 @@ function formatNumber(value: number, suffix?: string) {
 function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact: boolean }) {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
-  const src = candidates[candidateIndex];
+  const candidate = candidates[candidateIndex];
 
-  if (!src) return <>{getInitials(name)}</>;
+  if (!candidate) return <>{getInitials(name)}</>;
 
   return (
     <img
-      src={src}
+      src={candidate.src}
       alt={`${name} logo`}
-      className="h-full w-full object-cover"
+      className="h-full w-full"
+      style={{
+        objectFit: candidate.fit,
+        padding: candidate.padding,
+        transform: `scale(${candidate.scale})`,
+      }}
       onError={() => setCandidateIndex((index) => index + 1)}
     />
   );

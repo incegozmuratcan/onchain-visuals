@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import type { DatasetGroup } from "@/lib/datasets";
+import { APP_VERSION_BADGE } from "@/lib/version";
 
 export function DatasetLibrary({
   groups,
@@ -24,7 +25,7 @@ export function DatasetLibrary({
           <h2 className="text-lg font-black tracking-[-0.03em] text-slate-950">Data library</h2>
           <p className="mt-1 text-sm font-medium text-slate-500">Pick a metric.</p>
         </div>
-        <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">v0.6</div>
+        <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">{APP_VERSION_BADGE}</div>
       </div>
 
       <div className="mt-5 grid gap-3">

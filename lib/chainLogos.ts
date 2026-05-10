@@ -1,3 +1,12 @@
+export type LogoFit = "contain" | "cover";
+
+export type LogoRenderConfig = {
+  src: string;
+  fit: LogoFit;
+  scale: number;
+  padding: number;
+};
+
 type ChainIdentity = {
   name: string;
   aliases: string[];
@@ -5,7 +14,21 @@ type ChainIdentity = {
   logoCandidates?: string[];
 };
 
-function localLogo(slug: string) {
+type LogoRegistryEntry = Partial<Omit<LogoRenderConfig, "src">> & {
+  src?: string;
+};
+
+const DEFAULT_LOGO_CONFIG = {
+  fit: "cover" as LogoFit,
+  scale: 1,
+  padding: 0,
+};
+
+function localAsset(slug: string) {
+  return `/logos/${encodeURIComponent(slug)}.svg`;
+}
+
+function generatedLogo(slug: string) {
   return `/api/chain-logo/${encodeURIComponent(slug)}`;
 }
 
@@ -20,6 +43,58 @@ function llamaIcon(slug: string) {
 function coinLogo(id: string) {
   return `https://assets.coingecko.com/coins/images/${id}/large.png`;
 }
+
+const logoRegistry: Record<string, LogoRegistryEntry> = {
+  ethereum: { fit: "contain", scale: 1.1, padding: 1 },
+  solana: { fit: "cover", scale: 1.08, padding: 0 },
+  tron: { fit: "cover", scale: 1.08, padding: 0 },
+  bsc: { fit: "cover", scale: 1.06, padding: 0 },
+  base: { fit: "cover", scale: 1.03, padding: 0 },
+  arbitrum: { fit: "cover", scale: 1.08, padding: 0 },
+  polygon: { fit: "cover", scale: 1.08, padding: 0 },
+  avalanche: { fit: "cover", scale: 1.14, padding: 0 },
+  optimism: { fit: "cover", scale: 1.08, padding: 0 },
+  aptos: { fit: "cover", scale: 1.08, padding: 0 },
+  stellar: { fit: "contain", scale: 1.08, padding: 1 },
+  ripple: { fit: "cover", scale: 1.08, padding: 0 },
+  sui: { fit: "cover", scale: 1.05, padding: 0 },
+  mantle: { fit: "cover", scale: 1.08, padding: 0 },
+  ton: { fit: "cover", scale: 1.12, padding: 0 },
+  sei: { fit: "cover", scale: 1.08, padding: 0 },
+  celo: { fit: "cover", scale: 1.06, padding: 0 },
+  hedera: { fit: "cover", scale: 1.04, padding: 0 },
+  algorand: { fit: "contain", scale: 1.12, padding: 1 },
+  plume: { fit: "cover", scale: 1.08, padding: 0 },
+  "zksync-era": { fit: "cover", scale: 1.08, padding: 0 },
+  hyperliquid: { fit: "cover", scale: 1.08, padding: 0 },
+  bitcoin: { fit: "cover", scale: 1.08, padding: 0 },
+  cardano: { fit: "cover", scale: 1.08, padding: 0 },
+  cosmos: { fit: "cover", scale: 1.08, padding: 0 },
+  cronos: { fit: "cover", scale: 1.08, padding: 0 },
+  fantom: { fit: "cover", scale: 1.08, padding: 0 },
+  near: { fit: "cover", scale: 1.06, padding: 0 },
+  starknet: { fit: "cover", scale: 1.06, padding: 0 },
+  stacks: { fit: "cover", scale: 1.08, padding: 0 },
+  rootstock: { fit: "cover", scale: 1.08, padding: 0 },
+  "internet-computer": { fit: "cover", scale: 1.06, padding: 0 },
+  kusama: { fit: "cover", scale: 1.08, padding: 0 },
+  filecoin: { fit: "cover", scale: 1.08, padding: 0 },
+  bittensor: { fit: "cover", scale: 1.06, padding: 0 },
+  helius: { fit: "cover", scale: 1.08, padding: 0 },
+  dawn: { fit: "cover", scale: 1.08, padding: 0 },
+  geodnet: { fit: "cover", scale: 1.08, padding: 0 },
+  "io-net": { fit: "cover", scale: 1.08, padding: 0 },
+  chutes: { fit: "cover", scale: 1.08, padding: 0 },
+  "render-network": { fit: "cover", scale: 1.08, padding: 0 },
+  akash: { fit: "cover", scale: 1.08, padding: 0 },
+  doublezero: { fit: "cover", scale: 1.08, padding: 0 },
+  livepeer: { fit: "cover", scale: 1.08, padding: 0 },
+  hivemapper: { fit: "cover", scale: 1.08, padding: 0 },
+  dimo: { fit: "cover", scale: 1.08, padding: 0 },
+  grass: { fit: "cover", scale: 1.08, padding: 0 },
+  nosana: { fit: "cover", scale: 1.08, padding: 0 },
+  "pocket-network": { fit: "cover", scale: 1.08, padding: 0 },
+};
 
 const identities: ChainIdentity[] = [
   { name: "Ethereum", aliases: ["ethereum", "eth"], slug: "ethereum" },
@@ -42,7 +117,7 @@ const identities: ChainIdentity[] = [
   { name: "Hedera", aliases: ["hedera", "hbar"], slug: "hedera" },
   { name: "Algorand", aliases: ["algorand", "algo"], slug: "algorand" },
   { name: "Plume", aliases: ["plume", "plume mainnet"], slug: "plume" },
-  { name: "ZKsync Era", aliases: ["zksync era", "zksync", "zk sync", "zk sync era", "zk syncera", "zk-sync era", "zk-sync"], slug: "zksync-era", logoCandidates: [llamaChain("zksync era"), llamaIcon("zksync era"), coinLogo("24091")] },
+  { name: "ZKsync Era", aliases: ["zksync-era", "zksync era", "zksync", "zk sync", "zk sync era", "zk syncera", "zk-sync era", "zk-sync", "zkSync Era", "ZKsync", "zkSync"], slug: "zksync-era", logoCandidates: [llamaChain("zksync-era"), llamaChain("zksync era"), llamaIcon("zksync-era"), llamaIcon("zksync era"), coinLogo("24091")] },
   { name: "Hyperliquid L1", aliases: ["hyperliquid", "hyperliquid l1"], slug: "hyperliquid", logoCandidates: [llamaChain("hyperliquid"), llamaIcon("hyperliquid"), coinLogo("50882")] },
   { name: "Canton", aliases: ["canton", "canton network"], slug: "canton-network" },
   { name: "Abstract", aliases: ["abstract"], slug: "abstract" },
@@ -70,19 +145,54 @@ const identities: ChainIdentity[] = [
   { name: "Kusama", aliases: ["kusama", "ksm"], slug: "kusama", logoCandidates: [llamaChain("kusama"), llamaIcon("kusama"), coinLogo("9568")] },
   { name: "Fogo", aliases: ["fogo"], slug: "fogo" },
   { name: "BSV Blockchain", aliases: ["bsv blockchain", "bsv", "bitcoin sv"], slug: "bsv-blockchain" },
+  { name: "Filecoin", aliases: ["filecoin", "fil"], slug: "filecoin" },
+  { name: "Bittensor", aliases: ["bittensor", "tao"], slug: "bittensor" },
+  { name: "Helius", aliases: ["helius"], slug: "helius" },
+  { name: "DAWN", aliases: ["dawn"], slug: "dawn" },
+  { name: "GEODNET", aliases: ["geodnet"], slug: "geodnet" },
+  { name: "IO.NET", aliases: ["io.net", "io net", "ionet"], slug: "io-net" },
+  { name: "Chutes", aliases: ["chutes"], slug: "chutes" },
+  { name: "Render Network", aliases: ["render network", "render"], slug: "render-network" },
+  { name: "Akash", aliases: ["akash"], slug: "akash" },
+  { name: "DoubleZero", aliases: ["doublezero", "double zero"], slug: "doublezero" },
+  { name: "Livepeer", aliases: ["livepeer"], slug: "livepeer" },
+  { name: "Hivemapper", aliases: ["hivemapper"], slug: "hivemapper" },
+  { name: "DIMO", aliases: ["dimo"], slug: "dimo" },
+  { name: "Grass", aliases: ["grass"], slug: "grass" },
+  { name: "Nosana", aliases: ["nosana"], slug: "nosana" },
+  { name: "Pocket Network", aliases: ["pocket network", "pocket"], slug: "pocket-network" },
 ];
 
 const aliasMap = new Map<string, ChainIdentity>();
 for (const identity of identities) {
-  for (const alias of identity.aliases) aliasMap.set(alias.toLowerCase().trim(), identity);
+  for (const alias of identity.aliases) aliasMap.set(normalizeKey(alias), identity);
 }
 
 function normalizeKey(name: string) {
-  return name.toLowerCase().trim().replace(/\s+/g, " ");
+  return name.toLowerCase().trim().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
 }
 
 function fallbackSlug(name: string) {
   return normalizeKey(name).replace(/\s+/g, "-");
+}
+
+function uniqueConfigs(configs: LogoRenderConfig[]) {
+  const seen = new Set<string>();
+  return configs.filter((config) => {
+    if (seen.has(config.src)) return false;
+    seen.add(config.src);
+    return true;
+  });
+}
+
+function configFor(slug: string, src: string, overrides?: Partial<LogoRenderConfig>): LogoRenderConfig {
+  const registry = logoRegistry[slug] ?? {};
+  return {
+    src,
+    fit: overrides?.fit ?? registry.fit ?? DEFAULT_LOGO_CONFIG.fit,
+    scale: overrides?.scale ?? registry.scale ?? DEFAULT_LOGO_CONFIG.scale,
+    padding: overrides?.padding ?? registry.padding ?? DEFAULT_LOGO_CONFIG.padding,
+  };
 }
 
 export function getChainIdentity(name: string) {
@@ -96,20 +206,26 @@ export function normalizeChainName(name: string) {
   return getChainIdentity(name).name;
 }
 
-export function getChainLogoCandidates(name: string, logo?: string | null) {
+export function getChainLogoCandidates(name: string, logo?: string | null): LogoRenderConfig[] {
   const identity = getChainIdentity(name);
-  const candidates = [
-    localLogo(identity.slug),
+  const registry = logoRegistry[identity.slug];
+  const localSrc = registry?.src ?? localAsset(identity.slug);
+  const verifiedExternal = [
     ...(logo && /^https:\/\//.test(logo) ? [logo] : []),
     ...(identity.logoCandidates ?? []),
     llamaChain(identity.slug),
     llamaIcon(identity.slug),
   ];
-  return Array.from(new Set(candidates));
+
+  return uniqueConfigs([
+    configFor(identity.slug, localSrc),
+    ...verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1 })),
+    configFor(identity.slug, generatedLogo(identity.slug)),
+  ]);
 }
 
 export function getChainLogo(name: string, logo?: string | null) {
-  return getChainLogoCandidates(name, logo)[0] ?? null;
+  return getChainLogoCandidates(name, logo)[0]?.src ?? null;
 }
 
 export function getInitials(name: string) {
