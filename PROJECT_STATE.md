@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.8.1.
+- Current app version: v0.8.2.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -72,6 +72,17 @@
 - Do not fabricate estimated 7D revenue.
 - DePIN cards keep chain/network information at the far-right side of each row.
 
+
+# v0.8.2 Logo Reliability Hotfix
+
+- Known active entities now require approved local, source/provenance-backed logos before a metric can ship.
+- Required active chains, DePIN projects and tokenized assets must not resolve to generated badges, initials, fake text circles or external runtime logo URLs.
+- `npm run check:logos` must pass before PR; it blocks missing registry entries, missing local files, non-approved quality, missing provenance, data-provider-only required entries, active metrics without logo requirements, alias collisions and required text/initials placeholder markup.
+- Future active metrics must add logo coverage in `lib/logos/metricLogoRequirements.ts` before the metric is enabled in `datasetGroups`.
+- `/logo-audit` is the internal visual QA route for 24px, 32px, 48px and row-preview checks across light and dark surfaces.
+- External logo URLs are candidate/provenance sources only, not ShareCard runtime dependencies for known active entities.
+- ShareCard resolves approved local registry logos first and withholds generated/initials fallback from required active entities.
+
 # Logo System
 
 - Logo reliability is a core product quality requirement because share-card quality depends on recognizable, balanced logos.
@@ -136,7 +147,7 @@
 
 # Versioning
 
-- Current app version: v0.8.1.
+- Current app version: v0.8.2.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file

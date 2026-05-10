@@ -2,16 +2,16 @@ export type LogoFit = "contain" | "cover";
 export type LogoCategory = "chain" | "project" | "asset";
 export type LogoSourceType =
   | "official"
-  | "official-github"
   | "official-brand-kit"
+  | "official-website"
+  | "official-github"
   | "crypto-logos"
   | "simple-icons"
   | "trustwallet-assets"
   | "spothq-cryptocurrency-icons"
   | "data-provider"
-  | "existing-local"
-  | "temporary-review-needed";
-export type LogoQuality = "approved" | "needs-review" | "missing" | "temporary";
+  | "existing-local";
+export type LogoQuality = "approved" | "needs-review" | "missing" | "rejected";
 
 export type LogoRegistryEntry = {
   canonicalName: string;
@@ -66,11 +66,11 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Canton", "canton-network", ["canton", "canton network"], "official", "https://www.canton.network/", { scale: 0.98 }),
   chain("Tron", "tron", ["tron", "trx"], "crypto-logos", "https://cryptologos.cc/logos/tron-trx-logo.svg"),
   chain("Ethereum", "ethereum", ["ethereum", "eth"], "spothq-cryptocurrency-icons", "https://github.com/spothq/cryptocurrency-icons/blob/master/svg/color/eth.svg", { scale: 1.18, padding: 0 }),
-  chain("Polygon", "polygon", ["polygon", "polygon pos", "matic"], "simple-icons", "https://simpleicons.org/icons/polygon.svg"),
-  chain("Solana", "solana", ["solana", "sol"], "simple-icons", "https://simpleicons.org/icons/solana.svg", { scale: 1.12, padding: 0 }),
+  chain("Polygon", "polygon", ["polygon", "polygon pos", "matic", "matic network", "MATIC"], "simple-icons", "https://simpleicons.org/icons/polygon.svg", { scale: 1.14, padding: 0 }),
+  chain("Solana", "solana", ["solana", "sol"], "official-brand-kit", "https://solana.com/branding/", { scale: 1.16, padding: 0, notes: "Official Solana brand logomark, stored locally as the recognizable three-bar identity." }),
   chain("Base", "base", ["base", "base chain"], "simple-icons", "https://simpleicons.org/icons/base.svg"),
   chain("Abstract", "abstract", ["abstract", "abstract chain"], "official", "https://www.abs.xyz/"),
-  chain("BNB Chain", "bsc", ["bnb chain", "bsc", "binance smart chain", "bnb", "binance"], "official-brand-kit", "https://www.bnbchain.org/en/brand"),
+  chain("BNB Chain", "bsc", ["bnb chain", "bsc", "binance smart chain", "bnb", "binance", "BSC"], "official-brand-kit", "https://www.bnbchain.org/en/brand", { background: "#111827", scale: 1.1, padding: 0 }),
   chain("Arbitrum", "arbitrum", ["arbitrum", "arbitrum one"], "simple-icons", "https://simpleicons.org/icons/arbitrum.svg", { scale: 1.12, padding: 0 }),
   chain("Injective", "injective", ["injective", "inj"], "crypto-logos", "https://cryptologos.cc/logos/injective-inj-logo.svg"),
   chain("Starknet", "starknet", ["starknet", "starknet alpha"], "simple-icons", "https://simpleicons.org/icons/starknet.svg", { scale: 1.14, padding: 0 }),
@@ -80,7 +80,7 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Sui", "sui", ["sui"], "simple-icons", "https://simpleicons.org/icons/sui.svg", { scale: 1.14, padding: 0 }),
   chain("Monad", "monad", ["monad"], "official", "https://www.monad.xyz/"),
   chain("ICP", "internet-computer", ["icp", "internet computer", "internet computer protocol"], "crypto-logos", "https://cryptologos.cc/logos/internet-computer-icp-logo.svg"),
-  chain("TON", "ton", ["ton", "the open network"], "simple-icons", "https://simpleicons.org/icons/ton.svg"),
+  chain("TON", "ton", ["ton", "the open network", "toncoin"], "simple-icons", "https://simpleicons.org/icons/ton.svg"),
   chain("Avalanche", "avalanche", ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"], "crypto-logos", "https://cryptologos.cc/logos/avalanche-avax-logo.svg", { scale: 1.15, padding: 0 }),
   chain("Filecoin", "filecoin", ["filecoin", "filecoin chain", "fil"], "simple-icons", "https://simpleicons.org/icons/filecoin.svg", { scale: 1.2, padding: 0 }),
   chain("PulseChain", "pulsechain", ["pulsechain", "pulse chain", "pls"], "official", "https://pulsechain.com/"),
@@ -90,8 +90,8 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Mantle", "mantle", ["mantle", "mantle network"], "simple-icons", "https://simpleicons.org/icons/mantle.svg"),
   chain("Stellar", "stellar", ["stellar", "xlm"], "simple-icons", "https://simpleicons.org/icons/stellar.svg", { scale: 1.08 }),
   chain("Ink", "ink", ["ink", "ink chain"], "official", "https://inkonchain.com/"),
-  chain("XRP Ledger", "ripple", ["xrp ledger", "xrp", "ripple", "xrpl"], "simple-icons", "https://simpleicons.org/icons/xrp.svg", { scale: 1.12 }),
-  chain("ZKsync Era", "zksync-era", ["zksync era", "zksync-era", "zksync", "zk sync", "zk sync era", "zk-sync", "zk-sync era"], "simple-icons", "https://simpleicons.org/icons/zksync.svg", { scale: 1.12 }),
+  chain("XRP Ledger", "ripple", ["xrp ledger", "xrp", "ripple", "xrpl", "XRP", "XRPL"], "simple-icons", "https://simpleicons.org/icons/xrp.svg", { scale: 1.12 }),
+  chain("ZKsync Era", "zksync-era", ["zksync era", "zksync-era", "zksync", "ZKsync", "zkSync", "zkSync Era", "zk sync", "zk sync era", "zk-sync", "zk-sync era"], "simple-icons", "https://simpleicons.org/icons/zksync.svg", { scale: 1.12, padding: 0 }),
   chain("Cardano", "cardano", ["cardano", "ada"], "crypto-logos", "https://cryptologos.cc/logos/cardano-ada-logo.svg"),
   chain("Bitcoin", "bitcoin", ["bitcoin", "btc"], "spothq-cryptocurrency-icons", "https://github.com/spothq/cryptocurrency-icons/blob/master/svg/color/btc.svg"),
   chain("Cosmos", "cosmos", ["cosmos", "atom", "cosmos hub"], "crypto-logos", "https://cryptologos.cc/logos/cosmos-atom-logo.svg"),
@@ -146,6 +146,7 @@ const aliasOverrides: Record<string, string> = {
   xrpl: "ripple",
   ton: "ton",
   "the open network": "ton",
+  toncoin: "ton",
   "base chain": "base",
   hyperliquid: "hyperliquid",
   "hyperliquid l1": "hyperliquid",
@@ -154,7 +155,10 @@ const aliasOverrides: Record<string, string> = {
   "arbitrum one": "arbitrum",
   "polygon pos": "polygon",
   matic: "polygon",
+  "matic network": "polygon",
   "near protocol": "near",
+  sol: "solana",
+  xlm: "stellar",
 };
 
 export function normalizeLogoKey(name: string) {
@@ -196,5 +200,5 @@ export function getLogoRegistryEntry(name: string, preferredCategory?: LogoCateg
 }
 
 export function isApprovedLocalLogo(entry?: LogoRegistryEntry) {
-  return Boolean(entry?.localPath && entry.quality === "approved" && entry.sourceType !== "temporary-review-needed");
+  return Boolean(entry?.localPath && entry.quality === "approved" && entry.sourceType !== "data-provider");
 }
