@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="hyperliquid logo">
-  <circle cx="64" cy="64" r="64" fill="#eaf7f3"/>
-  <circle cx="64" cy="64" r="62.5" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/>
-  <text x="64" y="69" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="42" fill="#0f766e">HL</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Hyperliquid logo"><rect width="128" height="128" rx="64" fill="#E7FFF8"/><circle cx="64" cy="64" r="62" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="3"/><path d="M25 74c18-30 40-38 66-24-16-3-28 4-39 23 14-7 30-7 51 4-28 26-57 25-78-3Z" fill="#00B894"/><path d="M31 53c21-25 46-28 72-7-22-7-39-1-55 19Z" fill="#111827" opacity=".75"/></svg>

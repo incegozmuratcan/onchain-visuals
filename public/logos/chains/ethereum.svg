@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="ethereum logo">
-  <circle cx="64" cy="64" r="64" fill="#f1f5f9"/>
-  <circle cx="64" cy="64" r="62.5" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/>
-  <text x="64" y="68" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="54" fill="#334155">◆</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Ethereum logo"><rect width="128" height="128" rx="64" fill="#627EEA"/><circle cx="64" cy="64" r="62" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="3"/><g transform="translate(64 64)"><polygon points="0,-42 -26,3 0,-10 26,3" fill="white"/><polygon points="0,-5 -26,9 0,42 26,9" fill="white" opacity="0.75"/></g></svg>

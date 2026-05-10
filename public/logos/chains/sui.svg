@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="sui logo">
-  <circle cx="64" cy="64" r="64" fill="#d8f0ff"/>
-  <circle cx="64" cy="64" r="62.5" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/>
-  <text x="64" y="68" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="70" fill="#2a87d0">◊</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Sui logo"><rect width="128" height="128" rx="64" fill="#6FBCF0"/><circle cx="64" cy="64" r="62" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="3"/><path d="M64 15C47 39 32 59 32 78c0 20 14 36 32 36s32-16 32-36c0-19-15-39-32-63Z" fill="white"/></svg>

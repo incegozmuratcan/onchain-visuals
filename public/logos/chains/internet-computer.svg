@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="internet-computer logo">
-  <circle cx="64" cy="64" r="64" fill="#0f172a"/>
-  <circle cx="64" cy="64" r="62.5" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/>
-  <text x="64" y="68" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="70" fill="#ff4ecd">∞</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Internet Computer logo"><rect width="128" height="128" rx="64" fill="#29ABE2"/><circle cx="64" cy="64" r="62" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="3"/><path d="M30 64c18-31 42-31 68 0-26 31-50 31-68 0Z" fill="none" stroke="white" stroke-width="12"/><path d="M98 64c-18-31-42-31-68 0 26 31 50 31 68 0Z" fill="none" stroke="#EC008C" stroke-width="12"/></svg>

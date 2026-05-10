@@ -1,6 +1,6 @@
-import { logoAliasMap, logoManifestBySlug, normalizeLogoKey, type LogoFit, type LogoManifestEntry } from "./logoRegistry";
+import { getLogoRegistryEntry, logoManifestBySlug, normalizeLogoKey, slugifyLogoKey, type LogoFit, type LogoManifestEntry } from "./logos/logoRegistry";
 
-export type { LogoFit } from "./logoRegistry";
+export type { LogoFit } from "./logos/logoRegistry";
 
 export type LogoRenderConfig = {
   src: string;
@@ -8,7 +8,7 @@ export type LogoRenderConfig = {
   scale: number;
   padding: number;
   sourceType?: LogoManifestEntry["sourceType"] | "generated" | "external";
-  qualityStatus?: LogoManifestEntry["qualityStatus"] | "generated";
+  quality?: LogoManifestEntry["quality"] | "generated" | "external-only";
 };
 
 type ChainIdentity = {
@@ -51,7 +51,7 @@ const externalCandidates: Record<string, string[]> = {
 };
 
 function fallbackSlug(name: string) {
-  return normalizeLogoKey(name).replace(/\s+/g, "-");
+  return slugifyLogoKey(name);
 }
 
 function uniqueConfigs(configs: LogoRenderConfig[]) {
@@ -71,7 +71,7 @@ function manifestConfig(entry: LogoManifestEntry): LogoRenderConfig | null {
     scale: entry.scale,
     padding: entry.padding,
     sourceType: entry.sourceType,
-    qualityStatus: entry.qualityStatus,
+    quality: entry.quality,
   };
 }
 
@@ -83,13 +83,13 @@ function configFor(slug: string, src: string, overrides?: Partial<LogoRenderConf
     scale: overrides?.scale ?? manifest?.scale ?? DEFAULT_LOGO_CONFIG.scale,
     padding: overrides?.padding ?? manifest?.padding ?? DEFAULT_LOGO_CONFIG.padding,
     sourceType: overrides?.sourceType,
-    qualityStatus: overrides?.qualityStatus,
+    quality: overrides?.quality,
   };
 }
 
 export function getChainIdentity(name: string): ChainIdentity {
   const key = normalizeLogoKey(name);
-  const manifest = logoAliasMap.get(key);
+  const manifest = getLogoRegistryEntry(key);
   if (manifest) {
     return {
       name: manifest.canonicalName,
@@ -118,8 +118,8 @@ export function getChainLogoCandidates(name: string, logo?: string | null): Logo
 
   return uniqueConfigs([
     ...(local ? [local] : []),
-    ...verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", qualityStatus: "external-only" })),
-    configFor(identity.slug, generatedLogo(identity.slug), { sourceType: "generated", qualityStatus: "generated" }),
+    ...(identity.manifest?.requiredActive ? [] : verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }))),
+    ...(identity.manifest?.requiredActive ? [] : [configFor(identity.slug, generatedLogo(identity.slug), { sourceType: "generated", quality: "generated" })]),
   ]);
 }
 

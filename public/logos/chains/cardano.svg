@@ -1,5 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="cardano logo">
-  <circle cx="64" cy="64" r="64" fill="#2a61d6"/>
-  <circle cx="64" cy="64" r="62.5" fill="none" stroke="rgba(15,23,42,0.10)" stroke-width="3"/>
-  <text x="64" y="68" text-anchor="middle" dominant-baseline="middle" font-family="Inter, Arial, sans-serif" font-weight="900" font-size="62" fill="#ffffff">✣</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 128 128" role="img" aria-label="Cardano logo"><rect width="128" height="128" rx="64" fill="#0033AD"/><circle cx="64" cy="64" r="62" fill="none" stroke="rgba(15,23,42,.10)" stroke-width="3"/><g fill="white"><circle cx="64" cy="64" r="5"/><circle cx="88" cy="64" r="5"/><circle cx="80" cy="80" r="5"/><circle cx="64" cy="87" r="5"/><circle cx="48" cy="80" r="5"/><circle cx="41" cy="64" r="5"/><circle cx="47" cy="48" r="5"/><circle cx="64" cy="41" r="5"/><circle cx="80" cy="47" r="5"/><circle cx="106" cy="64" r="4"/><circle cx="93" cy="93" r="4"/><circle cx="64" cy="105" r="4"/><circle cx="35" cy="93" r="4"/><circle cx="23" cy="64" r="4"/><circle cx="35" cy="35" r="4"/><circle cx="64" cy="23" r="4"/><circle cx="93" cy="35" r="4"/></g></svg>
