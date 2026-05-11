@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.8.2.
+- Current app version: v0.8.3.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -73,37 +73,35 @@
 - DePIN cards keep chain/network information at the far-right side of each row.
 
 
-# v0.8.2 Logo Reliability Hotfix
+# v0.8.3 Source-backed Logo Vault
 
-- Known active entities now require approved local, source/provenance-backed logos before a metric can ship.
-- Required active chains, DePIN projects and tokenized assets must not resolve to generated badges, initials, fake text circles or external runtime logo URLs.
-- `npm run check:logos` must pass before PR; it blocks missing registry entries, missing local files, non-approved quality, missing provenance, data-provider-only required entries, active metrics without logo requirements, alias collisions and required text/initials placeholder markup.
-- Future active metrics must add logo coverage in `lib/logos/metricLogoRequirements.ts` before the metric is enabled in `datasetGroups`.
-- `/logo-audit` is the internal visual QA route for 24px, 32px, 48px and row-preview checks across light and dark surfaces.
-- External logo URLs are candidate/provenance sources only, not ShareCard runtime dependencies for known active entities.
-- ShareCard resolves approved local registry logos first and withholds generated/initials fallback from required active entities.
+- Logo strategy is now a source-backed local logo vault: source candidate → raw download → final local asset → source manifest → checksum → visual registry → audit → render.
+- Codex must not draw, invent, approximate or hand-code logos for required active entities.
+- Required active entities must not use fake/generated badges, initials, text circles, placeholders, or runtime external logo URLs.
+- DefiLlama is the fast bulk mirror candidate source, with official brand kits/sites/docs/GitHub, CryptoLogos, Simple Icons, Trust Wallet assets, spothq and other reputable provider URLs used as overrides when better or necessary.
+- External logo URLs are source candidates only; required active ShareCard rendering depends on approved local files with source manifest provenance and matching SHA-256 checksums.
+- Unknown/non-required entities may use a clean fallback at runtime, but that fallback is treated as missing/unknown and is never an approved real logo.
+- New active metrics require coverage in `lib/logos/metricLogoRequirements.ts`, source-backed local logos, source manifest records and a passing `npm run check:logos` before shipping.
+- `npm run logos:sync` ingests/downloads required active logos into `public/logos/raw/<provider>` and final files into `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; when network is unavailable it records unresolved candidates rather than faking approvals.
+- `npm run check:logos` must pass before PR/deploy; it fails missing registry entries, missing source manifest entries, missing local files, checksum mismatch, non-approved source status, non-approved registry quality, fallback/generated providers, external runtime paths, text-badge-like SVG markup and active metrics without logo requirements.
+- `/logo-audit` is the required visual QA route for provenance, checksum, warning filters, 24px/32px/48px previews, ShareCard row previews and source candidate review.
 
 # Logo System
 
 - Logo reliability is a core product quality requirement because share-card quality depends on recognizable, balanced logos.
-- Known active entities require approved curated local logos.
-- Initials, generated, placeholder and external-runtime primary fallbacks are unacceptable for known active entities.
-- Logos use a manifest/registry with canonical name, slug, category, local path, aliases, source/provenance metadata, fit, scale, padding and quality status.
-- Local immutable assets under `public/logos/chains`, `public/logos/projects` and `public/logos/assets` are preferred for known chains, projects and assets.
+- The source manifest lives in `lib/logos/logoSourceManifest.ts` and records canonical name, slug, category, local/raw paths, provider, source URL/note, download time, original content type, SHA-256, dimensions, approval status, rights note and notes.
+- The visual rendering registry lives in `lib/logos/logoRegistry.ts`; it keeps canonical name, slug, category, aliases, local path, fit, scale, padding, background, required-active status and visual quality. It is not source proof by itself.
+- Local vault layout: final assets in `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; raw downloads in `public/logos/raw/defillama`, `public/logos/raw/official`, `public/logos/raw/cryptologos`, `public/logos/raw/simple-icons`, `public/logos/raw/trustwallet` and `public/logos/raw/spothq`.
 - Fallback hierarchy:
-  1. approved curated local logo asset for known active entities
-  2. non-approved local logo only for non-required entities
-  3. verified external logo candidate only for unknown/non-required entities
-  4. generated fallback only for unknown entities
-  5. initials fallback only for truly unknown entities
+  1. required known active entities: approved local registry logo plus approved source manifest record with matching checksum only
+  2. unknown/non-required entities: approved local logo if available
+  3. unknown/non-required entities: verified external candidate if allowed
+  4. unknown/non-required entities: clean generated fallback
+  5. unknown/non-required entities: initials fallback
+- Required active entities do not silently fall back; build/check gates must catch missing source-backed logos before deploy.
 - Logos should be optimized for perceived size and visual weight, not mathematically identical scaling.
 - Circular logo containers should feel filled and premium; avoid tiny symbols floating inside empty circles.
-- `/logo-audit` exists as an internal QA route for logo inspection with required-active, missing, needs-review, project, chain and asset filters.
-- `npm run check:logos` verifies registry local paths, required active logo approval and active metric logo requirement mappings.
-- Any new active metric must include logo coverage requirements before it can ship. If a new metric introduces new entities, their logos must be sourced, stored locally, added to the logo registry, audited and included in `check:logos`.
-- Source/provenance must be recorded for every logo; CryptoLogos, official brand kits, Simple Icons, Trust Wallet assets, spothq and data-provider URLs are source pools, not runtime dependencies.
-- ShareCard uses local logos first and must not silently fall back to initials/generated badges for required active entities.
-- Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo registry.
+- Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.
 
 # UI Rules
 
@@ -147,7 +145,7 @@
 
 # Versioning
 
-- Current app version: v0.8.2.
+- Current app version: v0.8.3.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file

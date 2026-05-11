@@ -1,4 +1,4 @@
-import { getLogoRegistryEntry, logoManifestBySlug, normalizeLogoKey, slugifyLogoKey, type LogoFit, type LogoManifestEntry } from "./logos/logoRegistry";
+import { getLogoRegistryEntry, hasApprovedLogoSource, logoManifestBySlug, normalizeLogoKey, slugifyLogoKey, type LogoFit, type LogoManifestEntry } from "./logos/logoRegistry";
 
 export type { LogoFit } from "./logos/logoRegistry";
 
@@ -65,6 +65,7 @@ function uniqueConfigs(configs: LogoRenderConfig[]) {
 
 function manifestConfig(entry: LogoManifestEntry): LogoRenderConfig | null {
   if (!entry.localPath) return null;
+  if (entry.requiredActive && !hasApprovedLogoSource(entry)) return null;
   return {
     src: entry.localPath,
     fit: entry.fit,
@@ -125,6 +126,10 @@ export function getChainLogoCandidates(name: string, logo?: string | null): Logo
 
 export function getChainLogo(name: string, logo?: string | null) {
   return getChainLogoCandidates(name, logo)[0]?.src ?? null;
+}
+
+export function isKnownRequiredLogoName(name: string) {
+  return Boolean(getChainIdentity(name).manifest?.requiredActive);
 }
 
 export function getInitials(name: string) {

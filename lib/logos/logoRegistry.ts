@@ -1,3 +1,4 @@
+import { logoSourceManifestByKey } from "./logoSourceManifest";
 export type LogoFit = "contain" | "cover";
 export type LogoCategory = "chain" | "project" | "asset";
 export type LogoSourceType =
@@ -9,8 +10,11 @@ export type LogoSourceType =
   | "simple-icons"
   | "trustwallet-assets"
   | "spothq-cryptocurrency-icons"
+  | "defillama"
+  | "other-data-provider"
   | "data-provider"
-  | "existing-local";
+  | "existing-local"
+  | "existing-local-reviewed";
 export type LogoQuality = "approved" | "needs-review" | "missing" | "rejected";
 
 export type LogoRegistryEntry = {
@@ -37,7 +41,23 @@ export type LogoManifestEntry = LogoRegistryEntry;
 const RIGHTS_NOTE = "Logos are trademarks of their respective owners and are used for identification purposes; provenance is tracked here for review.";
 
 function entry(input: LogoRegistryEntry): LogoRegistryEntry {
-  return input;
+  const sourceRecord = logoSourceManifestByKey.get(`${input.category}:${input.slug}`);
+  return {
+    ...input,
+    localPath: sourceRecord?.localPath ?? input.localPath,
+    sourceType: sourceRecord?.sourceProvider ?? input.sourceType,
+    sourceUrl: sourceRecord?.sourceUrl ?? input.sourceUrl,
+    sourceNote: sourceRecord?.sourceNote ?? input.sourceNote,
+  };
+}
+
+export function getLogoSourceRecord(entry?: Pick<LogoRegistryEntry, "category" | "slug">) {
+  return entry ? logoSourceManifestByKey.get(`${entry.category}:${entry.slug}`) : undefined;
+}
+
+export function hasApprovedLogoSource(entry?: Pick<LogoRegistryEntry, "category" | "slug" | "localPath">) {
+  const source = getLogoSourceRecord(entry);
+  return Boolean(source?.approvalStatus === "approved" && source.localPath && entry?.localPath === source.localPath && source.sha256);
 }
 
 const common = {
@@ -200,5 +220,5 @@ export function getLogoRegistryEntry(name: string, preferredCategory?: LogoCateg
 }
 
 export function isApprovedLocalLogo(entry?: LogoRegistryEntry) {
-  return Boolean(entry?.localPath && entry.quality === "approved" && entry.sourceType !== "data-provider");
+  return Boolean(entry?.localPath && entry.quality === "approved" && hasApprovedLogoSource(entry));
 }

@@ -1,46 +1,78 @@
-import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { LogoAuditImage } from "@/components/LogoAuditImage";
 import { logoManifest, type LogoRegistryEntry } from "@/lib/logos/logoRegistry";
+import { logoSourceManifest, unresolvedLogoSources } from "@/lib/logos/logoSourceManifest";
 import { requiredActiveLogoKeys } from "@/lib/logos/metricLogoRequirements";
 
 const requiredKeys = new Set(requiredActiveLogoKeys);
+const sourceByKey = new Map(logoSourceManifest.map((source) => [`${source.category}:${source.slug}`, source]));
+const unresolvedByKey = new Map(unresolvedLogoSources.map((source) => [`${source.category}:${source.slug}`, source]));
 
-type Filter = "all" | "required" | "missing" | "needs-review" | "rejected" | "source-type" | "projects" | "chains" | "assets";
+type Filter = "all" | "required" | "missing" | "needs-review" | "checksum" | "fallback" | "projects" | "chains" | "assets" | "source-provider";
 
-function localFileExists(logo: LogoRegistryEntry) {
-  return Boolean(logo.localPath && existsSync(join(process.cwd(), "public", logo.localPath.replace(/^\//, ""))));
+function fsPath(localPath?: string) {
+  return localPath ? join(process.cwd(), "public", localPath.replace(/^\//, "")) : null;
+}
+
+function fileExists(localPath?: string) {
+  const path = fsPath(localPath);
+  return Boolean(path && existsSync(path));
+}
+
+function checksum(localPath?: string) {
+  const path = fsPath(localPath);
+  if (!path || !existsSync(path)) return null;
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function textBadgeLike(localPath?: string) {
+  const path = fsPath(localPath);
+  if (!path || !existsSync(path) || !/\.svg$/i.test(localPath ?? "")) return false;
+  const source = readFileSync(path, "utf8");
+  return /<text\b|Arial Black|Inter, Arial|dominant-baseline=["']middle|stroke=["']rgba\(15,23,42,.10\)["']|role=["']img["'] aria-label=/i.test(source);
 }
 
 function warningsFor(logo: LogoRegistryEntry) {
-  const warnings = [];
-  if (!logo.localPath) warnings.push("missing local asset");
-  if (!localFileExists(logo)) warnings.push("file not found");
-  if (logo.sourceType === "data-provider") warnings.push("data-provider provenance");
-  if (logo.quality === "rejected") warnings.push("rejected");
-  if (logo.quality !== "approved") warnings.push(logo.quality);
-  if (/placeholder|initial|fallback|generated/i.test(`${logo.sourceNote ?? ""} ${logo.notes}`)) warnings.push("fallback/generated review");
-  if (requiredKeys.has(`${logo.category}:${logo.slug}`) && logo.quality !== "approved") warnings.push("required active not approved");
+  const key = `${logo.category}:${logo.slug}`;
+  const source = sourceByKey.get(key);
+  const warnings: string[] = [];
+  const actualChecksum = checksum(source?.localPath ?? logo.localPath);
+  if (!source) warnings.push("source manifest missing");
+  if (requiredKeys.has(key) && !source) warnings.push("required unresolved");
+  if (!logo.localPath) warnings.push("registry localPath missing");
+  if (!fileExists(logo.localPath)) warnings.push("registry file missing");
+  if (source?.localPath && !fileExists(source.localPath)) warnings.push("source file missing");
+  if (source && source.localPath !== logo.localPath) warnings.push("localPath mismatch");
+  if (source && source.approvalStatus !== "approved") warnings.push(source.approvalStatus);
+  if (source?.sha256 && actualChecksum && source.sha256 !== actualChecksum) warnings.push("checksum mismatch");
+  if (/placeholder|initial|fallback|generated/i.test(`${logo.sourceType} ${logo.sourceNote ?? ""} ${logo.notes}`)) warnings.push("fallback/generated metadata");
+  if (textBadgeLike(source?.localPath ?? logo.localPath)) warnings.push("text-badge-like SVG");
+  if (unresolvedByKey.has(key)) warnings.push("unresolved candidates");
   return Array.from(new Set(warnings));
 }
 
 function statusClass(warnings: string[]) {
-  if (warnings.some((warning) => /missing|not found|required/.test(warning))) return "border-red-200 bg-red-50";
+  if (warnings.some((warning) => /missing|unresolved|checksum|required/.test(warning))) return "border-red-200 bg-red-50";
   if (warnings.length) return "border-amber-200 bg-amber-50";
   return "border-slate-200 bg-white";
 }
 
 function filterLogos(filter: Filter) {
   return logoManifest.filter((logo) => {
+    const key = `${logo.category}:${logo.slug}`;
     const warnings = warningsFor(logo);
-    if (filter === "required") return requiredKeys.has(`${logo.category}:${logo.slug}`);
-    if (filter === "missing") return warnings.some((warning) => /missing|not found/.test(warning));
-    if (filter === "needs-review") return warnings.length > 0 && logo.quality !== "rejected";
-    if (filter === "rejected") return logo.quality === "rejected";
-    if (filter === "source-type") return true;
+    const source = sourceByKey.get(key);
+    if (filter === "required") return requiredKeys.has(key);
+    if (filter === "missing") return warnings.some((warning) => /missing|unresolved/.test(warning));
+    if (filter === "needs-review") return warnings.length > 0 || source?.approvalStatus === "needs-review";
+    if (filter === "checksum") return warnings.includes("checksum mismatch");
+    if (filter === "fallback") return warnings.some((warning) => /fallback|generated|text-badge/.test(warning));
     if (filter === "projects") return logo.category === "project";
     if (filter === "chains") return logo.category === "chain";
     if (filter === "assets") return logo.category === "asset";
+    if (filter === "source-provider") return true;
     return true;
   });
 }
@@ -50,19 +82,19 @@ const filters: { id: Filter; label: string }[] = [
   { id: "required", label: "Required active" },
   { id: "missing", label: "Missing" },
   { id: "needs-review", label: "Needs review" },
-  { id: "rejected", label: "Rejected" },
-  { id: "source-type", label: "Source type" },
-  { id: "projects", label: "Projects" },
+  { id: "checksum", label: "Checksum mismatch" },
+  { id: "fallback", label: "Fallback used" },
   { id: "chains", label: "Chains" },
+  { id: "projects", label: "Projects" },
   { id: "assets", label: "Assets" },
+  { id: "source-provider", label: "Source provider" },
 ];
 
 export default function LogoAuditPage({ searchParams }: { searchParams?: { filter?: Filter } }) {
   const activeFilter = filters.some((filter) => filter.id === searchParams?.filter) ? searchParams?.filter ?? "all" : "all";
   const visibleLogos = filterLogos(activeFilter).sort((a, b) => Number(requiredKeys.has(`${b.category}:${b.slug}`)) - Number(requiredKeys.has(`${a.category}:${a.slug}`)) || a.category.localeCompare(b.category) || a.canonicalName.localeCompare(b.canonicalName));
-  const allWarnings = logoManifest.flatMap((logo) => warningsFor(logo));
-  const missingLocalCount = logoManifest.filter((logo) => !localFileExists(logo)).length;
-  const needsReviewCount = logoManifest.filter((logo) => warningsFor(logo).length > 0).length;
+  const missingCount = logoManifest.filter((logo) => warningsFor(logo).some((warning) => /missing|unresolved/.test(warning))).length;
+  const checksumCount = logoManifest.filter((logo) => warningsFor(logo).includes("checksum mismatch")).length;
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-8 md:px-8">
@@ -70,22 +102,18 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
         <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">learnDeFi QA</p>
         <h1 className="mt-2 text-4xl font-black tracking-[-0.06em] text-slate-950 md:text-6xl">Logo audit</h1>
         <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-500">
-          Internal logo audit for card quality. Required active entities must use approved local logos.
+          Source-backed local logo vault review. Required active entities must have matching registry config, source manifest provenance and checksum-verified local files.
         </p>
         <div className="mt-5 flex flex-wrap gap-2 text-xs font-black">
           <span className="rounded-full bg-slate-950 px-3 py-1.5 text-white">{logoManifest.length} registered</span>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">{logoSourceManifest.length} source-backed</span>
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">{requiredKeys.size} required active</span>
-          <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-red-700">{missingLocalCount} missing files</span>
-          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-800">{needsReviewCount} needs review</span>
-          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">{allWarnings.length} warnings</span>
+          <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-red-700">{missingCount} missing/unresolved</span>
+          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-800">{checksumCount} checksum mismatch</span>
         </div>
         <nav className="mt-6 flex flex-wrap gap-2 text-xs font-black">
           {filters.map((filter) => (
-            <a
-              key={filter.id}
-              href={`/logo-audit?filter=${filter.id}`}
-              className={`rounded-full border px-3 py-2 ${activeFilter === filter.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600"}`}
-            >
+            <a key={filter.id} href={`/logo-audit?filter=${filter.id}`} className={`rounded-full border px-3 py-2 ${activeFilter === filter.id ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600"}`}>
               {filter.label}
             </a>
           ))}
@@ -94,45 +122,54 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
 
       <section className="mt-6 grid gap-4">
         {visibleLogos.map((logo) => {
+          const key = `${logo.category}:${logo.slug}`;
+          const source = sourceByKey.get(key);
+          const unresolved = unresolvedByKey.get(key);
           const warnings = warningsFor(logo);
-          const required = requiredKeys.has(`${logo.category}:${logo.slug}`);
+          const shortSha = source?.sha256 ? source.sha256.slice(0, 12) : "—";
+          const provider = source?.sourceProvider ?? "—";
           return (
-            <article key={`${logo.category}-${logo.slug}`} className={`rounded-[28px] border p-4 shadow-soft ${statusClass(warnings)} ${required ? "ring-1 ring-slate-950/10" : ""}`}>
-              <div className="grid gap-4 lg:grid-cols-[270px_1fr_280px] lg:items-center">
+            <article key={key} className={`rounded-[28px] border p-5 shadow-sm ${statusClass(warnings)}`}>
+              <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
                 <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="text-lg font-black tracking-[-0.03em] text-slate-950">{logo.canonicalName}</div>
-                    {required && <span className="rounded-full bg-slate-950 px-2 py-1 text-[10px] font-black text-white">required active</span>}
-                  </div>
-                  <div className="mt-1 text-xs font-bold text-slate-500">{logo.category} · {logo.slug}</div>
-                  <div className="mt-2 break-all text-[11px] font-semibold text-slate-500">{logo.localPath ?? "No local path"}</div>
-                  <div className="mt-2 text-[11px] font-semibold text-slate-500">aliases: {logo.aliases.join(", ")}</div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4 rounded-2xl bg-white/80 p-3">
-                  <LogoAuditImage src={logo.localPath} name={logo.canonicalName} size={24} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                  <LogoAuditImage src={logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                  <LogoAuditImage src={logo.localPath} name={logo.canonicalName} size={48} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                  <div className="flex min-w-[260px] items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3">
-                    <LogoAuditImage src={logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-black text-slate-950">{logo.canonicalName}</div>
-                      <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 w-2/3 rounded-full bg-slate-950" /></div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400">{logo.category} · {logo.slug}</p>
+                      <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-slate-950">{logo.canonicalName}</h2>
                     </div>
-                    <div className="text-xs font-black text-slate-500">$1.2B</div>
+                    {requiredKeys.has(key) && <span className="rounded-full bg-slate-950 px-2.5 py-1 text-[10px] font-black text-white">required</span>}
                   </div>
-                  <div className="rounded-2xl bg-slate-950 p-3">
-                    <LogoAuditImage src={logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                  </div>
+                  <p className="mt-3 break-all text-[11px] font-semibold text-slate-500">local: {logo.localPath ?? "—"}</p>
+                  <p className="mt-1 break-all text-[11px] font-semibold text-slate-500">source: {source?.sourceUrl ?? source?.sourceNote ?? "—"}</p>
+                  <p className="mt-1 text-[11px] font-black text-slate-500">provider: {provider} · status: {source?.approvalStatus ?? "missing"} · sha: {shortSha}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">downloaded: {source?.downloadedAt ?? "—"} · size: {source?.width ?? "?"}×{source?.height ?? "?"}</p>
+                  <p className="mt-1 text-[11px] font-semibold text-slate-500">fit: {logo.fit} · scale: {logo.scale} · padding: {logo.padding} · quality: {logo.quality}</p>
+                  <p className="mt-2 text-[11px] font-semibold text-slate-500">aliases: {logo.aliases.join(", ") || "—"}</p>
                 </div>
 
-                <div className="grid gap-2 text-xs font-black">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-700">source: {logo.sourceType}</span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-700">quality: {logo.quality}</span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-700">fit/scale/padding: {logo.fit} · {logo.scale} · {logo.padding}</span>
-                  <span className="break-all rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-500">source: {logo.sourceUrl ?? logo.sourceNote}</span>
-                  <span className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-500">rights: {logo.rightsNote}</span>
-                  {warnings.length > 0 && <span className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800">warnings: {warnings.join(", ")}</span>}
+                <div className="grid gap-4">
+                  <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-3">
+                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={24} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={48} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <div className="flex min-w-[220px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
+                      <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                      <span className="font-black text-slate-950">ShareCard row preview</span>
+                    </div>
+                    <div className="flex items-center gap-3 rounded-2xl bg-slate-950 p-3 text-white">
+                      <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                      <span className="font-black">Dark surface</span>
+                    </div>
+                  </div>
+                  {warnings.length > 0 && <div className="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-black text-amber-900">warnings: {warnings.join(", ")}</div>}
+                  <details className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-600">
+                    <summary className="cursor-pointer font-black text-slate-950">Source candidates</summary>
+                    <div className="mt-2 grid gap-1 break-all">
+                      {unresolved?.attemptedCandidates.length ? unresolved.attemptedCandidates.map((candidate) => (
+                        <a key={`${candidate.provider}:${candidate.url}`} href={candidate.url} className="text-slate-600 underline decoration-slate-300 underline-offset-2">{candidate.provider}: {candidate.url} · {candidate.status}</a>
+                      )) : source?.sourceUrl ? <a href={source.sourceUrl} className="text-slate-600 underline decoration-slate-300 underline-offset-2">{source.sourceProvider}: {source.sourceUrl}</a> : <span>No candidates recorded.</span>}
+                    </div>
+                  </details>
                 </div>
               </div>
             </article>
