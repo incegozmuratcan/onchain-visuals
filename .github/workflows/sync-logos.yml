@@ -1,4 +1,4 @@
- name: Sync logo vault
+name: Sync logo vault
 
 on:
   workflow_dispatch:
