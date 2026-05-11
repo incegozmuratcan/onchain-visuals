@@ -1,0 +1,113 @@
+name: Sync logo vault
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Logo sync mode"
+        required: true
+        default: "best-effort"
+        type: choice
+        options:
+          - best-effort
+          - strict
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync-logos:
+    name: Sync source-backed logos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run logo sync
+        id: logo_sync
+        shell: bash
+        run: |
+          set +e
+          npm run logos:sync -- --mode="${{ inputs.mode }}"
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.mode }}" = "strict" ] && [ "$EXIT_CODE" -ne 0 ]; then
+            exit "$EXIT_CODE"
+          fi
+
+          exit 0
+
+      - name: Run logo check
+        id: logo_check
+        shell: bash
+        run: |
+          set +e
+          npm run check:logos
+          EXIT_CODE=$?
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ inputs.mode }}" = "strict" ] && [ "$EXIT_CODE" -ne 0 ]; then
+            exit "$EXIT_CODE"
+          fi
+
+          exit 0
+
+      - name: Write logo sync report
+        shell: bash
+        run: |
+          {
+            echo "# Logo Sync Report"
+            echo ""
+            echo "- Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+            echo "- Mode: ${{ inputs.mode }}"
+            echo "- logos:sync exit code: ${{ steps.logo_sync.outputs.exit_code }}"
+            echo "- check:logos exit code: ${{ steps.logo_check.outputs.exit_code }}"
+            echo ""
+            echo "## Git status"
+            echo ""
+            echo '```text'
+            git status --short
+            echo '```'
+            echo ""
+            echo "## Notes"
+            echo ""
+            echo "- Best-effort mode is allowed to create a PR even if some required logos remain unresolved."
+            echo "- Strict mode should only pass when all required active logos have approved source-backed local assets."
+            echo "- Review /logo-audit after merging logo updates."
+          } > LOGO_SYNC_REPORT.md
+
+      - name: Create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: logo-sync/${{ github.run_id }}
+          delete-branch: true
+          commit-message: Sync source-backed logo vault
+          title: Sync source-backed logo vault
+          body: |
+            Automated logo sync run.
+
+            Mode: `${{ inputs.mode }}`
+            logos:sync exit code: `${{ steps.logo_sync.outputs.exit_code }}`
+            check:logos exit code: `${{ steps.logo_check.outputs.exit_code }}`
+
+            Review:
+            - `LOGO_SYNC_REPORT.md`
+            - `lib/logos/logoSourceManifest.ts`
+            - `/logo-audit`
+
+            Best-effort mode may still contain unresolved logos. Do not treat unresolved/fallback logos as approved.
+          labels: |
+            logo-sync
