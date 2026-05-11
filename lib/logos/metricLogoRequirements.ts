@@ -37,8 +37,17 @@ export const topThirtyChainSlugs = [
   "cronos",
   "celo",
   "saga",
+  "canton-network",
+  "morph",
+  "abstract",
+  "injective",
+  "internet-computer",
+  "linea",
+  "pulsechain",
+  "near",
+  "zksync-era",
+  "cardano",
 ];
-
 export const commonInfrastructureChainSlugs = [
   ...topThirtyChainSlugs,
   "bitcoin",
