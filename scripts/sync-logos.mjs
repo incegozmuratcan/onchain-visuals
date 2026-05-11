@@ -143,9 +143,38 @@ function defillamaCandidates(logo) {
   return candidates;
 }
 
+const COLOR_LOGO_FIRST_KEYS = new Set([
+  "chain:solana",
+  "chain:polygon",
+  "chain:bsc",
+  "chain:base",
+  "chain:ethereum",
+  "chain:avalanche",
+  "chain:arbitrum",
+  "chain:aptos",
+  "chain:ton",
+  "chain:sui",
+  "chain:ripple",
+  "chain:stellar",
+  "chain:near",
+  "chain:optimism",
+  "chain:starknet",
+  "chain:mantle",
+  "chain:filecoin",
+  "chain:cardano",
+  "chain:tron",
+]);
+
 function candidatesFor(logo) {
   const key = `${logo.category}:${logo.slug}`;
-  return [...(sourceOverrides[key] ?? []), ...defillamaCandidates(logo)].filter((candidate) => !BLOCKED_PROVIDERS.has(candidate.provider));
+  const defillama = defillamaCandidates(logo);
+  const overrides = sourceOverrides[key] ?? [];
+
+  const ordered = COLOR_LOGO_FIRST_KEYS.has(key)
+    ? [...defillama, ...overrides]
+    : [...overrides, ...defillama];
+
+  return ordered.filter((candidate) => !BLOCKED_PROVIDERS.has(candidate.provider));
 }
 
 async function download(candidate) {
