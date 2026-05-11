@@ -1,4 +1,4 @@
-name: Sync logo vault
+ name: Sync logo vault
 
 on:
   workflow_dispatch:
@@ -29,10 +29,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-package-lock
 
       - name: Run logo sync
         id: logo_sync
