@@ -52,6 +52,7 @@ export const topThirtyChainSlugs = [
   "provenance",
   "eni",
   "bsv-blockchain",
+  "eni",
 ];
 
 export const commonInfrastructureChainSlugs = [
