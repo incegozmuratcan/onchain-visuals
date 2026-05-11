@@ -124,7 +124,11 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Rootstock", "rootstock", ["rootstock", "rsk"], "official", "https://rootstock.io/"),
   chain("Fogo", "fogo", ["fogo", "fogo chain"], "official", "https://www.fogo.io/"),
   chain("BSV Blockchain", "bsv-blockchain", ["bsv blockchain", "bsv", "bitcoin sv"], "crypto-logos", "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg"),
-
+  chain("ENI", "eni", ["eni", "eni blockchain", "eni network", "eniac"], "defillama", "https://icons.llama.fi/chains/rsz_eni.jpg", {
+    scale: 1.08,
+    padding: 0,
+  }),
+  
   asset("BUIDL", "buidl", ["buidl", "build", "blackrock usd institutional digital liquidity fund", "blackrock"], "official", "https://www.blackrock.com/cash/en-us/products/329365/blackrock-usd-institutional-digital-liquidity-fund", { scale: 0.9 }),
   asset("BENJI", "benji", ["benji", "franklin", "franklin onchain us government money fund", "benjamin"], "official", "https://www.franklintempleton.com/solutions/blockchain/benji", { scale: 0.92 }),
 
@@ -179,6 +183,10 @@ const aliasOverrides: Record<string, string> = {
   "near protocol": "near",
   sol: "solana",
   xlm: "stellar",
+  eni: "eni",
+  "eni blockchain": "eni",
+  "eni network": "eni",
+  eniac: "eni",
 };
 
 export function normalizeLogoKey(name: string) {
