@@ -47,7 +47,13 @@ export const topThirtyChainSlugs = [
   "near",
   "zksync-era",
   "cardano",
+  "hyperliquid",
+  "megaeth",
+  "provenance",
+  "eni",
+  "bsv-blockchain",
 ];
+
 export const commonInfrastructureChainSlugs = [
   ...topThirtyChainSlugs,
   "bitcoin",
