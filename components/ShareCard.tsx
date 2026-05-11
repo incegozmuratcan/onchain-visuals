@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
+import { getChainLogoCandidates, getInitials, isKnownRequiredLogoName } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 
@@ -40,7 +40,7 @@ function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact
   const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
   const candidate = candidates[candidateIndex];
 
-  if (!candidate) return <>{getInitials(name)}</>;
+  if (!candidate) return isKnownRequiredLogoName(name) ? <span title="Required logo missing source-backed approval">!</span> : <>{getInitials(name)}</>;
 
   return (
     <img
