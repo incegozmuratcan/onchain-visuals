@@ -79,6 +79,7 @@ const slugCandidates = {
   ton: ["ton", "toncoin"],
   optimism: ["optimism", "op-mainnet"],
   "bsv-blockchain": ["bsv", "bitcoin-sv", "bsv-blockchain"],
+  eni: ["eni", "eni-blockchain", "eni-network", "eniac"],
   "io-net": ["io-net", "ionet"],
   "render-network": ["render", "render-network"],
   doublezero: ["doublezero", "double-zero", "2z"],
