@@ -1,0 +1,32 @@
+name: Admin DB Setup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-db-setup:
+    name: Initialize admin database
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Push database schema
+        run: npm run db:push
+
+      - name: Seed admin logos
+        run: npm run admin:seed-logos
