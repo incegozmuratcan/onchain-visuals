@@ -58,21 +58,28 @@ function sourceStatus(source, visuallyAccepted) {
   return "candidate";
 }
 
+function mergeOptionalBoolean(...values) {
+  if (values.some((value) => value === true)) return true;
+  if (values.some((value) => value === false)) return false;
+  return undefined;
+}
+
 const payload = Array.from(keys).sort().map((key) => {
   const [categoryFromKey, slug] = key.split(":");
   const registry = registryByKey.get(key);
   const source = sourceByKey.get(key);
   const category = source?.category ?? registry?.category ?? categoryFromKey;
-  const visuallyRejected = Boolean(source?.visualRejected || registry?.visualRejected);
-  const fallbackPreferredUntilManualAsset = Boolean(source?.fallbackPreferredUntilManualAsset || registry?.fallbackPreferredUntilManualAsset);
-  const visuallyAccepted = !visuallyRejected && !fallbackPreferredUntilManualAsset;
+  const visualRejected = mergeOptionalBoolean(source?.visualRejected, registry?.visualRejected);
+  const fallbackPreferredUntilManualAsset = mergeOptionalBoolean(source?.fallbackPreferredUntilManualAsset, registry?.fallbackPreferredUntilManualAsset);
+  const visualRejectReason = source?.visualRejectReason ?? registry?.visualRejectReason;
+  const visuallyAccepted = !Boolean(visualRejected) && !Boolean(fallbackPreferredUntilManualAsset);
   const sourceApproved = source?.approvalStatus === "approved" && visuallyAccepted;
   const status = sourceApproved ? "approved" : "needs_review";
   const notes = [
     registry?.notes,
     source?.notes,
     source?.sourceNote,
-    visuallyRejected ? `Visual rejection: ${source?.visualRejectReason ?? registry?.visualRejectReason ?? "source requires manual replacement"}` : null,
+    visualRejected ? `Visual rejection: ${visualRejectReason ?? "source requires manual replacement"}` : null,
     fallbackPreferredUntilManualAsset ? "Fallback preferred until a manual asset is approved; not auto-approved by seed." : null,
     requiredActiveLogoKeys.includes(key) ? "Required by active metric logo coverage." : null,
   ].filter(Boolean).join("\n");
@@ -101,8 +108,9 @@ const payload = Array.from(keys).sort().map((key) => {
         downloadedAt: source.downloadedAt,
         originalContentType: source.originalContentType,
         approvalStatus: source.approvalStatus,
-        visualRejected,
-        fallbackPreferredUntilManualAsset,
+        ...(visualRejected === undefined ? {} : { visualRejected }),
+        ...(fallbackPreferredUntilManualAsset === undefined ? {} : { fallbackPreferredUntilManualAsset }),
+        ...(visualRejectReason === undefined ? {} : { visualRejectReason }),
       },
     } : null,
   };
