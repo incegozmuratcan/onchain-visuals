@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.8.4 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
+learnDeFi v0.9.0 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, payments, paid plans, alerts or scheduled reports. It adds a protected internal admin foundation for logo operations while keeping the public product focused on card quality, source clarity and logo reliability.
 
 ## Stack
 
@@ -65,7 +65,7 @@ learnDeFi v0.8.4 is not an AI product, not a paid SaaS and not a crypto data ter
 
 ## Logo system
 
-v0.8.4 introduces a permanent local logo vault plus source-backed ingestion pipeline for share-card reliability. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.8.4 introduced a permanent local logo vault plus source-backed ingestion pipeline for share-card reliability. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -130,6 +130,76 @@ npm run check:logos
 `check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, visual-rejected source-backed assets, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+
+## v0.9.0 Admin Logo Manager
+
+v0.9.0 adds the first internal admin foundation with `/admin` and the Logo Manager as the first module. The public card creator remains the same share-ready learnDeFi product; this release does not add AI, payments, new metrics or a public UI redesign.
+
+### Admin architecture
+
+- `/admin/login` uses single-owner password auth from `ADMIN_PASSWORD` or `ADMIN_SECRET` and sets a signed `httpOnly`, `sameSite=lax` admin cookie.
+- `/admin/setup` reports configuration status for `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `ADMIN_PASSWORD`, `COINGECKO_DEMO_API_KEY` and optional `ADMIN_SESSION_SECRET`.
+- `/admin/logos` is the table-first operating center for logo status, source provider, CoinGecko IDs, fallback state, visual rejection and active metric usage.
+- `/admin/logos/[slug]` is the detail/review page with current logo previews, card-row preview, 24px/32px/48px previews, light/dark previews, metadata and source controls.
+- The admin database schema lives in `db/schema.sql`; setup scripts are `npm run db:push` and `npm run admin:seed-logos`.
+
+### Admin storage and env vars
+
+Required for full admin operation:
+
+```bash
+DATABASE_URL=
+BLOB_READ_WRITE_TOKEN=
+ADMIN_PASSWORD=
+COINGECKO_DEMO_API_KEY=
+```
+
+Optional:
+
+```bash
+ADMIN_SESSION_SECRET=
+```
+
+If `ADMIN_SESSION_SECRET` is missing, admin auth derives a development fallback and `/admin/setup` warns. If DB, Blob or CoinGecko env vars are missing, public card generation still works and admin pages show setup messages instead of crashing.
+
+The database tables are:
+
+- `logos`: canonical logo records, CoinGecko/DefiLlama IDs, source URLs, raw/optimized URLs, Blob URLs, fallback metadata, review status, visual status, checksums and active metric usage.
+- `logo_sources`: candidate/download/approval history per logo.
+- `admin_settings`: future admin settings storage; CoinGecko API keys are not stored in DB in this version.
+
+### Logo Manager behavior
+
+- CoinGecko is the primary admin source for known coin/token IDs and uses `COINGECKO_DEMO_API_KEY` only in server-side refresh actions.
+- DefiLlama remains the secondary source for chain/project icon candidates.
+- Manual source URL and PNG/WebP/JPG upload actions validate image types server-side and mark results as `needs_review`.
+- SVG upload is intentionally disabled until SVG sanitization is implemented safely; remote SVG candidates can be stored as raw candidates but are not automatically approved for rendering.
+- Fallbacks remain clean deterministic circles with initials/short text and optional admin color, but fallback is never approved.
+- BSV Blockchain remains visually rejected because the current Bitcoin SV-like source is too similar to BTC; a clean BSV fallback is acceptable until a distinct reviewed BSV Blockchain logo is found.
+
+### Public card logo resolution order
+
+Public card rendering never calls CoinGecko or DefiLlama during card render. Logo resolution prefers:
+
+1. Approved DB/Blob optimized logo URL when available.
+2. Existing repo source-backed local logo manifest asset.
+3. Existing local registry logo.
+4. Clean fallback.
+
+If `DATABASE_URL` is missing or DB access fails, the public app falls back to the existing local logo vault/registry path and does not crash.
+
+### Setup commands
+
+```bash
+npm run db:push
+npm run admin:seed-logos
+npm run build
+npx tsc --noEmit
+```
+
+`admin:seed-logos` imports from `lib/logos/logoRegistry.ts`, `lib/logos/logoSourceManifest.ts` and `lib/logos/metricLogoRequirements.ts` without duplicating slugs.
+
+Known limitation: this initial foundation keeps image optimization conservative. Uploaded raster candidates are size/type checked and stored as review candidates; SVG approval waits for a dedicated sanitizer, and advanced multi-size Sharp optimization can be added once deployment dependencies are confirmed.
 
 ## v0.8.4 summary
 

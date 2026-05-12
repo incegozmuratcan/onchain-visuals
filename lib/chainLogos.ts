@@ -110,14 +110,16 @@ export function normalizeChainName(name: string) {
 export function getChainLogoCandidates(name: string, logo?: string | null): LogoRenderConfig[] {
   const identity = getChainIdentity(name);
   const local = identity.manifest ? manifestConfig(identity.manifest) : null;
+  const approvedDbLogo = logo && /^https:\/\//.test(logo) && !/assets\.coingecko\.com|icons\.llama\.fi/.test(logo) ? configFor(identity.slug, logo, { fit: "contain", padding: 0, sourceType: "data-provider", quality: "approved" }) : null;
   const verifiedExternal = [
-    ...(logo && /^https:\/\//.test(logo) ? [logo] : []),
+    ...(logo && /^https:\/\//.test(logo) && !approvedDbLogo ? [logo] : []),
     ...(identity.logoCandidates ?? []),
     llamaChain(identity.slug),
     llamaIcon(identity.slug),
   ];
 
   return uniqueConfigs([
+    ...(approvedDbLogo ? [approvedDbLogo] : []),
     ...(local ? [local] : []),
     ...(identity.manifest?.requiredActive ? [] : verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }))),
     ...(!local && identity.manifest?.requiredActive ? [configFor(identity.slug, generatedLogo(identity.slug), { fit: "contain", padding: 0, sourceType: "generated", quality: "fallback" })] : []),

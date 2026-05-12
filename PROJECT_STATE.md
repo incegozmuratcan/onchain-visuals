@@ -1,13 +1,13 @@
 # Vision
 
-- Current app version: v0.8.4.
+- Current app version: v0.9.0.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
 - Main value loop: trusted data → clean card → simple learn note → X-ready output.
 - Primary audience: crypto and DeFi project teams, chain teams, ecosystem/growth/community teams, content creators and analysts.
 - learnDeFi is not an AI product, not a paid SaaS right now and not a crypto data terminal.
-- The current UI should not include paid/free plan copy, alerts, scheduled reports, auth, admin panel or AI-heavy features.
+- The current UI should not include paid/free plan copy, alerts, scheduled reports, public auth, payments or AI-heavy features.
 
 # Current Stack
 
@@ -89,6 +89,24 @@
 - `npm run check:logos` must pass before PR/deploy; it fails missing registry entries, missing source manifest entries, missing local files, checksum mismatch, non-approved source status, non-approved registry quality, fallback/generated providers, visually rejected source-backed assets, external runtime paths, text-badge-like SVG markup and active metrics without logo requirements.
 - `/logo-audit` is the required visual QA route for provenance, checksum, warning filters, 24px/32px/48px previews, ShareCard row previews and source candidate review.
 
+# v0.9.0 Internal Admin Logo Manager
+
+- The first full internal admin foundation now exists under `/admin`, with Logo Manager as the first module.
+- `/admin/login` uses a simple single-owner password flow from `ADMIN_PASSWORD` or `ADMIN_SECRET`, signed httpOnly cookies and no signup/provider auth.
+- `/admin/setup` shows `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `ADMIN_PASSWORD`, `COINGECKO_DEMO_API_KEY`, optional `ADMIN_SESSION_SECRET`, DB status, Blob status and seed readiness.
+- `/admin/logos` is the table-first operating center for canonical logo records, CoinGecko IDs, DefiLlama slugs, source providers, source URLs, status, visual status, fallback state, active metric usage and last sync times.
+- `/admin/logos/[slug]` provides current logo preview, ShareCard row preview, 24px/32px/48px previews, light/dark previews, DB metadata, aliases, used metrics, source fields, checksum fields, notes and review controls.
+- Admin-managed logos use Postgres through `DATABASE_URL` and Blob storage through `BLOB_READ_WRITE_TOKEN`; missing env vars must show setup messages and must not break public card generation.
+- CoinGecko is the primary admin source for known coin/token IDs and must use `COINGECKO_DEMO_API_KEY` only server-side. The key is not stored in DB.
+- DefiLlama remains the secondary chain/project candidate source.
+- Manual source URL and upload overrides exist for admin review; PNG/WebP/JPG upload is enabled with a 500 KB limit, while SVG upload remains disabled until sanitizer support is implemented safely.
+- Remote provider logos are fetched only during admin actions or sync workflows; public cards must not hotlink CoinGecko or DefiLlama at render time.
+- Public card logo resolution order is: approved DB/Blob optimized logo, existing source-backed local manifest logo, existing local registry logo, clean fallback.
+- Existing repo local logo vault, source manifest and `npm run check:logos` remain in place and remain the fallback/quality gate.
+- Fallbacks are clean deterministic circles with initials/short text and optional admin color; fallbacks are never approved.
+- BSV Blockchain remains visual rejected because the current Bitcoin SV-like source is too similar to BTC.
+- Setup commands: `npm run db:push` and `npm run admin:seed-logos`.
+
 # Logo System
 
 - Logo reliability is a core product quality requirement because share-card quality depends on recognizable, balanced logos.
@@ -140,15 +158,15 @@
 # Out of Current Scope
 
 - AI or chatbot features.
-- Auth, database or payments.
+- Public auth or payments.
 - Paid/free plans.
 - Scheduled reports, saved reports and alerts.
-- Admin panel.
+- Onchain Visuals rebrand.
 - Competing with data terminals such as DefiLlama, Token Terminal or Artemis.
 
 # Versioning
 
-- Current app version: v0.8.4.
+- Current app version: v0.9.0.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file
