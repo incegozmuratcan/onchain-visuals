@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
-import { addCoinGeckoAction, addDefiLlamaAction, addManualUrlAction, approveSourceAction, rejectLogoAction, rejectSourceAction, uploadLogoAction } from "@/lib/admin/actions";
+import { addCoinGeckoAction, addCoinMarketCapAction, addDefiLlamaAction, addManualUrlAction, approveSourceAction, rejectLogoAction, rejectSourceAction, uploadLogoAction } from "@/lib/admin/actions";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { getLogo, getLogoSources } from "@/lib/admin/logoDb";
+import { getCoinMarketCapId } from "@/lib/admin/logoQa";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +23,8 @@ export default async function LogoDetailPage({ params }: { params: { slug: strin
   if (!logo) notFound();
   const sources = (await getLogoSources(logo.id)).rows;
   const config = adminConfigState();
-  const coinGeckoId = getCoinGeckoLogoId(logo.slug);
+  const coinGeckoId = logo.coingecko_id || getCoinGeckoLogoId(logo.slug);
+  const coinMarketCapId = getCoinMarketCapId(logo, sources);
   const preview = logo.approved_logo_url || logo.fallback_logo_url;
   const hidden = <><input type="hidden" name="name" value={logo.name} /><input type="hidden" name="category" value={logo.category} /></>;
 
@@ -33,7 +35,7 @@ export default async function LogoDetailPage({ params }: { params: { slug: strin
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">{logo.category}</p>
           <h1 className="mt-2 text-5xl font-black tracking-[-0.07em] text-slate-950">{logo.name}</h1>
-          <div className="mt-3 flex flex-wrap items-center gap-3"><StatusBadge status={logo.status} /><span className="text-sm font-bold text-slate-500">{logo.slug}</span><span className="text-sm font-bold text-slate-400">{coinGeckoId ? `CoinGecko: ${coinGeckoId}` : "Missing CoinGecko ID"}</span></div>
+          <div className="mt-3 flex flex-wrap items-center gap-3"><StatusBadge status={logo.status} /><span className="text-sm font-bold text-slate-500">{logo.slug}</span><span className="text-sm font-bold text-slate-400">{coinGeckoId ? `CoinGecko: ${coinGeckoId}` : "Missing CoinGecko ID"}</span><span className="text-sm font-bold text-slate-400">{coinMarketCapId ? `CMC: ${coinMarketCapId}` : "Missing CoinMarketCap ID"}</span></div>
           {logo.approved_logo_url ? <p className="mt-2 text-sm font-bold text-emerald-700">Approved DB logo is shown in public cards when the database is available.</p> : logo.fallback_logo_url ? <p className="mt-2 text-sm font-bold text-amber-700">Showing local fallback preview because no DB logo is approved yet.</p> : null}
         </div>
         <LogoPreview src={preview} label={`${logo.name} logo preview`} />
@@ -41,6 +43,7 @@ export default async function LogoDetailPage({ params }: { params: { slug: strin
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
         <form action={addCoinGeckoAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">CoinGecko candidate</h2><input name="coinGeckoId" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder={coinGeckoId || "coingecko coin id, e.g. ethereum"} defaultValue={coinGeckoId || ""} required /><button className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Fetch CoinGecko</button></form>
+        <form action={addCoinMarketCapAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">CoinMarketCap candidate</h2>{!process.env.COINMARKETCAP_API_KEY ? <p className="mt-2 text-sm font-bold text-amber-700">COINMARKETCAP_API_KEY is missing, so CMC fetch is disabled.</p> : <p className="mt-2 text-xs font-bold text-slate-500">CMC URLs are candidates only; copy to Blob/local storage before approval so public cards never hotlink CMC.</p>}<input name="coinMarketCapId" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="numeric CMC ID, e.g. 1027" defaultValue={coinMarketCapId || ""} required /><button disabled={!process.env.COINMARKETCAP_API_KEY} className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white disabled:opacity-50">Fetch CoinMarketCap</button></form>
         <form action={addDefiLlamaAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">DefiLlama candidate</h2><input name="providerSlug" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder={logo.slug} /><button className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Add DefiLlama URL</button></form>
         <form action={addManualUrlAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">Manual URL</h2><input name="imageUrl" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder="https://..." required /><button className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Add manual candidate</button></form>
         <form action={uploadLogoAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">Upload to Vercel Blob</h2>{!config.hasBlob ? <p className="mt-2 text-sm font-bold text-amber-700">BLOB_READ_WRITE_TOKEN is missing. URL candidates and local imports still work.</p> : null}<input name="file" type="file" accept="image/*" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" /><button disabled={!config.hasBlob} className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white disabled:opacity-50">Upload candidate</button></form>

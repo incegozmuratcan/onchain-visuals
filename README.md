@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.9.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version adds an internal admin Logo Manager foundation for reviewing DB-approved logo overrides while preserving the public card UX.
+learnDeFi v0.10.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX.
 
 ## Stack
 
@@ -67,7 +67,7 @@ learnDeFi v0.9.0 is not an AI product, not a paid SaaS and not a crypto data ter
 
 ## Logo system
 
-v0.9.0 keeps the permanent local logo vault and adds CoinGecko-backed source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.10.0 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -118,7 +118,7 @@ Logos are trademarks of their respective owners and are used for identification 
 
 ## Admin Logo Manager
 
-v0.9.0 adds a server-only admin foundation for reviewing logo candidates without changing the public card UI beyond approved logo resolution. The public API overlays DB-approved logo URLs onto card rows when `DATABASE_URL` is configured; if Postgres is unavailable, public cards keep using the existing local logo fallback chain and do not crash.
+v0.10.0 adds a server-only admin foundation for reviewing logo candidates without changing the public card UI beyond approved logo resolution. The public API overlays DB-approved logo URLs onto card rows when `DATABASE_URL` is configured; if Postgres is unavailable, public cards keep using the existing local logo fallback chain and do not crash.
 
 Admin routes:
 
@@ -145,7 +145,17 @@ Environment variables:
 - `ADMIN_SESSION_SECRET` signs admin sessions.
 - `ADMIN_SETUP_TOKEN` optionally protects first setup and can also provide a setup-time signing secret.
 - `COINGECKO_DEMO_API_KEY` enables the server-side bulk CoinGecko refresh action. CoinGecko IDs are maintained in `lib/admin/coingeckoLogoIds.ts`; slugs with `null`/missing mappings appear as missing CoinGecko IDs in admin.
-- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates and local vault imports still work.
+- `COINMARKETCAP_API_KEY` enables server-only CoinMarketCap logo source actions. When absent, the API Settings and Logo Manager source tools show CoinMarketCap as disabled/missing key.
+- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates and local vault imports still work and only file uploads are disabled.
+
+
+## Admin operations dashboard
+
+The internal admin surface now uses `/admin` as the main operations dashboard instead of redirecting straight to logos. It summarizes provider health, Blob upload readiness, latest bulk refresh results, logo health counts and action-required items. `/admin/logos` remains the Logo Manager, but it now includes a QA inbox with issue badges for missing approved logos, review-needed candidates, missing CoinGecko/CoinMarketCap IDs, provider fetch failures, fallback usage, visual rejections, approved-but-not-used states, rejected sources and upload-disabled state. The page supports search by name, slug, IDs, provider and category, plus filter tabs and sorting by name, status, category, source provider, last updated or issues-first.
+
+Bulk CoinGecko and CoinMarketCap refresh results are stored in `admin_settings` as `last_coingecko_bulk_refresh_summary` and `last_cmc_bulk_refresh_summary` with timestamp, refreshed count, missing mapping count, error count and first errors. Partial failures are displayed as warnings/notices in admin instead of making public cards fail.
+
+`/admin/api` centralizes provider status for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources. `/admin/brand` stores internal brand text/asset URL candidates in `admin_settings` as groundwork for a future rebrand, but the public product name, public cards and public metadata are not changed by these settings yet.
 
 ## Logo ingestion and QA
 
@@ -166,6 +176,16 @@ npm run check:logos
 `check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, visual-rejected source-backed assets, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+
+## v0.10.0 summary
+
+- Turns `/admin` into an operations dashboard with API provider status cards, logo health totals, action-required inbox items and quick actions.
+- Adds `/admin/api` for server-side API/key health across CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources.
+- Adds `/admin/brand` as an internal brand settings foundation for future learnDeFi → Onchain Visuals work without changing the public UI.
+- Upgrades `/admin/logos` with a Logo QA Inbox, issue classification, search, filter tabs, sorting and a compact add-logo/source-tools layout.
+- Persists latest CoinGecko and CoinMarketCap bulk refresh summaries in `admin_settings` and displays partial successes as admin warnings instead of public-runtime failures.
+- Adds CoinMarketCap provider foundation through server-only `COINMARKETCAP_API_KEY`, optional logo record ID metadata and disabled UI states when the key is absent.
+- Keeps public card behavior stable: approved DB logo URL first when available, then existing local logo vault/manifest paths, then clean fallback; public cards do not call logo provider APIs during render.
 
 ## v0.9.0 summary
 
