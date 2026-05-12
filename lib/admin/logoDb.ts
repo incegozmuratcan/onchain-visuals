@@ -1,5 +1,6 @@
 import "server-only";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
+import { getChainLogo } from "@/lib/chainLogos";
 import { slugifyLogoKey } from "@/lib/logos/logoRegistry";
 
 export type AdminLogo = {
@@ -11,6 +12,7 @@ export type AdminLogo = {
   approved_source_id: string | null;
   status: "needs_review" | "approved" | "rejected";
   notes: string | null;
+  fallback_logo_url?: string | null;
 };
 
 export type LogoSource = {
@@ -30,13 +32,19 @@ export function logoSlug(name: string) {
   return slugifyLogoKey(name);
 }
 
+function withFallback(logo: AdminLogo): AdminLogo {
+  return { ...logo, fallback_logo_url: getChainLogo(logo.name) };
+}
+
 export async function listLogos() {
-  return query<AdminLogo>("SELECT * FROM logos ORDER BY status ASC, updated_at DESC, name ASC LIMIT 300");
+  const result = await query<AdminLogo>("SELECT * FROM logos ORDER BY status ASC, updated_at DESC, name ASC LIMIT 300");
+  return { ...result, rows: result.rows.map(withFallback) };
 }
 
 export async function getLogo(slug: string) {
   const result = await query<AdminLogo>("SELECT * FROM logos WHERE slug = $1 LIMIT 1", [slug]);
-  return result.rows[0] ?? null;
+  const logo = result.rows[0] ?? null;
+  return logo ? withFallback(logo) : null;
 }
 
 export async function getLogoSources(logoId: string) {
@@ -52,7 +60,7 @@ export async function upsertLogo(name: string, category = "project") {
      RETURNING *`,
     [slug, name.trim(), category]
   );
-  return result.rows[0];
+  return withFallback(result.rows[0]);
 }
 
 export async function addLogoSource(input: { logoId: string; provider: string; imageUrl: string; sourceUrl?: string | null; blobUrl?: string | null; metadata?: Record<string, unknown> }) {
@@ -63,6 +71,48 @@ export async function addLogoSource(input: { logoId: string; provider: string; i
     [input.logoId, input.provider, input.sourceUrl ?? null, input.imageUrl, input.blobUrl ?? null, JSON.stringify(input.metadata ?? {})]
   );
   return result.rows[0];
+}
+
+export async function upsertLogoSource(input: {
+  logoId: string;
+  provider: string;
+  imageUrl: string;
+  sourceUrl?: string | null;
+  blobUrl?: string | null;
+  metadata?: Record<string, unknown>;
+  status?: LogoSource["status"];
+}) {
+  const result = await query<LogoSource>(
+    `WITH existing AS (
+       SELECT id FROM logo_sources
+       WHERE logo_id = $1 AND provider = $2 AND image_url = $4 AND COALESCE(source_url, '') = COALESCE($3, '')
+       ORDER BY id ASC
+       LIMIT 1
+     ), updated AS (
+       UPDATE logo_sources
+       SET blob_url = $5,
+           metadata = COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb,
+           status = CASE WHEN logo_sources.status = 'approved' THEN logo_sources.status ELSE $7 END,
+           rejection_reason = CASE WHEN $7 = 'rejected' THEN logo_sources.rejection_reason ELSE NULL END
+       WHERE id IN (SELECT id FROM existing)
+       RETURNING *
+     ), inserted AS (
+       INSERT INTO logo_sources (logo_id, provider, source_url, image_url, blob_url, metadata, status)
+       SELECT $1, $2, $3, $4, $5, $6::jsonb, $7
+       WHERE NOT EXISTS (SELECT 1 FROM existing)
+       RETURNING *
+     )
+     SELECT * FROM updated
+     UNION ALL
+     SELECT * FROM inserted
+     LIMIT 1`,
+    [input.logoId, input.provider, input.sourceUrl ?? null, input.imageUrl, input.blobUrl ?? null, JSON.stringify(input.metadata ?? {}), input.status ?? "candidate"]
+  );
+  return result.rows[0];
+}
+
+export async function listLogosForCoinGeckoBulk() {
+  return query<AdminLogo>("SELECT * FROM logos WHERE status <> 'rejected' ORDER BY name ASC");
 }
 
 export async function approveSource(sourceId: string) {

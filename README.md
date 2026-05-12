@@ -124,8 +124,8 @@ Admin routes:
 
 - `/admin/setup` creates the first admin password and shows missing-config guidance when `DATABASE_URL` or session settings are absent.
 - `/admin/login` starts an HTTP-only admin session.
-- `/admin/logos` lists managed logo entities and creates new review records.
-- `/admin/logos/[slug]` manages CoinGecko, DefiLlama, manual URL and Vercel Blob upload candidates, plus approve/reject actions.
+- `/admin/logos` lists managed logo entities with approved/fallback previews, creates new review records and exposes a manual “Bulk refresh CoinGecko logos” action.
+- `/admin/logos/[slug]` manages CoinGecko, DefiLlama, manual URL and Vercel Blob upload candidates, plus source previews and approve/reject actions.
 
 Database setup:
 
@@ -134,12 +134,18 @@ npm run db:push
 npm run admin:seed-logos
 ```
 
+
+Public logo resolution remains: approved DB logo URL when available, then the source-backed local logo registry/source manifest, then the clean fallback path. Public cards do not depend on Postgres being available and never use CoinGecko remote image URLs directly at runtime.
+
+`npm run admin:seed-logos` imports `lib/logos/logoRegistry.ts`, `lib/logos/logoSourceManifest.ts` and `lib/logos/metricLogoRequirements.ts`. Existing local vault records with `approvalStatus: "approved"` that are not visually rejected and do not prefer a fallback are inserted as approved `logos` rows, approved `logo_sources` rows and `approved_source_id` links. Visually rejected or fallback-preferred records remain `needs_review`, so fallbacks are never marked approved. After deployment, run the Admin DB Setup workflow again so the database receives these richer seed records.
+
 Environment variables:
 
 - `DATABASE_URL` enables Postgres-backed admin review and public approved-logo overlays.
 - `ADMIN_SESSION_SECRET` signs admin sessions.
 - `ADMIN_SETUP_TOKEN` optionally protects first setup and can also provide a setup-time signing secret.
-- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates still work.
+- `COINGECKO_DEMO_API_KEY` enables the server-side bulk CoinGecko refresh action. CoinGecko IDs are maintained in `lib/admin/coingeckoLogoIds.ts`; slugs with `null`/missing mappings appear as missing CoinGecko IDs in admin.
+- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates and local vault imports still work.
 
 ## Logo ingestion and QA
 

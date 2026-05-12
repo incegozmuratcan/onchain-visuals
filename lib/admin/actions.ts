@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, getLogo, rejectLogo, rejectSource, upsertLogo } from "@/lib/admin/logoDb";
+import { addLogoSource, approveSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, upsertLogo, upsertLogoSource } from "@/lib/admin/logoDb";
+import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
+import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 
 async function ensureLogoFromForm(formData: FormData) {
   await requireAdmin();
@@ -64,25 +66,93 @@ export async function addDefiLlamaAction(formData: FormData) {
   redirect(`/admin/logos/${logo.slug}`);
 }
 
+function coinGeckoHeaders(requireKey = false) {
+  const apiKey = process.env.COINGECKO_DEMO_API_KEY;
+  if (requireKey && !apiKey) throw new Error("COINGECKO_DEMO_API_KEY is missing. Add it as a server secret before bulk refreshing CoinGecko logos.");
+  return {
+    accept: "application/json",
+    ...(apiKey ? { "x-cg-demo-api-key": apiKey } : {}),
+  };
+}
+
+async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
+  const response = await fetch(
+    `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`,
+    { headers: coinGeckoHeaders(requireKey) }
+  );
+  if (!response.ok) throw new Error(`CoinGecko lookup for ${coinId} failed (${response.status}).`);
+  const json = await response.json();
+  const imageUrl = json.image?.large || json.image?.small || json.image?.thumb || "";
+  if (!imageUrl) throw new Error(`CoinGecko did not return an image URL for ${coinId}.`);
+  return {
+    imageUrl,
+    sourceUrl: `https://www.coingecko.com/en/coins/${coinId}`,
+    metadata: {
+      coinId,
+      symbol: json.symbol,
+      name: json.name,
+      image: {
+        large: json.image?.large ?? null,
+        small: json.image?.small ?? null,
+        thumb: json.image?.thumb ?? null,
+      },
+    },
+  };
+}
+
 export async function addCoinGeckoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const coinId = String(formData.get("coinGeckoId") || "").trim();
-  let imageUrl = "";
-  let sourceUrl = "";
-  let metadata: Record<string, unknown> = { coinId };
-  if (coinId) {
-    const response = await fetch(`https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`, { headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`CoinGecko lookup failed (${response.status}).`);
-    const json = await response.json();
-    imageUrl = json.image?.large || json.image?.small || json.image?.thumb || "";
-    sourceUrl = json.links?.homepage?.find(Boolean) || `https://www.coingecko.com/en/coins/${coinId}`;
-    metadata = { coinId, symbol: json.symbol, name: json.name };
-  }
-  if (!imageUrl) throw new Error("CoinGecko did not return an image URL.");
-  await addLogoSource({ logoId: logo.id, provider: "coingecko", imageUrl, sourceUrl, metadata });
+  if (!coinId) throw new Error("CoinGecko coin id is required.");
+  const source = await fetchCoinGeckoLogoSource(coinId);
+  await addLogoSource({ logoId: logo.id, provider: "coingecko", ...source });
   revalidatePath(`/admin/logos/${logo.slug}`);
   redirect(`/admin/logos/${logo.slug}`);
 }
+
+function isLogoVisuallyRejected(slug: string, category: string) {
+  const registry = logoManifestBySlug.get(`${category}:${slug}`);
+  return Boolean(registry?.visualRejected || registry?.fallbackPreferredUntilManualAsset);
+}
+
+export async function bulkRefreshCoinGeckoLogosAction() {
+  await requireAdmin();
+  if (!process.env.COINGECKO_DEMO_API_KEY) throw new Error("COINGECKO_DEMO_API_KEY is missing. Add it as a server secret before bulk refreshing CoinGecko logos.");
+  const logos = (await listLogosForCoinGeckoBulk()).rows;
+  let refreshed = 0;
+  let missing = 0;
+  const errors: string[] = [];
+
+  for (const logo of logos) {
+    const coinId = getCoinGeckoLogoId(logo.slug);
+    if (!coinId) {
+      missing += 1;
+      continue;
+    }
+
+    try {
+      const source = await fetchCoinGeckoLogoSource(coinId, true);
+      await upsertLogoSource({
+        logoId: logo.id,
+        provider: "coingecko",
+        ...source,
+        metadata: {
+          ...source.metadata,
+          bulkRefresh: true,
+          visuallyRejected: isLogoVisuallyRejected(logo.slug, logo.category),
+        },
+        status: "candidate",
+      });
+      refreshed += 1;
+    } catch (error) {
+      errors.push(`${logo.slug}: ${error instanceof Error ? error.message : "Unknown CoinGecko error"}`);
+    }
+  }
+
+  if (errors.length) throw new Error(`Bulk CoinGecko refresh added ${refreshed} candidates, skipped ${missing} missing mappings, and hit errors: ${errors.slice(0, 5).join("; ")}`);
+  revalidatePath("/admin/logos");
+}
+
 
 async function uploadToBlob(file: File, pathname: string) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
