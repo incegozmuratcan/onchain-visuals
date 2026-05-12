@@ -11,10 +11,18 @@ function StatusBadge({ status }: { status: string }) {
   return <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-black uppercase tracking-[0.14em] ${tone}`}>{status.replace("_", " ")}</span>;
 }
 
-export default async function AdminLogosPage() {
+export default async function AdminLogosPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   await requireAdmin();
   const config = adminConfigState();
   const logos = config.hasDatabase ? (await listLogos()).rows : [];
+  const bulkSummary = searchParams?.refreshed || searchParams?.missing || searchParams?.errors
+    ? {
+        refreshed: Number(searchParams.refreshed ?? 0),
+        missing: Number(searchParams.missing ?? 0),
+        errors: Number(searchParams.errors ?? 0),
+        messages: Array.isArray(searchParams.error) ? searchParams.error : searchParams.error ? [searchParams.error] : [],
+      }
+    : null;
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
@@ -25,6 +33,12 @@ export default async function AdminLogosPage() {
           <form action={logoutAction}><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-black">Log out</button></form>
         </div>
       </header>
+      {bulkSummary ? (
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-bold text-slate-700">
+          <p>Bulk CoinGecko refresh complete: {bulkSummary.refreshed} refreshed, {bulkSummary.missing} missing mappings, {bulkSummary.errors} errors.</p>
+          {bulkSummary.messages.length ? <p className="mt-2 text-xs text-slate-500">First errors: {bulkSummary.messages.join("; ")}</p> : null}
+        </div>
+      ) : null}
       {!config.hasBlob ? <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">BLOB_READ_WRITE_TOKEN is missing. URL candidates and local vault imports work, but uploads are disabled.</p> : null}
       <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-5 shadow-soft">
         <h2 className="text-lg font-black text-slate-950">Add logo</h2>
