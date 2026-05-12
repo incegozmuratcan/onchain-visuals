@@ -11,6 +11,7 @@ export type LogoSourceType =
   | "trustwallet-assets"
   | "spothq-cryptocurrency-icons"
   | "defillama"
+  | "coingecko"
   | "other-data-provider"
   | "data-provider"
   | "existing-local"

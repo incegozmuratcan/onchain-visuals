@@ -45,8 +45,17 @@ const RAW_PROVIDER_DIR = {
   official: "official",
   "official-brand-kit": "official",
   "other-data-provider": "other-data-provider",
+  coingecko: "coingecko",
 };
 const BLOCKED_PROVIDERS = new Set(["generated", "fallback", "placeholder"]);
+
+const coingeckoIds = {
+  hyperliquid: "hyperliquid",
+  megaeth: "megaeth",
+  provenance: "provenance-blockchain",
+  "bsv-blockchain": "bitcoin-sv",
+  eni: "eni",
+};
 
 const sourceOverrides = {
   "chain:ethereum": [{ provider: "simple-icons", url: "https://cdn.simpleicons.org/ethereum", note: "Simple Icons Ethereum SVG fetched as source-backed local asset." }],
@@ -74,7 +83,6 @@ const sourceOverrides = {
   "chain:eni": [
     { provider: "defillama", url: "https://icons.llama.fi/chains/rsz_eni.jpg", note: "DefiLlama ENI chain icon direct candidate." },
     { provider: "defillama", url: "https://icons.llama.fi/eni.jpg", note: "DefiLlama ENI generic icon direct candidate." },
-    { provider: "other-data-provider", url: "https://www.coingecko.com/en/chains/eni", note: "CoinGecko ENI chain page source note; not a direct image.", sourceOnly: true },
   ],
 };
 
@@ -96,7 +104,7 @@ const slugCandidates = {
 };
 
 function ensureDirs() {
-  for (const dir of ["chains", "projects", "assets", "raw/defillama", "raw/official", "raw/cryptologos", "raw/simple-icons", "raw/trustwallet", "raw/spothq", "raw/other-data-provider"]) {
+  for (const dir of ["chains", "projects", "assets", "raw/defillama", "raw/official", "raw/cryptologos", "raw/simple-icons", "raw/trustwallet", "raw/spothq", "raw/other-data-provider", "raw/coingecko"]) {
     mkdirSync(join(PUBLIC_DIR, "logos", dir), { recursive: true });
   }
 }
@@ -184,17 +192,58 @@ const COLOR_LOGO_FIRST_KEYS = new Set([
   "chain:tron",
 ]);
 
+function coingeckoCandidate(logo) {
+  const coinId = coingeckoIds[logo.slug] ?? coingeckoIds[`${logo.category}:${logo.slug}`];
+  if (!coinId) return null;
+  const url = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${encodeURIComponent(coinId)}`;
+  return {
+    provider: "coingecko",
+    url,
+    coinId,
+    resolveImageUrl: "coingecko-markets",
+    note: `CoinGecko markets API candidate for ${coinId}.`,
+  };
+}
+
 function candidatesFor(logo) {
   const key = `${logo.category}:${logo.slug}`;
   const defillama = defillamaCandidates(logo);
   const registry = registrySourceCandidate(logo);
   const overrides = sourceOverrides[key] ?? [];
+  const coingecko = coingeckoCandidate(logo);
 
   const ordered = COLOR_LOGO_FIRST_KEYS.has(key)
-    ? [...defillama, registry, ...overrides]
-    : [...overrides, ...defillama, registry];
+    ? [...defillama, registry, ...overrides, coingecko]
+    : [...overrides, coingecko, ...defillama, registry];
 
   return ordered.filter((candidate) => candidate && !BLOCKED_PROVIDERS.has(candidate.provider));
+}
+
+async function resolveCandidate(candidate) {
+  if (candidate.resolveImageUrl !== "coingecko-markets") return { ok: true, candidate };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 3000);
+  try {
+    const response = await fetch(candidate.url, { signal: controller.signal, redirect: "follow", headers: { "user-agent": "learnDeFi-logo-sync/1.0" } });
+    if (!response.ok) return { ok: false, status: response.status, error: response.statusText, candidate };
+    const rows = await response.json();
+    const imageUrl = Array.isArray(rows) ? rows[0]?.image : null;
+    if (!imageUrl) return { ok: false, status: "no-image", error: `CoinGecko returned no image for ${candidate.coinId}`, candidate };
+    return {
+      ok: true,
+      candidate: {
+        provider: "coingecko",
+        url: imageUrl,
+        note: `CoinGecko image URL for ${candidate.coinId}`,
+        coinId: candidate.coinId,
+        resolvedFromUrl: candidate.url,
+      },
+    };
+  } catch (error) {
+    return { ok: false, status: "network", error: error instanceof Error ? error.message : String(error), candidate };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 async function download(candidate) {
@@ -279,17 +328,22 @@ async function main() {
         attempted.push({ provider: candidate.provider, url: candidate.url, status: "source-note", error: "not a direct image URL", note: candidate.note });
         continue;
       }
-      const result = await download(candidate);
-      if (!result.ok) {
-        attempted.push({ provider: candidate.provider, url: candidate.url, status: String(result.status), error: result.error, note: candidate.note });
+      const resolved = await resolveCandidate(candidate);
+      if (!resolved.ok) {
+        attempted.push({ provider: candidate.provider, url: candidate.url, status: String(resolved.status), error: resolved.error, note: candidate.note });
         continue;
       }
-      const providerDir = RAW_PROVIDER_DIR[candidate.provider] ?? "official";
+      const result = await download(resolved.candidate);
+      if (!result.ok) {
+        attempted.push({ provider: resolved.candidate.provider, url: resolved.candidate.url, status: String(result.status), error: result.error, note: resolved.candidate.note });
+        continue;
+      }
+      const providerDir = RAW_PROVIDER_DIR[resolved.candidate.provider] ?? "official";
       const rawPath = `/logos/raw/${providerDir}/${logo.category}-${logo.slug}.${result.ext}`;
       const localPath = `/logos/${categoryDir(logo.category)}/${logo.slug}.${result.ext}`;
       writeFileSync(join(PUBLIC_DIR, rawPath.replace(/^\//, "")), result.buffer);
       copyFileSync(join(PUBLIC_DIR, rawPath.replace(/^\//, "")), join(PUBLIC_DIR, localPath.replace(/^\//, "")));
-      accepted = toEntry(logo, candidate, result, rawPath, localPath);
+      accepted = toEntry(logo, resolved.candidate, result, rawPath, localPath);
       break;
     }
     if (accepted) entries.push(accepted);

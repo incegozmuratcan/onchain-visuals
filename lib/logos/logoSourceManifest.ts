@@ -11,6 +11,7 @@ export type LogoSourceProvider =
   | "trustwallet-assets"
   | "spothq-cryptocurrency-icons"
   | "other-data-provider"
+  | "coingecko"
   | "existing-local-reviewed";
 
 export type LogoApprovalStatus = "approved" | "needs-review" | "missing" | "rejected";
