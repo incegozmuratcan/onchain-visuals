@@ -8,7 +8,7 @@ export type LogoRenderConfig = {
   scale: number;
   padding: number;
   sourceType?: LogoManifestEntry["sourceType"] | "generated" | "external";
-  quality?: LogoManifestEntry["quality"] | "generated" | "external-only";
+  quality?: LogoManifestEntry["quality"] | "generated" | "external-only" | "fallback";
 };
 
 type ChainIdentity = {
@@ -120,6 +120,7 @@ export function getChainLogoCandidates(name: string, logo?: string | null): Logo
   return uniqueConfigs([
     ...(local ? [local] : []),
     ...(identity.manifest?.requiredActive ? [] : verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }))),
+    ...(!local && identity.manifest?.requiredActive ? [configFor(identity.slug, generatedLogo(identity.slug), { fit: "contain", padding: 0, sourceType: "generated", quality: "fallback" })] : []),
     ...(identity.manifest?.requiredActive ? [] : [configFor(identity.slug, generatedLogo(identity.slug), { sourceType: "generated", quality: "generated" })]),
   ]);
 }

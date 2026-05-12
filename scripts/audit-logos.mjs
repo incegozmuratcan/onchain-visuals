@@ -99,6 +99,8 @@ for (const key of requiredActiveLogoKeys) {
   if (isExternalRuntime(logo.localPath)) requiredIssues.push(`${key}: registry localPath is external or empty (${logo.localPath})`);
   if (!existsSync(toFsPath(logo.localPath))) requiredIssues.push(`${key}: registry local file not found (${logo.localPath})`);
   if (logo.quality !== "approved") requiredIssues.push(`${key}: registry quality is ${logo.quality}`);
+  if (logo.visualRejected || source?.visualRejected) requiredIssues.push(`${key}: source-backed logo is visually rejected (${logo.visualRejectReason ?? source?.visualRejectReason ?? "no reason recorded"})`);
+  if (logo.fallbackPreferredUntilManualAsset || source?.fallbackPreferredUntilManualAsset) requiredIssues.push(`${key}: fallback used until a visually distinct approved asset is provided`);
   if (isPlaceholderLike(`${logo.sourceType} ${logo.sourceNote ?? ""} ${logo.notes ?? ""}`)) requiredIssues.push(`${key}: registry metadata indicates placeholder/generated/fallback`);
 
   if (!source) {
@@ -126,7 +128,7 @@ function printList(label, list, mapper = (row) => `${row.category}/${row.slug}: 
 const approvedRequired = requiredActiveLogoKeys.filter((key) => {
   const logo = byKey.get(key);
   const source = sourceByKey.get(key);
-  return logo && source && logo.localPath === source.localPath && logo.quality === "approved" && source.approvalStatus === "approved" && existsSync(toFsPath(source.localPath)) && source.sha256 && !checksumMismatch.some((item) => item.startsWith(`${key}:`));
+  return logo && source && !logo.visualRejected && !source.visualRejected && logo.localPath === source.localPath && logo.quality === "approved" && source.approvalStatus === "approved" && existsSync(toFsPath(source.localPath)) && source.sha256 && !checksumMismatch.some((item) => item.startsWith(`${key}:`));
 });
 
 console.log("Logo audit summary");
@@ -155,7 +157,7 @@ printList("Required active entity issues", requiredIssues, (issue) => issue);
 printList("Active metrics without logo requirements", activeMetricsWithoutRequirements, (id) => id);
 
 if (requiredIssues.length || activeMetricsWithoutRequirements.length || aliasCollisions.length || checksumMismatch.length || unresolvedRequired.length) {
-  console.error("\ncheck:logos failed. Required active entities must have registry config plus approved local source-manifest records with matching checksums; active metrics must define logo requirements.");
+  console.error("\ncheck:logos failed. Required active entities must have registry config plus approved local source-manifest records with matching checksums, and source-backed logos must not be visually rejected. Fallbacks are production-safe but do not count as approved required logos.");
   process.exit(1);
 }
 

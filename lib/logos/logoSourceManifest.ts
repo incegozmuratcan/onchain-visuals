@@ -32,13 +32,16 @@ export type LogoSourceManifestEntry = {
   approvalStatus: LogoApprovalStatus;
   rightsNote: string;
   notes: string;
+  visualRejected?: boolean;
+  visualRejectReason?: string;
+  fallbackPreferredUntilManualAsset?: boolean;
 };
 
 export type LogoSourceUnresolvedEntry = {
   canonicalName: string;
   slug: string;
   category: LogoCategory;
-  attemptedCandidates: { provider: string; url: string; status: string; error: string }[];
+  attemptedCandidates: { provider: string; url: string; status: string; error: string; note?: string }[];
 };
 
 export const logoSourceManifest: LogoSourceManifestEntry[] = [
@@ -202,7 +205,10 @@ export const logoSourceManifest: LogoSourceManifestEntry[] = [
     "height": 2500,
     "approvalStatus": "approved",
     "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
+    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed. Rejected current source: Bitcoin-like BSV icon is too similar to BTC for card usage.",
+    "visualRejected": true,
+    "visualRejectReason": "Too similar to BTC; use clearer BSV-specific fallback until a distinct BSV Blockchain logo is provided.",
+    "fallbackPreferredUntilManualAsset": true
   },
   {
     "canonicalName": "Canton",
@@ -1023,6 +1029,13 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
         "url": "https://icons.llama.fi/chains/rsz_eni.jpg",
         "status": "404",
         "error": "Not Found"
+      },
+      {
+        "provider": "other-data-provider",
+        "url": "https://www.coingecko.com/en/chains/eni",
+        "status": "source-note",
+        "error": "CoinGecko page is not a direct image URL",
+        "note": "CoinGecko ENI chain page source note."
       }
     ]
   },
@@ -1044,10 +1057,39 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
         "error": "Not Found"
       },
       {
-        "provider": "official",
-        "url": "https://hyperliquid.xyz/",
-        "status": "200",
-        "error": "unsupported content-type text/html"
+        "provider": "official-brand-kit",
+        "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit",
+        "status": "source-note",
+        "error": "brand kit page is not a direct image URL",
+        "note": "Official Hyperliquid brand kit page provides PNG and SVG logo zip downloads; page is a source note, not a direct image."
+      }
+    ]
+  },
+  {
+    "canonicalName": "MegaETH",
+    "slug": "megaeth",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "other-data-provider",
+        "url": "https://logo.svgcdn.com/token-branded/mega-eth.png",
+        "status": "not-run",
+        "error": "direct transparent PNG candidate added; run npm run logos:sync when network can resolve logo.svgcdn.com",
+        "note": "MegaETH direct transparent PNG candidate from brandpnglogo/svgcdn. Needs visual review."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Provenance",
+    "slug": "provenance",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "official-brand-kit",
+        "url": "https://provenance.io/presskit",
+        "status": "source-note",
+        "error": "presskit page is not a direct image URL",
+        "note": "Official Provenance presskit page says logos are available in PNG and SVG format; use as source note until a direct logo URL is confirmed."
       }
     ]
   },

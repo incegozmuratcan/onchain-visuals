@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.8.3 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
+learnDeFi v0.8.4 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
 
 ## Stack
 
@@ -60,12 +60,12 @@ learnDeFi v0.8.3 is not an AI product, not a paid SaaS and not a crypto data ter
 - Never label 1H data as 30D.
 - Never fabricate unsupported 7D DePIN metrics.
 - Developers belongs under Infrastructure.
-- Known active entities must use approved local logos instead of initials or generated fallback badges.
+- Known active entities must use approved local logos instead of initials or generated fallback badges; every visible active-card entity is logo-critical.
 - White, black and anthracite minimal styling should remain the visual baseline.
 
 ## Logo system
 
-v0.8.3 introduces a permanent local logo vault plus source-backed ingestion pipeline for share-card reliability. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum.
+v0.8.4 introduces a permanent local logo vault plus source-backed ingestion pipeline for share-card reliability. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -91,7 +91,9 @@ Key files:
 
 Runtime rule:
 
-- Required known active entities render only approved local logos that are present in both the registry and source manifest with matching checksums.
+- Required known active entities prefer approved local logos that are present in both the registry and source manifest with matching checksums and no visual rejection.
+- Clean fallbacks may render in production to avoid broken cards, but fallback usage is still missing/unapproved and does not satisfy `npm run check:logos`.
+- BSV Blockchain currently renders a clean BSV fallback because the available source-backed BSV icon is too similar to BTC for card usage.
 - Unknown/non-required entities may use verified external candidates or a clean generated/initials fallback, but that fallback is internally treated as missing/unknown and is never an approved real logo.
 - External URLs are source candidates for ingestion, not runtime dependencies for required active entities.
 
@@ -125,9 +127,15 @@ Run the deterministic logo gate with:
 npm run check:logos
 ```
 
-`check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
+`check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, visual-rejected source-backed assets, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
 
-The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+
+## v0.8.4 summary
+
+- Adds visual-rejection handling for source-backed logos and keeps BSV Blockchain on a clean fallback until a distinct BSV asset is available.
+- Adds direct/source-note candidates for MegaETH, Hyperliquid, Provenance and ENI while keeping unresolved fallbacks unapproved.
+- Improves `/logo-audit` and `check:logos` reporting for fallback usage, source candidates and visual override reasons.
 
 ## v0.8.3 summary
 

@@ -46,6 +46,8 @@ function warningsFor(logo: LogoRegistryEntry) {
   if (source?.localPath && !fileExists(source.localPath)) warnings.push("source file missing");
   if (source && source.localPath !== logo.localPath) warnings.push("localPath mismatch");
   if (source && source.approvalStatus !== "approved") warnings.push(source.approvalStatus);
+  if (logo.visualRejected || source?.visualRejected) warnings.push("visual rejected");
+  if (logo.fallbackPreferredUntilManualAsset || source?.fallbackPreferredUntilManualAsset) warnings.push("fallback used");
   if (source?.sha256 && actualChecksum && source.sha256 !== actualChecksum) warnings.push("checksum mismatch");
   if (/placeholder|initial|fallback|generated/i.test(`${logo.sourceType} ${logo.sourceNote ?? ""} ${logo.notes}`)) warnings.push("fallback/generated metadata");
   if (textBadgeLike(source?.localPath ?? logo.localPath)) warnings.push("text-badge-like SVG");
@@ -68,7 +70,7 @@ function filterLogos(filter: Filter) {
     if (filter === "missing") return warnings.some((warning) => /missing|unresolved/.test(warning));
     if (filter === "needs-review") return warnings.length > 0 || source?.approvalStatus === "needs-review";
     if (filter === "checksum") return warnings.includes("checksum mismatch");
-    if (filter === "fallback") return warnings.some((warning) => /fallback|generated|text-badge/.test(warning));
+    if (filter === "fallback") return warnings.some((warning) => /fallback|generated|text-badge|visual rejected/.test(warning));
     if (filter === "projects") return logo.category === "project";
     if (filter === "chains") return logo.category === "chain";
     if (filter === "assets") return logo.category === "asset";
@@ -128,6 +130,12 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
           const warnings = warningsFor(logo);
           const shortSha = source?.sha256 ? source.sha256.slice(0, 12) : "—";
           const provider = source?.sourceProvider ?? "—";
+          const renderedSrc = logo.fallbackPreferredUntilManualAsset || source?.fallbackPreferredUntilManualAsset || !source ? logo.localPath : source.localPath;
+          const candidates = [
+            ...(source?.sourceUrl ? [{ provider: source.sourceProvider, url: source.sourceUrl, status: source.visualRejected ? "visually rejected" : source.approvalStatus, note: source.sourceNote }] : []),
+            ...(logo.rejectedProvidersForCard ?? []).map((rejected) => ({ provider: rejected.provider, url: rejected.sourceUrl, status: "rejected for card", note: rejected.reason })),
+            ...(unresolved?.attemptedCandidates ?? []),
+          ];
           return (
             <article key={key} className={`rounded-[28px] border p-5 shadow-sm ${statusClass(warnings)}`}>
               <div className="grid gap-5 lg:grid-cols-[300px_1fr]">
@@ -144,20 +152,22 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
                   <p className="mt-1 text-[11px] font-black text-slate-500">provider: {provider} · status: {source?.approvalStatus ?? "missing"} · sha: {shortSha}</p>
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">downloaded: {source?.downloadedAt ?? "—"} · size: {source?.width ?? "?"}×{source?.height ?? "?"}</p>
                   <p className="mt-1 text-[11px] font-semibold text-slate-500">fit: {logo.fit} · scale: {logo.scale} · padding: {logo.padding} · quality: {logo.quality}</p>
+                  <p className="mt-1 text-[11px] font-black text-slate-500">approved source-backed: {source?.approvalStatus === "approved" ? "yes" : "no"} · visually accepted: {logo.visualRejected || source?.visualRejected ? "no" : source?.approvalStatus === "approved" ? "yes" : "no"} · fallback used: {logo.fallbackPreferredUntilManualAsset || source?.fallbackPreferredUntilManualAsset || !source ? "yes" : "no"}</p>
+                  {(logo.visualRejectReason || source?.visualRejectReason) && <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-900">visual override: {logo.visualRejectReason ?? source?.visualRejectReason}</p>}
                   <p className="mt-2 text-[11px] font-semibold text-slate-500">aliases: {logo.aliases.join(", ") || "—"}</p>
                 </div>
 
                 <div className="grid gap-4">
                   <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-3">
-                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={24} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
-                    <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={48} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <LogoAuditImage src={renderedSrc} name={logo.canonicalName} size={24} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <LogoAuditImage src={renderedSrc} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                    <LogoAuditImage src={renderedSrc} name={logo.canonicalName} size={48} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
                     <div className="flex min-w-[220px] items-center gap-3 rounded-2xl bg-white p-3 shadow-sm">
-                      <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                      <LogoAuditImage src={renderedSrc} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
                       <span className="font-black text-slate-950">ShareCard row preview</span>
                     </div>
                     <div className="flex items-center gap-3 rounded-2xl bg-slate-950 p-3 text-white">
-                      <LogoAuditImage src={source?.localPath ?? logo.localPath} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
+                      <LogoAuditImage src={renderedSrc} name={logo.canonicalName} size={32} fit={logo.fit} scale={logo.scale} padding={logo.padding} />
                       <span className="font-black">Dark surface</span>
                     </div>
                   </div>
@@ -165,9 +175,9 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
                   <details className="rounded-2xl border border-slate-200 bg-white/80 p-3 text-xs font-semibold text-slate-600">
                     <summary className="cursor-pointer font-black text-slate-950">Source candidates</summary>
                     <div className="mt-2 grid gap-1 break-all">
-                      {unresolved?.attemptedCandidates.length ? unresolved.attemptedCandidates.map((candidate) => (
-                        <a key={`${candidate.provider}:${candidate.url}`} href={candidate.url} className="text-slate-600 underline decoration-slate-300 underline-offset-2">{candidate.provider}: {candidate.url} · {candidate.status}</a>
-                      )) : source?.sourceUrl ? <a href={source.sourceUrl} className="text-slate-600 underline decoration-slate-300 underline-offset-2">{source.sourceProvider}: {source.sourceUrl}</a> : <span>No candidates recorded.</span>}
+                      {candidates.length ? candidates.map((candidate) => (
+                        <a key={`${candidate.provider}:${candidate.url}:${candidate.status}`} href={candidate.url} className="text-slate-600 underline decoration-slate-300 underline-offset-2">{candidate.provider}: {candidate.url} · {candidate.status}{candidate.note ? ` · ${candidate.note}` : ""}</a>
+                      )) : <span>No candidates recorded.</span>}
                     </div>
                   </details>
                 </div>

@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.8.3.
+- Current app version: v0.8.4.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -73,17 +73,20 @@
 - DePIN cards keep chain/network information at the far-right side of each row.
 
 
-# v0.8.3 Source-backed Logo Vault
+# v0.8.4 Source-backed Logo Vault
 
 - Logo strategy is now a source-backed local logo vault: source candidate → raw download → final local asset → source manifest → checksum → visual registry → audit → render.
 - Codex must not draw, invent, approximate or hand-code logos for required active entities.
-- Required active entities must not use fake/generated badges, initials, text circles, placeholders, or runtime external logo URLs.
+- Required active entities must not use fake/generated badges, initials, text circles, placeholders, or runtime external logo URLs as approved logos.
+- Every entity visible in active card output remains logo-critical.
 - DefiLlama is the fast bulk mirror candidate source, with official brand kits/sites/docs/GitHub, CryptoLogos, Simple Icons, Trust Wallet assets, spothq and other reputable provider URLs used as overrides when better or necessary.
 - External logo URLs are source candidates only; required active ShareCard rendering depends on approved local files with source manifest provenance and matching SHA-256 checksums.
 - Unknown/non-required entities may use a clean fallback at runtime, but that fallback is treated as missing/unknown and is never an approved real logo.
+- A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly; approved source provenance alone is not enough for card acceptance.
+- BSV Blockchain currently uses a clean BSV fallback because the available Bitcoin SV icon is too similar to BTC; the fallback is production-safe but remains missing/unapproved for logo gate purposes.
 - New active metrics require coverage in `lib/logos/metricLogoRequirements.ts`, source-backed local logos, source manifest records and a passing `npm run check:logos` before shipping.
 - `npm run logos:sync` ingests/downloads required active logos into `public/logos/raw/<provider>` and final files into `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; when network is unavailable it records unresolved candidates rather than faking approvals.
-- `npm run check:logos` must pass before PR/deploy; it fails missing registry entries, missing source manifest entries, missing local files, checksum mismatch, non-approved source status, non-approved registry quality, fallback/generated providers, external runtime paths, text-badge-like SVG markup and active metrics without logo requirements.
+- `npm run check:logos` must pass before PR/deploy; it fails missing registry entries, missing source manifest entries, missing local files, checksum mismatch, non-approved source status, non-approved registry quality, fallback/generated providers, visually rejected source-backed assets, external runtime paths, text-badge-like SVG markup and active metrics without logo requirements.
 - `/logo-audit` is the required visual QA route for provenance, checksum, warning filters, 24px/32px/48px previews, ShareCard row previews and source candidate review.
 
 # Logo System
@@ -98,7 +101,7 @@
   3. unknown/non-required entities: verified external candidate if allowed
   4. unknown/non-required entities: clean generated fallback
   5. unknown/non-required entities: initials fallback
-- Required active entities do not silently fall back; build/check gates must catch missing source-backed logos before deploy.
+- Required active entities may render clean production fallbacks to avoid broken card UI, but fallbacks do not count as approved source-backed logos and check gates must continue to flag them.
 - Logos should be optimized for perceived size and visual weight, not mathematically identical scaling.
 - Circular logo containers should feel filled and premium; avoid tiny symbols floating inside empty circles.
 - Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.
@@ -145,7 +148,7 @@
 
 # Versioning
 
-- Current app version: v0.8.3.
+- Current app version: v0.8.4.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file
