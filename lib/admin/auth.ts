@@ -43,12 +43,64 @@ export async function setSetting(key: string, value: string) {
   await query("INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [key, value]);
 }
 
+type AdminConfigDiagnostic = {
+  hasDatabaseConfig: boolean;
+  canReadAdminSettings: boolean;
+  hasAdminPasswordHash: boolean;
+  adminPasswordHashLength: number;
+  errorMessage?: string;
+};
+
+function safeErrorMessage(error: unknown) {
+  if (error instanceof Error) return error.message || error.name;
+  return "Unknown admin configuration error";
+}
+
+async function readAdminPasswordHashLength() {
+  const result = await query<{ value_length: number | string | null }>("SELECT char_length(value)::int AS value_length FROM admin_settings WHERE key = $1 LIMIT 1", ["admin_password_hash"]);
+  const rawLength = result.rows[0]?.value_length;
+  const length = typeof rawLength === "number" ? rawLength : Number(rawLength ?? 0);
+  return Number.isFinite(length) ? length : 0;
+}
+
+export async function getAdminConfigDiagnostic(): Promise<AdminConfigDiagnostic> {
+  if (!hasDatabaseConfig()) {
+    return {
+      hasDatabaseConfig: false,
+      canReadAdminSettings: false,
+      hasAdminPasswordHash: false,
+      adminPasswordHashLength: 0,
+    };
+  }
+
+  try {
+    const adminPasswordHashLength = await readAdminPasswordHashLength();
+    return {
+      hasDatabaseConfig: true,
+      canReadAdminSettings: true,
+      hasAdminPasswordHash: adminPasswordHashLength > 0,
+      adminPasswordHashLength,
+    };
+  } catch (error) {
+    const errorMessage = safeErrorMessage(error);
+    console.error("Admin configured check failed", { errorMessage });
+    return {
+      hasDatabaseConfig: true,
+      canReadAdminSettings: false,
+      hasAdminPasswordHash: false,
+      adminPasswordHashLength: 0,
+      errorMessage,
+    };
+  }
+}
+
 export async function isAdminConfigured() {
   if (!hasDatabaseConfig()) return false;
   try {
-    return Boolean(await getSetting("admin_password_hash"));
-  } catch {
-    return false;
+    return (await readAdminPasswordHashLength()) > 0;
+  } catch (error) {
+    console.error("Admin configured check failed", { errorMessage: safeErrorMessage(error) });
+    throw error;
   }
 }
 

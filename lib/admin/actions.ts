@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession } from "@/lib/admin/auth";
+import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
 import { addLogoSource, approveSource, getLogo, rejectLogo, rejectSource, upsertLogo } from "@/lib/admin/logoDb";
 
 async function ensureLogoFromForm(formData: FormData) {
@@ -14,6 +14,11 @@ async function ensureLogoFromForm(formData: FormData) {
 }
 
 export async function setupAdminAction(formData: FormData) {
+  const diagnostic = await getAdminConfigDiagnostic();
+  if (!diagnostic.hasDatabaseConfig) throw new Error("DATABASE_URL is missing. Configure Postgres before setup.");
+  if (!diagnostic.canReadAdminSettings) throw new Error("Admin configuration could not be read. Check server logs before setup.");
+  if (diagnostic.hasAdminPasswordHash) throw new Error("Admin is already configured. Use /admin/login.");
+
   const token = String(formData.get("setupToken") || "");
   if (process.env.ADMIN_SETUP_TOKEN && token !== process.env.ADMIN_SETUP_TOKEN) throw new Error("Invalid setup token.");
   const password = String(formData.get("password") || "");
