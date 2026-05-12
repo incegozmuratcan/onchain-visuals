@@ -12,6 +12,16 @@ export type AdminLogo = {
   approved_source_id: string | null;
   status: "needs_review" | "approved" | "rejected";
   notes: string | null;
+  coingecko_id?: string | null;
+  coinmarketcap_id?: string | null;
+  last_fetch_error?: string | null;
+  last_fetch_provider?: string | null;
+  last_fetch_at?: string | null;
+  visual_status?: string | null;
+  fallback_text?: string | null;
+  fallback_color?: string | null;
+  created_at?: string;
+  updated_at?: string;
   fallback_logo_url?: string | null;
 };
 
@@ -58,7 +68,7 @@ function withFallback(logo: AdminLogo): AdminLogo {
 }
 
 export async function listLogos() {
-  const result = await query<AdminLogo>("SELECT * FROM logos ORDER BY status ASC, updated_at DESC, name ASC LIMIT 300");
+  const result = await query<AdminLogo>("SELECT * FROM logos ORDER BY lower(name) ASC, slug ASC LIMIT 500");
   return { ...result, rows: result.rows.map(withFallback) };
 }
 
@@ -136,7 +146,28 @@ export async function listLogosForCoinGeckoBulk() {
   return query<AdminLogo>("SELECT * FROM logos WHERE status <> 'rejected' ORDER BY name ASC");
 }
 
+export async function getAllLogoSources() {
+  return query<LogoSource>("SELECT * FROM logo_sources ORDER BY created_at DESC");
+}
+
+export async function setAdminSetting(key: string, value: string) {
+  await query("INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [key, value]);
+}
+
+export async function updateLogoFetchState(slug: string, provider: string, error: string | null) {
+  await query("UPDATE logos SET last_fetch_provider = $2, last_fetch_error = $3, last_fetch_at = NOW() WHERE slug = $1", [slug, provider, error]);
+}
+
+export async function updateLogoProviderId(slug: string, provider: "coingecko" | "coinmarketcap", providerId: string) {
+  const column = provider === "coingecko" ? "coingecko_id" : "coinmarketcap_id";
+  await query(`UPDATE logos SET ${column} = $2 WHERE slug = $1`, [slug, providerId]);
+}
+
 export async function approveSource(sourceId: string) {
+  const source = (await query<LogoSource>("SELECT * FROM logo_sources WHERE id = $1 LIMIT 1", [sourceId])).rows[0];
+  if (source?.provider === "coinmarketcap" && !source.blob_url) {
+    throw new Error("CoinMarketCap candidates must be copied to Blob/local storage before approval so public cards do not hotlink CMC logos.");
+  }
   await query(
     `WITH chosen AS (
        UPDATE logo_sources SET status = 'approved', rejection_reason = NULL WHERE id = $1 RETURNING *
