@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.8.5.
+- Current app version: v0.9.0.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -14,6 +14,8 @@
 - Next.js
 - React
 - Tailwind CSS
+- Postgres for internal admin logo review state
+- Vercel Blob upload hooks for admin logo candidates
 - DefiLlama
 - Chainspect
 - DePIN Pulse
@@ -72,6 +74,18 @@
 - Do not fabricate estimated 7D revenue.
 - DePIN cards keep chain/network information at the far-right side of each row.
 
+
+# v0.9.0 Admin Logo Manager Foundation
+
+- The public card creator remains unchanged except that approved logo URLs from Postgres may overlay row logos when `DATABASE_URL` is configured.
+- Public pages and API routes must keep working without `DATABASE_URL` or `BLOB_READ_WRITE_TOKEN`; missing database/blob config disables admin persistence/uploads rather than breaking public cards.
+- Internal admin routes are `/admin/setup`, `/admin/login`, `/admin/logos` and `/admin/logos/[slug]`.
+- Admin auth is server-only, uses an HTTP-only signed cookie and stores the admin password hash in `admin_settings`.
+- Postgres schema lives in `db/schema.sql` with `logos`, `logo_sources` and `admin_settings`.
+- Admin setup scripts are `npm run db:push` and `npm run admin:seed-logos`.
+- Logo candidate sources supported in admin are CoinGecko, DefiLlama, manual HTTPS URL and Vercel Blob upload.
+- Admin review can approve or reject source candidates and mark logo entities rejected.
+- This is an internal foundation only; do not add public auth, payments, paid tiers, scheduled reports or unrelated admin features.
 
 # v0.8.5 CoinGecko Logo Source Provider
 
@@ -140,15 +154,15 @@
 # Out of Current Scope
 
 - AI or chatbot features.
-- Auth, database or payments.
+- Public user auth or payments.
 - Paid/free plans.
 - Scheduled reports, saved reports and alerts.
-- Admin panel.
+- Public admin entry points beyond the internal Logo Manager routes.
 - Competing with data terminals such as DefiLlama, Token Terminal or Artemis.
 
 # Versioning
 
-- Current app version: v0.8.5.
+- Current app version: v0.9.0.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file
