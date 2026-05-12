@@ -144,6 +144,15 @@ function defillamaCandidates(logo) {
   return candidates;
 }
 
+function registrySourceCandidate(logo) {
+  if (!/^https?:\/\//i.test(logo.sourceUrl ?? "")) return null;
+  return {
+    provider: logo.sourceType,
+    url: logo.sourceUrl,
+    note: logo.sourceNote ?? `Registry source URL candidate for ${logo.category}:${logo.slug}.`,
+  };
+}
+
 const COLOR_LOGO_FIRST_KEYS = new Set([
   "chain:solana",
   "chain:polygon",
@@ -169,13 +178,14 @@ const COLOR_LOGO_FIRST_KEYS = new Set([
 function candidatesFor(logo) {
   const key = `${logo.category}:${logo.slug}`;
   const defillama = defillamaCandidates(logo);
+  const registry = registrySourceCandidate(logo);
   const overrides = sourceOverrides[key] ?? [];
 
   const ordered = COLOR_LOGO_FIRST_KEYS.has(key)
-    ? [...defillama, ...overrides]
-    : [...overrides, ...defillama];
+    ? [...defillama, registry, ...overrides]
+    : [...overrides, ...defillama, registry];
 
-  return ordered.filter((candidate) => !BLOCKED_PROVIDERS.has(candidate.provider));
+  return ordered.filter((candidate) => candidate && !BLOCKED_PROVIDERS.has(candidate.provider));
 }
 
 async function download(candidate) {
