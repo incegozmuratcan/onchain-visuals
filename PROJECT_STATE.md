@@ -83,6 +83,7 @@
 - Admin auth is server-only, uses an HTTP-only signed cookie and stores the admin password hash in `admin_settings`.
 - Postgres schema lives in `db/schema.sql` with `logos`, `logo_sources` and `admin_settings`.
 - Admin setup scripts are `npm run db:push` and `npm run admin:seed-logos`.
+- Run Admin DB Setup workflow after adding DATABASE_URL secret.
 - Logo candidate sources supported in admin are CoinGecko, DefiLlama, manual HTTPS URL and Vercel Blob upload.
 - Admin review can approve or reject source candidates and mark logo entities rejected.
 - This is an internal foundation only; do not add public auth, payments, paid tiers, scheduled reports or unrelated admin features.
