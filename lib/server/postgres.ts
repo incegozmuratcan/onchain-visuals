@@ -1,4 +1,5 @@
 import "server-only";
+import { neon } from "@neondatabase/serverless";
 
 export type QueryParam = string | number | boolean | null | undefined;
 
@@ -20,15 +21,6 @@ export type QueryResult<T extends Record<string, any> = Record<string, any>> = {
 
 let cachedDatabaseUrl: string | null = null;
 let cachedSql: NeonSqlClient | null = null;
-let cachedNeonFactory: NeonFactory | null = null;
-
-async function loadNeonFactory() {
-  if (cachedNeonFactory) return cachedNeonFactory;
-  const dynamicImport = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<{ neon: NeonFactory }>;
-  const module = await dynamicImport("@neondatabase/serverless");
-  cachedNeonFactory = module.neon;
-  return cachedNeonFactory;
-}
 
 async function getSqlClient() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -36,9 +28,9 @@ async function getSqlClient() {
 
   if (cachedSql && cachedDatabaseUrl === databaseUrl) return cachedSql;
 
-  const neon = await loadNeonFactory();
+  const createNeonClient = neon as NeonFactory;
   cachedDatabaseUrl = databaseUrl;
-  cachedSql = neon(databaseUrl, { fullResults: true }) as NeonSqlClient;
+  cachedSql = createNeonClient(databaseUrl, { fullResults: true }) as NeonSqlClient;
   return cachedSql;
 }
 
