@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
 import { bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, logoutAction } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
+import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, summarizeLogoQa, type LogoQaRow } from "@/lib/admin/logoQa";
 import { blobStatus, getBulkRefreshSummaries } from "@/lib/admin/providerStatus";
 
@@ -60,9 +61,13 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   await requireAdmin();
   const config = adminConfigState();
   const blob = blobStatus();
-  const summaries = await getBulkRefreshSummaries();
-  const logos = config.hasDatabase ? (await listLogos()).rows : [];
-  const sourceRows = config.hasDatabase ? (await getAllLogoSources()).rows : [];
+  const summaryResult = await safeAdminDbQuery("Bulk refresh summaries", getBulkRefreshSummaries, { coingecko: null, coinmarketcap: null });
+  const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
+  const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
+  const summaries = summaryResult.data;
+  const logos = logoResult.data;
+  const sourceRows = sourceResult.data;
+  const dbErrors = [summaryResult.error, logoResult.error, sourceResult.error].filter(Boolean);
   const sourcesByLogo = new Map<string, typeof sourceRows>();
   for (const source of sourceRows) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));

@@ -226,6 +226,16 @@ WITH seed AS (
     notes text,
     sources jsonb
   )
+), existing_logo_state AS (
+  SELECT
+    l.id,
+    l.slug,
+    l.status,
+    l.approved_logo_url,
+    l.approved_source_id,
+    (l.status = 'approved' AND l.approved_logo_url IS NOT NULL AND (l.approved_source_id IS NOT NULL OR l.approved_logo_url IS NOT NULL)) AS has_admin_approved_logo
+  FROM logos l
+  JOIN seed ON seed.slug = l.slug
 ), upserted_logos AS (
   INSERT INTO logos (slug, name, category, status, approved_logo_url, notes)
   SELECT slug, name, category, status, approved_logo_url, NULLIF(notes, '')
@@ -233,23 +243,40 @@ WITH seed AS (
   ON CONFLICT (slug) DO UPDATE SET
     name = EXCLUDED.name,
     category = EXCLUDED.category,
-    status = CASE WHEN logos.status = 'rejected' THEN logos.status ELSE EXCLUDED.status END,
-    approved_logo_url = CASE WHEN logos.status = 'rejected' THEN logos.approved_logo_url ELSE EXCLUDED.approved_logo_url END,
+    status = CASE
+      WHEN logos.status = 'rejected' THEN logos.status
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.status
+      ELSE EXCLUDED.status
+    END,
+    approved_logo_url = CASE
+      WHEN logos.status = 'rejected' THEN logos.approved_logo_url
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_logo_url
+      ELSE EXCLUDED.approved_logo_url
+    END,
+    approved_source_id = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_source_id
+      ELSE logos.approved_source_id
+    END,
     notes = EXCLUDED.notes
   RETURNING id, slug
 ), source_seed AS (
   SELECT
     l.id AS logo_id,
     seed.slug,
+    COALESCE(existing.has_admin_approved_logo, false) AS has_admin_approved_logo,
     source.value->>'provider' AS provider,
     source.value->>'source_url' AS source_url,
     source.value->>'image_url' AS image_url,
     source.value->>'blob_url' AS blob_url,
-    source.value->>'status' AS status,
+    CASE
+      WHEN COALESCE(existing.has_admin_approved_logo, false) AND source.value->>'status' = 'approved' THEN 'candidate'
+      ELSE source.value->>'status'
+    END AS status,
     source.value->>'rejection_reason' AS rejection_reason,
     source.value->'metadata' AS metadata
   FROM seed
   JOIN upserted_logos l ON l.slug = seed.slug
+  LEFT JOIN existing_logo_state existing ON existing.slug = seed.slug
   CROSS JOIN LATERAL jsonb_array_elements(seed.sources) AS source(value)
   WHERE seed.sources IS NOT NULL AND jsonb_typeof(seed.sources) = 'array'
 ), deduped_source_seed AS (
@@ -258,7 +285,12 @@ WITH seed AS (
   ORDER BY logo_id, provider, image_url, COALESCE(source_url, ''),
     CASE status WHEN 'approved' THEN 1 WHEN 'candidate' THEN 2 WHEN 'rejected' THEN 3 ELSE 4 END
 ), existing_sources AS (
-  SELECT DISTINCT ON (s.logo_id, s.provider, s.image_url, COALESCE(s.source_url, '')) s.id, s.logo_id, s.provider, s.image_url, COALESCE(s.source_url, '') AS source_url_key
+  SELECT DISTINCT ON (s.logo_id, s.provider, s.image_url, COALESCE(s.source_url, ''))
+    s.id,
+    s.logo_id,
+    s.provider,
+    s.image_url,
+    COALESCE(s.source_url, '') AS source_url_key
   FROM logo_sources s
   JOIN deduped_source_seed seed ON seed.logo_id = s.logo_id
     AND seed.provider = s.provider
@@ -268,9 +300,9 @@ WITH seed AS (
 ), updated_sources AS (
   UPDATE logo_sources s
   SET blob_url = NULLIF(seed.blob_url, ''),
-      metadata = seed.metadata,
-      status = seed.status,
-      rejection_reason = seed.rejection_reason
+      metadata = COALESCE(s.metadata, '{}'::jsonb) || COALESCE(seed.metadata, '{}'::jsonb),
+      status = CASE WHEN s.status = 'approved' THEN s.status ELSE seed.status END,
+      rejection_reason = CASE WHEN s.status = 'approved' THEN s.rejection_reason ELSE seed.rejection_reason END
   FROM deduped_source_seed seed
   JOIN existing_sources existing ON existing.logo_id = seed.logo_id
     AND existing.provider = seed.provider
@@ -290,15 +322,16 @@ WITH seed AS (
       AND existing.source_url_key = COALESCE(seed.source_url, '')
   )
   RETURNING id, logo_id, status
+), source_changes AS (
+  SELECT * FROM updated_sources
+  UNION ALL
+  SELECT * FROM inserted_sources
 ), approved_sources AS (
-  SELECT DISTINCT ON (logo_id) id, logo_id
-  FROM (
-    SELECT * FROM updated_sources
-    UNION ALL
-    SELECT * FROM inserted_sources
-  ) sources
-  WHERE status = 'approved'
-  ORDER BY logo_id, id
+  SELECT DISTINCT ON (sources.logo_id) sources.id, sources.logo_id
+  FROM source_changes sources
+  LEFT JOIN existing_logo_state existing ON existing.id = sources.logo_id
+  WHERE sources.status = 'approved' AND NOT COALESCE(existing.has_admin_approved_logo, false)
+  ORDER BY sources.logo_id, sources.id
 ), approved_logos AS (
   UPDATE logos l
   SET approved_source_id = approved_sources.id
@@ -307,9 +340,11 @@ WITH seed AS (
   RETURNING l.id
 )
 SELECT
-  (SELECT count(*) FROM seed) AS logos_seen,
-  (SELECT count(*) FROM deduped_source_seed) AS local_sources_seen,
-  (SELECT count(*) FROM approved_logos) AS approved_logos;
+  (SELECT count(*) FROM seed) AS seed_records_seen,
+  (SELECT count(*) FROM existing_logo_state WHERE has_admin_approved_logo) AS existing_approved_logos_preserved,
+  (SELECT count(*) FROM approved_logos) AS new_approved_local_logos_imported,
+  (SELECT count(*) FROM inserted_sources WHERE status = 'candidate') AS candidates_added,
+  (SELECT count(*) FROM deduped_source_seed) AS local_sources_seen;
 `;
 
 const result = spawnSync("psql", [databaseUrl, "-v", "ON_ERROR_STOP=1"], { input: sql, stdio: ["pipe", "inherit", "inherit"] });

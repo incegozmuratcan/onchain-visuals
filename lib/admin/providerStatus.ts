@@ -47,19 +47,14 @@ export async function getBulkRefreshSummaries() {
   if (!hasDatabaseConfig()) {
     return { coingecko: null, coinmarketcap: null };
   }
-  try {
-    const [coingecko, coinmarketcap] = await Promise.all([
-      getSetting("last_coingecko_bulk_refresh_summary"),
-      getSetting("last_cmc_bulk_refresh_summary"),
-    ]);
-    return {
-      coingecko: parseBulkRefreshSummary(coingecko),
-      coinmarketcap: parseBulkRefreshSummary(coinmarketcap),
-    };
-  } catch (error) {
-    console.warn("Admin bulk refresh summaries unavailable", error);
-    return { coingecko: null, coinmarketcap: null };
-  }
+  const [coingecko, coinmarketcap] = await Promise.all([
+    getSetting("last_coingecko_bulk_refresh_summary"),
+    getSetting("last_cmc_bulk_refresh_summary"),
+  ]);
+  return {
+    coingecko: parseBulkRefreshSummary(coingecko),
+    coinmarketcap: parseBulkRefreshSummary(coinmarketcap),
+  };
 }
 
 export async function getApiProviderCards(): Promise<ApiProviderCard[]> {

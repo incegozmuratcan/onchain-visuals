@@ -4,6 +4,7 @@ import { bulkRefreshCoinGeckoLogosAction, logoutAction } from "@/lib/admin/actio
 import { getApiProviderCards, getBulkRefreshSummaries, blobStatus, type ApiProviderCard } from "@/lib/admin/providerStatus";
 import { classifyLogoQa, summarizeLogoQa } from "@/lib/admin/logoQa";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
+import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 
 export const dynamic = "force-dynamic";
 
@@ -34,11 +35,16 @@ function SummaryCard({ label, value }: { label: string; value: number | string }
 export default async function AdminIndex() {
   await requireAdmin();
   const config = adminConfigState();
-  const providers = await getApiProviderCards();
-  const summaries = await getBulkRefreshSummaries();
+  const providerResult = await safeAdminDbQuery("Provider status", getApiProviderCards, []);
+  const summaryResult = await safeAdminDbQuery("Bulk refresh summaries", getBulkRefreshSummaries, { coingecko: null, coinmarketcap: null });
   const blob = blobStatus();
-  const logos = config.hasDatabase ? (await listLogos()).rows : [];
-  const sourceRows = config.hasDatabase ? (await getAllLogoSources()).rows : [];
+  const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
+  const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
+  const providers = providerResult.data;
+  const summaries = summaryResult.data;
+  const logos = logoResult.data;
+  const sourceRows = sourceResult.data;
+  const dbErrors = [providerResult.error, summaryResult.error, logoResult.error, sourceResult.error].filter(Boolean);
   const sourcesByLogo = new Map<string, typeof sourceRows>();
   for (const source of sourceRows) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));
@@ -61,6 +67,8 @@ export default async function AdminIndex() {
         <div><p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">learnDeFi admin</p><h1 className="mt-2 text-5xl font-black tracking-[-0.07em] text-slate-950">Operations Dashboard</h1><p className="mt-2 max-w-2xl text-sm font-bold text-slate-500">Internal operating center for provider health, logo QA, bulk refresh results and setup readiness. Public cards keep their existing local fallback behavior.</p></div>
         <form action={logoutAction}><button className="rounded-full border border-slate-200 px-4 py-2 text-sm font-black">Log out</button></form>
       </header>
+
+      <AdminDbErrorPanel errors={dbErrors} />
 
       <section className="mt-6 grid gap-3 md:grid-cols-4">
         <Link href="/admin/logos" className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">Go to Logo Manager</Link>
