@@ -12,6 +12,7 @@
     "admin:seed-logos": "node scripts/admin-seed-logos.mjs"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
     "html-to-image": "^1.11.11",
     "lucide-react": "^0.468.0",
     "next": "14.2.23",
