@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.8.5 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
+learnDeFi v0.9.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version adds an internal admin Logo Manager foundation for reviewing DB-approved logo overrides while preserving the public card UX.
 
 ## Stack
 
@@ -20,6 +20,8 @@ learnDeFi v0.8.5 is not an AI product, not a paid SaaS and not a crypto data ter
 - React 18
 - Tailwind CSS
 - `html-to-image` for PNG export
+- Postgres for internal admin logo review state
+- Vercel Blob REST upload hooks for admin-uploaded logo candidates
 - DefiLlama, Chainspect and DePIN Pulse data adapters
 
 ## Supported metrics
@@ -65,7 +67,7 @@ learnDeFi v0.8.5 is not an AI product, not a paid SaaS and not a crypto data ter
 
 ## Logo system
 
-v0.8.5 keeps the permanent local logo vault and adds CoinGecko-backed source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.9.0 keeps the permanent local logo vault and adds CoinGecko-backed source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -113,6 +115,32 @@ Source priority for adding or replacing logos:
 
 Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.
 
+
+## Admin Logo Manager
+
+v0.9.0 adds a server-only admin foundation for reviewing logo candidates without changing the public card UI beyond approved logo resolution. The public API overlays DB-approved logo URLs onto card rows when `DATABASE_URL` is configured; if Postgres is unavailable, public cards keep using the existing local logo fallback chain and do not crash.
+
+Admin routes:
+
+- `/admin/setup` creates the first admin password and shows missing-config guidance when `DATABASE_URL` or session settings are absent.
+- `/admin/login` starts an HTTP-only admin session.
+- `/admin/logos` lists managed logo entities and creates new review records.
+- `/admin/logos/[slug]` manages CoinGecko, DefiLlama, manual URL and Vercel Blob upload candidates, plus approve/reject actions.
+
+Database setup:
+
+```bash
+npm run db:push
+npm run admin:seed-logos
+```
+
+Environment variables:
+
+- `DATABASE_URL` enables Postgres-backed admin review and public approved-logo overlays.
+- `ADMIN_SESSION_SECRET` signs admin sessions.
+- `ADMIN_SETUP_TOKEN` optionally protects first setup and can also provide a setup-time signing secret.
+- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates still work.
+
 ## Logo ingestion and QA
 
 Sync required active logos into the local vault with:
@@ -132,6 +160,14 @@ npm run check:logos
 `check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, visual-rejected source-backed assets, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+
+## v0.9.0 summary
+
+- Adds Postgres schema for `logos`, `logo_sources` and `admin_settings`.
+- Adds `npm run db:push` and `npm run admin:seed-logos` for admin database setup.
+- Adds server-only admin auth helpers and `/admin/setup`, `/admin/login`, `/admin/logos` and `/admin/logos/[slug]`.
+- Adds admin candidate actions for CoinGecko, DefiLlama, manual URLs, Vercel Blob uploads, approve and reject flows.
+- Overlays DB-approved logos onto public card rows when `DATABASE_URL` is available and safely falls back when it is not.
 
 ## v0.8.5 summary
 

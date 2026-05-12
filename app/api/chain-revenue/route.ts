@@ -3,6 +3,7 @@ import { getChainspectAvgTxFee, getChainspectBlockTime, getChainspectDevelopers,
 import { getDepinRevenue } from "@/lib/depinpulse";
 import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
+import { approvedLogoOverlay, logoSlug } from "@/lib/admin/logoDb";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,13 @@ export async function GET(request: NextRequest) {
                         ? await getChainTvl(parsed.limit)
                         : await getChainRevenue(parsed.limit, parsed.timeframe);
 
-    return NextResponse.json({ ok: true, query: parsed, ...data });
+    const overlay = await approvedLogoOverlay(data.rows.map((row) => row.name));
+    const rows = data.rows.map((row) => {
+      const approvedLogo = overlay.get(logoSlug(row.name));
+      return approvedLogo ? { ...row, logo: approvedLogo } : row;
+    });
+
+    return NextResponse.json({ ok: true, query: parsed, ...data, rows });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unknown error", query: parsed },
