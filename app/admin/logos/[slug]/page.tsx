@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
 import { addCoinGeckoAction, addCoinMarketCapAction, addDefiLlamaAction, addManualUrlAction, approveSourceAction, rejectLogoAction, rejectSourceAction, uploadLogoAction } from "@/lib/admin/actions";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
-import { getLogo, getLogoSources } from "@/lib/admin/logoDb";
+import { approvedLogoCandidateSlugs, getLogo, getLogoSources } from "@/lib/admin/logoDb";
+import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { getCoinMarketCapId } from "@/lib/admin/logoQa";
 
 export const dynamic = "force-dynamic";
@@ -17,20 +18,43 @@ function LogoPreview({ src, label }: { src: string | null | undefined; label: st
   return <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50">{src ? <img src={src} alt={label} className="h-full w-full object-contain" /> : <span className="px-3 text-center text-xs font-black text-slate-400">No preview</span>}</div>;
 }
 
+function metadataValue(metadata: unknown, key: string) {
+  if (!metadata || typeof metadata !== "object") return null;
+  const value = (metadata as Record<string, unknown>)[key];
+  return value === undefined || value === null ? null : String(value);
+}
+
 export default async function LogoDetailPage({ params }: { params: { slug: string } }) {
   await requireAdmin();
-  const logo = await getLogo(params.slug);
-  if (!logo) notFound();
-  const sources = (await getLogoSources(logo.id)).rows;
+  const logoResult = await safeAdminDbQuery("Logo record", () => getLogo(params.slug), null);
+  const logo = logoResult.data;
+  if (!logo && !logoResult.error) notFound();
+  const sourceResult = logo ? await safeAdminDbQuery("Logo sources", async () => (await getLogoSources(logo.id)).rows, []) : { data: [], error: null };
+  const sources = sourceResult.data;
+  const dbErrors = [logoResult.error, sourceResult.error].filter(Boolean);
   const config = adminConfigState();
+  if (!logo) {
+    return (
+      <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
+        <Link href="/admin/logos" className="text-sm font-black text-slate-500">← Back to logos</Link>
+        <AdminDbErrorPanel errors={dbErrors} />
+      </main>
+    );
+  }
   const coinGeckoId = logo.coingecko_id || getCoinGeckoLogoId(logo.slug);
   const coinMarketCapId = getCoinMarketCapId(logo, sources);
   const preview = logo.approved_logo_url || logo.fallback_logo_url;
+  const approvedSource = sources.find((source) => source.id === logo.approved_source_id) ?? null;
+  const adminApproved = Boolean(logo.status === "approved" && logo.approved_logo_url && approvedSource && !["sourceManifest", "local", "defillama"].includes(approvedSource.provider));
+  const seedImported = Boolean(approvedSource && ["sourceManifest", "local", "defillama"].includes(approvedSource.provider) && metadataValue(approvedSource.metadata, "approvalStatus"));
+  const overlaySlugs = approvedLogoCandidateSlugs(logo.name);
   const hidden = <><input type="hidden" name="name" value={logo.name} /><input type="hidden" name="category" value={logo.category} /></>;
 
   return (
     <main className="mx-auto min-h-screen max-w-6xl px-4 py-8 md:px-8">
       <Link href="/admin/logos" className="text-sm font-black text-slate-500">← Back to logos</Link>
+      <AdminDbErrorPanel errors={dbErrors} />
+
       <header className="mt-5 grid gap-5 rounded-[32px] border border-slate-200 bg-white p-6 shadow-soft md:grid-cols-[1fr_140px] md:items-center">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">{logo.category}</p>
@@ -40,6 +64,24 @@ export default async function LogoDetailPage({ params }: { params: { slug: strin
         </div>
         <LogoPreview src={preview} label={`${logo.name} logo preview`} />
       </header>
+
+      <section className="mt-6 rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-black text-slate-950">Public overlay debug</h2>
+            <p className="mt-1 text-sm font-bold text-slate-500">Compact check for DB-approved logo precedence and fallback behavior.</p>
+          </div>
+          <LogoPreview src={logo.fallback_logo_url} label={`${logo.name} fallback preview`} />
+        </div>
+        <dl className="mt-4 grid gap-3 text-sm font-bold text-slate-600 md:grid-cols-2">
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">approved_logo_url</dt><dd className="mt-1 break-all text-slate-950">{logo.approved_logo_url || "—"}</dd></div>
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">approved_source_id</dt><dd className="mt-1 break-all text-slate-950">{logo.approved_source_id || "—"}</dd></div>
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">approved source provider</dt><dd className="mt-1 text-slate-950">{approvedSource?.provider || "—"}</dd></div>
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">approval origin</dt><dd className="mt-1 text-slate-950">{adminApproved ? "admin-approved" : seedImported ? "seed-imported" : logo.status === "approved" ? "approved (origin unknown)" : "not approved"}</dd></div>
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">fallback preview</dt><dd className="mt-1 break-all text-slate-950">{logo.fallback_logo_url || "—"}</dd></div>
+          <div className="rounded-2xl bg-slate-50 p-3"><dt className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">public overlay candidate slugs</dt><dd className="mt-1 break-words text-slate-950">{overlaySlugs.join(", ") || "—"}</dd></div>
+        </dl>
+      </section>
 
       <section className="mt-6 grid gap-4 lg:grid-cols-2">
         <form action={addCoinGeckoAction} className="rounded-[26px] border border-slate-200 bg-white p-5 shadow-soft">{hidden}<h2 className="font-black text-slate-950">CoinGecko candidate</h2><input name="coinGeckoId" className="mt-3 w-full rounded-2xl border border-slate-200 px-4 py-3" placeholder={coinGeckoId || "coingecko coin id, e.g. ethereum"} defaultValue={coinGeckoId || ""} required /><button className="mt-3 rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Fetch CoinGecko</button></form>
