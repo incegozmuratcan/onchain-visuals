@@ -149,8 +149,23 @@ export async function bulkRefreshCoinGeckoLogosAction() {
     }
   }
 
-  if (errors.length) throw new Error(`Bulk CoinGecko refresh added ${refreshed} candidates, skipped ${missing} missing mappings, and hit errors: ${errors.slice(0, 5).join("; ")}`);
+  if (errors.length) {
+    console.warn("Bulk CoinGecko logo refresh completed with partial failures", {
+      refreshed,
+      missingMappings: missing,
+      errors: errors.slice(0, 5),
+      errorCount: errors.length,
+    });
+  }
+
   revalidatePath("/admin/logos");
+  const params = new URLSearchParams({
+    refreshed: String(refreshed),
+    missing: String(missing),
+    errors: String(errors.length),
+  });
+  for (const message of errors.slice(0, 3)) params.append("error", message);
+  redirect(`/admin/logos?${params.toString()}`);
 }
 
 

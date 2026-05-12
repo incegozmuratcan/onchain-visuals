@@ -1,6 +1,6 @@
 import "server-only";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
-import { getChainLogo } from "@/lib/chainLogos";
+import { getChainIdentity, getChainLogo } from "@/lib/chainLogos";
 import { slugifyLogoKey } from "@/lib/logos/logoRegistry";
 
 export type AdminLogo = {
@@ -30,6 +30,27 @@ export type LogoSource = {
 
 export function logoSlug(name: string) {
   return slugifyLogoKey(name);
+}
+
+const ADMIN_LOGO_SLUG_ALIASES: Record<string, string[]> = {
+  bsc: ["bnb-chain"],
+  "bnb-chain": ["bsc"],
+  optimism: ["op-mainnet"],
+  "op-mainnet": ["optimism"],
+  ripple: ["xrp-ledger"],
+  "xrp-ledger": ["ripple"],
+};
+
+function uniqueSlugs(slugs: string[]) {
+  return Array.from(new Set(slugs.filter(Boolean)));
+}
+
+export function approvedLogoCandidateSlugs(name: string) {
+  const directSlug = logoSlug(name);
+  const identity = getChainIdentity(name);
+  const identitySlugs = [identity.slug, ...identity.aliases.map(logoSlug)];
+  const aliases = [directSlug, identity.slug].flatMap((slug) => ADMIN_LOGO_SLUG_ALIASES[slug] ?? []);
+  return uniqueSlugs([directSlug, ...identitySlugs, ...aliases]);
 }
 
 function withFallback(logo: AdminLogo): AdminLogo {
@@ -139,14 +160,27 @@ export async function rejectLogo(slug: string, reason: string) {
 export async function approvedLogoOverlay(names: string[]) {
   if (!hasDatabaseConfig() || names.length === 0) return new Map<string, string>();
   try {
-    const slugs = names.map(logoSlug);
+    const candidatesByName = names.map((name) => approvedLogoCandidateSlugs(name));
+    const slugs = uniqueSlugs(candidatesByName.flat());
+    if (slugs.length === 0) return new Map<string, string>();
+
     const quoted = slugs.map((_, index) => `$${index + 1}`).join(", ");
     const result = await query<{ slug: string; approved_logo_url: string }>(
       `SELECT slug, approved_logo_url FROM logos WHERE status = 'approved' AND approved_logo_url IS NOT NULL AND slug IN (${quoted})`,
       slugs
     );
-    return new Map(result.rows.map((row) => [row.slug, row.approved_logo_url]));
-  } catch {
+    const approvedBySlug = new Map(result.rows.map((row) => [row.slug, row.approved_logo_url]));
+    const overlay = new Map<string, string>();
+
+    for (const candidates of candidatesByName) {
+      const approvedLogo = candidates.map((slug) => approvedBySlug.get(slug)).find(Boolean);
+      if (!approvedLogo) continue;
+      for (const candidate of candidates) overlay.set(candidate, approvedLogo);
+    }
+
+    return overlay;
+  } catch (error) {
+    console.warn("Approved logo overlay unavailable", error);
     return new Map<string, string>();
   }
 }

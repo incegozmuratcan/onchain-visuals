@@ -117,9 +117,24 @@ export function getChainLogoCandidates(name: string, logo?: string | null): Logo
     llamaIcon(identity.slug),
   ];
 
+  const providedLogo = logo
+    ? [
+        configFor(identity.slug, logo, {
+          fit: "contain",
+          padding: 1,
+          sourceType: logo.startsWith("/") ? undefined : "external",
+          quality: logo.startsWith("/") ? undefined : "external-only",
+        }),
+      ]
+    : [];
+  const fallbackExternal = verifiedExternal
+    .filter((src) => src !== logo)
+    .map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }));
+
   return uniqueConfigs([
+    ...providedLogo,
     ...(local ? [local] : []),
-    ...(identity.manifest?.requiredActive ? [] : verifiedExternal.map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }))),
+    ...(identity.manifest?.requiredActive ? [] : fallbackExternal),
     ...(!local && identity.manifest?.requiredActive ? [configFor(identity.slug, generatedLogo(identity.slug), { fit: "contain", padding: 0, sourceType: "generated", quality: "fallback" })] : []),
     ...(identity.manifest?.requiredActive ? [] : [configFor(identity.slug, generatedLogo(identity.slug), { sourceType: "generated", quality: "generated" })]),
   ]);

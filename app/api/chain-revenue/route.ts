@@ -3,7 +3,7 @@ import { getChainspectAvgTxFee, getChainspectBlockTime, getChainspectDevelopers,
 import { getDepinRevenue } from "@/lib/depinpulse";
 import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
-import { approvedLogoOverlay, logoSlug } from "@/lib/admin/logoDb";
+import { approvedLogoCandidateSlugs, approvedLogoOverlay, logoSlug } from "@/lib/admin/logoDb";
 
 export const dynamic = "force-dynamic";
 
@@ -35,12 +35,23 @@ export async function GET(request: NextRequest) {
                         : await getChainRevenue(parsed.limit, parsed.timeframe);
 
     const overlay = await approvedLogoOverlay(data.rows.map((row) => row.name));
+    let approvedLogoOverlayCount = 0;
     const rows = data.rows.map((row) => {
-      const approvedLogo = overlay.get(logoSlug(row.name));
+      const approvedLogo =
+        approvedLogoCandidateSlugs(row.name)
+          .map((slug) => overlay.get(slug))
+          .find(Boolean) ?? overlay.get(logoSlug(row.name));
+      if (approvedLogo) approvedLogoOverlayCount += 1;
       return approvedLogo ? { ...row, logo: approvedLogo } : row;
     });
 
-    return NextResponse.json({ ok: true, query: parsed, ...data, rows });
+    return NextResponse.json({
+      ok: true,
+      query: parsed,
+      ...data,
+      rows,
+      ...(process.env.NODE_ENV === "development" ? { _debug: { approvedLogoOverlayCount } } : {}),
+    });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unknown error", query: parsed },
