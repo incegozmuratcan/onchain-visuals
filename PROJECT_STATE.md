@@ -82,9 +82,12 @@
 - Internal admin routes are `/admin/setup`, `/admin/login`, `/admin/logos` and `/admin/logos/[slug]`.
 - Admin auth is server-only, uses an HTTP-only signed cookie and stores the admin password hash in `admin_settings`.
 - Postgres schema lives in `db/schema.sql` with `logos`, `logo_sources` and `admin_settings`.
-- Admin setup scripts are `npm run db:push` and `npm run admin:seed-logos`.
-- Run Admin DB Setup workflow after adding DATABASE_URL secret.
-- Logo candidate sources supported in admin are CoinGecko, DefiLlama, manual HTTPS URL and Vercel Blob upload.
+- Admin setup scripts are `npm run db:push` and `npm run admin:seed-logos`; `admin:seed-logos` now imports the local logo registry, source manifest and metric requirements into Postgres.
+- Source-manifest records with `approvalStatus: "approved"` become approved DB logos only when they are not visually rejected and do not prefer a fallback; rejected/fallback-preferred records stay `needs_review`.
+- Run the Admin DB Setup workflow again after deployment or after adding the `DATABASE_URL` secret so richer seed records and local-vault approved logos populate the database.
+- Logo candidate sources supported in admin are CoinGecko, DefiLlama, manual HTTPS URL and Vercel Blob upload; `/admin/logos` also has a manual bulk CoinGecko refresh button.
+- CoinGecko slug mappings live in `lib/admin/coingeckoLogoIds.ts`; missing/null mappings should be shown as missing CoinGecko IDs in admin rather than guessed.
+- `BLOB_READ_WRITE_TOKEN` is required only for manual Vercel Blob uploads. URL candidates, bulk CoinGecko candidates and local vault imports remain useful without Blob configured.
 - Admin review can approve or reject source candidates and mark logo entities rejected.
 - This is an internal foundation only; do not add public auth, payments, paid tiers, scheduled reports or unrelated admin features.
 
