@@ -9,6 +9,10 @@ import { requiredActiveLogoKeys } from "@/lib/logos/metricLogoRequirements";
 const requiredKeys = new Set(requiredActiveLogoKeys);
 const sourceByKey = new Map(logoSourceManifest.map((source) => [`${source.category}:${source.slug}`, source]));
 const unresolvedByKey = new Map(unresolvedLogoSources.map((source) => [`${source.category}:${source.slug}`, source]));
+const sourceProviderCounts = logoSourceManifest.reduce<Record<string, number>>((counts, source) => {
+  counts[source.sourceProvider] = (counts[source.sourceProvider] ?? 0) + 1;
+  return counts;
+}, { coingecko: 0 });
 
 type Filter = "all" | "required" | "missing" | "needs-review" | "checksum" | "fallback" | "projects" | "chains" | "assets" | "source-provider";
 
@@ -112,6 +116,7 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
           <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">{requiredKeys.size} required active</span>
           <span className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-red-700">{missingCount} missing/unresolved</span>
           <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-amber-800">{checksumCount} checksum mismatch</span>
+          <span className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-slate-600">coingecko sourceProvider: {sourceProviderCounts.coingecko ?? 0}</span>
         </div>
         <nav className="mt-6 flex flex-wrap gap-2 text-xs font-black">
           {filters.map((filter) => (

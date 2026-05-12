@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.8.4.
+- Current app version: v0.8.5.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -73,19 +73,19 @@
 - DePIN cards keep chain/network information at the far-right side of each row.
 
 
-# v0.8.4 Source-backed Logo Vault
+# v0.8.5 CoinGecko Logo Source Provider
 
 - Logo strategy is now a source-backed local logo vault: source candidate → raw download → final local asset → source manifest → checksum → visual registry → audit → render.
 - Codex must not draw, invent, approximate or hand-code logos for required active entities.
 - Required active entities must not use fake/generated badges, initials, text circles, placeholders, or runtime external logo URLs as approved logos.
 - Every entity visible in active card output remains logo-critical.
-- DefiLlama is the fast bulk mirror candidate source, with official brand kits/sites/docs/GitHub, CryptoLogos, Simple Icons, Trust Wallet assets, spothq and other reputable provider URLs used as overrides when better or necessary.
-- External logo URLs are source candidates only; required active ShareCard rendering depends on approved local files with source manifest provenance and matching SHA-256 checksums.
+- DefiLlama is the fast bulk mirror candidate source, with mapped CoinGecko markets metadata, official brand kits/sites/docs/GitHub, CryptoLogos, Simple Icons, Trust Wallet assets, spothq and other reputable provider URLs used as overrides when better or necessary.
+- External logo URLs are source candidates only; required active ShareCard rendering depends on approved local files with source manifest provenance and matching SHA-256 checksums. CoinGecko image URLs are never rendered directly and must be downloaded into the local logo vault.
 - Unknown/non-required entities may use a clean fallback at runtime, but that fallback is treated as missing/unknown and is never an approved real logo.
 - A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly; approved source provenance alone is not enough for card acceptance.
 - BSV Blockchain currently uses a clean BSV fallback because the available Bitcoin SV icon is too similar to BTC; the fallback is production-safe but remains missing/unapproved for logo gate purposes.
 - New active metrics require coverage in `lib/logos/metricLogoRequirements.ts`, source-backed local logos, source manifest records and a passing `npm run check:logos` before shipping.
-- `npm run logos:sync` ingests/downloads required active logos into `public/logos/raw/<provider>` and final files into `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; when network is unavailable it records unresolved candidates rather than faking approvals.
+- `npm run logos:sync` ingests/downloads required active logos into `public/logos/raw/<provider>` and final files into `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; for mapped unresolved entities it resolves CoinGecko coin IDs through the markets API and records unresolved candidates when no image is returned instead of faking approvals.
 - `npm run check:logos` must pass before PR/deploy; it fails missing registry entries, missing source manifest entries, missing local files, checksum mismatch, non-approved source status, non-approved registry quality, fallback/generated providers, visually rejected source-backed assets, external runtime paths, text-badge-like SVG markup and active metrics without logo requirements.
 - `/logo-audit` is the required visual QA route for provenance, checksum, warning filters, 24px/32px/48px previews, ShareCard row previews and source candidate review.
 
@@ -94,7 +94,7 @@
 - Logo reliability is a core product quality requirement because share-card quality depends on recognizable, balanced logos.
 - The source manifest lives in `lib/logos/logoSourceManifest.ts` and records canonical name, slug, category, local/raw paths, provider, source URL/note, download time, original content type, SHA-256, dimensions, approval status, rights note and notes.
 - The visual rendering registry lives in `lib/logos/logoRegistry.ts`; it keeps canonical name, slug, category, aliases, local path, fit, scale, padding, background, required-active status and visual quality. It is not source proof by itself.
-- Local vault layout: final assets in `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; raw downloads in `public/logos/raw/defillama`, `public/logos/raw/official`, `public/logos/raw/cryptologos`, `public/logos/raw/simple-icons`, `public/logos/raw/trustwallet` and `public/logos/raw/spothq`.
+- Local vault layout: final assets in `public/logos/chains`, `public/logos/projects` and `public/logos/assets`; raw downloads in `public/logos/raw/defillama`, `public/logos/raw/official`, `public/logos/raw/cryptologos`, `public/logos/raw/simple-icons`, `public/logos/raw/trustwallet`, `public/logos/raw/spothq` and `public/logos/raw/coingecko`.
 - Fallback hierarchy:
   1. required known active entities: approved local registry logo plus approved source manifest record with matching checksum only
   2. unknown/non-required entities: approved local logo if available
@@ -148,7 +148,7 @@
 
 # Versioning
 
-- Current app version: v0.8.4.
+- Current app version: v0.8.5.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file

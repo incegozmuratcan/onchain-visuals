@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.8.4 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
+learnDeFi v0.8.5 is not an AI product, not a paid SaaS and not a crypto data terminal. This version has no AI features, auth, database, payments, paid plans, alerts or scheduled reports. The focus is card quality, source clarity and logo reliability.
 
 ## Stack
 
@@ -65,7 +65,7 @@ learnDeFi v0.8.4 is not an AI product, not a paid SaaS and not a crypto data ter
 
 ## Logo system
 
-v0.8.4 introduces a permanent local logo vault plus source-backed ingestion pipeline for share-card reliability. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.8.5 keeps the permanent local logo vault and adds CoinGecko-backed source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -81,6 +81,7 @@ public/logos/
     simple-icons/
     trustwallet/
     spothq/
+    coingecko/
 ```
 
 Key files:
@@ -95,19 +96,20 @@ Runtime rule:
 - Clean fallbacks may render in production to avoid broken cards, but fallback usage is still missing/unapproved and does not satisfy `npm run check:logos`.
 - BSV Blockchain currently renders a clean BSV fallback because the available source-backed BSV icon is too similar to BTC for card usage.
 - Unknown/non-required entities may use verified external candidates or a clean generated/initials fallback, but that fallback is internally treated as missing/unknown and is never an approved real logo.
-- External URLs are source candidates for ingestion, not runtime dependencies for required active entities.
+- External URLs are source candidates for ingestion, not runtime dependencies for required active entities. CoinGecko image URLs are never rendered directly; mapped unresolved entities are downloaded into the local logo vault first.
 
 Source priority for adding or replacing logos:
 
 1. Official brand kit, official website, official docs or official GitHub
 2. DefiLlama icon server as the fast bulk mirror candidate
-3. CryptoLogos
-4. Simple Icons
-5. Trust Wallet assets
-6. spothq cryptocurrency-icons
-7. Other reputable data-provider logo URL
-8. Existing local asset only if already source-backed and visually correct
-9. Fallback only for unknown/non-required entities
+3. CoinGecko markets metadata for mapped unresolved chain/project/entity slugs
+4. CryptoLogos
+5. Simple Icons
+6. Trust Wallet assets
+7. spothq cryptocurrency-icons
+8. Other reputable data-provider logo URL
+9. Existing local asset only if already source-backed and visually correct
+10. Fallback only for unknown/non-required entities
 
 Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.
 
@@ -119,7 +121,7 @@ Sync required active logos into the local vault with:
 npm run logos:sync
 ```
 
-`logos:sync` reads the required active entity list, builds prioritized source candidates, downloads raw files into `public/logos/raw/<provider>`, copies final accepted files into `public/logos/chains`, `public/logos/projects` or `public/logos/assets`, computes SHA-256 and dimensions, and updates `lib/logos/logoSourceManifest.ts`. If downloads are unavailable, it does not fake approvals; it writes unresolved candidates for review.
+`logos:sync` reads the required active entity list, builds prioritized source candidates, resolves mapped CoinGecko coin IDs through the markets API when available, downloads raw files into `public/logos/raw/<provider>`, copies final accepted files into `public/logos/chains`, `public/logos/projects` or `public/logos/assets`, computes SHA-256 and dimensions, and updates `lib/logos/logoSourceManifest.ts`. If downloads are unavailable or CoinGecko returns no market image, it does not fake approvals; it writes unresolved candidates for review.
 
 Run the deterministic logo gate with:
 
@@ -130,6 +132,12 @@ npm run check:logos
 `check:logos` has no live API dependency. It fails when any required active entity is missing a registry entry, source manifest entry, local file, approved source status, approved registry quality, source provider, source URL/note, matching checksum, or when it uses generated/fallback/placeholder metadata, text-badge-like SVG markup, visual-rejected source-backed assets, external runtime paths, or an active metric lacks logo requirements. It warns for optional unknown/fallback cases.
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
+
+## v0.8.5 summary
+
+- Adds CoinGecko as a mapped logo source provider for unresolved entities such as Hyperliquid, MegaETH, Provenance, ENI and BSV Blockchain.
+- Resolves CoinGecko markets metadata image URLs as source candidates, then downloads them into the local logo vault instead of rendering external URLs at runtime.
+- Keeps BSV Blockchain visually rejected for card usage when source images remain BTC-like, so the clean fallback stays unapproved until manually accepted.
 
 ## v0.8.4 summary
 
