@@ -34,6 +34,10 @@ export type LogoRegistryEntry = {
   background?: string;
   notes: string;
   requiredActive?: boolean;
+  visualRejected?: boolean;
+  visualRejectReason?: string;
+  fallbackPreferredUntilManualAsset?: boolean;
+  rejectedProvidersForCard?: { provider: LogoSourceType; sourceUrl: string; reason: string }[];
 };
 
 export type LogoManifestEntry = LogoRegistryEntry;
@@ -44,7 +48,8 @@ function entry(input: LogoRegistryEntry): LogoRegistryEntry {
   const sourceRecord = logoSourceManifestByKey.get(`${input.category}:${input.slug}`);
   return {
     ...input,
-    localPath: sourceRecord?.localPath ?? input.localPath,
+    localPath: input.fallbackPreferredUntilManualAsset ? input.localPath : sourceRecord?.localPath ?? input.localPath,
+    quality: sourceRecord?.approvalStatus === "approved" && !sourceRecord.visualRejected ? "approved" : input.quality,
     sourceType: sourceRecord?.sourceProvider ?? input.sourceType,
     sourceUrl: sourceRecord?.sourceUrl ?? input.sourceUrl,
     sourceNote: sourceRecord?.sourceNote ?? input.sourceNote,
@@ -55,9 +60,9 @@ export function getLogoSourceRecord(entry?: Pick<LogoRegistryEntry, "category" |
   return entry ? logoSourceManifestByKey.get(`${entry.category}:${entry.slug}`) : undefined;
 }
 
-export function hasApprovedLogoSource(entry?: Pick<LogoRegistryEntry, "category" | "slug" | "localPath">) {
+export function hasApprovedLogoSource(entry?: Pick<LogoRegistryEntry, "category" | "slug" | "localPath" | "visualRejected">) {
   const source = getLogoSourceRecord(entry);
-  return Boolean(source?.approvalStatus === "approved" && source.localPath && entry?.localPath === source.localPath && source.sha256);
+  return Boolean(source?.approvalStatus === "approved" && !source.visualRejected && !entry?.visualRejected && source.localPath && entry?.localPath === source.localPath && source.sha256);
 }
 
 const common = {
@@ -95,7 +100,12 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Injective", "injective", ["injective", "inj"], "crypto-logos", "https://cryptologos.cc/logos/injective-inj-logo.svg"),
   chain("Starknet", "starknet", ["starknet", "starknet alpha"], "simple-icons", "https://simpleicons.org/icons/starknet.svg", { scale: 1.14, padding: 0 }),
   chain("Aptos", "aptos", ["aptos", "apt"], "simple-icons", "https://simpleicons.org/icons/aptos.svg"),
-  chain("Hyperliquid L1", "hyperliquid", ["hyperliquid", "hyperliquid l1", "hl"], "official", "https://hyperliquid.xyz/"),
+  chain("Hyperliquid L1", "hyperliquid", ["hyperliquid", "hyperliquid l1", "hl"], "official-brand-kit", "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit", {
+    localPath: "/api/chain-logo/hyperliquid",
+    quality: "missing",
+    sourceNote: "Official Hyperliquid brand kit page provides PNG and SVG logo zip downloads; page is a source note, not a direct image.",
+    notes: "Uses clean HL fallback until a direct official logo asset or zip can be synced and reviewed.",
+  }),
   chain("Morph", "morph", ["morph", "morph l2"], "official", "https://www.morphl2.io/"),
   chain("Sui", "sui", ["sui"], "simple-icons", "https://simpleicons.org/icons/sui.svg", { scale: 1.14, padding: 0 }),
   chain("Monad", "monad", ["monad"], "official", "https://www.monad.xyz/"),
@@ -123,10 +133,39 @@ export const logoRegistry: LogoRegistryEntry[] = [
   chain("Algorand", "algorand", ["algorand", "algo"], "simple-icons", "https://simpleicons.org/icons/algorand.svg"),
   chain("Rootstock", "rootstock", ["rootstock", "rsk"], "official", "https://rootstock.io/"),
   chain("Fogo", "fogo", ["fogo", "fogo chain"], "official", "https://www.fogo.io/"),
-  chain("BSV Blockchain", "bsv-blockchain", ["bsv blockchain", "bsv", "bitcoin sv"], "crypto-logos", "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg"),
+  chain("Kaia", "kaia", ["kaia", "kaia chain"], "official", "https://www.kaia.io/", { localPath: "/api/chain-logo/kaia", quality: "missing", notes: "Required active entity uses clean fallback until approved source-backed local logo is synced." }),
+  chain("MegaETH", "megaeth", ["megaeth", "mega eth"], "other-data-provider", "https://logo.svgcdn.com/token-branded/mega-eth.png", {
+    localPath: "/api/chain-logo/megaeth",
+    quality: "missing",
+    sourceNote: "MegaETH direct transparent PNG candidate from brandpnglogo/svgcdn. Needs visual review.",
+    notes: "Direct PNG candidate is source-backed when sync succeeds; if the download fails, runtime remains unresolved for the logo gate.",
+  }),
+  chain("Plasma", "plasma", ["plasma", "plasma chain"], "official", "https://www.plasma.to/", { localPath: "/api/chain-logo/plasma", quality: "missing", notes: "Required active entity uses clean fallback until approved source-backed local logo is synced." }),
+  chain("Plume", "plume", ["plume", "plume network"], "official", "https://plume.org/", { localPath: "/api/chain-logo/plume", quality: "missing", notes: "Required active entity uses clean fallback until approved source-backed local logo is synced." }),
+  chain("Provenance", "provenance", ["provenance", "provenance blockchain", "provenance chain"], "official-brand-kit", "https://provenance.io/presskit", {
+    localPath: "/api/chain-logo/provenance",
+    quality: "missing",
+    sourceNote: "Official Provenance presskit page says logos are available in PNG and SVG format; page is a source note until a direct logo URL is confirmed.",
+    notes: "Uses clean P fallback until a direct official PNG/SVG can be synced and reviewed.",
+  }),
+  chain("Saga", "saga", ["saga", "saga chain"], "official", "https://www.saga.xyz/", { localPath: "/api/chain-logo/saga", quality: "missing", notes: "Required active entity uses clean fallback until approved source-backed local logo is synced." }),
+  chain("X Layer", "x-layer", ["x layer", "x-layer", "okx x layer"], "official", "https://www.okx.com/xlayer", { localPath: "/api/chain-logo/x-layer", quality: "missing", notes: "Required active entity uses clean fallback until approved source-backed local logo is synced." }),
+  chain("BSV Blockchain", "bsv-blockchain", ["bsv blockchain", "bsv", "bitcoin sv"], "crypto-logos", "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg", {
+    localPath: "/api/chain-logo/bsv-blockchain",
+    quality: "missing",
+    visualRejected: true,
+    visualRejectReason: "Too similar to BTC; use clearer BSV-specific fallback until a distinct BSV Blockchain logo is provided.",
+    fallbackPreferredUntilManualAsset: true,
+    rejectedProvidersForCard: [{ provider: "crypto-logos", sourceUrl: "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg", reason: "Rejected current source: Bitcoin-like BSV icon is too similar to BTC for card usage." }],
+    notes: "Production cards use a clean BSV fallback, but it remains missing/unapproved in logo audit until a distinct BSV Blockchain logo is provided.",
+  }),
   chain("ENI", "eni", ["eni", "eni blockchain", "eni network", "eniac"], "defillama", "https://icons.llama.fi/chains/rsz_eni.jpg", {
+    localPath: "/api/chain-logo/eni",
     scale: 1.08,
     padding: 0,
+    quality: "missing",
+    sourceNote: "ENI appears as a real chain entity on CoinGecko; DefiLlama direct image candidates are tracked in unresolved source candidates.",
+    notes: "Uses clean ENI fallback until a direct approved source-backed image is found.",
   }),
   
   asset("BUIDL", "buidl", ["buidl", "build", "blackrock usd institutional digital liquidity fund", "blackrock"], "official", "https://www.blackrock.com/cash/en-us/products/329365/blackrock-usd-institutional-digital-liquidity-fund", { scale: 0.9 }),

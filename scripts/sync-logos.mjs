@@ -44,6 +44,7 @@ const RAW_PROVIDER_DIR = {
   "official-github": "official",
   official: "official",
   "official-brand-kit": "official",
+  "other-data-provider": "other-data-provider",
 };
 const BLOCKED_PROVIDERS = new Set(["generated", "fallback", "placeholder"]);
 
@@ -67,6 +68,14 @@ const sourceOverrides = {
   "chain:celo": [{ provider: "simple-icons", url: "https://cdn.simpleicons.org/celo", note: "Simple Icons Celo SVG fetched as source-backed local asset." }],
   "chain:hedera": [{ provider: "simple-icons", url: "https://cdn.simpleicons.org/hedera", note: "Simple Icons Hedera SVG fetched as source-backed local asset." }],
   "chain:algorand": [{ provider: "simple-icons", url: "https://cdn.simpleicons.org/algorand", note: "Simple Icons Algorand SVG fetched as source-backed local asset." }],
+  "chain:megaeth": [{ provider: "other-data-provider", url: "https://logo.svgcdn.com/token-branded/mega-eth.png", note: "MegaETH direct transparent PNG candidate from brandpnglogo/svgcdn. Needs visual review." }],
+  "chain:hyperliquid": [{ provider: "official-brand-kit", url: "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit", note: "Official Hyperliquid brand kit page provides PNG and SVG logo zip downloads; page is a source note, not a direct image.", sourceOnly: true }],
+  "chain:provenance": [{ provider: "official-brand-kit", url: "https://provenance.io/presskit", note: "Official Provenance presskit page says logos are available in PNG and SVG format; page is a source note until a direct logo URL is confirmed.", sourceOnly: true }],
+  "chain:eni": [
+    { provider: "defillama", url: "https://icons.llama.fi/chains/rsz_eni.jpg", note: "DefiLlama ENI chain icon direct candidate." },
+    { provider: "defillama", url: "https://icons.llama.fi/eni.jpg", note: "DefiLlama ENI generic icon direct candidate." },
+    { provider: "other-data-provider", url: "https://www.coingecko.com/en/chains/eni", note: "CoinGecko ENI chain page source note; not a direct image.", sourceOnly: true },
+  ],
 };
 
 const slugCandidates = {
@@ -87,7 +96,7 @@ const slugCandidates = {
 };
 
 function ensureDirs() {
-  for (const dir of ["chains", "projects", "assets", "raw/defillama", "raw/official", "raw/cryptologos", "raw/simple-icons", "raw/trustwallet", "raw/spothq"]) {
+  for (const dir of ["chains", "projects", "assets", "raw/defillama", "raw/official", "raw/cryptologos", "raw/simple-icons", "raw/trustwallet", "raw/spothq", "raw/other-data-provider"]) {
     mkdirSync(join(PUBLIC_DIR, "logos", dir), { recursive: true });
   }
 }
@@ -224,14 +233,17 @@ function toEntry(logo, candidate, result, rawPath, localPath) {
     sha256: hash,
     width: size.width,
     height: size.height,
-    approvalStatus: "approved",
+    approvalStatus: candidate.approvalStatus ?? "approved",
+    visualRejected: logo.visualRejected,
+    visualRejectReason: logo.visualRejectReason,
+    fallbackPreferredUntilManualAsset: logo.fallbackPreferredUntilManualAsset,
     rightsNote: RIGHTS_NOTE,
     notes: "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed.",
   };
 }
 
 function serializeManifest(entries, unresolved) {
-  const header = `import type { LogoCategory } from "./logoRegistry";\n\nexport type LogoSourceProvider =\n  | "official"\n  | "official-brand-kit"\n  | "official-website"\n  | "official-github"\n  | "defillama"\n  | "crypto-logos"\n  | "simple-icons"\n  | "trustwallet-assets"\n  | "spothq-cryptocurrency-icons"\n  | "other-data-provider"\n  | "existing-local-reviewed";\n\nexport type LogoApprovalStatus = "approved" | "needs-review" | "missing" | "rejected";\n\nexport type LogoSourceManifestEntry = {\n  canonicalName: string;\n  slug: string;\n  category: LogoCategory;\n  localPath: string;\n  rawPath?: string;\n  sourceProvider: LogoSourceProvider;\n  sourceUrl?: string;\n  sourceNote?: string;\n  downloadedAt: string;\n  originalContentType: string;\n  sha256: string;\n  width: number | null;\n  height: number | null;\n  approvalStatus: LogoApprovalStatus;\n  rightsNote: string;\n  notes: string;\n};\n\nexport type LogoSourceUnresolvedEntry = {\n  canonicalName: string;\n  slug: string;\n  category: LogoCategory;\n  attemptedCandidates: { provider: string; url: string; status: string; error: string }[];\n};\n\n`;
+  const header = `import type { LogoCategory } from "./logoRegistry";\n\nexport type LogoSourceProvider =\n  | "official"\n  | "official-brand-kit"\n  | "official-website"\n  | "official-github"\n  | "defillama"\n  | "crypto-logos"\n  | "simple-icons"\n  | "trustwallet-assets"\n  | "spothq-cryptocurrency-icons"\n  | "other-data-provider"\n  | "existing-local-reviewed";\n\nexport type LogoApprovalStatus = "approved" | "needs-review" | "missing" | "rejected";\n\nexport type LogoSourceManifestEntry = {\n  canonicalName: string;\n  slug: string;\n  category: LogoCategory;\n  localPath: string;\n  rawPath?: string;\n  sourceProvider: LogoSourceProvider;\n  sourceUrl?: string;\n  sourceNote?: string;\n  downloadedAt: string;\n  originalContentType: string;\n  sha256: string;\n  width: number | null;\n  height: number | null;\n  approvalStatus: LogoApprovalStatus;\n  rightsNote: string;\n  notes: string;\n  visualRejected?: boolean;\n  visualRejectReason?: string;\n  fallbackPreferredUntilManualAsset?: boolean;\n};\n\nexport type LogoSourceUnresolvedEntry = {\n  canonicalName: string;\n  slug: string;\n  category: LogoCategory;\n  attemptedCandidates: { provider: string; url: string; status: string; error: string; note?: string }[];\n};\n\n`;
   return `${header}export const logoSourceManifest: LogoSourceManifestEntry[] = ${JSON.stringify(entries, null, 2)};\n\nexport const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = ${JSON.stringify(unresolved, null, 2)};\n\nexport const logoSourceManifestByKey = new Map(logoSourceManifest.map((entry) => [\`${"${entry.category}:${entry.slug}"}\`, entry]));\n`;
 }
 
@@ -260,12 +272,16 @@ async function main() {
     let accepted = null;
     for (const candidate of candidatesFor(logo)) {
       if (!online) {
-        attempted.push({ provider: candidate.provider, url: candidate.url, status: "network-unavailable", error: "download probe failed" });
+        attempted.push({ provider: candidate.provider, url: candidate.url, status: "network-unavailable", error: "download probe failed", note: candidate.note });
+        continue;
+      }
+      if (candidate.sourceOnly) {
+        attempted.push({ provider: candidate.provider, url: candidate.url, status: "source-note", error: "not a direct image URL", note: candidate.note });
         continue;
       }
       const result = await download(candidate);
       if (!result.ok) {
-        attempted.push({ provider: candidate.provider, url: candidate.url, status: String(result.status), error: result.error });
+        attempted.push({ provider: candidate.provider, url: candidate.url, status: String(result.status), error: result.error, note: candidate.note });
         continue;
       }
       const providerDir = RAW_PROVIDER_DIR[candidate.provider] ?? "official";
