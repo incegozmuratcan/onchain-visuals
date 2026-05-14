@@ -21,7 +21,7 @@ export default async function AdminApiPage() {
   const dbErrors = [providerResult.error].filter(Boolean);
   const blob = blobStatus();
   return (
-    <AdminShell active="api" title="API Settings" subtitle="Provider readiness without exposing secret values.">
+    <AdminShell active="api" title="API Health" subtitle="Compact provider readiness without exposing secret values.">
       <AdminDbErrorPanel errors={dbErrors} />
       <section className="mt-3 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft">
         <table className="w-full text-left text-xs">

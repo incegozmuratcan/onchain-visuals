@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
+import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, hasAdminChosenSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
+import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
 
 async function ensureLogoFromForm(formData: FormData) {
@@ -17,6 +18,28 @@ async function ensureLogoFromForm(formData: FormData) {
 }
 
 type CoinGeckoRefreshMode = "smart" | "retry-errors" | "force-all";
+
+function noticeUrl(slug: string, tone: "success" | "error" | "warning", message: string) {
+  const params = new URLSearchParams({ notice: tone, message: message.slice(0, 180) });
+  return `/admin/logos/${encodeURIComponent(slug)}?${params.toString()}`;
+}
+
+function redirectLogoNotice(slug: string, tone: "success" | "error" | "warning", message: string): never {
+  redirect(noticeUrl(slug, tone, message));
+}
+
+function isNextRedirect(error: unknown) {
+  return typeof error === "object" && error !== null && "digest" in error && String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT");
+}
+
+function expectedActionMessage(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : fallback;
+  if (message.includes("429")) return `${message} Retry later / rate limited.`;
+  if (message.includes("404")) return `${message} Fix CoinGecko ID or use manual URL.`;
+  if (message.includes("401") || message.includes("403")) return `${message} Check provider API key.`;
+  if (message.toLowerCase().includes("blob_read_write_token")) return "Blob token missing; upload is disabled until storage is configured.";
+  return message;
+}
 type ProviderErrorKind = "idNeedsReview" | "rateLimited" | "apiKey" | "error";
 type CoinGeckoRefreshCounts = {
   checked: number;
@@ -106,19 +129,20 @@ export async function createLogoAction(formData: FormData) {
 export async function addManualUrlAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const imageUrl = String(formData.get("imageUrl") || "").trim();
-  if (!/^https:\/\//.test(imageUrl)) throw new Error("Manual logo URL must be HTTPS.");
+  if (!/^https:\/\//.test(imageUrl)) redirectLogoNotice(logo.slug, "error", "Manual logo URL must be a valid HTTPS URL.");
   await addLogoSource({ logoId: logo.id, provider: "manual", imageUrl, sourceUrl: imageUrl, metadata: { submittedBy: "admin" } });
   revalidatePath(`/admin/logos/${logo.slug}`);
-  redirect(`/admin/logos/${logo.slug}`);
+  redirectLogoNotice(logo.slug, "success", "Manual URL candidate added.");
 }
 
 export async function addDefiLlamaAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const slug = String(formData.get("providerSlug") || logo.slug).trim();
+  if (!slug) redirectLogoNotice(logo.slug, "error", "Add a DefiLlama slug first.");
   const imageUrl = `https://icons.llama.fi/${encodeURIComponent(slug)}.jpg`;
   await addLogoSource({ logoId: logo.id, provider: "defillama", imageUrl, sourceUrl: `https://defillama.com/protocol/${slug}`, metadata: { slug } });
   revalidatePath(`/admin/logos/${logo.slug}`);
-  redirect(`/admin/logos/${logo.slug}`);
+  redirectLogoNotice(logo.slug, "success", "DefiLlama candidate added.");
 }
 
 function coinGeckoHeaders(requireKey = false) {
@@ -158,16 +182,24 @@ async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
 export async function addCoinGeckoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const coinId = String(formData.get("coinGeckoId") || "").trim();
-  if (!coinId) throw new Error("CoinGecko coin id is required.");
-  const source = await fetchCoinGeckoLogoSource(coinId);
-  const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
-  const auto = canAutoApproveCoinGecko(logo, sources, source.imageUrl, source.sourceUrl);
-  const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
-  if (auto.ok) await autoApproveSource(created.id);
-  await updateLogoProviderId(logo.slug, "coingecko", coinId);
-  await updateLogoFetchState(logo.slug, "coingecko", null);
-  revalidatePath(`/admin/logos/${logo.slug}`);
-  redirect(`/admin/logos/${logo.slug}`);
+  if (!coinId) redirectLogoNotice(logo.slug, "warning", "Add CoinGecko ID first.");
+  try {
+    const source = await fetchCoinGeckoLogoSource(coinId);
+    const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+    const auto = canAutoApproveCoinGecko(logo, sources, source.imageUrl, source.sourceUrl);
+    const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
+    if (auto.ok) await autoApproveSource(created.id);
+    await updateLogoProviderId(logo.slug, "coingecko", coinId);
+    await updateLogoFetchState(logo.slug, "coingecko", null);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "success", auto.ok ? "CoinGecko logo fetched and approved." : "CoinGecko candidate fetched for review.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    const message = expectedActionMessage(error, "CoinGecko fetch failed.");
+    await updateLogoFetchState(logo.slug, "coingecko", message);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "error", message);
+  }
 }
 
 function isLogoVisuallyRejected(slug: string, category: string) {
@@ -445,13 +477,22 @@ async function fetchCoinMarketCapLogoSource(cmcId: string) {
 export async function addCoinMarketCapAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const cmcId = String(formData.get("coinMarketCapId") || logo.coinmarketcap_id || "").trim();
-  if (!cmcId) throw new Error("CoinMarketCap ID is required.");
-  const source = await fetchCoinMarketCapLogoSource(cmcId);
-  await addLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source });
-  await updateLogoProviderId(logo.slug, "coinmarketcap", cmcId);
-  await updateLogoFetchState(logo.slug, "coinmarketcap", null);
-  revalidatePath(`/admin/logos/${logo.slug}`);
-  redirect(`/admin/logos/${logo.slug}`);
+  if (!process.env.COINMARKETCAP_API_KEY) redirectLogoNotice(logo.slug, "warning", "CoinMarketCap API key missing; fetch is disabled.");
+  if (!cmcId) redirectLogoNotice(logo.slug, "warning", "Add CoinMarketCap ID first.");
+  try {
+    const source = await fetchCoinMarketCapLogoSource(cmcId);
+    await addLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source });
+    await updateLogoProviderId(logo.slug, "coinmarketcap", cmcId);
+    await updateLogoFetchState(logo.slug, "coinmarketcap", null);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "success", "CoinMarketCap candidate fetched for review.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    const message = expectedActionMessage(error, "CoinMarketCap fetch failed.");
+    await updateLogoFetchState(logo.slug, "coinmarketcap", message);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "error", message);
+  }
 }
 
 export async function bulkRefreshCoinMarketCapLogosAction() {
@@ -516,24 +557,37 @@ async function uploadToBlob(file: File, pathname: string) {
 
 export async function uploadLogoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) throw new Error("Choose a logo file to upload.");
-  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
-  if (!allowedTypes.has(file.type)) throw new Error("Only PNG, JPEG or WebP raster logo uploads are enabled. SVG upload remains disabled until sanitization is implemented.");
-  if (file.size > 500_000) throw new Error("Logo upload is too large. Use a raster file under 500 KB.");
-  const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
-  const blobUrl = await uploadToBlob(file, `admin-logos/${logo.slug}/${Date.now()}-${safeName}`);
-  await addLogoSource({ logoId: logo.id, provider: "upload", imageUrl: blobUrl, blobUrl, sourceUrl: null, metadata: { fileName: file.name, size: file.size, type: file.type } });
-  revalidatePath(`/admin/logos/${logo.slug}`);
-  redirect(`/admin/logos/${logo.slug}`);
+  try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) redirectLogoNotice(logo.slug, "warning", "Blob token missing; upload is disabled until storage is configured.");
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) redirectLogoNotice(logo.slug, "error", "Choose a logo file to upload.");
+    const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+    if (!allowedTypes.has(file.type)) redirectLogoNotice(logo.slug, "error", "Only PNG, JPEG or WebP raster uploads are enabled.");
+    if (file.size > 500_000) redirectLogoNotice(logo.slug, "error", "Logo upload is too large. Use a raster file under 500 KB.");
+    const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
+    const blobUrl = await uploadToBlob(file, `admin-logos/${logo.slug}/${Date.now()}-${safeName}`);
+    await addLogoSource({ logoId: logo.id, provider: "upload", imageUrl: blobUrl, blobUrl, sourceUrl: null, metadata: { fileName: file.name, size: file.size, type: file.type } });
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "success", "Upload candidate added.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    const message = expectedActionMessage(error, "Upload failed.");
+    redirectLogoNotice(logo.slug, "error", message);
+  }
 }
 
 export async function scanMetricLogosAction() {
   await requireAdmin();
-  await runMetricLogoDiscovery(30);
-  revalidatePath("/admin");
-  revalidatePath("/admin/logos");
-  redirect("/admin/logos?scan=1");
+  try {
+    await runMetricLogoDiscovery(30);
+    revalidatePath("/admin");
+    revalidatePath("/admin/logos");
+    redirect("/admin/logos?scan=1&notice=success&message=Metric%20scan%20complete");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    const message = expectedActionMessage(error, "Metric scan failed.");
+    redirect(`/admin/logos?notice=error&message=${encodeURIComponent(message.slice(0, 180))}`);
+  }
 }
 
 export async function saveProviderIdsAction(formData: FormData) {
@@ -543,6 +597,7 @@ export async function saveProviderIdsAction(formData: FormData) {
   await updateLogoProviderId(slug, "coinmarketcap", String(formData.get("coinMarketCapId") || "").trim());
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
+  redirectLogoNotice(slug, "success", "Provider IDs saved.");
 }
 
 export async function saveFallbackAction(formData: FormData) {
@@ -550,6 +605,7 @@ export async function saveFallbackAction(formData: FormData) {
   const slug = String(formData.get("slug") || "");
   await updateLogoFallback(slug, String(formData.get("fallbackText") || "").trim(), String(formData.get("fallbackColor") || "").trim());
   revalidatePath(`/admin/logos/${slug}`);
+  redirectLogoNotice(slug, "success", "Fallback saved.");
 }
 
 export async function markVisualRejectedAction(formData: FormData) {
@@ -558,6 +614,7 @@ export async function markVisualRejectedAction(formData: FormData) {
   await updateLogoStatus(slug, "needs_review", "rejected", String(formData.get("reason") || "Visual rejected in admin review"));
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
+  redirectLogoNotice(slug, "success", "Logo marked visually rejected.");
 }
 
 export async function markNeedsReviewAction(formData: FormData) {
@@ -566,6 +623,7 @@ export async function markNeedsReviewAction(formData: FormData) {
   await updateLogoStatus(slug, "needs_review", null, "Marked needs review in admin operations.");
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
+  redirectLogoNotice(slug, "success", "Logo marked needs review.");
 }
 
 export async function saveBrandSettingsAction(formData: FormData) {
@@ -606,15 +664,44 @@ export async function saveBrandSettingsAction(formData: FormData) {
   redirect("/admin/brand?saved=1");
 }
 
+export async function importLocalVaultSourceAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  const logo = await upsertLogo(String(formData.get("name") || slug), String(formData.get("category") || "project"));
+  const entry = logoSourceManifest.find((item) => item.slug === slug && item.category === logo.category) || logoSourceManifest.find((item) => item.slug === slug);
+  if (!entry) redirectLogoNotice(slug, "error", "No local vault source found for this logo.");
+  const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  const localWasRejected = sources.some((source) => source.status === "rejected" && (source.image_url === entry.localPath || sourceMetadata(source).localPath === entry.localPath));
+  const approvedLocal = entry.approvalStatus === "approved" && !entry.visualRejected && !entry.fallbackPreferredUntilManualAsset && !localWasRejected && !hasAdminChosenSource(sources);
+  const created = await upsertLogoSource({
+    logoId: logo.id,
+    provider: entry.sourceProvider,
+    imageUrl: entry.localPath,
+    sourceUrl: entry.sourceUrl || entry.localPath,
+    metadata: { approvalOrigin: "local-vault", sourceProvider: entry.sourceProvider, sha256: entry.sha256, localPath: entry.localPath, sourceUrl: entry.sourceUrl ?? null, approvalStatus: entry.approvalStatus },
+    status: approvedLocal ? "approved" : entry.approvalStatus === "rejected" ? "rejected" : "candidate",
+  });
+  if (approvedLocal) await autoApproveSource(created.id, "approved local vault source");
+  revalidatePath(`/admin/logos/${slug}`);
+  revalidatePath("/admin/logos");
+  redirectLogoNotice(slug, "success", approvedLocal ? "Local vault source imported and approved." : "Local vault source imported as candidate.");
+}
+
 export async function approveSourceAction(formData: FormData) {
   await requireAdmin();
   const sourceId = String(formData.get("sourceId") || "");
   const slug = String(formData.get("slug") || "");
-  await approveSource(sourceId);
-  revalidatePath(`/admin/logos/${slug}`);
-  revalidatePath("/admin/logos");
-  revalidatePath("/");
-  revalidatePath("/api/chain-revenue");
+  try {
+    await approveSource(sourceId);
+    revalidatePath(`/admin/logos/${slug}`);
+    revalidatePath("/admin/logos");
+    revalidatePath("/");
+    revalidatePath("/api/chain-revenue");
+    redirectLogoNotice(slug, "success", "Source approved.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    redirectLogoNotice(slug, "error", expectedActionMessage(error, "Source approval failed."));
+  }
 }
 
 export async function rejectSourceAction(formData: FormData) {
@@ -627,6 +714,7 @@ export async function rejectSourceAction(formData: FormData) {
   revalidatePath("/admin/logos");
   revalidatePath("/");
   revalidatePath("/api/chain-revenue");
+  redirectLogoNotice(slug, "success", "Source rejected.");
 }
 
 export async function rejectLogoAction(formData: FormData) {
@@ -638,4 +726,5 @@ export async function rejectLogoAction(formData: FormData) {
   revalidatePath("/admin/logos");
   revalidatePath("/");
   revalidatePath("/api/chain-revenue");
+  redirectLogoNotice(slug, "success", "Logo entity rejected.");
 }
