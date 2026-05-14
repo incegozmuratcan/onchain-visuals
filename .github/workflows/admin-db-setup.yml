@@ -25,6 +25,11 @@ jobs:
       - name: Install dependencies
         run: npm install --no-package-lock
 
+      - name: Usage guardrail
+        run: |
+          echo "Run Admin DB Setup only after db/schema.sql or admin seed changes, DB reset, or explicit migration/import need."
+          echo "This workflow runs db:push then admin:seed-logos; it does not print DATABASE_URL."
+
       - name: Push database schema
         run: npm run db:push
 

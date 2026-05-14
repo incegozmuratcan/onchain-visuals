@@ -11,6 +11,7 @@ export type LogoIssue =
   | "fallback_used"
   | "visual_rejected"
   | "approved_but_not_used"
+  | "db_overlay_not_applied"
   | "rejected_source"
   | "upload_disabled"
   | "missing_cmc_id"
@@ -27,7 +28,7 @@ export type LogoQaRow = {
 };
 
 export type LogoQaCounts = Record<
-  "all" | "approved" | "needs_review" | "missing_approved_logo" | "missing_coingecko_id" | "coingecko_fetch_failed" | "missing_cmc_id" | "cmc_fetch_failed" | "fallback_used" | "visual_rejected" | "rejected_source",
+  "all" | "approved" | "needs_review" | "missing_approved_logo" | "missing_coingecko_id" | "coingecko_fetch_failed" | "missing_cmc_id" | "cmc_fetch_failed" | "fallback_used" | "visual_rejected" | "rejected_source" | "db_overlay_not_applied",
   number
 >;
 
@@ -88,6 +89,7 @@ export function classifyLogoQa(logo: AdminLogo, sources: LogoSource[], uploadEna
   if (fallbackUsed) issues.push("fallback_used");
   if (visualRejected(logo, sources)) issues.push("visual_rejected");
   if (approvedSources.length > 0 && !logo.approved_logo_url) issues.push("approved_but_not_used");
+  if (logo.status === "approved" && logo.approved_logo_url && logo.visual_status === "overlay_mismatch") issues.push("db_overlay_not_applied");
   if (rejectedSources.length > 0 || logo.status === "rejected") issues.push("rejected_source");
   if (!uploadEnabled) issues.push("upload_disabled");
 
@@ -106,7 +108,7 @@ export function classifyLogoQa(logo: AdminLogo, sources: LogoSource[], uploadEna
 }
 
 export function recommendedAction(logo: AdminLogo, issues: LogoIssue[], sources: LogoSource[]) {
-  if (issues.includes("upload_disabled")) return "Add BLOB_READ_WRITE_TOKEN if file uploads are needed";
+  if (issues.includes("db_overlay_not_applied")) return "Check public overlay aliases for this row";
   if (issues.includes("coingecko_fetch_failed")) {
     const errorText = sources.find((source) => source.provider === "coingecko")?.rejection_reason?.toLowerCase() ?? "";
     if (errorText.includes("429")) return "Retry later";
@@ -119,6 +121,7 @@ export function recommendedAction(logo: AdminLogo, issues: LogoIssue[], sources:
   if (issues.includes("visual_rejected")) return "Use fallback or upload distinct logo";
   if (issues.includes("missing_approved_logo") && sources.some((source) => source.status === "candidate")) return "Review and approve source";
   if (issues.includes("missing_approved_logo")) return "Try CoinGecko, DefiLlama, CoinMarketCap or manual URL";
+  if (issues.includes("upload_disabled")) return "No action required unless file uploads are needed";
   if (issues.includes("rejected_source")) return "Replace rejected source with a safer candidate";
   if (logo.status === "approved") return "No action required";
   return "Review logo record";
@@ -137,5 +140,6 @@ export function summarizeLogoQa(rows: LogoQaRow[]): LogoQaCounts {
     fallback_used: rows.filter((row) => row.issues.includes("fallback_used")).length,
     visual_rejected: rows.filter((row) => row.issues.includes("visual_rejected")).length,
     rejected_source: rows.filter((row) => row.issues.includes("rejected_source")).length,
+    db_overlay_not_applied: rows.filter((row) => row.issues.includes("db_overlay_not_applied")).length,
   };
 }

@@ -201,6 +201,7 @@ const payload = dedupePayloadBySlug(rawPayload);
 console.log(`Admin logo seed raw payload records: ${rawPayload.length}`);
 console.log(`Admin logo seed deduped logo records: ${payload.length}`);
 console.log(`Admin logo seed duplicate slugs collapsed: ${duplicateSlugsCollapsed}`);
+console.log(`Admin logo seed visually rejected/fallback-preferred records in payload: ${rawPayload.filter((record) => record.sources.some((source) => source.metadata?.visualRejected || source.metadata?.fallbackPreferredUntilManualAsset)).length}`);
 
 const duplicateSlugsAfterDedupe = payload.map((record) => record.slug).filter((slug, index, slugs) => slugs.indexOf(slug) !== index);
 if (duplicateSlugsAfterDedupe.length) {
@@ -226,30 +227,45 @@ WITH seed AS (
     notes text,
     sources jsonb
   )
-), existing_logo_state AS (
-  SELECT
-    l.id,
-    l.slug,
-    l.status,
-    l.approved_logo_url,
-    l.approved_source_id,
-    (l.status = 'approved' AND l.approved_logo_url IS NOT NULL AND (l.approved_source_id IS NOT NULL OR l.approved_logo_url IS NOT NULL)) AS has_admin_approved_logo
-  FROM logos l
-  JOIN seed ON seed.slug = l.slug
-), upserted_logos AS (
+	), existing_logo_state AS (
+	  SELECT
+	    l.id,
+	    l.slug,
+	    l.name,
+	    l.category,
+	    l.status,
+	    l.approved_logo_url,
+	    l.approved_source_id,
+	    l.coingecko_id,
+	    l.coinmarketcap_id,
+	    l.visual_status,
+	    l.fallback_text,
+	    l.fallback_color,
+	    l.notes,
+	    (l.status = 'approved' AND l.approved_logo_url IS NOT NULL AND (l.approved_source_id IS NOT NULL OR l.approved_logo_url IS NOT NULL)) AS has_admin_approved_logo,
+	    (l.visual_status = 'rejected' OR l.fallback_text IS NOT NULL OR l.fallback_color IS NOT NULL) AS preserve_visual_decision
+	  FROM logos l
+	  JOIN seed ON seed.slug = l.slug
+	), upserted_logos AS (
   INSERT INTO logos (slug, name, category, status, approved_logo_url, notes)
   SELECT slug, name, category, status, approved_logo_url, NULLIF(notes, '')
   FROM seed
-  ON CONFLICT (slug) DO UPDATE SET
-    name = EXCLUDED.name,
-    category = EXCLUDED.category,
+	  ON CONFLICT (slug) DO UPDATE SET
+	    name = CASE
+	      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN COALESCE(NULLIF(logos.name, ''), EXCLUDED.name)
+	      ELSE EXCLUDED.name
+	    END,
+	    category = CASE
+	      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN COALESCE(NULLIF(logos.category, ''), EXCLUDED.category)
+	      ELSE EXCLUDED.category
+	    END,
     status = CASE
-      WHEN logos.status = 'rejected' THEN logos.status
+      WHEN logos.status = 'rejected' OR logos.visual_status = 'rejected' THEN logos.status
       WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.status
       ELSE EXCLUDED.status
     END,
     approved_logo_url = CASE
-      WHEN logos.status = 'rejected' THEN logos.approved_logo_url
+      WHEN logos.status = 'rejected' OR logos.visual_status = 'rejected' THEN logos.approved_logo_url
       WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_logo_url
       ELSE EXCLUDED.approved_logo_url
     END,
@@ -257,19 +273,26 @@ WITH seed AS (
       WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_source_id
       ELSE logos.approved_source_id
     END,
-    notes = NULLIF(CONCAT_WS(E'\n', NULLIF(logos.notes, ''), NULLIF(EXCLUDED.notes, '')), '')
-  RETURNING id, slug
+	    visual_status = logos.visual_status,
+	    fallback_text = logos.fallback_text,
+	    fallback_color = logos.fallback_color,
+	    notes = CASE
+	      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND NULLIF(logos.notes, '') IS NOT NULL THEN logos.notes
+	      ELSE NULLIF(CONCAT_WS(E'\n', NULLIF(logos.notes, ''), NULLIF(EXCLUDED.notes, '')), '')
+	    END
+	  RETURNING id, slug
 ), source_seed AS (
   SELECT
     l.id AS logo_id,
     seed.slug,
     COALESCE(existing.has_admin_approved_logo, false) AS has_admin_approved_logo,
+    COALESCE(existing.preserve_visual_decision, false) AS preserve_visual_decision,
     source.value->>'provider' AS provider,
     source.value->>'source_url' AS source_url,
     source.value->>'image_url' AS image_url,
     source.value->>'blob_url' AS blob_url,
     CASE
-      WHEN COALESCE(existing.has_admin_approved_logo, false) AND source.value->>'status' = 'approved' THEN 'candidate'
+      WHEN (COALESCE(existing.has_admin_approved_logo, false) OR COALESCE(existing.preserve_visual_decision, false)) AND source.value->>'status' = 'approved' THEN 'candidate'
       ELSE source.value->>'status'
     END AS status,
     source.value->>'rejection_reason' AS rejection_reason,
@@ -330,7 +353,7 @@ WITH seed AS (
   SELECT DISTINCT ON (sources.logo_id) sources.id, sources.logo_id
   FROM source_changes sources
   LEFT JOIN existing_logo_state existing ON existing.id = sources.logo_id
-  WHERE sources.status = 'approved' AND NOT COALESCE(existing.has_admin_approved_logo, false)
+  WHERE sources.status = 'approved' AND NOT COALESCE(existing.has_admin_approved_logo, false) AND NOT COALESCE(existing.preserve_visual_decision, false)
   ORDER BY sources.logo_id, sources.id
 ), approved_logos AS (
   UPDATE logos l
@@ -339,13 +362,16 @@ WITH seed AS (
   WHERE l.id = approved_sources.logo_id AND l.status = 'approved'
   RETURNING l.id
 )
-SELECT
-  (SELECT count(*) FROM seed) AS seed_records_seen,
-  (SELECT count(*) FROM existing_logo_state WHERE has_admin_approved_logo) AS existing_approved_logos_preserved,
-  (SELECT count(*) FROM approved_logos) AS new_approved_local_logos_imported,
-  (SELECT count(*) FROM inserted_sources) AS source_candidates_added,
-  (SELECT count(*) FROM source_seed WHERE has_admin_approved_logo AND status = 'candidate') AS skipped_approved_overwrites,
-  (SELECT count(*) FROM deduped_source_seed) AS local_sources_seen;
+	SELECT
+	  (SELECT count(*) FROM seed) AS seed_records_seen,
+	  ${rawPayload.length} AS raw_records_seen,
+	  ${payload.length} AS deduped_records_seen,
+	  (SELECT count(*) FROM existing_logo_state WHERE has_admin_approved_logo) AS existing_approved_logos_preserved,
+	  (SELECT count(*) FROM approved_logos) AS new_approved_local_logos_imported,
+	  (SELECT count(*) FROM inserted_sources) AS source_candidates_added,
+	  (SELECT count(*) FROM source_seed WHERE (has_admin_approved_logo OR preserve_visual_decision) AND status = 'candidate') AS skipped_approved_overwrites,
+	  (SELECT count(*) FROM existing_logo_state WHERE preserve_visual_decision) AS visually_rejected_or_fallback_records_preserved,
+	  (SELECT count(*) FROM deduped_source_seed) AS local_sources_seen;
 `;
 
 const result = spawnSync("psql", [databaseUrl, "-v", "ON_ERROR_STOP=1"], { input: sql, stdio: ["pipe", "inherit", "inherit"] });

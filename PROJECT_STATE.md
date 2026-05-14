@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.10.1.
+- Current app version: v0.10.2.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -78,7 +78,7 @@
 
 # v0.10.1 Admin Stability + Public Brand Integration
 
-- The current app version is v0.10.1.
+- The current app version is v0.10.2.
 - Admin pages now use safe DB query wrappers and section-level error panels so expected schema/query/config problems guide the operator instead of showing a generic Application error. Suggested actions include running Admin DB Setup, checking Vercel runtime logs, checking DATABASE_URL and checking recent migrations.
 - Admin DB Setup remains safe and idempotent: run `npm run db:push` and `npm run admin:seed-logos`; the seed imports local vault records and source candidates but preserves existing approved DB logos and does not overwrite admin-approved choices with local manifest, DefiLlama or fallback seed data.
 - Public logo resolution remains approved DB logo URL first, then local source manifest/registry logo, then clean fallback. Overlay failures warn server-side and fall back without breaking public APIs. Alias matching covers common chain/project slug variants including Polygon, BNB Chain, OP Mainnet, XRP Ledger, Filecoin, Render Network, Ethereum, Solana, Arbitrum, Avalanche, Base, Sui and Aptos.
@@ -90,7 +90,7 @@
 
 # v0.10.0 Admin Operations Dashboard
 
-- The current app version is v0.10.1.
+- The current app version is v0.10.2.
 - `/admin` is now the internal operations dashboard with provider status cards, logo health summary cards, action-required inbox items, Blob setup status, latest bulk refresh summaries and quick links to Logo Manager, API Settings and Brand Settings.
 - `/admin/logos` now includes a Logo QA Inbox and classifies each record with issues: `missing_approved_logo`, `needs_review`, `missing_coingecko_id`, `coingecko_fetch_failed`, `fallback_used`, `visual_rejected`, `approved_but_not_used`, `rejected_source`, `upload_disabled`, `missing_cmc_id` and `cmc_fetch_failed`.
 - Logo Manager defaults to name A→Z, has stronger search across name, slug, IDs, provider and category, filter tabs for important issue groups and sorting by name, status, category, source provider, last updated or issues-first.
@@ -193,7 +193,7 @@
 
 # Versioning
 
-- Current app version: v0.10.1.
+- Current app version: v0.10.2.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file
@@ -223,3 +223,18 @@
 # Maintenance
 
 - Keep this file concise, structured and continuously updated after major decisions or implementations.
+
+# v0.10.2 Admin Operations Hardening
+
+- The current app version is v0.10.2.
+- Admin DB Setup is not run after every admin UI update. Run it only when `db/schema.sql` changed, `scripts/admin-seed-logos.mjs` changed, the DB was reset, or a migration/import is explicitly needed.
+- `admin:seed-logos` preserves admin-approved logo rows with `status = 'approved'` and `approved_logo_url`: approved URL/source, status, provider IDs, visual status, fallback text/color and manual notes are not replaced by local manifest, DefiLlama or fallback seed data. Seed output reports raw/deduped records, preserved approvals, local imports, candidates and skipped overwrites.
+- `npm run admin:test-seed-protection` verifies the seed preservation contract against Polygon, then restores the original row state. A manual GitHub workflow named Admin DB Seed Protection Test runs the same command with `DATABASE_URL`.
+- Logo QA Inbox now functions as the operational memory for broken logos: issue badges, provider summaries, recommended actions, last fetch provider/error/time, overlay issues, search across provider IDs/source URLs/issues and sort by last fetch time are available on `/admin/logos`.
+- Logo detail pages are the primary fixing tool with current DB state, approved/fallback/public-card previews, 24px/32px/48px light/dark previews, source metadata, provider ID forms, retry/provider candidate actions, manual URL, fallback controls, visual rejection, needs-review marking and public overlay debug slugs.
+- Bulk CoinGecko and CoinMarketCap refreshes tolerate partial failures, store summaries in `admin_settings`, revalidate admin pages and translate 429/404/401/403/network failures into operator guidance.
+- Provider ID rule: DB provider ID > mapping file provider ID > missing mapping. DB IDs override code mappings and can be changed from the logo detail page.
+- Public DB logo overlay remains DB-approved URL first, local vault/manifest second and clean fallback third. DB failures warn safely and alias matching covers Polygon, BNB Chain, OP Mainnet, XRP Ledger, Render Network, Filecoin, Hyperliquid L1, MegaETH, ENI and BSV Blockchain variants.
+- Brand Settings continue to drive public site name/copy/metadata/share-card footer when saved, with defaults for empty fields and explicit save feedback including Blob upload-disabled status.
+- API Settings now lists provider state, key configured yes/no, last success/error, metrics, next action, exact env vars and docs links for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized sources.
+- Blob status is explicit: missing `BLOB_READ_WRITE_TOKEN` disables uploads only; URL candidates, local vault imports, manual URL save and brand text save continue. SVG upload remains disabled; raster uploads are type/size checked when Blob is configured.

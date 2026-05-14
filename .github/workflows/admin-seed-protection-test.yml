@@ -1,0 +1,29 @@
+name: Admin DB Seed Protection Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  admin-seed-protection-test:
+    name: Verify admin seed overwrite protection
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm install --no-package-lock
+
+      - name: Run seed overwrite protection test
+        run: npm run admin:test-seed-protection
