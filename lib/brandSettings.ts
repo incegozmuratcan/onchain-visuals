@@ -6,9 +6,9 @@ import type { PublicBrandSettings } from "@/lib/brandTypes";
 export const defaultBrandSettings: PublicBrandSettings = {
   siteName: "learnDeFi",
   shortName: "learnDeFi",
-  mainSlogan: "Clean DeFi visuals. Simple explanations. Share-ready cards.",
-  heroSubtitle: "Create source-backed market cards from trusted crypto data.",
-  supportingCopy: "Clean DeFi visuals. Simple explanations. Share-ready cards.",
+  mainSlogan: "Clean onchain visuals. Simple explanations. Share-ready cards.",
+  heroSubtitle: "",
+  supportingCopy: "Source-backed market cards from trusted crypto data.",
   cardFooterText: "Source-backed DeFi market card",
   createdWithText: "Created with learnDeFi",
   metaDescription: "Create clean, source-backed market cards from trusted crypto data.",

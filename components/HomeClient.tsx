@@ -60,6 +60,7 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
+  const [heroLogoSrc, setHeroLogoSrc] = useState(() => brand.primaryLogo || brand.headerLogo || "");
   const didLoadDefault = useRef(false);
 
   const runQuery = useCallback(async (overrideInput?: string) => {
@@ -142,16 +143,14 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
 
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-5 md:px-8 md:py-7">
-      <header className="mx-auto mb-5 max-w-3xl text-center">
-        <button onClick={goHome} className="inline-flex items-center justify-center gap-3 text-3xl font-black tracking-[-0.06em] text-slate-950 transition hover:opacity-75 md:text-5xl">
-          {brand.headerLogo || brand.primaryLogo ? <img src={brand.headerLogo || brand.primaryLogo} alt="" className="h-9 w-9 object-contain md:h-12 md:w-12" /> : null}
-          <span>{brand.siteName}</span>
+      <header className="mx-auto mb-6 flex max-w-4xl flex-col items-center text-center">
+        <button onClick={goHome} className="inline-flex max-w-[90vw] items-center justify-center transition hover:opacity-80" aria-label={`${brand.siteName} home`}>
+          {heroLogoSrc ? <img src={heroLogoSrc} alt={brand.siteName} onError={() => setHeroLogoSrc("")} className="h-auto max-h-44 w-auto max-w-[88vw] object-contain md:max-h-56 md:max-w-[640px]" /> : <span className="text-4xl font-black tracking-[-0.07em] text-slate-950 md:text-6xl">{brand.siteName}</span>}
         </button>
-        <h1 className="mx-auto mt-3 max-w-3xl text-balance text-3xl font-black leading-tight tracking-[-0.05em] text-slate-950 md:text-5xl">{brand.mainSlogan}</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-balance text-base font-black leading-6 text-slate-700 md:text-xl md:leading-7">
-          {brand.supportingCopy || "Clean DeFi visuals. Simple explanations. Share-ready cards."}
-        </p>
-        <p className="mx-auto mt-2 max-w-xl text-sm font-semibold text-slate-500">{brand.heroSubtitle}</p>
+        <h1 className="mx-auto mt-7 max-w-3xl text-balance text-2xl font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-4xl">{brand.mainSlogan}</h1>
+        {brand.heroSubtitle && brand.heroSubtitle !== brand.mainSlogan && brand.heroSubtitle !== brand.supportingCopy ? <p className="mx-auto mt-3 max-w-2xl text-balance text-sm font-semibold leading-6 text-slate-500 md:text-base">
+          {brand.heroSubtitle}
+        </p> : null}
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[1fr_390px] lg:items-start">
