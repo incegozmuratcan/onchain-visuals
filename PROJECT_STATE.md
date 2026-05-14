@@ -79,14 +79,14 @@
 # v0.11.0 Admin Operations + Brand System
 
 - The current app version is v0.11.0.
-- Admin UI is now a compact operations console across `/admin`, `/admin/logos`, `/admin/logos/[slug]`, `/admin/api` and `/admin/brand`: dense tables, compact badges, sticky toolbars and collapsed advanced/debug/danger sections replace scroll-heavy presentation cards.
+- Admin UI is now a compact operations console across `/admin`, `/admin/logos`, `/admin/logos/[slug]`, `/admin/api` and `/admin/brand`: dense tables, compact badges, sticky toolbars, action-first Logo QA filters and collapsed advanced/debug/danger sections replace scroll-heavy presentation cards.
 - Logo detail pages use a three-column operations layout for current state, sources and actions; approved/fallback/public-row/light-dark previews are consolidated into one compact preview strip; public overlay debug and destructive actions are collapsed by default.
 - CoinGecko is the primary logo source for known CoinGecko IDs. Safe fetches auto-approve through the DB-approved overlay unless the logo is visually rejected, fallback-preferred, BSV/confusing, previously rejected, or already has an admin-approved manual/upload/stronger source. Admin-approved manual/upload choices remain protected.
 - Bulk CoinGecko refresh summaries now track fetched, auto-approved, candidate, skipped-admin-approved, skipped-visual-rejected, missing mapping and error counts. Auto-approved sources carry metadata for “approved · auto” UI states.
 - Metric Output Scanner / Logo Discovery Engine scans active metric outputs (Top 30 default), upserts missing entities, checks coverage, imports safe CoinGecko logos, records QA issue types (`newly_discovered_entity`, `missing_from_logo_db`, `discovered_missing_logo`, `metric_scan_error`, `auto_logo_imported`) and stores the latest summary in `admin_settings`. It runs only from admin/manual operations, not public render.
 - Brand Settings supports real brand asset management for primaryLogo, darkLogo, iconMark, headerLogo, favicon, appleTouchIcon, xAvatar, xBanner and watermarkMark. Manual URLs work without Blob; Blob upload is enabled only with `BLOB_READ_WRITE_TOKEN`, PNG/JPEG/WebP only, SVG disabled, 500 KB normal limit and 2 MB X banner limit, with metadata saved in `brand_settings`.
 - Public brand integration covers siteName, shortName, mainSlogan, heroSubtitle, cardFooterText, createdWithText, metaDescription, header/primary logo, favicon/apple-touch-icon and share-card watermark/footer defaults. DB/API/Blob outages fall back safely.
-- Public homepage hero/header is simplified around “Clean DeFi visuals. Simple explanations. Share-ready cards.” while preserving the existing card generator and data workflows.
+- Public homepage hero/header is simplified around the uploaded brand wordmark plus “Clean onchain visuals. Simple explanations. Share-ready cards.” while preserving the existing card generator and data workflows.
 - Admin dashboard surfaces metric discovery summary, brand asset health, upload/Blob state, API status, logo health and action-required items for missing brand assets, missing Blob token, metric scan errors, newly discovered entities and missing approved logos.
 - Workflow rules: Admin DB Setup only after schema/seed changes or explicit DB migration/import; Seed Protection Test after seed changes; metric logo discovery is a manual admin operation.
 
@@ -173,10 +173,9 @@
 - Product should feel like a fast card creator, not a chatbot.
 - Do not redesign the overall product or card layout without explicit direction.
 - Main homepage hierarchy:
-  - learnDeFi
-  - Make DeFi data share-ready.
-  - Create clean, source-backed market cards from trusted crypto data.
-  - Clean DeFi visuals. Simple explanations. Share-ready cards.
+  - Brand primary logo/header logo as the main wordmark, or text siteName only when no logo is available
+  - Clean onchain visuals. Simple explanations. Share-ready cards.
+  - Optional low-emphasis heroSubtitle only when intentionally configured and non-redundant.
 - Default first-run card: “Top 10 chains by stablecoin supply”.
 - Use “Create card”, “Create a market card”, “Card settings” and “Try these cards” in user-facing card-creator copy.
 
