@@ -41,7 +41,7 @@ export default async function AdminBrandPage({ searchParams }: { searchParams?: 
   const saved = firstParam(searchParams?.saved) === "1";
   const saveError = firstParam(searchParams?.error);
   const dbErrors = [settingsResult.error].filter(Boolean);
-  return <AdminShell active="brand" title="Brand Settings" subtitle="Public text, assets and upload health." sticky>
+  return <AdminShell active="brand" title="Brand Settings" subtitle="Compact public text, assets and upload health." sticky>
     {!config.hasBlob ? <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{blob.message} Manual URLs and text saves still work.</p> : null}
     <AdminDbErrorPanel errors={dbErrors} />
     {saved ? <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">Brand settings saved; public-connected fields are active.</div> : null}

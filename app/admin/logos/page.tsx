@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { AdminSection, AdminShell, AdminStatusPill } from "@/components/admin/AdminPrimitives";
+import { AdminSection, AdminShell } from "@/components/admin/AdminPrimitives";
+import { LogoResultsClient, type LogoResultRow } from "@/components/admin/LogoResultsClient";
 import { requireAdmin, adminConfigState, getSetting } from "@/lib/admin/auth";
 import { applySafeCoinGeckoCandidatesAction, bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, scanMetricLogosAction } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Record<string, string | string[] | undefined>;
 type DetailEntry = { label: string; slug?: string | null; title?: string };
 
-const DEFAULT_LIMIT = 25;
+const DEFAULT_LIMIT = 10;
 const ACTION_ISSUES = new Set([
   "needs_review", "missing_approved_logo", "missing_coingecko_id", "coingecko_id_needs_review", "coingecko_fetch_failed", "cmc_fetch_failed", "fallback_used", "visual_rejected", "newly_discovered_entity", "metric_scan_error", "coingecko_candidate_waiting", "metric_scan_missing_coingecko_id", "metric_scan_candidate_added", "auto_approve_skipped", "db_overlay_not_applied", "rejected_source",
 ]);
@@ -30,35 +31,8 @@ function firstParam(value: string | string[] | undefined, fallback = "") {
   return Array.isArray(value) ? value[0] ?? fallback : value ?? fallback;
 }
 
-function safeUrl(value: unknown) {
-  const text = typeof value === "string" ? value.trim() : "";
-  if (!text) return null;
-  return text.startsWith("http://") || text.startsWith("https://") || text.startsWith("/") ? text : null;
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const tone = status.startsWith("approved") ? "green" : status === "rejected" ? "red" : "amber";
-  return <AdminStatusPill tone={tone}>{status.replace("_", " ")}</AdminStatusPill>;
-}
-
-function IssueDot({ issue }: { issue: string }) {
-  const tone = issue === "visual_rejected" || issue.includes("failed") ? "red" : issue.includes("missing") || issue.includes("review") || issue.includes("fallback") ? "amber" : "gray";
-  return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500"><span className={`h-1.5 w-1.5 rounded-full ${tone === "red" ? "bg-red-500" : tone === "amber" ? "bg-amber-400" : "bg-slate-300"}`} />{issue.replaceAll("_", " ")}</span>;
-}
-
 function hasAction(row: LogoQaRow) {
   return row.issues.some((issue) => ACTION_ISSUES.has(issue));
-}
-
-function matches(row: LogoQaRow, query: string) {
-  if (!query) return true;
-  const haystack = [
-    row.logo.name, row.logo.slug, row.logo.category, row.coinGeckoId, row.coinMarketCapId,
-    row.logo.last_fetch_provider, row.logo.last_fetch_error, row.logo.notes, row.providerSummary,
-    ...row.sources.flatMap((source) => [source.provider, source.image_url, source.source_url, source.status]),
-    ...row.issues,
-  ].filter(Boolean).join(" ").toLowerCase();
-  return haystack.includes(query.toLowerCase());
 }
 
 function filterRows(rows: LogoQaRow[], filter: string) {
@@ -152,19 +126,6 @@ function SourceTools({ summaries, scanSummary, missingMappingRows }: { summaries
   </AdminSection>;
 }
 
-function LogoRow({ row }: { row: LogoQaRow }) {
-  const preview = safeUrl(row.logo.approved_logo_url) || safeUrl(row.logo.fallback_logo_url);
-  const displayIssues = row.issues.filter((issue) => ACTION_ISSUES.has(issue)).slice(0, 1);
-  const provider = row.logo.last_fetch_provider || row.providerSummary || "—";
-  return <Link href={`/admin/logos/${encodeURIComponent(row.logo.slug)}`} className="grid min-h-[50px] gap-2 border-b border-slate-100 px-2 py-1.5 transition hover:bg-slate-50 md:grid-cols-[minmax(190px,1.25fr)_74px_92px_132px_112px] md:items-center">
-    <div className="flex min-w-0 items-center gap-2">{preview ? <img src={preview} alt="" className="h-7 w-7 rounded-full border border-slate-200 bg-white object-contain" /> : <div className="h-7 w-7 rounded-full bg-slate-100" />}<div className="min-w-0"><div className="truncate text-sm font-black text-slate-950">{row.logo.name}</div><div className="truncate text-[11px] font-bold text-slate-400">{row.logo.slug}</div></div></div>
-    <div className="truncate text-xs font-black text-slate-600">{row.logo.category}</div>
-    <StatusBadge status={row.logo.status} />
-    <div className="min-w-0 text-[11px] font-bold leading-4 text-slate-500"><div className="truncate" title={provider}>{provider}</div><div>CG {row.coinGeckoId ? "OK" : "missing"} · CMC {row.coinMarketCapId ? "OK" : "missing"}</div></div>
-    <div className="min-w-0">{displayIssues.length ? displayIssues.map((issue) => <IssueDot key={issue} issue={issue} />) : <span className="text-[10px] font-black uppercase tracking-[0.08em] text-emerald-600">healthy</span>}</div>
-  </Link>;
-}
-
 export default async function AdminLogosPage({ searchParams }: { searchParams?: SearchParams }) {
   await requireAdmin();
   const config = adminConfigState();
@@ -185,21 +146,34 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const filter = firstParam(searchParams?.filter, "issues");
   const query = firstParam(searchParams?.q, "").trim();
   const sort = firstParam(searchParams?.sort, "issues");
-  const limit = Math.max(DEFAULT_LIMIT, Number(firstParam(searchParams?.limit, String(DEFAULT_LIMIT))) || DEFAULT_LIMIT);
   const candidateApplySummary = firstParam(searchParams?.candidateApply) ? `${firstParam(searchParams?.checkedCandidates, "0")} candidates checked · ${firstParam(searchParams?.autoApproved, "0")} auto-approved · ${firstParam(searchParams?.skipped, "0")} skipped` : "";
   const providerErrors = counts.coingecko_fetch_failed + counts.cmc_fetch_failed + counts.coingecko_id_needs_review;
   const needsAction = qaRows.filter(hasAction).length;
   const actionMetrics = [
     ["Needs action", needsAction], ["Missing approved logo", counts.missing_approved_logo], ["Missing CoinGecko ID", counts.missing_coingecko_id], ["Provider errors / ID review", providerErrors], ["Fallback used", counts.fallback_used], ["Visual rejected", counts.visual_rejected], ["Newly discovered", qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length],
   ].filter(([, value], index) => index === 0 || Number(value) > 0);
-  const allMatchingRows = sortRows(filterRows(qaRows, filter).filter((row) => matches(row, query)), sort);
-  const isDefaultWorkingSet = !query && filter === "issues";
-  const visibleRows = isDefaultWorkingSet ? allMatchingRows.slice(0, limit) : allMatchingRows;
+  const allMatchingRows = sortRows(filterRows(qaRows, filter), sort);
   const missingMappingRows = qaRows.filter((row) => row.issues.includes("missing_coingecko_id"));
+  const clientRows: LogoResultRow[] = allMatchingRows.map((row) => ({
+    id: row.logo.id,
+    slug: row.logo.slug,
+    name: row.logo.name,
+    category: row.logo.category,
+    status: row.logo.status,
+    approvedLogoUrl: row.logo.approved_logo_url,
+    fallbackLogoUrl: row.logo.fallback_logo_url,
+    coinGeckoId: row.coinGeckoId,
+    coinMarketCapId: row.coinMarketCapId,
+    provider: row.logo.last_fetch_provider,
+    providerSummary: row.providerSummary,
+    issues: row.issues,
+    searchText: [row.logo.name, row.logo.slug, row.logo.category, row.coinGeckoId, row.coinMarketCapId, row.logo.last_fetch_provider, row.logo.last_fetch_error, row.logo.notes, row.providerSummary, ...row.sources.flatMap((source) => [source.provider, source.image_url, source.source_url, source.status]), ...row.issues].filter(Boolean).join(" ").toLowerCase(),
+  }));
 
   return <AdminShell active="logos" title="Logo Manager" subtitle="Single-screen source QA operations." max="max-w-[1500px]">
     {!config.hasDatabase ? <p className="mt-3 rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-bold text-red-800">DATABASE_URL is missing. Logo persistence is disabled, but public card fallbacks remain available.</p> : null}
     {!config.hasBlob ? <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">{blob.message}</p> : null}
+    {firstParam(searchParams?.message) ? <p className={`mt-3 rounded-xl border p-3 text-xs font-bold ${firstParam(searchParams?.notice) === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-red-200 bg-red-50 text-red-800"}`}>{firstParam(searchParams?.message)}</p> : null}
     {candidateApplySummary ? <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">Apply safe CoinGecko candidates complete: {candidateApplySummary}</p> : null}
     <AdminDbErrorPanel errors={dbErrors} />
 
@@ -213,14 +187,11 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
         </div>
 
         <div className="border-b border-slate-100 p-2">
-          <form className="grid gap-2 md:grid-cols-[1fr_150px_auto]"><input name="q" defaultValue={query} className="rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Search name, slug, category, provider ID, source, issue" /><input type="hidden" name="filter" value={filter} /><select name="sort" defaultValue={sort} className="rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="issues">Issues first</option><option value="name">Name A-Z</option><option value="fetch">Last fetch</option><option value="status">Status</option><option value="category">Category</option></select><button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-black text-white">Search</button></form>
+          <form className="flex flex-wrap gap-2"><input type="hidden" name="q" value={query} /><input type="hidden" name="filter" value={filter} /><select name="sort" defaultValue={sort} className="rounded-lg border border-slate-200 px-3 py-2 text-sm"><option value="issues">Issues first</option><option value="name">Name A-Z</option><option value="fetch">Last fetch</option><option value="status">Status</option><option value="category">Category</option></select><button className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-black text-slate-700">Apply sort</button></form>
           <details className="mt-2 inline-block rounded-full border border-slate-200 bg-white px-3 py-1.5"><summary className="cursor-pointer text-xs font-black text-slate-950">+ Add logo</summary><form action={createLogoAction} className="mt-2 grid gap-2 rounded-xl bg-slate-50 p-2 md:grid-cols-[180px_110px_auto]"><input name="name" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Name" required /><select name="category" className="rounded-lg border border-slate-200 px-3 py-2 text-sm"><option>project</option><option>chain</option><option>asset</option></select><button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-black text-white">Create</button></form></details>
         </div>
 
-        <div className="hidden grid-cols-[minmax(190px,1.25fr)_74px_92px_132px_112px] gap-2 border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid"><div>Logo</div><div>Category</div><div>Status</div><div>Source</div><div>Issue</div></div>
-        {visibleRows.map((row) => <LogoRow key={row.logo.id} row={row} />)}
-        {!visibleRows.length ? <div className="p-8 text-center text-sm font-bold text-slate-500">No logos match this search/filter.</div> : null}
-        {isDefaultWorkingSet && allMatchingRows.length > visibleRows.length ? <div className="p-2 text-center"><Link href={qs({ filter, q: query, sort, limit: limit + DEFAULT_LIMIT })} className="inline-flex rounded-full border border-slate-200 px-3 py-1.5 text-xs font-black text-slate-600">Show more ({allMatchingRows.length - visibleRows.length} remaining)</Link></div> : null}
+        <LogoResultsClient rows={clientRows} initialQuery={query} defaultLimit={DEFAULT_LIMIT} />
       </div>
 
       <SourceTools summaries={summaries} scanSummary={scanSummary} missingMappingRows={missingMappingRows} />
