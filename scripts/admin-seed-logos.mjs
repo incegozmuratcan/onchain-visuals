@@ -260,46 +260,66 @@ WITH seed AS (
 	      ELSE EXCLUDED.category
 	    END,
     status = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.status
       WHEN logos.status = 'rejected' OR logos.visual_status = 'rejected' THEN logos.status
-      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.status
       ELSE EXCLUDED.status
     END,
     approved_logo_url = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.approved_logo_url
       WHEN logos.status = 'rejected' OR logos.visual_status = 'rejected' THEN logos.approved_logo_url
-      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_logo_url
       ELSE EXCLUDED.approved_logo_url
     END,
     approved_source_id = CASE
-      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_source_id
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.approved_source_id
       ELSE logos.approved_source_id
     END,
-	    visual_status = logos.visual_status,
-	    fallback_text = logos.fallback_text,
-	    fallback_color = logos.fallback_color,
-	    notes = (
-	      SELECT NULLIF(
-	        CONCAT_WS(
-	          E'\n',
-	          NULLIF(logos.notes, ''),
-	          NULLIF(string_agg(new_seed_notes.note, E'\n' ORDER BY new_seed_notes.ordinal), '')
-	        ),
-	        ''
-	      )
-	      FROM (
-	        SELECT DISTINCT ON (candidate_notes.note) candidate_notes.note, candidate_notes.ordinal
-	        FROM (
-	          SELECT btrim(seed_notes.value) AS note, seed_notes.ordinal
-	          FROM regexp_split_to_table(COALESCE(EXCLUDED.notes, ''), E'\n') WITH ORDINALITY AS seed_notes(value, ordinal)
-	          WHERE btrim(seed_notes.value) <> ''
-	            AND NOT EXISTS (
-	              SELECT 1
-	              FROM regexp_split_to_table(COALESCE(logos.notes, ''), E'\n') AS existing_notes(value)
-	              WHERE btrim(existing_notes.value) = btrim(seed_notes.value)
-	            )
-	        ) candidate_notes
-	        ORDER BY candidate_notes.note, candidate_notes.ordinal
-	      ) new_seed_notes
-	    )
+    coingecko_id = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.coingecko_id
+      ELSE logos.coingecko_id
+    END,
+    coinmarketcap_id = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.coinmarketcap_id
+      ELSE logos.coinmarketcap_id
+    END,
+    visual_status = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.visual_status
+      ELSE logos.visual_status
+    END,
+    fallback_text = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.fallback_text
+      ELSE logos.fallback_text
+    END,
+    fallback_color = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.fallback_color
+      ELSE logos.fallback_color
+    END,
+    notes = CASE
+      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL THEN logos.notes
+      ELSE (
+        SELECT NULLIF(
+          CONCAT_WS(
+            E'\n',
+            NULLIF(logos.notes, ''),
+            NULLIF(string_agg(new_seed_notes.note, E'\n' ORDER BY new_seed_notes.ordinal), '')
+          ),
+          ''
+        )
+        FROM (
+          SELECT DISTINCT ON (candidate_notes.note) candidate_notes.note, candidate_notes.ordinal
+          FROM (
+            SELECT btrim(seed_notes.value) AS note, seed_notes.ordinal
+            FROM regexp_split_to_table(COALESCE(EXCLUDED.notes, ''), E'\n') WITH ORDINALITY AS seed_notes(value, ordinal)
+            WHERE btrim(seed_notes.value) <> ''
+              AND NOT EXISTS (
+                SELECT 1
+                FROM regexp_split_to_table(COALESCE(logos.notes, ''), E'\n') AS existing_notes(value)
+                WHERE btrim(existing_notes.value) = btrim(seed_notes.value)
+              )
+          ) candidate_notes
+          ORDER BY candidate_notes.note, candidate_notes.ordinal
+        ) new_seed_notes
+      )
+    END
 	  RETURNING id, slug
 ), source_seed AS (
   SELECT

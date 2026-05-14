@@ -7,6 +7,10 @@ const testUrl = "/test/admin-approved-logo.png";
 const testSourceId = "987654321";
 const manualNote = "seed protection test manual note";
 
+function sqlString(value) {
+  return `'${String(value).replaceAll("'", "''")}'`;
+}
+
 function runPsql(sql, { capture = false } = {}) {
   const result = spawnSync("psql", [databaseUrl, "-v", "ON_ERROR_STOP=1", "-X", capture ? "-tA" : "-a"], {
     input: sql,
@@ -27,7 +31,7 @@ if (!databaseUrl) {
 
 console.log(`Admin seed protection test starting for slug=${slug}`);
 
-const beforeJson = runPsql(`SELECT COALESCE((SELECT row_to_json(l)::text FROM logos l WHERE slug = '${slug.replaceAll("'", "''")}' LIMIT 1), '');`, { capture: true });
+const beforeJson = runPsql(`SELECT COALESCE((SELECT row_to_json(l)::text FROM logos l WHERE slug = ${sqlString(slug)} LIMIT 1), '');`, { capture: true });
 if (!beforeJson) {
   console.error(`Cannot run seed protection test: ${slug} does not exist. Run npm run admin:seed-logos once, then retry.`);
   process.exit(1);
@@ -37,13 +41,13 @@ try {
   runPsql(`
     UPDATE logos
     SET status = 'approved',
-        approved_logo_url = '${testUrl}',
+        approved_logo_url = ${sqlString(testUrl)},
         approved_source_id = ${testSourceId},
-        coingecko_id = COALESCE(NULLIF(coingecko_id, ''), 'polygon-pos'),
-        coinmarketcap_id = COALESCE(NULLIF(coinmarketcap_id, ''), '3890'),
-        visual_status = COALESCE(visual_status, 'approved'),
-        fallback_text = COALESCE(fallback_text, 'POL'),
-        fallback_color = COALESCE(fallback_color, '#8247e5'),
+        coingecko_id = 'polygon-pos',
+        coinmarketcap_id = '3890',
+        visual_status = 'approved',
+        fallback_text = 'POL',
+        fallback_color = '#8247e5',
         notes = NULLIF(
           CONCAT_WS(
             E'\n',
@@ -52,15 +56,18 @@ try {
               WHEN EXISTS (
                 SELECT 1
                 FROM regexp_split_to_table(COALESCE(notes, ''), E'\n') AS existing_notes(value)
-                WHERE btrim(existing_notes.value) = '${manualNote}'
+                WHERE btrim(existing_notes.value) = ${sqlString(manualNote)}
               ) THEN NULL
-              ELSE '${manualNote}'
+              ELSE ${sqlString(manualNote)}
             END
           ),
           ''
         )
-    WHERE slug = '${slug.replaceAll("'", "''")}';
+    WHERE slug = ${sqlString(slug)};
   `);
+
+  const expectedNotesJson = runPsql(`SELECT json_build_object('notes', notes)::text FROM logos WHERE slug = ${sqlString(slug)} LIMIT 1;`, { capture: true });
+  const expectedNotes = String(JSON.parse(expectedNotesJson).notes || "");
 
   console.log("Running npm run admin:seed-logos to verify it preserves the simulated admin approval...");
   const seed = spawnSync("npm", ["run", "admin:seed-logos"], { stdio: "inherit", env: process.env });
@@ -79,7 +86,7 @@ try {
       'fallback_color', fallback_color,
       'notes', notes
     )::text
-    FROM logos WHERE slug = '${slug.replaceAll("'", "''")}' LIMIT 1;
+    FROM logos WHERE slug = ${sqlString(slug)} LIMIT 1;
   `, { capture: true });
   const parsed = JSON.parse(after);
   const failures = [];
@@ -91,11 +98,18 @@ try {
   if (parsed.visual_status !== "approved") failures.push(`visual_status changed to ${parsed.visual_status}`);
   if (parsed.fallback_text !== "POL") failures.push(`fallback_text changed to ${parsed.fallback_text}`);
   if (parsed.fallback_color !== "#8247e5") failures.push(`fallback_color changed to ${parsed.fallback_color}`);
-  if (!String(parsed.notes || "").includes(manualNote)) failures.push("manual notes were overwritten");
+  const parsedNotes = String(parsed.notes || "");
+  const notesChanged = parsedNotes !== expectedNotes;
+  if (!parsedNotes.includes(manualNote)) failures.push("manual notes were overwritten");
+  if (notesChanged) failures.push("notes changed for protected approved logo");
 
   if (failures.length) {
     console.error("Admin seed protection FAILED:");
     for (const failure of failures) console.error(`- ${failure}`);
+    if (!parsedNotes.includes(manualNote) || notesChanged) {
+      console.error("Parsed notes after admin:seed-logos:");
+      console.error(JSON.stringify(parsed.notes ?? null));
+    }
     process.exitCode = 1;
   } else {
     console.log("Admin seed protection passed: admin-approved logo state survived admin:seed-logos.");
@@ -121,6 +135,6 @@ try {
         fallback_color = backup.data->>'fallback_color',
         visual_status = backup.data->>'visual_status'
     FROM backup
-    WHERE l.slug = '${slug.replaceAll("'", "''")}';
+    WHERE l.slug = ${sqlString(slug)};
   `);
 }
