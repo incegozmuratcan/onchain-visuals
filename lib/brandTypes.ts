@@ -16,5 +16,6 @@ export type PublicBrandSettings = {
   xAvatar: string;
   xBanner: string;
   watermarkMark: string;
+  assetMetadata?: Record<string, { provider: "manual-url" | "upload" | "disabled"; kind: string; fileSize?: number; mimeType?: string; uploadedAt?: string; url?: string }>;
   savedAt?: string;
 };

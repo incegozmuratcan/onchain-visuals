@@ -12,6 +12,10 @@ export type BulkRefreshSummary = {
   errors: number;
   firstErrors: string[];
   rateLimitWarnings: string[];
+  autoApproved?: number;
+  candidates?: number;
+  skippedAdminApproved?: number;
+  skippedVisualRejected?: number;
 };
 
 export type ApiProviderCard = {
@@ -41,6 +45,10 @@ export function parseBulkRefreshSummary(raw: string | null): BulkRefreshSummary 
       errors: Number(parsed.errors ?? 0),
       firstErrors: Array.isArray(parsed.firstErrors) ? parsed.firstErrors.map(String) : [],
       rateLimitWarnings: Array.isArray((parsed as any).rateLimitWarnings) ? (parsed as any).rateLimitWarnings.map(String) : [],
+      autoApproved: Number((parsed as any).autoApproved ?? 0),
+      candidates: Number((parsed as any).candidates ?? 0),
+      skippedAdminApproved: Number((parsed as any).skippedAdminApproved ?? 0),
+      skippedVisualRejected: Number((parsed as any).skippedVisualRejected ?? 0),
     };
   } catch {
     return null;
@@ -138,6 +146,17 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       notes: "Uses existing public source adapters; no browser-exposed secret required.",
       nextAction: "No admin secret required for current tokenized asset views.",
       envVars: [],
+    },
+    {
+      id: "vercel-blob",
+      name: "Vercel Blob",
+      status: config.hasBlob ? "connected" : "missing key",
+      keyConfigured: config.hasBlob,
+      metrics: ["Logo uploads", "Brand asset uploads"],
+      docsUrl: "https://vercel.com/docs/storage/vercel-blob",
+      notes: config.hasBlob ? "Blob uploads are enabled for raster admin assets." : "Upload buttons are disabled; manual URL fields and local logo vault imports still work.",
+      nextAction: config.hasBlob ? "Use upload controls for safe PNG/JPEG/WebP assets." : "Set BLOB_READ_WRITE_TOKEN to enable uploads.",
+      envVars: ["BLOB_READ_WRITE_TOKEN"],
     },
   ];
 }

@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
-import { bulkRefreshCoinGeckoLogosAction, logoutAction } from "@/lib/admin/actions";
+import { requireAdmin, adminConfigState, getSetting } from "@/lib/admin/auth";
+import { bulkRefreshCoinGeckoLogosAction, logoutAction, scanMetricLogosAction } from "@/lib/admin/actions";
 import { getApiProviderCards, getBulkRefreshSummaries, blobStatus, type ApiProviderCard } from "@/lib/admin/providerStatus";
 import { classifyLogoQa, summarizeLogoQa } from "@/lib/admin/logoQa";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
+import { parseBrandSettings } from "@/lib/brandSettings";
+import { METRIC_LOGO_SCAN_SETTING, parseMetricLogoScanSummary } from "@/lib/admin/metricLogoScanner";
 
 export const dynamic = "force-dynamic";
 
@@ -37,14 +39,18 @@ export default async function AdminIndex() {
   const config = adminConfigState();
   const providerResult = await safeAdminDbQuery("Provider status", getApiProviderCards, []);
   const summaryResult = await safeAdminDbQuery("Bulk refresh summaries", getBulkRefreshSummaries, { coingecko: null, coinmarketcap: null });
+  const scanResult = config.hasDatabase ? await safeAdminDbQuery("Metric logo discovery", async () => parseMetricLogoScanSummary(await getSetting(METRIC_LOGO_SCAN_SETTING)), null) : { data: null, error: null };
+  const brandResult = config.hasDatabase ? await safeAdminDbQuery("Brand settings", async () => parseBrandSettings(await getSetting("brand_settings")), parseBrandSettings(null)) : { data: parseBrandSettings(null), error: null };
   const blob = blobStatus();
   const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
   const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
   const providers = providerResult.data;
   const summaries = summaryResult.data;
+  const scanSummary = scanResult.data;
+  const brand = brandResult.data;
   const logos = logoResult.data;
   const sourceRows = sourceResult.data;
-  const dbErrors = [providerResult.error, summaryResult.error, logoResult.error, sourceResult.error].filter(Boolean);
+  const dbErrors = [providerResult.error, summaryResult.error, scanResult.error, brandResult.error, logoResult.error, sourceResult.error].filter(Boolean);
   const sourcesByLogo = new Map<string, typeof sourceRows>();
   for (const source of sourceRows) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));
@@ -53,6 +59,11 @@ export default async function AdminIndex() {
     !config.hasDatabase ? "DATABASE_URL missing: admin persistence is disabled." : null,
     !config.hasBlob ? blob.message : null,
     !process.env.COINMARKETCAP_API_KEY ? "COINMARKETCAP_API_KEY missing: CoinMarketCap logo tools are disabled." : null,
+    !brand.favicon ? "Missing favicon brand asset." : null,
+    !brand.headerLogo ? "Missing header logo brand asset." : null,
+    !brand.watermarkMark ? "Missing watermark brand asset." : null,
+    scanSummary?.errors.length ? `Metric scan errors: ${scanSummary.errors.length}` : null,
+    scanSummary?.newEntities ? `${scanSummary.newEntities} newly discovered metric entities.` : null,
     !(process.env.CHAINSPECT_API_KEY || process.env.CHAINSPECT_KEY) ? "Chainspect key missing / TPS provider should use fallback behavior." : null,
     summaries.coingecko?.errors ? `CoinGecko refresh errors: ${summaries.coingecko.errors}` : null,
     counts.missing_coingecko_id ? `${counts.missing_coingecko_id} logos missing CoinGecko IDs.` : null,
@@ -74,8 +85,10 @@ export default async function AdminIndex() {
         <Link href="/admin/logos" className="rounded-2xl bg-slate-950 px-4 py-3 text-center text-sm font-black text-white">Go to Logo Manager</Link>
         <Link href="/admin/api" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black">Go to API Settings</Link>
         <Link href="/admin/brand" className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-center text-sm font-black">Go to Brand Settings</Link>
-        <form action={bulkRefreshCoinGeckoLogosAction}><button className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black">Bulk refresh CoinGecko logos</button></form>
+        <form action={bulkRefreshCoinGeckoLogosAction}><button className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black">Bulk refresh CoinGecko logos</button></form><form action={scanMetricLogosAction}><button className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-black">Scan metric logos</button></form>
       </section>
+
+      <section className="mt-6 grid gap-4 md:grid-cols-2"><div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft"><h2 className="font-black text-slate-950">Metric Logo Discovery</h2><p className="mt-2 text-sm font-bold text-slate-600">{scanSummary ? `${scanSummary.metricsScanned} metrics · ${scanSummary.rowsChecked} rows · ${scanSummary.newEntities} new · ${scanSummary.autoApproved} auto-approved · ${scanSummary.needsReview} needs review` : "No scan run yet."}</p><p className="mt-1 text-xs font-bold text-slate-400">Last scan: {scanSummary ? new Date(scanSummary.timestamp).toLocaleString() : "never"}</p></div><div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-soft"><h2 className="font-black text-slate-950">Brand asset health</h2><p className="mt-2 text-sm font-bold text-slate-600">Favicon: {brand.favicon ? "ok" : "missing"} · Header: {brand.headerLogo ? "ok" : "missing"} · Watermark: {brand.watermarkMark ? "ok" : "missing"} · Upload: {config.hasBlob ? "enabled" : "disabled"}</p><Link href="/admin/brand" className="mt-2 inline-flex rounded-full border border-slate-200 px-3 py-1 text-xs font-black">Brand Settings</Link></div></section>
 
       <section className="mt-6"><div className="mb-3 flex items-center justify-between"><h2 className="text-xl font-black tracking-[-0.04em] text-slate-950">API Status Overview</h2><Link href="/admin/api" className="text-sm font-black text-slate-500">Manage APIs →</Link></div><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{providers.map((provider) => <ProviderCard key={provider.id} provider={provider} />)}</div></section>
 

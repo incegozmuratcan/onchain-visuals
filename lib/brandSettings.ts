@@ -6,8 +6,8 @@ import type { PublicBrandSettings } from "@/lib/brandTypes";
 export const defaultBrandSettings: PublicBrandSettings = {
   siteName: "learnDeFi",
   shortName: "learnDeFi",
-  mainSlogan: "Make DeFi data share-ready.",
-  heroSubtitle: "Create clean, source-backed market cards from trusted crypto data.",
+  mainSlogan: "Clean DeFi visuals. Simple explanations. Share-ready cards.",
+  heroSubtitle: "Create source-backed market cards from trusted crypto data.",
   supportingCopy: "Clean DeFi visuals. Simple explanations. Share-ready cards.",
   cardFooterText: "Source-backed DeFi market card",
   createdWithText: "Created with learnDeFi",
@@ -21,6 +21,7 @@ export const defaultBrandSettings: PublicBrandSettings = {
   xAvatar: "",
   xBanner: "",
   watermarkMark: "",
+  assetMetadata: {},
 };
 
 function cleanString(value: unknown) {
@@ -56,6 +57,7 @@ export function parseBrandSettings(raw: string | null): PublicBrandSettings {
       xAvatar: validAssetUrl(parsed.xAvatar),
       xBanner: validAssetUrl(parsed.xBanner),
       watermarkMark: validAssetUrl(parsed.watermarkMark),
+      assetMetadata: parsed.assetMetadata && typeof parsed.assetMetadata === "object" ? parsed.assetMetadata as PublicBrandSettings["assetMetadata"] : {},
       savedAt: cleanString(parsed.savedAt) || undefined,
     };
   } catch (error) {
