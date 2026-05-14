@@ -18,7 +18,10 @@ export type LogoIssue =
   | "cmc_fetch_failed"
   | "newly_discovered_entity"
   | "metric_scan_error"
-  | "auto_logo_imported";
+  | "auto_logo_imported"
+  | "auto_approve_skipped"
+  | "metric_scan_missing_coingecko_id"
+  | "metric_scan_candidate_added";
 
 export type LogoQaRow = {
   logo: AdminLogo;
@@ -87,6 +90,9 @@ export function classifyLogoQa(logo: AdminLogo, sources: LogoSource[], uploadEna
   if (logo.notes?.includes("newly_discovered_entity")) issues.push("newly_discovered_entity");
   if (logo.last_fetch_error?.includes("metric_scan_error")) issues.push("metric_scan_error");
   if (sources.some((source) => metadataObject(source.metadata).issueType === "auto_logo_imported")) issues.push("auto_logo_imported");
+  if (sources.some((source) => metadataObject(source.metadata).issueType === "discovered_missing_logo" && metadataObject(source.metadata).approvalOrigin === "candidate")) issues.push("metric_scan_candidate_added");
+  if (sources.some((source) => String(metadataObject(source.metadata).autoApproveReason || "").length && metadataObject(source.metadata).approvalOrigin === "candidate")) issues.push("auto_approve_skipped");
+  if (logo.notes?.includes("metric_scan_missing_coingecko_id")) issues.push("metric_scan_missing_coingecko_id");
   if (!logo.approved_logo_url) issues.push("missing_approved_logo");
   if (!coinGeckoId) issues.push("missing_coingecko_id");
   if (!coinMarketCapId) issues.push("missing_cmc_id");
@@ -124,6 +130,9 @@ export function recommendedAction(logo: AdminLogo, issues: LogoIssue[], sources:
     return "Review CoinGecko error and retry";
   }
   if (issues.includes("cmc_fetch_failed")) return "Check CMC ID/key and retry";
+  if (issues.includes("metric_scan_missing_coingecko_id")) return "Add CoinGecko ID discovered by metric scan";
+  if (issues.includes("auto_approve_skipped")) return "Review skipped auto-approval reason";
+  if (issues.includes("metric_scan_candidate_added")) return "Review metric scan candidate";
   if (issues.includes("missing_coingecko_id")) return "Add CoinGecko ID";
   if (issues.includes("missing_cmc_id")) return "Add CoinMarketCap ID";
   if (issues.includes("visual_rejected")) return "Use fallback or upload distinct logo";

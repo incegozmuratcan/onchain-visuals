@@ -15,7 +15,13 @@ export type BulkRefreshSummary = {
   autoApproved?: number;
   candidates?: number;
   skippedAdminApproved?: number;
+  skippedExistingAdminApproved?: number;
   skippedVisualRejected?: number;
+  skippedPreviousRejected?: number;
+  fetched?: number;
+  autoApprovedList?: string[];
+  candidateList?: string[];
+  firstSkippedReasons?: string[];
 };
 
 export type ApiProviderCard = {
@@ -47,8 +53,14 @@ export function parseBulkRefreshSummary(raw: string | null): BulkRefreshSummary 
       rateLimitWarnings: Array.isArray((parsed as any).rateLimitWarnings) ? (parsed as any).rateLimitWarnings.map(String) : [],
       autoApproved: Number((parsed as any).autoApproved ?? 0),
       candidates: Number((parsed as any).candidates ?? 0),
-      skippedAdminApproved: Number((parsed as any).skippedAdminApproved ?? 0),
+      skippedAdminApproved: Number((parsed as any).skippedAdminApproved ?? (parsed as any).skippedExistingAdminApproved ?? 0),
+      skippedExistingAdminApproved: Number((parsed as any).skippedExistingAdminApproved ?? (parsed as any).skippedAdminApproved ?? 0),
       skippedVisualRejected: Number((parsed as any).skippedVisualRejected ?? 0),
+      skippedPreviousRejected: Number((parsed as any).skippedPreviousRejected ?? 0),
+      fetched: Number((parsed as any).fetched ?? parsed.refreshed ?? 0),
+      autoApprovedList: Array.isArray((parsed as any).autoApprovedList) ? (parsed as any).autoApprovedList.map(String) : [],
+      candidateList: Array.isArray((parsed as any).candidateList) ? (parsed as any).candidateList.map(String) : [],
+      firstSkippedReasons: Array.isArray((parsed as any).firstSkippedReasons) ? (parsed as any).firstSkippedReasons.map(String) : [],
     };
   } catch {
     return null;

@@ -160,7 +160,11 @@ export async function bulkRefreshCoinGeckoLogosAction() {
   let candidates = 0;
   let skippedAdminApproved = 0;
   let skippedVisualRejected = 0;
+  let skippedPreviousRejected = 0;
   const errors: string[] = [];
+  const autoApprovedList: string[] = [];
+  const candidateList: string[] = [];
+  const skippedReasons: string[] = [];
   const allSources = (await getAllLogoSources()).rows;
   const sourcesByLogo = new Map<string, typeof allSources>();
   for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
@@ -192,14 +196,26 @@ export async function bulkRefreshCoinGeckoLogosAction() {
       if (auto.ok) {
         await autoApproveSource(created.id);
         autoApproved += 1;
+        autoApprovedList.push(`${logo.slug} (${coinId})`);
       } else if (auto.reason.includes("admin-approved")) {
         skippedAdminApproved += 1;
         candidates += 1;
+        candidateList.push(`${logo.slug} (${coinId})`);
+        skippedReasons.push(`${logo.slug}: ${auto.reason}`);
+      } else if (auto.reason.includes("previously rejected")) {
+        skippedPreviousRejected += 1;
+        candidates += 1;
+        candidateList.push(`${logo.slug} (${coinId})`);
+        skippedReasons.push(`${logo.slug}: ${auto.reason}`);
       } else if (auto.reason.includes("visual") || auto.reason.includes("BSV")) {
         skippedVisualRejected += 1;
         candidates += 1;
+        candidateList.push(`${logo.slug} (${coinId})`);
+        skippedReasons.push(`${logo.slug}: ${auto.reason}`);
       } else {
         candidates += 1;
+        candidateList.push(`${logo.slug} (${coinId})`);
+        skippedReasons.push(`${logo.slug}: ${auto.reason}`);
       }
       await updateLogoFetchState(logo.slug, "coingecko", null);
       refreshed += 1;
@@ -219,7 +235,18 @@ export async function bulkRefreshCoinGeckoLogosAction() {
     });
   }
 
-  await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", refreshed, missing, errors, { autoApproved, candidates, skippedAdminApproved, skippedVisualRejected }));
+  await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", refreshed, missing, errors, {
+    fetched: refreshed,
+    autoApproved,
+    candidates,
+    skippedExistingAdminApproved: skippedAdminApproved,
+    skippedAdminApproved,
+    skippedVisualRejected,
+    skippedPreviousRejected,
+    autoApprovedList: autoApprovedList.slice(0, 25),
+    candidateList: candidateList.slice(0, 25),
+    firstSkippedReasons: skippedReasons.slice(0, 10),
+  }));
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
   const params = new URLSearchParams({
