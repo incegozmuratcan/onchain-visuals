@@ -10,6 +10,12 @@ export type BulkRefreshSummary = {
   refreshed: number;
   missingMappings: number;
   errors: number;
+  mode?: string;
+  checked?: number;
+  alreadyApproved?: number;
+  skippedAlreadyApproved?: number;
+  idNeedsReview?: number;
+  rateLimited?: number;
   firstErrors: string[];
   rateLimitWarnings: string[];
   autoApproved?: number;
@@ -49,6 +55,12 @@ export function parseBulkRefreshSummary(raw: string | null): BulkRefreshSummary 
       refreshed: Number(parsed.refreshed ?? 0),
       missingMappings: Number(parsed.missingMappings ?? 0),
       errors: Number(parsed.errors ?? 0),
+      mode: typeof (parsed as any).mode === "string" ? (parsed as any).mode : undefined,
+      checked: Number((parsed as any).checked ?? 0),
+      alreadyApproved: Number((parsed as any).alreadyApproved ?? 0),
+      skippedAlreadyApproved: Number((parsed as any).skippedAlreadyApproved ?? 0),
+      idNeedsReview: Number((parsed as any).idNeedsReview ?? 0),
+      rateLimited: Number((parsed as any).rateLimited ?? 0),
       firstErrors: Array.isArray(parsed.firstErrors) ? parsed.firstErrors.map(String) : [],
       rateLimitWarnings: Array.isArray((parsed as any).rateLimitWarnings) ? (parsed as any).rateLimitWarnings.map(String) : [],
       autoApproved: Number((parsed as any).autoApproved ?? 0),

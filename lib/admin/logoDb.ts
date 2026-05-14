@@ -133,19 +133,26 @@ export function canAutoApproveCoinGecko(logo: AdminLogo, sources: LogoSource[], 
   return { ok: true, reason: "safe CoinGecko primary source" };
 }
 
-export async function autoApproveSource(sourceId: string) {
-  await query(
+export async function autoApproveSource(sourceId: string, reason = "safe CoinGecko primary source") {
+  const result = await query<{ logo_id: string; source_id: string; approved_logo_url: string }>(
     `WITH chosen AS (
        UPDATE logo_sources
-       SET status = 'approved', rejection_reason = NULL, metadata = COALESCE(metadata, '{}'::jsonb) || '{"approvalOrigin":"auto","autoApproved":true}'::jsonb
-       WHERE id = $1 RETURNING *
+       SET status = 'approved',
+           rejection_reason = NULL,
+           metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('approvalOrigin', 'auto', 'autoApproved', true, 'autoApproveReason', $2::text)
+       WHERE id = $1
+       RETURNING *
+     ), updated_logo AS (
+       UPDATE logos
+       SET status = 'approved', approved_source_id = chosen.id, approved_logo_url = COALESCE(chosen.blob_url, chosen.image_url)
+       FROM chosen
+       WHERE logos.id = chosen.logo_id
+       RETURNING logos.id AS logo_id, logos.approved_source_id AS source_id, logos.approved_logo_url
      )
-     UPDATE logos
-     SET status = 'approved', approved_source_id = chosen.id, approved_logo_url = COALESCE(chosen.blob_url, chosen.image_url)
-     FROM chosen
-     WHERE logos.id = chosen.logo_id`,
-    [sourceId]
+     SELECT logo_id, source_id, approved_logo_url FROM updated_logo`,
+    [sourceId, reason]
   );
+  return result.rows[0] ?? null;
 }
 
 function withFallback(logo: AdminLogo): AdminLogo {
