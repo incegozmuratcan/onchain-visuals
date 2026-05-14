@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
-import { bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, logoutAction } from "@/lib/admin/actions";
+import { requireAdmin, adminConfigState, getSetting } from "@/lib/admin/auth";
+import { bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, logoutAction, scanMetricLogosAction } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, summarizeLogoQa, type LogoQaRow } from "@/lib/admin/logoQa";
 import { blobStatus, getBulkRefreshSummaries } from "@/lib/admin/providerStatus";
+import { METRIC_LOGO_SCAN_SETTING, parseMetricLogoScanSummary } from "@/lib/admin/metricLogoScanner";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const FILTERS = [
-  ["all", "All"], ["approved", "Approved"], ["needs_review", "Needs review"], ["missing_approved_logo", "No approved logo"], ["missing_coingecko_id", "Missing CoinGecko ID"], ["coingecko_fetch_failed", "CoinGecko errors"], ["missing_cmc_id", "Missing CoinMarketCap ID"], ["cmc_fetch_failed", "CoinMarketCap errors"], ["fallback_used", "Fallback used"], ["visual_rejected", "Visual rejected"], ["rejected_source", "Rejected sources"], ["db_overlay_not_applied", "Overlay issues"],
+  ["all", "All"], ["approved", "Approved"], ["newly_discovered_entity", "Newly discovered"], ["needs_review", "Needs review"], ["missing_approved_logo", "No approved logo"], ["missing_coingecko_id", "Missing CoinGecko ID"], ["coingecko_fetch_failed", "CoinGecko errors"], ["missing_cmc_id", "Missing CoinMarketCap ID"], ["cmc_fetch_failed", "CoinMarketCap errors"], ["fallback_used", "Fallback used"], ["visual_rejected", "Visual rejected"], ["rejected_source", "Rejected sources"], ["db_overlay_not_applied", "Overlay issues"],
 ] as const;
 
 function firstParam(value: string | string[] | undefined, fallback = "") {
@@ -30,14 +31,14 @@ function IssueBadge({ issue }: { issue: string }) {
 
 function matches(row: LogoQaRow, query: string) {
   if (!query) return true;
-  const haystack = [row.logo.name, row.logo.slug, row.logo.category, row.coinGeckoId, row.coinMarketCapId, row.logo.last_fetch_provider, row.logo.last_fetch_error, row.providerSummary, ...row.sources.flatMap((source) => [source.provider, source.image_url, source.source_url]), ...row.issues].filter(Boolean).join(" ").toLowerCase();
+  const haystack = [row.logo.name, row.logo.slug, row.logo.category, row.coinGeckoId, row.coinMarketCapId, row.logo.last_fetch_provider, row.logo.last_fetch_error, row.logo.notes, row.providerSummary, ...row.sources.flatMap((source) => [source.provider, source.image_url, source.source_url]), ...row.issues].filter(Boolean).join(" ").toLowerCase();
   return haystack.includes(query.toLowerCase());
 }
 
 function filterRows(rows: LogoQaRow[], filter: string) {
   if (filter === "all" || filter === "issues") return filter === "issues" ? rows.filter((row) => row.issues.length) : rows;
   if (filter === "approved") return rows.filter((row) => row.logo.status === "approved" && !row.issues.includes("missing_approved_logo"));
-  return rows.filter((row) => row.issues.includes(filter as any));
+  return rows.filter((row) => row.issues.includes(filter as any) || (filter === "newly_discovered_entity" && Boolean(row.logo.notes?.includes("newly_discovered_entity"))));
 }
 
 function sortRows(rows: LogoQaRow[], sort: string) {
@@ -63,12 +64,14 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const config = adminConfigState();
   const blob = blobStatus();
   const summaryResult = await safeAdminDbQuery("Bulk refresh summaries", getBulkRefreshSummaries, { coingecko: null, coinmarketcap: null });
+  const scanResult = config.hasDatabase ? await safeAdminDbQuery("Metric logo discovery", async () => parseMetricLogoScanSummary(await getSetting(METRIC_LOGO_SCAN_SETTING)), null) : { data: null, error: null };
   const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
   const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
   const summaries = summaryResult.data;
+  const scanSummary = scanResult.data;
   const logos = logoResult.data;
   const sourceRows = sourceResult.data;
-  const dbErrors = [summaryResult.error, logoResult.error, sourceResult.error].filter(Boolean);
+  const dbErrors = [summaryResult.error, scanResult.error, logoResult.error, sourceResult.error].filter(Boolean);
   const sourcesByLogo = new Map<string, typeof sourceRows>();
   for (const source of sourceRows) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));
@@ -98,7 +101,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
 
       <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_360px]">
         <details className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft"><summary className="cursor-pointer text-sm font-black text-slate-950">Add logo</summary><form action={createLogoAction} className="mt-3 grid gap-2 md:grid-cols-[1fr_150px_auto]"><input name="name" className="rounded-2xl border border-slate-200 px-4 py-3" placeholder="Protocol, chain or asset name" required /><select name="category" className="rounded-2xl border border-slate-200 px-4 py-3"><option>project</option><option>chain</option><option>asset</option></select><button className="rounded-2xl bg-slate-950 px-5 py-3 font-black text-white">Create</button></form></details>
-        <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft"><h2 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">Source tools</h2><div className="mt-3 grid gap-2"><form action={bulkRefreshCoinGeckoLogosAction}><button className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Bulk refresh CoinGecko logos</button></form><form action={bulkRefreshCoinMarketCapLogosAction}><button disabled={!process.env.COINMARKETCAP_API_KEY} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black disabled:opacity-50">Bulk refresh CoinMarketCap logos</button></form></div>{[summaries.coingecko, summaries.coinmarketcap].filter(Boolean).map((summary) => summary ? <div key={summary.provider} className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs font-bold text-slate-600"><div className="font-black text-slate-950">Last {summary.provider} refresh</div><div>{summary.refreshed} refreshed · {summary.missingMappings} missing mappings · {summary.errors} errors</div><div className="text-slate-400">{new Date(summary.timestamp).toLocaleString()}</div>{summary.firstErrors.length ? <div className="mt-1 text-amber-800">First errors: {summary.firstErrors.join("; ")}</div> : null}</div> : null)}</section>
+        <section className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-soft"><h2 className="text-sm font-black uppercase tracking-[0.14em] text-slate-500">Source tools</h2><div className="mt-3 grid gap-2"><form action={bulkRefreshCoinGeckoLogosAction}><button className="w-full rounded-2xl bg-slate-950 px-4 py-3 text-sm font-black text-white">Bulk refresh CoinGecko logos</button></form><form action={scanMetricLogosAction}><button className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black">Scan active metrics for missing logos</button></form><form action={bulkRefreshCoinMarketCapLogosAction}><button disabled={!process.env.COINMARKETCAP_API_KEY} className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-black disabled:opacity-50">Bulk refresh CoinMarketCap logos</button></form></div>{scanSummary ? <div className="mt-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-3 text-xs font-bold text-emerald-800"><div className="font-black">Last metric logo scan</div><div>{scanSummary.metricsScanned} metrics · {scanSummary.rowsChecked} rows · {scanSummary.newEntities} new · {scanSummary.autoApproved} auto-approved · {scanSummary.needsReview} review · {scanSummary.errors.length} errors</div><div>{new Date(scanSummary.timestamp).toLocaleString()}</div></div> : null}{[summaries.coingecko, summaries.coinmarketcap].filter(Boolean).map((summary) => summary ? <div key={summary.provider} className="mt-3 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-xs font-bold text-slate-600"><div className="font-black text-slate-950">Last {summary.provider} refresh</div><div>{summary.refreshed} refreshed · {summary.missingMappings} missing mappings · {summary.errors} errors</div><div className="text-slate-400">{new Date(summary.timestamp).toLocaleString()}</div>{summary.firstErrors.length ? <div className="mt-1 text-amber-800">First errors: {summary.firstErrors.join("; ")}</div> : null}</div> : null)}</section>
       </section>
 
       <section className="mt-6 rounded-[28px] border border-slate-200 bg-white p-4 shadow-soft">

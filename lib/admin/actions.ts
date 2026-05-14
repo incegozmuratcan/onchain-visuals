@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource } from "@/lib/admin/logoDb";
+import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource } from "@/lib/admin/logoDb";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
+import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
 
 async function ensureLogoFromForm(formData: FormData) {
   await requireAdmin();
@@ -15,7 +16,7 @@ async function ensureLogoFromForm(formData: FormData) {
   return upsertLogo(name, category);
 }
 
-function bulkSummary(provider: string, refreshed: number, missingMappings: number, errors: string[]) {
+function bulkSummary(provider: string, refreshed: number, missingMappings: number, errors: string[], extra: Record<string, unknown> = {}) {
   const rateLimitWarnings = errors.filter((error) => error.includes("429") || error.toLowerCase().includes("rate limit"));
   return JSON.stringify({
     provider,
@@ -25,6 +26,7 @@ function bulkSummary(provider: string, refreshed: number, missingMappings: numbe
     errors: errors.length,
     firstErrors: errors.slice(0, 5),
     rateLimitWarnings: rateLimitWarnings.slice(0, 5),
+    ...extra,
   });
 }
 
@@ -127,7 +129,10 @@ export async function addCoinGeckoAction(formData: FormData) {
   const coinId = String(formData.get("coinGeckoId") || "").trim();
   if (!coinId) throw new Error("CoinGecko coin id is required.");
   const source = await fetchCoinGeckoLogoSource(coinId);
-  await addLogoSource({ logoId: logo.id, provider: "coingecko", ...source });
+  const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  const auto = canAutoApproveCoinGecko(logo, sources, source.imageUrl, source.sourceUrl);
+  const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
+  if (auto.ok) await autoApproveSource(created.id);
   await updateLogoProviderId(logo.slug, "coingecko", coinId);
   await updateLogoFetchState(logo.slug, "coingecko", null);
   revalidatePath(`/admin/logos/${logo.slug}`);
@@ -151,7 +156,14 @@ export async function bulkRefreshCoinGeckoLogosAction() {
   const logos = (await listLogosForCoinGeckoBulk()).rows;
   let refreshed = 0;
   let missing = 0;
+  let autoApproved = 0;
+  let candidates = 0;
+  let skippedAdminApproved = 0;
+  let skippedVisualRejected = 0;
   const errors: string[] = [];
+  const allSources = (await getAllLogoSources()).rows;
+  const sourcesByLogo = new Map<string, typeof allSources>();
+  for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
 
   for (const logo of logos) {
     const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
@@ -162,7 +174,9 @@ export async function bulkRefreshCoinGeckoLogosAction() {
 
     try {
       const source = await fetchCoinGeckoLogoSource(coinId, true);
-      await upsertLogoSource({
+      const existingSources = sourcesByLogo.get(logo.id) ?? [];
+      const auto = canAutoApproveCoinGecko(logo, existingSources, source.imageUrl, source.sourceUrl);
+      const created = await upsertLogoSource({
         logoId: logo.id,
         provider: "coingecko",
         ...source,
@@ -170,9 +184,23 @@ export async function bulkRefreshCoinGeckoLogosAction() {
           ...source.metadata,
           bulkRefresh: true,
           visuallyRejected: isLogoVisuallyRejected(logo.slug, logo.category),
+          approvalOrigin: auto.ok ? "auto" : "candidate",
+          autoApproveReason: auto.reason,
         },
-        status: "candidate",
+        status: auto.ok ? "approved" : "candidate",
       });
+      if (auto.ok) {
+        await autoApproveSource(created.id);
+        autoApproved += 1;
+      } else if (auto.reason.includes("admin-approved")) {
+        skippedAdminApproved += 1;
+        candidates += 1;
+      } else if (auto.reason.includes("visual") || auto.reason.includes("BSV")) {
+        skippedVisualRejected += 1;
+        candidates += 1;
+      } else {
+        candidates += 1;
+      }
       await updateLogoFetchState(logo.slug, "coingecko", null);
       refreshed += 1;
     } catch (error) {
@@ -191,13 +219,15 @@ export async function bulkRefreshCoinGeckoLogosAction() {
     });
   }
 
-  await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", refreshed, missing, errors));
+  await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", refreshed, missing, errors, { autoApproved, candidates, skippedAdminApproved, skippedVisualRejected }));
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
   const params = new URLSearchParams({
     refreshed: String(refreshed),
     missing: String(missing),
     errors: String(errors.length),
+    autoApproved: String(autoApproved),
+    candidates: String(candidates),
   });
   for (const message of errors.slice(0, 3)) params.append("error", message);
   redirect(`/admin/logos?${params.toString()}`);
@@ -313,12 +343,20 @@ export async function uploadLogoAction(formData: FormData) {
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a logo file to upload.");
   const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
   if (!allowedTypes.has(file.type)) throw new Error("Only PNG, JPEG or WebP raster logo uploads are enabled. SVG upload remains disabled until sanitization is implemented.");
-  if (file.size > 1_000_000) throw new Error("Logo upload is too large. Use a raster file under 1 MB.");
+  if (file.size > 500_000) throw new Error("Logo upload is too large. Use a raster file under 500 KB.");
   const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
   const blobUrl = await uploadToBlob(file, `admin-logos/${logo.slug}/${Date.now()}-${safeName}`);
   await addLogoSource({ logoId: logo.id, provider: "upload", imageUrl: blobUrl, blobUrl, sourceUrl: null, metadata: { fileName: file.name, size: file.size, type: file.type } });
   revalidatePath(`/admin/logos/${logo.slug}`);
   redirect(`/admin/logos/${logo.slug}`);
+}
+
+export async function scanMetricLogosAction() {
+  await requireAdmin();
+  await runMetricLogoDiscovery(30);
+  revalidatePath("/admin");
+  revalidatePath("/admin/logos");
+  redirect("/admin/logos?scan=1");
 }
 
 export async function saveProviderIdsAction(formData: FormData) {
@@ -355,10 +393,31 @@ export async function markNeedsReviewAction(formData: FormData) {
 
 export async function saveBrandSettingsAction(formData: FormData) {
   await requireAdmin();
-  const fields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
-  const settings = Object.fromEntries(fields.map((field) => [field, String(formData.get(field) || "").trim()]));
+  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription"];
+  const assetFields = ["primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
+  const settings: Record<string, unknown> = Object.fromEntries(textFields.map((field) => [field, String(formData.get(field) || "").trim()]));
+  const assetMetadata: Record<string, Record<string, unknown>> = {};
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
   try {
-    await setAdminSetting("brand_settings", JSON.stringify({ ...settings, savedAt: new Date().toISOString() }));
+    for (const field of assetFields) {
+      const reset = formData.get(`${field}Reset`) === "1";
+      const manualUrl = reset ? "" : String(formData.get(field) || "").trim();
+      const file = formData.get(`${field}File`);
+      settings[field] = manualUrl;
+      if (manualUrl) assetMetadata[field] = { provider: "manual-url", kind: field, url: manualUrl };
+      if (file instanceof File && file.size > 0) {
+        if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error(`BLOB_READ_WRITE_TOKEN is missing; ${field} upload is disabled.`);
+        if (!allowedTypes.has(file.type)) throw new Error(`${field}: only PNG, JPEG and WebP uploads are enabled. SVG upload remains disabled until sanitization exists.`);
+        const maxSize = field === "xBanner" ? 2_000_000 : 500_000;
+        if (file.size > maxSize) throw new Error(`${field}: file is too large. Limit is ${field === "xBanner" ? "2 MB" : "500 KB"}.`);
+        const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
+        const url = await uploadToBlob(file, `brand-assets/${field}/${Date.now()}-${safeName}`);
+        settings[field] = url;
+        assetMetadata[field] = { provider: "upload", kind: field, fileSize: file.size, mimeType: file.type, uploadedAt: new Date().toISOString(), url };
+      }
+      if (reset) assetMetadata[field] = { provider: "disabled", kind: field };
+    }
+    await setAdminSetting("brand_settings", JSON.stringify({ ...settings, assetMetadata, savedAt: new Date().toISOString() }));
     revalidatePath("/");
     revalidatePath("/", "layout");
     revalidatePath("/admin/brand");

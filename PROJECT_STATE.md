@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.10.2.
+- Current app version: v0.11.0.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -76,9 +76,23 @@
 
 
 
+# v0.11.0 Admin Operations + Brand System
+
+- The current app version is v0.11.0.
+- Admin UI is now a compact operations console across `/admin`, `/admin/logos`, `/admin/logos/[slug]`, `/admin/api` and `/admin/brand`: dense tables, compact badges, sticky toolbars and collapsed advanced/debug/danger sections replace scroll-heavy presentation cards.
+- Logo detail pages use a three-column operations layout for current state, sources and actions; approved/fallback/public-row/light-dark previews are consolidated into one compact preview strip; public overlay debug and destructive actions are collapsed by default.
+- CoinGecko is the primary logo source for known CoinGecko IDs. Safe fetches auto-approve through the DB-approved overlay unless the logo is visually rejected, fallback-preferred, BSV/confusing, previously rejected, or already has an admin-approved manual/upload/stronger source. Admin-approved manual/upload choices remain protected.
+- Bulk CoinGecko refresh summaries now track fetched, auto-approved, candidate, skipped-admin-approved, skipped-visual-rejected, missing mapping and error counts. Auto-approved sources carry metadata for “approved · auto” UI states.
+- Metric Output Scanner / Logo Discovery Engine scans active metric outputs (Top 30 default), upserts missing entities, checks coverage, imports safe CoinGecko logos, records QA issue types (`newly_discovered_entity`, `missing_from_logo_db`, `discovered_missing_logo`, `metric_scan_error`, `auto_logo_imported`) and stores the latest summary in `admin_settings`. It runs only from admin/manual operations, not public render.
+- Brand Settings supports real brand asset management for primaryLogo, darkLogo, iconMark, headerLogo, favicon, appleTouchIcon, xAvatar, xBanner and watermarkMark. Manual URLs work without Blob; Blob upload is enabled only with `BLOB_READ_WRITE_TOKEN`, PNG/JPEG/WebP only, SVG disabled, 500 KB normal limit and 2 MB X banner limit, with metadata saved in `brand_settings`.
+- Public brand integration covers siteName, shortName, mainSlogan, heroSubtitle, cardFooterText, createdWithText, metaDescription, header/primary logo, favicon/apple-touch-icon and share-card watermark/footer defaults. DB/API/Blob outages fall back safely.
+- Public homepage hero/header is simplified around “Clean DeFi visuals. Simple explanations. Share-ready cards.” while preserving the existing card generator and data workflows.
+- Admin dashboard surfaces metric discovery summary, brand asset health, upload/Blob state, API status, logo health and action-required items for missing brand assets, missing Blob token, metric scan errors, newly discovered entities and missing approved logos.
+- Workflow rules: Admin DB Setup only after schema/seed changes or explicit DB migration/import; Seed Protection Test after seed changes; metric logo discovery is a manual admin operation.
+
 # v0.10.1 Admin Stability + Public Brand Integration
 
-- The current app version is v0.10.2.
+- The current app version is v0.11.0.
 - Admin pages now use safe DB query wrappers and section-level error panels so expected schema/query/config problems guide the operator instead of showing a generic Application error. Suggested actions include running Admin DB Setup, checking Vercel runtime logs, checking DATABASE_URL and checking recent migrations.
 - Admin DB Setup remains safe and idempotent: run `npm run db:push` and `npm run admin:seed-logos`; the seed imports local vault records and source candidates but preserves existing approved DB logos and does not overwrite admin-approved choices with local manifest, DefiLlama or fallback seed data.
 - Public logo resolution remains approved DB logo URL first, then local source manifest/registry logo, then clean fallback. Overlay failures warn server-side and fall back without breaking public APIs. Alias matching covers common chain/project slug variants including Polygon, BNB Chain, OP Mainnet, XRP Ledger, Filecoin, Render Network, Ethereum, Solana, Arbitrum, Avalanche, Base, Sui and Aptos.
@@ -90,7 +104,7 @@
 
 # v0.10.0 Admin Operations Dashboard
 
-- The current app version is v0.10.2.
+- The current app version is v0.11.0.
 - `/admin` is now the internal operations dashboard with provider status cards, logo health summary cards, action-required inbox items, Blob setup status, latest bulk refresh summaries and quick links to Logo Manager, API Settings and Brand Settings.
 - `/admin/logos` now includes a Logo QA Inbox and classifies each record with issues: `missing_approved_logo`, `needs_review`, `missing_coingecko_id`, `coingecko_fetch_failed`, `fallback_used`, `visual_rejected`, `approved_but_not_used`, `rejected_source`, `upload_disabled`, `missing_cmc_id` and `cmc_fetch_failed`.
 - Logo Manager defaults to name A→Z, has stronger search across name, slug, IDs, provider and category, filter tabs for important issue groups and sorting by name, status, category, source provider, last updated or issues-first.
@@ -226,7 +240,7 @@
 
 # v0.10.2 Admin Operations Hardening
 
-- The current app version is v0.10.2.
+- The current app version is v0.11.0.
 - Admin DB Setup is not run after every admin UI update. Run it only when `db/schema.sql` changed, `scripts/admin-seed-logos.mjs` changed, the DB was reset, or a migration/import is explicitly needed.
 - `admin:seed-logos` preserves admin-approved logo rows with `status = 'approved'` and `approved_logo_url`: approved URL/source, status, provider IDs, visual status, fallback text/color and manual notes are not replaced by local manifest, DefiLlama or fallback seed data. Seed output reports raw/deduped records, preserved approvals, local imports, candidates and skipped overwrites.
 - `npm run admin:test-seed-protection` verifies the seed preservation contract against Polygon, then restores the original row state. A manual GitHub workflow named Admin DB Seed Protection Test runs the same command with `DATABASE_URL`.

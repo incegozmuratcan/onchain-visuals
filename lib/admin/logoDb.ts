@@ -1,7 +1,7 @@
 import "server-only";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
 import { getChainIdentity, getChainLogo } from "@/lib/chainLogos";
-import { slugifyLogoKey } from "@/lib/logos/logoRegistry";
+import { slugifyLogoKey, logoManifestBySlug } from "@/lib/logos/logoRegistry";
 
 export type AdminLogo = {
   id: string;
@@ -97,6 +97,57 @@ export function approvedLogoCandidateSlugs(name: string) {
   return uniqueSlugs([directSlug, ...identitySlugs, ...aliases, ...secondPassAliases]);
 }
 
+
+function metadataObject(metadata: unknown): Record<string, unknown> {
+  if (typeof metadata === "string") {
+    try {
+      const parsed = JSON.parse(metadata);
+      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return metadata && typeof metadata === "object" ? metadata as Record<string, unknown> : {};
+}
+
+function isManualOrUpload(provider: string) {
+  return provider === "manual" || provider === "upload";
+}
+
+export function hasAdminChosenSource(sources: LogoSource[]) {
+  return sources.some((source) => source.status === "approved" && (isManualOrUpload(source.provider) || metadataObject(source.metadata).approvalOrigin === "admin"));
+}
+
+export function sourceWasRejected(sources: LogoSource[], provider: string, imageUrl: string, sourceUrl?: string | null) {
+  return sources.some((source) => source.provider === provider && source.status === "rejected" && source.image_url === imageUrl && (source.source_url || "") === (sourceUrl || ""));
+}
+
+export function canAutoApproveCoinGecko(logo: AdminLogo, sources: LogoSource[], imageUrl: string, sourceUrl?: string | null) {
+  if (!imageUrl) return { ok: false, reason: "missing image URL" };
+  if (logo.visual_status === "rejected") return { ok: false, reason: "visual rejected" };
+  const registry = logoManifestBySlug.get(`${logo.category}:${logo.slug}`);
+  if (registry?.visualRejected || registry?.fallbackPreferredUntilManualAsset) return { ok: false, reason: "visual rejected or fallback preferred" };
+  if (sourceWasRejected(sources, "coingecko", imageUrl, sourceUrl)) return { ok: false, reason: "previously rejected" };
+  if (hasAdminChosenSource(sources)) return { ok: false, reason: "admin-approved source exists" };
+  if (["bsv", "bitcoin-sv", "bsv-blockchain"].includes(logo.slug)) return { ok: false, reason: "confusing BSV visual" };
+  return { ok: true, reason: "safe CoinGecko primary source" };
+}
+
+export async function autoApproveSource(sourceId: string) {
+  await query(
+    `WITH chosen AS (
+       UPDATE logo_sources
+       SET status = 'approved', rejection_reason = NULL, metadata = COALESCE(metadata, '{}'::jsonb) || '{"approvalOrigin":"auto","autoApproved":true}'::jsonb
+       WHERE id = $1 RETURNING *
+     )
+     UPDATE logos
+     SET status = 'approved', approved_source_id = chosen.id, approved_logo_url = COALESCE(chosen.blob_url, chosen.image_url)
+     FROM chosen
+     WHERE logos.id = chosen.logo_id`,
+    [sourceId]
+  );
+}
+
 function withFallback(logo: AdminLogo): AdminLogo {
   return { ...logo, fallback_logo_url: getChainLogo(logo.name) };
 }
@@ -157,7 +208,7 @@ export async function upsertLogoSource(input: {
        UPDATE logo_sources
        SET blob_url = $5,
            metadata = COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb,
-           status = CASE WHEN logo_sources.status = 'approved' THEN logo_sources.status ELSE $7 END,
+           status = CASE WHEN logo_sources.status IN ('approved', 'rejected') THEN logo_sources.status ELSE $7 END,
            rejection_reason = CASE WHEN $7 = 'rejected' THEN logo_sources.rejection_reason ELSE NULL END
        WHERE id IN (SELECT id FROM existing)
        RETURNING *

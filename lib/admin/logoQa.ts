@@ -15,7 +15,10 @@ export type LogoIssue =
   | "rejected_source"
   | "upload_disabled"
   | "missing_cmc_id"
-  | "cmc_fetch_failed";
+  | "cmc_fetch_failed"
+  | "newly_discovered_entity"
+  | "metric_scan_error"
+  | "auto_logo_imported";
 
 export type LogoQaRow = {
   logo: AdminLogo;
@@ -81,6 +84,9 @@ export function classifyLogoQa(logo: AdminLogo, sources: LogoSource[], uploadEna
   const fallbackUsed = !logo.approved_logo_url && Boolean(logo.fallback_logo_url);
 
   if (logo.status === "needs_review" || hasCandidate) issues.push("needs_review");
+  if (logo.notes?.includes("newly_discovered_entity")) issues.push("newly_discovered_entity");
+  if (logo.last_fetch_error?.includes("metric_scan_error")) issues.push("metric_scan_error");
+  if (sources.some((source) => metadataObject(source.metadata).issueType === "auto_logo_imported")) issues.push("auto_logo_imported");
   if (!logo.approved_logo_url) issues.push("missing_approved_logo");
   if (!coinGeckoId) issues.push("missing_coingecko_id");
   if (!coinMarketCapId) issues.push("missing_cmc_id");
@@ -108,6 +114,8 @@ export function classifyLogoQa(logo: AdminLogo, sources: LogoSource[], uploadEna
 }
 
 export function recommendedAction(logo: AdminLogo, issues: LogoIssue[], sources: LogoSource[]) {
+  if (issues.includes("newly_discovered_entity")) return "Add mapping or approve discovered logo";
+  if (issues.includes("metric_scan_error")) return "Review metric scanner error";
   if (issues.includes("db_overlay_not_applied")) return "Check public overlay aliases for this row";
   if (issues.includes("coingecko_fetch_failed")) {
     const errorText = sources.find((source) => source.provider === "coingecko")?.rejection_reason?.toLowerCase() ?? "";

@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.10.2 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.10.2 keeps saved Brand Settings connected to public copy/metadata/card footer only when values are explicitly saved.
+learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.11.0 turns admin into a compact operations console, makes CoinGecko the safe primary auto-approval source, adds metric-driven logo discovery, enables real Blob-backed brand asset uploads, and simplifies the public hero/header while preserving public card generation and fallbacks.
 
 ## Stack
 
@@ -67,7 +67,7 @@ learnDeFi v0.10.2 is not an AI product, not a paid SaaS and not a crypto data te
 
 ## Logo system
 
-v0.10.2 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.11.0 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -177,6 +177,20 @@ npm run check:logos
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
 
+
+## v0.11.0 admin operations + brand system release
+
+- Admin routes `/admin`, `/admin/logos`, `/admin/logos/[slug]`, `/admin/api` and `/admin/brand` are now designed as compact operations screens: sticky toolbars, small badges, dense tables, collapsed debug/danger sections and inline actions replace presentation-style cards.
+- Logo detail pages use a three-column operations layout with current DB state, source table, action panel, one compact preview strip, collapsed public overlay debug and collapsed danger controls.
+- CoinGecko is the primary logo source when an entity has a known CoinGecko ID. Successful CoinGecko fetches auto-approve only when the entity is not visually rejected, not fallback-preferred, not BSV/confusing, the exact source was not previously rejected, and no admin-approved manual/upload/stronger source exists. Manual/upload admin choices always win.
+- CoinGecko bulk refresh summaries now include fetched, auto-approved, candidate, skipped-admin-approved, skipped-visual-rejected, missing mapping and error counts. Approved auto sources are marked with metadata so operators can distinguish “approved · auto” from manual review.
+- Metric Output Scanner / Logo Discovery Engine is available from admin as “Scan active metrics for missing logos.” It scans active revenue, TVL, stablecoin, TPS, block-time, tx-fee, developers, DePIN and tokenized-asset metric outputs up to Top 30, upserts missing DB entities, imports safe CoinGecko logos, records QA issues (`newly_discovered_entity`, `missing_from_logo_db`, `discovered_missing_logo`, `metric_scan_error`, `auto_logo_imported`) and stores the latest summary in `admin_settings`. It never runs during public page render.
+- Brand Settings is now an operational asset manager for `primaryLogo`, `darkLogo`, `iconMark`, `headerLogo`, `favicon`, `appleTouchIcon`, `xAvatar`, `xBanner` and `watermarkMark`. Manual URLs still work without Blob; Blob uploads use `BLOB_READ_WRITE_TOKEN` when configured, allow PNG/JPEG/WebP only, keep SVG upload disabled, enforce 500 KB normal asset limits and a 2 MB X banner limit, and store provider/size/mime/upload metadata in `brand_settings`.
+- Public brand integration uses configured `siteName`, `shortName`, `mainSlogan`, `heroSubtitle`, `cardFooterText`, `createdWithText`, `metaDescription`, optional header/primary logos, favicon/apple-touch-icon URLs and share-card watermark/footer fields with safe defaults when DB is unavailable.
+- The public homepage hero/header is simplified around “Clean DeFi visuals. Simple explanations. Share-ready cards.” with fewer repeated lines and no pill stack.
+- Admin dashboard now surfaces metric scan results, brand asset health, Blob/upload state, API status, logo health and action-required items for missing brand assets, missing Blob token, metric scan errors, newly discovered entities and missing approved logos.
+- API Settings includes CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse, RWA/tokenized sources and Vercel Blob states without exposing secrets.
+- Workflow rules: run **Admin DB Setup** only after schema/seed changes, DB reset or explicit migration/import need; run **Admin DB Seed Protection Test** after seed changes; run metric logo discovery from the admin button when reviewing active metric coverage.
 
 ## v0.10.2 admin operations hardening release
 
