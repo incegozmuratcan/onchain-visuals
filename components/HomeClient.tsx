@@ -145,9 +145,9 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-5 md:px-8 md:py-7">
       <header className="mx-auto mb-6 flex max-w-4xl flex-col items-center text-center">
         <button onClick={goHome} className="inline-flex max-w-[90vw] items-center justify-center transition hover:opacity-80" aria-label={`${brand.siteName} home`}>
-          {heroLogoSrc ? <img src={heroLogoSrc} alt={brand.siteName} onError={() => setHeroLogoSrc("")} className="h-auto max-h-20 w-auto max-w-[78vw] object-contain md:max-h-28 md:max-w-[420px]" /> : <span className="font-serif text-4xl font-semibold tracking-[-0.04em] text-slate-950 md:text-6xl">{brand.siteName}</span>}
+          {heroLogoSrc ? <img src={heroLogoSrc} alt={brand.siteName} onError={() => setHeroLogoSrc("")} className="h-auto max-h-20 w-auto max-w-[78vw] object-contain md:max-h-28" style={{ transform: `translateX(${brand.heroLogoOffsetX}px)`, maxWidth: `${brand.heroLogoMaxWidth}px`, marginBottom: `${brand.heroLogoSpacing}px` }} /> : <span className="font-serif text-4xl font-semibold tracking-[-0.04em] text-slate-950 md:text-6xl">{brand.siteName}</span>}
         </button>
-        <h1 className="mx-auto mt-4 max-w-2xl text-balance text-lg font-medium leading-7 tracking-[-0.02em] text-slate-700 md:text-xl md:leading-8">Clean onchain visuals. Simple explanations. Share-ready cards.</h1>
+        <h1 className="mx-auto max-w-2xl text-balance text-lg font-medium leading-7 tracking-[-0.02em] text-slate-700 md:text-xl md:leading-8">{brand.mainSlogan || "Clean onchain visuals. Simple explanations. Share-ready cards."}</h1>
         {brand.heroSubtitle && brand.heroSubtitle !== brand.mainSlogan && brand.heroSubtitle !== brand.supportingCopy ? <p className="mx-auto mt-2 max-w-xl text-balance text-xs font-medium leading-5 text-slate-400">
           {brand.heroSubtitle}
         </p> : null}

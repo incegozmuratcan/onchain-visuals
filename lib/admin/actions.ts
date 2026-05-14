@@ -8,6 +8,7 @@ import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
+import { deleteAdminApiSecret, providerEnvVar, resolveApiSecret, saveAdminApiSecret, setAdminApiSecretTestResult, type ApiProviderId } from "@/lib/admin/apiSecrets";
 
 async function ensureLogoFromForm(formData: FormData) {
   await requireAdmin();
@@ -18,6 +19,11 @@ async function ensureLogoFromForm(formData: FormData) {
 }
 
 type CoinGeckoRefreshMode = "smart" | "retry-errors" | "force-all";
+
+function adminNotice(path: string, tone: "success" | "error" | "warning", message: string): never {
+  const params = new URLSearchParams({ notice: tone, message: message.slice(0, 180) });
+  redirect(`${path}?${params.toString()}`);
+}
 
 function noticeUrl(slug: string, tone: "success" | "error" | "warning", message: string) {
   const params = new URLSearchParams({ notice: tone, message: message.slice(0, 180) });
@@ -145,19 +151,19 @@ export async function addDefiLlamaAction(formData: FormData) {
   redirectLogoNotice(logo.slug, "success", "DefiLlama candidate added.");
 }
 
-function coinGeckoHeaders(requireKey = false) {
-  const apiKey = process.env.COINGECKO_DEMO_API_KEY;
-  if (requireKey && !apiKey) throw new Error("COINGECKO_DEMO_API_KEY is missing. Add it as a server secret before bulk refreshing CoinGecko logos.");
+async function coinGeckoHeaders(requireKey = false) {
+  const resolved = await resolveApiSecret("coingecko");
+  if (requireKey && !resolved.value) throw new Error("CoinGecko API key is missing. Add an admin-managed key or COINGECKO_DEMO_API_KEY before bulk refreshing logos.");
   return {
     accept: "application/json",
-    ...(apiKey ? { "x-cg-demo-api-key": apiKey } : {}),
+    ...(resolved.value ? { "x-cg-demo-api-key": resolved.value } : {}),
   };
 }
 
 async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
   const response = await fetch(
     `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`,
-    { headers: coinGeckoHeaders(requireKey) }
+    { headers: await coinGeckoHeaders(requireKey) }
   );
   if (!response.ok) throw new Error(`CoinGecko lookup for ${coinId} failed (${response.status}).`);
   const json = await response.json();
@@ -281,8 +287,8 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
   await requireAdmin();
   const mode = parseCoinGeckoRefreshMode(formData);
   const counts = emptyCoinGeckoCounts();
-  if (!process.env.COINGECKO_DEMO_API_KEY) {
-    const errors = ["COINGECKO_DEMO_API_KEY is missing. Add it as a server secret before bulk refreshing CoinGecko logos."];
+  if (!(await resolveApiSecret("coingecko")).value) {
+    const errors = ["CoinGecko API key is missing. Add it from API Settings or COINGECKO_DEMO_API_KEY before bulk refreshing logos."];
     await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", 0, 0, errors, { mode, ...counts, errors: errors.length }));
     revalidatePath("/admin");
     revalidatePath("/admin/logos");
@@ -442,18 +448,18 @@ export async function applySafeCoinGeckoCandidatesAction() {
   redirect(`/admin/logos?candidateApply=1&checkedCandidates=${counts.checkedCandidates}&autoApproved=${counts.autoApproved}&skipped=${counts.skipped}`);
 }
 
-function coinMarketCapHeaders() {
-  const apiKey = process.env.COINMARKETCAP_API_KEY;
-  if (!apiKey) throw new Error("COINMARKETCAP_API_KEY is missing. Add it as a server secret before using CoinMarketCap logo fetch.");
+async function coinMarketCapHeaders() {
+  const resolved = await resolveApiSecret("coinmarketcap");
+  if (!resolved.value) throw new Error("CoinMarketCap API key is missing. Add it from API Settings or COINMARKETCAP_API_KEY before using CoinMarketCap logo fetch.");
   return {
     accept: "application/json",
-    "X-CMC_PRO_API_KEY": apiKey,
+    "X-CMC_PRO_API_KEY": resolved.value,
   };
 }
 
 async function fetchCoinMarketCapLogoSource(cmcId: string) {
   const response = await fetch(`https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?id=${encodeURIComponent(cmcId)}`, {
-    headers: coinMarketCapHeaders(),
+    headers: await coinMarketCapHeaders(),
   });
   if (!response.ok) throw new Error(`CoinMarketCap lookup for ${cmcId} failed (${response.status}).`);
   const json = await response.json();
@@ -477,7 +483,7 @@ async function fetchCoinMarketCapLogoSource(cmcId: string) {
 export async function addCoinMarketCapAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const cmcId = String(formData.get("coinMarketCapId") || logo.coinmarketcap_id || "").trim();
-  if (!process.env.COINMARKETCAP_API_KEY) redirectLogoNotice(logo.slug, "warning", "CoinMarketCap API key missing; fetch is disabled.");
+  if (!(await resolveApiSecret("coinmarketcap")).value) redirectLogoNotice(logo.slug, "warning", "CoinMarketCap API key missing; fetch is disabled. Add it in API Settings.");
   if (!cmcId) redirectLogoNotice(logo.slug, "warning", "Add CoinMarketCap ID first.");
   try {
     const source = await fetchCoinMarketCapLogoSource(cmcId);
@@ -497,8 +503,8 @@ export async function addCoinMarketCapAction(formData: FormData) {
 
 export async function bulkRefreshCoinMarketCapLogosAction() {
   await requireAdmin();
-  if (!process.env.COINMARKETCAP_API_KEY) {
-    const errors = ["COINMARKETCAP_API_KEY is missing. Add it as a server secret before bulk refreshing CoinMarketCap logos."];
+  if (!(await resolveApiSecret("coinmarketcap")).value) {
+    const errors = ["CoinMarketCap API key is missing. Add it in API Settings or COINMARKETCAP_API_KEY before bulk refreshing logos."];
     await setAdminSetting("last_cmc_bulk_refresh_summary", bulkSummary("CoinMarketCap", 0, 0, errors));
     revalidatePath("/admin");
     revalidatePath("/admin/logos");
@@ -628,9 +634,9 @@ export async function markNeedsReviewAction(formData: FormData) {
 
 export async function saveBrandSettingsAction(formData: FormData) {
   await requireAdmin();
-  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription"];
+  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "heroLogoOffsetX", "heroLogoMaxWidth", "heroLogoSpacing"];
   const assetFields = ["primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
-  const settings: Record<string, unknown> = Object.fromEntries(textFields.map((field) => [field, String(formData.get(field) || "").trim()]));
+  const settings: Record<string, unknown> = Object.fromEntries(textFields.map((field) => [field, String(formData.get(field) || "").trim().replace(/on-chain/gi, "onchain")]));
   const assetMetadata: Record<string, Record<string, unknown>> = {};
   const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
   try {
@@ -727,4 +733,66 @@ export async function rejectLogoAction(formData: FormData) {
   revalidatePath("/");
   revalidatePath("/api/chain-revenue");
   redirectLogoNotice(slug, "success", "Logo entity rejected.");
+}
+
+
+function parseApiProvider(value: FormDataEntryValue | null): ApiProviderId | null {
+  const provider = String(value || "").trim();
+  return provider === "coingecko" || provider === "coinmarketcap" || provider === "defillama" ? provider : null;
+}
+
+export async function saveApiKeyAction(formData: FormData) {
+  await requireAdmin();
+  const provider = parseApiProvider(formData.get("provider"));
+  if (!provider) adminNotice("/admin/api", "error", "Unknown API provider.");
+  try {
+    await saveAdminApiSecret(provider, String(formData.get("apiKey") || ""));
+    revalidatePath("/admin/api");
+    adminNotice("/admin/api", "success", "API key saved securely.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice("/admin/api", "warning", expectedActionMessage(error, "API key could not be saved."));
+  }
+}
+
+export async function deleteApiKeyAction(formData: FormData) {
+  await requireAdmin();
+  const provider = parseApiProvider(formData.get("provider"));
+  if (!provider) adminNotice("/admin/api", "error", "Unknown API provider.");
+  try {
+    await deleteAdminApiSecret(provider);
+    revalidatePath("/admin/api");
+    adminNotice("/admin/api", "success", "API key deleted.");
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice("/admin/api", "error", expectedActionMessage(error, "API key could not be deleted."));
+  }
+}
+
+export async function testApiKeyAction(formData: FormData) {
+  await requireAdmin();
+  const provider = parseApiProvider(formData.get("provider"));
+  if (!provider) adminNotice("/admin/api", "error", "Unknown API provider.");
+  try {
+    const resolved = await resolveApiSecret(provider);
+    if (provider !== "defillama" && !resolved.value) throw new Error(`${providerEnvVar(provider)} is missing.`);
+    let response: Response;
+    if (provider === "coingecko") {
+      response = await fetch("https://api.coingecko.com/api/v3/ping", { headers: await coinGeckoHeaders(false), cache: "no-store" });
+    } else if (provider === "coinmarketcap") {
+      response = await fetch("https://pro-api.coinmarketcap.com/v1/key/info", { headers: await coinMarketCapHeaders(), cache: "no-store" });
+    } else {
+      response = await fetch("https://api.llama.fi/protocols", { headers: { accept: "application/json", ...(resolved.value ? { authorization: `Bearer ${resolved.value}` } : {}) }, cache: "no-store" });
+    }
+    if (!response.ok) throw new Error(`${provider} test failed (${response.status}).`);
+    if (resolved.source === "admin") await setAdminApiSecretTestResult(provider, true, null);
+    revalidatePath("/admin/api");
+    adminNotice("/admin/api", "success", "API key test succeeded.");
+  } catch (error) {
+    const providerForUpdate = parseApiProvider(formData.get("provider"));
+    const message = expectedActionMessage(error, "API key test failed.");
+    if (providerForUpdate) await setAdminApiSecretTestResult(providerForUpdate, false, message.slice(0, 180));
+    revalidatePath("/admin/api");
+    adminNotice("/admin/api", "error", message);
+  }
 }

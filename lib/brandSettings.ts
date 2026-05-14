@@ -21,11 +21,20 @@ export const defaultBrandSettings: PublicBrandSettings = {
   xAvatar: "",
   xBanner: "",
   watermarkMark: "",
+  heroLogoOffsetX: "0",
+  heroLogoMaxWidth: "420",
+  heroLogoSpacing: "16",
   assetMetadata: {},
 };
 
 function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function cleanNumberString(value: unknown, fallback: string, min: number, max: number) {
+  const raw = Number(cleanString(value));
+  if (!Number.isFinite(raw)) return fallback;
+  return String(Math.max(min, Math.min(max, Math.round(raw))));
 }
 
 function validAssetUrl(value: unknown) {
@@ -57,6 +66,9 @@ export function parseBrandSettings(raw: string | null): PublicBrandSettings {
       xAvatar: validAssetUrl(parsed.xAvatar),
       xBanner: validAssetUrl(parsed.xBanner),
       watermarkMark: validAssetUrl(parsed.watermarkMark),
+      heroLogoOffsetX: cleanNumberString(parsed.heroLogoOffsetX, defaultBrandSettings.heroLogoOffsetX, -120, 120),
+      heroLogoMaxWidth: cleanNumberString(parsed.heroLogoMaxWidth, defaultBrandSettings.heroLogoMaxWidth, 180, 760),
+      heroLogoSpacing: cleanNumberString(parsed.heroLogoSpacing, defaultBrandSettings.heroLogoSpacing, 0, 80),
       assetMetadata: parsed.assetMetadata && typeof parsed.assetMetadata === "object" ? parsed.assetMetadata as PublicBrandSettings["assetMetadata"] : {},
       savedAt: cleanString(parsed.savedAt) || undefined,
     };

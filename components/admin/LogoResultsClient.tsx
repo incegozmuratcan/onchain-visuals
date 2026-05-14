@@ -41,6 +41,14 @@ function IssueDot({ issue }: { issue: string }) {
   return <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500"><span className={`h-1.5 w-1.5 rounded-full ${tone === "red" ? "bg-red-500" : tone === "amber" ? "bg-amber-400" : "bg-slate-300"}`} />{issue.replaceAll("_", " ")}</span>;
 }
 
+function rowMatchesFilter(row: LogoResultRow, filter: string) {
+  if (filter === "all") return true;
+  if (filter === "issues") return row.issues.some((issue) => ACTION_ISSUES.has(issue));
+  if (filter === "provider_errors") return row.issues.some((issue) => issue === "coingecko_fetch_failed" || issue === "cmc_fetch_failed" || issue === "coingecko_id_needs_review");
+  if (filter === "approved") return row.status === "approved" && !row.issues.includes("missing_approved_logo");
+  return row.issues.includes(filter);
+}
+
 function LogoRow({ row }: { row: LogoResultRow }) {
   const preview = safeUrl(row.approvedLogoUrl) || safeUrl(row.fallbackLogoUrl);
   const displayIssue = row.issues.find((issue) => ACTION_ISSUES.has(issue));
@@ -54,16 +62,16 @@ function LogoRow({ row }: { row: LogoResultRow }) {
   </Link>;
 }
 
-export function LogoResultsClient({ rows, initialQuery = "", defaultLimit = PAGE_SIZE }: { rows: LogoResultRow[]; initialQuery?: string; defaultLimit?: number }) {
+export function LogoResultsClient({ rows, initialQuery = "", defaultLimit = PAGE_SIZE, activeFilter = "issues" }: { rows: LogoResultRow[]; initialQuery?: string; defaultLimit?: number; activeFilter?: string }) {
   const [query, setQuery] = useState(initialQuery);
   const [limit, setLimit] = useState(defaultLimit);
   const normalized = query.trim().toLowerCase();
-  const filteredRows = useMemo(() => normalized ? rows.filter((row) => row.searchText.includes(normalized)) : rows, [rows, normalized]);
-  const visibleRows = filteredRows.slice(0, normalized ? Math.max(limit, 20) : limit);
+  const filteredRows = useMemo(() => normalized ? rows.filter((row) => row.searchText.includes(normalized)) : rows.filter((row) => rowMatchesFilter(row, activeFilter)), [rows, normalized, activeFilter]);
+  const visibleRows = filteredRows.slice(0, limit);
   return <div>
     <div className="border-b border-slate-100 p-2">
       <input value={query} onChange={(event) => { setQuery(event.target.value); setLimit(defaultLimit); }} className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none transition focus:border-slate-400" placeholder="Type to filter name, slug, category, CG/CMC ID, provider, source, issue" />
-      <div className="mt-1 text-[11px] font-bold text-slate-400">{filteredRows.length} match{filteredRows.length === 1 ? "" : "es"} · live filter</div>
+      <div className="mt-1 text-[11px] font-bold text-slate-400">{filteredRows.length} match{filteredRows.length === 1 ? "" : "es"} · {normalized ? "global live search ignores active filter" : "default action-needed working set"}</div>
     </div>
     <div className="hidden grid-cols-[minmax(190px,1.25fr)_74px_92px_132px_112px] gap-2 border-b border-slate-100 bg-slate-50 px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid"><div>Logo</div><div>Category</div><div>Status</div><div>Source</div><div>Issue</div></div>
     {visibleRows.map((row) => <LogoRow key={row.id} row={row} />)}
