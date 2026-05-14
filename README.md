@@ -12,7 +12,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.10.1 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.10.1 connects saved Brand Settings to public copy/metadata/card footer only when values are explicitly saved.
+learnDeFi v0.10.2 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.10.2 keeps saved Brand Settings connected to public copy/metadata/card footer only when values are explicitly saved.
 
 ## Stack
 
@@ -67,7 +67,7 @@ learnDeFi v0.10.1 is not an AI product, not a paid SaaS and not a crypto data te
 
 ## Logo system
 
-v0.10.1 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
+v0.10.2 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
 Local vault layout:
 
@@ -118,7 +118,7 @@ Logos are trademarks of their respective owners and are used for identification 
 
 ## Admin Logo Manager
 
-v0.10.1 adds a server-only admin foundation for reviewing logo candidates without changing the public card UI beyond approved logo resolution. The public API overlays DB-approved logo URLs onto card rows when `DATABASE_URL` is configured; if Postgres is unavailable, public cards keep using the existing local logo fallback chain and do not crash.
+v0.10.2 hardens a server-only admin foundation for reviewing logo candidates without changing the public card UI beyond approved logo resolution. The public API overlays DB-approved logo URLs onto card rows when `DATABASE_URL` is configured; if Postgres is unavailable, public cards keep using the existing local logo fallback chain and do not crash.
 
 Admin routes:
 
@@ -177,6 +177,20 @@ npm run check:logos
 
 The internal `/logo-audit` route is the visual decision tool. It shows canonical name, slug, category, aliases, required-active status, current rendered visual, source candidates, fallback state, visual override reasons, final logo previews at 24px/32px/48px, ShareCard row preview, light/dark surfaces, local path, source provider, source URL/note, download time, short SHA, approval status, quality, fit/scale/padding, warnings, filters and source candidate links.
 
+
+## v0.10.2 admin operations hardening release
+
+- Admin DB Setup is **not** an after-every-UI-update workflow. Run it only when `db/schema.sql` changed, `scripts/admin-seed-logos.mjs` changed, the admin DB was reset, or a migration/import is explicitly needed.
+- `npm run admin:seed-logos` now guarantees that rows with `status = 'approved'` and an `approved_logo_url` preserve the admin-selected URL/source, status, provider IDs, visual state, fallback settings and manual notes. The seed may add missing candidates/metadata but must not downgrade or replace admin-approved CoinGecko/manual/upload choices with local manifest or DefiLlama data.
+- `npm run admin:test-seed-protection` runs a safe DB-level Polygon preservation check, restores the original row state, and is also available as the manual **Admin DB Seed Protection Test** workflow.
+- Logo QA Inbox is the day-to-day operating view for missing approved logos, missing CoinGecko/CoinMarketCap IDs, provider errors, fallback usage, visual rejections, rejected sources and overlay issues. Search covers names, slugs, categories, provider IDs, providers, source URLs and issue types; sorting includes issues first, status, category, provider, last updated and last fetch time.
+- Logo detail pages are the main fixing tool: they show current DB state, approved/fallback/public-card previews, source metadata, provider ID forms, manual URL/DefiLlama/CoinGecko/CoinMarketCap candidate actions, fallback controls, visual-rejection controls and public overlay debug slugs.
+- Bulk CoinGecko/CoinMarketCap refreshes store partial-success summaries in `admin_settings`, revalidate admin pages and translate 429/404/401/403/network failures into operator guidance instead of crashing pages.
+- Provider ID rule: DB provider ID > mapping file provider ID > missing mapping. DB values override code mappings so mapping fixes do not require code changes.
+- Public DB logo overlay order remains DB-approved logo URL first, then local vault/manifest logo, then clean fallback. DB failures log safe server warnings and do not break public cards; alias matching covers Polygon, BNB Chain, OP Mainnet, XRP Ledger, Render Network, Filecoin, Hyperliquid L1, MegaETH, ENI and BSV Blockchain variants.
+- Brand Settings remain connected to public site text/metadata/share-card footer with learnDeFi defaults for empty fields. Save feedback confirms “Brand settings saved,” “Public site is using these values,” and Blob-disabled asset upload status.
+- API Settings shows CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized source state, key presence yes/no, last success/error, metrics, exact missing env vars and docs links without exposing secrets.
+- Blob/upload behavior is explicit: without `BLOB_READ_WRITE_TOKEN`, uploads are disabled but URL candidates, local vault imports, manual URL save and brand text save still work. SVG upload remains disabled until sanitization exists; raster upload is constrained by type and size.
 
 ## v0.10.1 admin stability release
 

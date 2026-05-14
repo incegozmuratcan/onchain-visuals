@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFetchState, updateLogoProviderId, upsertLogo, upsertLogoSource } from "@/lib/admin/logoDb";
+import { addLogoSource, approveSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource } from "@/lib/admin/logoDb";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 
@@ -16,6 +16,7 @@ async function ensureLogoFromForm(formData: FormData) {
 }
 
 function bulkSummary(provider: string, refreshed: number, missingMappings: number, errors: string[]) {
+  const rateLimitWarnings = errors.filter((error) => error.includes("429") || error.toLowerCase().includes("rate limit"));
   return JSON.stringify({
     provider,
     timestamp: new Date().toISOString(),
@@ -23,7 +24,17 @@ function bulkSummary(provider: string, refreshed: number, missingMappings: numbe
     missingMappings,
     errors: errors.length,
     firstErrors: errors.slice(0, 5),
+    rateLimitWarnings: rateLimitWarnings.slice(0, 5),
   });
+}
+
+function explainProviderError(provider: string, error: unknown) {
+  const message = error instanceof Error ? error.message : `Unknown ${provider} error`;
+  if (message.includes("429")) return `${message} — Retry later / rate limited.`;
+  if (message.includes("404")) return `${message} — Fix provider ID or use manual URL.`;
+  if (message.includes("401") || message.includes("403")) return `${message} — Check API key.`;
+  if (message.toLowerCase().includes("fetch failed") || message.toLowerCase().includes("network")) return `${message} — Provider/network error.`;
+  return message;
 }
 
 export async function setupAdminAction(formData: FormData) {
@@ -143,7 +154,7 @@ export async function bulkRefreshCoinGeckoLogosAction() {
   const errors: string[] = [];
 
   for (const logo of logos) {
-    const coinId = getCoinGeckoLogoId(logo.slug);
+    const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
     if (!coinId) {
       missing += 1;
       continue;
@@ -165,7 +176,7 @@ export async function bulkRefreshCoinGeckoLogosAction() {
       await updateLogoFetchState(logo.slug, "coingecko", null);
       refreshed += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown CoinGecko error";
+      const message = explainProviderError("CoinGecko", error);
       errors.push(`${logo.slug}: ${message}`);
       await updateLogoFetchState(logo.slug, "coingecko", message);
     }
@@ -264,7 +275,7 @@ export async function bulkRefreshCoinMarketCapLogosAction() {
       await updateLogoFetchState(logo.slug, "coinmarketcap", null);
       refreshed += 1;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown CoinMarketCap error";
+      const message = explainProviderError("CoinMarketCap", error);
       errors.push(`${logo.slug}: ${message}`);
       await updateLogoFetchState(logo.slug, "coinmarketcap", message);
     }
@@ -300,11 +311,46 @@ export async function uploadLogoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) throw new Error("Choose a logo file to upload.");
+  const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
+  if (!allowedTypes.has(file.type)) throw new Error("Only PNG, JPEG or WebP raster logo uploads are enabled. SVG upload remains disabled until sanitization is implemented.");
+  if (file.size > 1_000_000) throw new Error("Logo upload is too large. Use a raster file under 1 MB.");
   const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
   const blobUrl = await uploadToBlob(file, `admin-logos/${logo.slug}/${Date.now()}-${safeName}`);
   await addLogoSource({ logoId: logo.id, provider: "upload", imageUrl: blobUrl, blobUrl, sourceUrl: null, metadata: { fileName: file.name, size: file.size, type: file.type } });
   revalidatePath(`/admin/logos/${logo.slug}`);
   redirect(`/admin/logos/${logo.slug}`);
+}
+
+export async function saveProviderIdsAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  await updateLogoProviderId(slug, "coingecko", String(formData.get("coinGeckoId") || "").trim());
+  await updateLogoProviderId(slug, "coinmarketcap", String(formData.get("coinMarketCapId") || "").trim());
+  revalidatePath(`/admin/logos/${slug}`);
+  revalidatePath("/admin/logos");
+}
+
+export async function saveFallbackAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  await updateLogoFallback(slug, String(formData.get("fallbackText") || "").trim(), String(formData.get("fallbackColor") || "").trim());
+  revalidatePath(`/admin/logos/${slug}`);
+}
+
+export async function markVisualRejectedAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  await updateLogoStatus(slug, "needs_review", "rejected", String(formData.get("reason") || "Visual rejected in admin review"));
+  revalidatePath(`/admin/logos/${slug}`);
+  revalidatePath("/admin/logos");
+}
+
+export async function markNeedsReviewAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  await updateLogoStatus(slug, "needs_review", null, "Marked needs review in admin operations.");
+  revalidatePath(`/admin/logos/${slug}`);
+  revalidatePath("/admin/logos");
 }
 
 export async function saveBrandSettingsAction(formData: FormData) {

@@ -11,6 +11,7 @@ export type BulkRefreshSummary = {
   missingMappings: number;
   errors: number;
   firstErrors: string[];
+  rateLimitWarnings: string[];
 };
 
 export type ApiProviderCard = {
@@ -23,6 +24,8 @@ export type ApiProviderCard = {
   metrics: string[];
   docsUrl: string;
   notes: string;
+  nextAction: string;
+  envVars: string[];
 };
 
 export function parseBulkRefreshSummary(raw: string | null): BulkRefreshSummary | null {
@@ -37,6 +40,7 @@ export function parseBulkRefreshSummary(raw: string | null): BulkRefreshSummary 
       missingMappings: Number(parsed.missingMappings ?? 0),
       errors: Number(parsed.errors ?? 0),
       firstErrors: Array.isArray(parsed.firstErrors) ? parsed.firstErrors.map(String) : [],
+      rateLimitWarnings: Array.isArray((parsed as any).rateLimitWarnings) ? (parsed as any).rateLimitWarnings.map(String) : [],
     };
   } catch {
     return null;
@@ -75,6 +79,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["Admin logo candidates", "Bulk logo refresh"],
       docsUrl: "https://docs.coingecko.com/reference/introduction",
       notes: coinGeckoKey ? "Server-side demo API key configured." : "Manual single fetch can use public API; bulk refresh is disabled without a key.",
+      nextAction: coinGeckoKey ? "Use Logo Manager bulk refresh; fix per-logo IDs where 404s appear." : "Set COINGECKO_DEMO_API_KEY to enable safe bulk refresh.",
+      envVars: ["COINGECKO_DEMO_API_KEY"],
     },
     {
       id: "coinmarketcap",
@@ -86,6 +92,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["Admin logo candidates", "Logo QA fallback source"],
       docsUrl: "https://coinmarketcap.com/api/documentation/v1/",
       notes: coinMarketCapKey ? "Server-side key configured; public runtime never receives it." : "Disabled until COINMARKETCAP_API_KEY is configured.",
+      nextAction: coinMarketCapKey ? "Use CMC only for candidates; approve only copied/stored URLs." : "Set COINMARKETCAP_API_KEY before running CMC fetches.",
+      envVars: ["COINMARKETCAP_API_KEY"],
     },
     {
       id: "defillama",
@@ -95,6 +103,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["Revenue", "Stablecoin supply", "TVL", "Tokenized asset views", "Logo candidates"],
       docsUrl: "https://defillama.com/docs/api",
       notes: "Public no-key source. Admin records candidate URLs; public cards keep existing adapter behavior.",
+      nextAction: "Use detail pages to add DefiLlama candidates; do not auto-approve confusing fallbacks.",
+      envVars: [],
     },
     {
       id: "chainspect",
@@ -104,6 +114,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["TPS", "Block time", "Avg tx fee", "Developers"],
       docsUrl: "https://chainspect.app/",
       notes: chainspectKey ? "TPS provider key is configured." : "Infrastructure metrics should use existing fallback/snapshot behavior when disabled.",
+      nextAction: chainspectKey ? "Monitor TPS/block-time cards for parser errors." : "Set CHAINSPECT_API_KEY or CHAINSPECT_KEY if private/API access is needed.",
+      envVars: ["CHAINSPECT_API_KEY", "CHAINSPECT_KEY"],
     },
     {
       id: "depinpulse",
@@ -113,6 +125,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["DePIN 24H revenue", "DePIN 30D annualized revenue"],
       docsUrl: "https://www.depinpulse.app/",
       notes: "No admin key required for current adapter.",
+      nextAction: "No key action required; monitor source markup/API changes.",
+      envVars: [],
     },
     {
       id: "rwa",
@@ -122,6 +136,8 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       metrics: ["BUIDL marketcap", "BENJI marketcap"],
       docsUrl: "https://defillama.com/yields/stablecoins",
       notes: "Uses existing public source adapters; no browser-exposed secret required.",
+      nextAction: "No admin secret required for current tokenized asset views.",
+      envVars: [],
     },
   ];
 }

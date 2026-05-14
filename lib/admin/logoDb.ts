@@ -45,13 +45,15 @@ export function logoSlug(name: string) {
 const ADMIN_LOGO_SLUG_ALIASES: Record<string, string[]> = {
   polygon: ["matic-network"],
   "matic-network": ["polygon"],
-  bsc: ["bnb-chain", "binance-smart-chain"],
-  "bnb-chain": ["bsc", "binance-smart-chain"],
+  bsc: ["bnb-chain", "binance-smart-chain", "binancecoin"],
+  "bnb-chain": ["bsc", "binance-smart-chain", "binancecoin"],
+  binancecoin: ["bnb-chain", "bsc"],
   "binance-smart-chain": ["bsc", "bnb-chain"],
   optimism: ["op-mainnet"],
   "op-mainnet": ["optimism"],
-  ripple: ["xrp-ledger"],
-  "xrp-ledger": ["ripple"],
+  ripple: ["xrp-ledger", "xrp"],
+  "xrp-ledger": ["ripple", "xrp"],
+  xrp: ["ripple", "xrp-ledger"],
   filecoin: ["filecoin-chain"],
   "filecoin-chain": ["filecoin"],
   "render-network": ["render"],
@@ -71,6 +73,15 @@ const ADMIN_LOGO_SLUG_ALIASES: Record<string, string[]> = {
   "sui-network": ["sui"],
   aptos: ["aptos-network"],
   "aptos-network": ["aptos"],
+  hyperliquid: ["hyperliquid-l1"],
+  "hyperliquid-l1": ["hyperliquid"],
+  megaeth: ["mega-eth"],
+  "mega-eth": ["megaeth"],
+  eni: ["eni-token"],
+  "eni-token": ["eni"],
+  "bsv-blockchain": ["bsv", "bitcoin-sv"],
+  bsv: ["bsv-blockchain", "bitcoin-sv"],
+  "bitcoin-sv": ["bsv-blockchain", "bsv"],
 };
 
 function uniqueSlugs(slugs: string[]) {
@@ -183,7 +194,18 @@ export async function updateLogoFetchState(slug: string, provider: string, error
 
 export async function updateLogoProviderId(slug: string, provider: "coingecko" | "coinmarketcap", providerId: string) {
   const column = provider === "coingecko" ? "coingecko_id" : "coinmarketcap_id";
-  await query(`UPDATE logos SET ${column} = $2 WHERE slug = $1`, [slug, providerId]);
+  await query(`UPDATE logos SET ${column} = NULLIF($2, '') WHERE slug = $1`, [slug, providerId]);
+}
+
+export async function updateLogoFallback(slug: string, fallbackText: string, fallbackColor: string) {
+  await query("UPDATE logos SET fallback_text = NULLIF($2, ''), fallback_color = NULLIF($3, '') WHERE slug = $1", [slug, fallbackText, fallbackColor]);
+}
+
+export async function updateLogoStatus(slug: string, status: "needs_review" | "approved" | "rejected", visualStatus?: string | null, notes?: string | null) {
+  await query(
+    "UPDATE logos SET status = $2, visual_status = COALESCE($3, visual_status), notes = COALESCE(NULLIF($4, ''), notes) WHERE slug = $1",
+    [slug, status, visualStatus ?? null, notes ?? null]
+  );
 }
 
 export async function approveSource(sourceId: string) {
