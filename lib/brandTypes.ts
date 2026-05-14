@@ -1,0 +1,20 @@
+export type PublicBrandSettings = {
+  siteName: string;
+  shortName: string;
+  mainSlogan: string;
+  heroSubtitle: string;
+  supportingCopy: string;
+  cardFooterText: string;
+  createdWithText: string;
+  metaDescription: string;
+  primaryLogo: string;
+  darkLogo: string;
+  iconMark: string;
+  headerLogo: string;
+  favicon: string;
+  appleTouchIcon: string;
+  xAvatar: string;
+  xBanner: string;
+  watermarkMark: string;
+  savedAt?: string;
+};

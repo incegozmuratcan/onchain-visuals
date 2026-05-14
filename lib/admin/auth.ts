@@ -100,7 +100,7 @@ export async function isAdminConfigured() {
     return (await readAdminPasswordHashLength()) > 0;
   } catch (error) {
     console.error("Admin configured check failed", { errorMessage: safeErrorMessage(error) });
-    throw error;
+    return false;
   }
 }
 
@@ -109,8 +109,13 @@ export async function createAdminPassword(password: string) {
 }
 
 export async function validateAdminPassword(password: string) {
-  const stored = await getSetting("admin_password_hash");
-  return stored ? verifyPassword(password, stored) : false;
+  try {
+    const stored = await getSetting("admin_password_hash");
+    return stored ? verifyPassword(password, stored) : false;
+  } catch (error) {
+    console.error("Admin login DB check failed", { errorMessage: safeErrorMessage(error) });
+    return false;
+  }
 }
 
 export function createSession() {

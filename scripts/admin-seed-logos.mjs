@@ -257,7 +257,7 @@ WITH seed AS (
       WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND (logos.approved_source_id IS NOT NULL OR logos.approved_logo_url IS NOT NULL) THEN logos.approved_source_id
       ELSE logos.approved_source_id
     END,
-    notes = EXCLUDED.notes
+    notes = NULLIF(CONCAT_WS(E'\n', NULLIF(logos.notes, ''), NULLIF(EXCLUDED.notes, '')), '')
   RETURNING id, slug
 ), source_seed AS (
   SELECT
@@ -299,7 +299,7 @@ WITH seed AS (
   ORDER BY s.logo_id, s.provider, s.image_url, COALESCE(s.source_url, ''), s.id
 ), updated_sources AS (
   UPDATE logo_sources s
-  SET blob_url = NULLIF(seed.blob_url, ''),
+  SET blob_url = COALESCE(s.blob_url, NULLIF(seed.blob_url, '')),
       metadata = COALESCE(s.metadata, '{}'::jsonb) || COALESCE(seed.metadata, '{}'::jsonb),
       status = CASE WHEN s.status = 'approved' THEN s.status ELSE seed.status END,
       rejection_reason = CASE WHEN s.status = 'approved' THEN s.rejection_reason ELSE seed.rejection_reason END
@@ -343,7 +343,8 @@ SELECT
   (SELECT count(*) FROM seed) AS seed_records_seen,
   (SELECT count(*) FROM existing_logo_state WHERE has_admin_approved_logo) AS existing_approved_logos_preserved,
   (SELECT count(*) FROM approved_logos) AS new_approved_local_logos_imported,
-  (SELECT count(*) FROM inserted_sources WHERE status = 'candidate') AS candidates_added,
+  (SELECT count(*) FROM inserted_sources) AS source_candidates_added,
+  (SELECT count(*) FROM source_seed WHERE has_admin_approved_logo AND status = 'candidate') AS skipped_approved_overwrites,
   (SELECT count(*) FROM deduped_source_seed) AS local_sources_seen;
 `;
 
