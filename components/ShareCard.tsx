@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
+import type { PublicBrandSettings } from "@/lib/brandTypes";
 
 function rowLayoutClass(count: number) {
   if (count > 15) return "mt-6 grid gap-2";
@@ -58,6 +59,7 @@ function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact
 }
 
 export function ShareCard({
+  brand,
   rows,
   updatedAt,
   source,
@@ -69,6 +71,7 @@ export function ShareCard({
   valueSuffix = "",
   valueDirection = "higher",
 }: {
+  brand: PublicBrandSettings;
   rows: ChainRevenueRow[];
   updatedAt: string;
   source: string;
@@ -87,7 +90,7 @@ export function ShareCard({
   return (
     <div id="share-card" className="card-grid-bg relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
       <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
-        learnDeFi
+        {brand.shortName}
       </div>
 
       <div className="max-w-[74%]">
@@ -125,7 +128,7 @@ export function ShareCard({
       </div>
 
       <div className="mt-7 grid gap-3 text-xs font-bold text-slate-400 md:grid-cols-[1fr_2fr] md:items-end">
-        <span>Created with <span className="font-black text-slate-950">learnDeFi</span></span>
+        <span>{brand.cardFooterText} · <span className="font-black text-slate-950">{brand.createdWithText}</span></span>
         <span className="md:text-right">Data: {source} · Updated: <span className="font-black text-slate-700">{updatedAt}</span></span>
       </div>
     </div>

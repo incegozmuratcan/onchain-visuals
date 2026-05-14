@@ -309,10 +309,19 @@ export async function uploadLogoAction(formData: FormData) {
 
 export async function saveBrandSettingsAction(formData: FormData) {
   await requireAdmin();
-  const fields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "cardFooterText", "createdWithText", "metaDescription", "primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
+  const fields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
   const settings = Object.fromEntries(fields.map((field) => [field, String(formData.get(field) || "").trim()]));
-  await setAdminSetting("brand_settings", JSON.stringify(settings));
-  revalidatePath("/admin/brand");
+  try {
+    await setAdminSetting("brand_settings", JSON.stringify({ ...settings, savedAt: new Date().toISOString() }));
+    revalidatePath("/");
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/brand");
+  } catch (error) {
+    console.error("Brand settings save failed", error);
+    const message = error instanceof Error ? error.message : "Unknown save error";
+    redirect(`/admin/brand?error=${encodeURIComponent(message.slice(0, 160))}`);
+  }
+  redirect("/admin/brand?saved=1");
 }
 
 export async function approveSourceAction(formData: FormData) {
@@ -322,6 +331,8 @@ export async function approveSourceAction(formData: FormData) {
   await approveSource(sourceId);
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
+  revalidatePath("/");
+  revalidatePath("/api/chain-revenue");
 }
 
 export async function rejectSourceAction(formData: FormData) {
@@ -331,6 +342,9 @@ export async function rejectSourceAction(formData: FormData) {
   const reason = String(formData.get("reason") || "");
   await rejectSource(sourceId, reason);
   revalidatePath(`/admin/logos/${slug}`);
+  revalidatePath("/admin/logos");
+  revalidatePath("/");
+  revalidatePath("/api/chain-revenue");
 }
 
 export async function rejectLogoAction(formData: FormData) {
@@ -340,4 +354,6 @@ export async function rejectLogoAction(formData: FormData) {
   await rejectLogo(slug, reason);
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
+  revalidatePath("/");
+  revalidatePath("/api/chain-revenue");
 }

@@ -43,12 +43,34 @@ export function logoSlug(name: string) {
 }
 
 const ADMIN_LOGO_SLUG_ALIASES: Record<string, string[]> = {
-  bsc: ["bnb-chain"],
-  "bnb-chain": ["bsc"],
+  polygon: ["matic-network"],
+  "matic-network": ["polygon"],
+  bsc: ["bnb-chain", "binance-smart-chain"],
+  "bnb-chain": ["bsc", "binance-smart-chain"],
+  "binance-smart-chain": ["bsc", "bnb-chain"],
   optimism: ["op-mainnet"],
   "op-mainnet": ["optimism"],
   ripple: ["xrp-ledger"],
   "xrp-ledger": ["ripple"],
+  filecoin: ["filecoin-chain"],
+  "filecoin-chain": ["filecoin"],
+  "render-network": ["render"],
+  render: ["render-network"],
+  ethereum: ["eth"],
+  eth: ["ethereum"],
+  solana: ["sol"],
+  sol: ["solana"],
+  arbitrum: ["arbitrum-one"],
+  "arbitrum-one": ["arbitrum"],
+  avalanche: ["avalanche-c-chain", "avax"],
+  "avalanche-c-chain": ["avalanche", "avax"],
+  avax: ["avalanche"],
+  base: ["base-chain"],
+  "base-chain": ["base"],
+  sui: ["sui-network"],
+  "sui-network": ["sui"],
+  aptos: ["aptos-network"],
+  "aptos-network": ["aptos"],
 };
 
 function uniqueSlugs(slugs: string[]) {
@@ -59,8 +81,9 @@ export function approvedLogoCandidateSlugs(name: string) {
   const directSlug = logoSlug(name);
   const identity = getChainIdentity(name);
   const identitySlugs = [identity.slug, ...identity.aliases.map(logoSlug)];
-  const aliases = [directSlug, identity.slug].flatMap((slug) => ADMIN_LOGO_SLUG_ALIASES[slug] ?? []);
-  return uniqueSlugs([directSlug, ...identitySlugs, ...aliases]);
+  const aliases = [directSlug, identity.slug, ...identitySlugs].flatMap((slug) => ADMIN_LOGO_SLUG_ALIASES[slug] ?? []);
+  const secondPassAliases = aliases.flatMap((slug) => ADMIN_LOGO_SLUG_ALIASES[slug] ?? []);
+  return uniqueSlugs([directSlug, ...identitySlugs, ...aliases, ...secondPassAliases]);
 }
 
 function withFallback(logo: AdminLogo): AdminLogo {

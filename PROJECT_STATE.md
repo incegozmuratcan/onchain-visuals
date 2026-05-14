@@ -1,6 +1,6 @@
 # Vision
 
-- Current app version: v0.10.0.
+- Current app version: v0.10.1.
 - learnDeFi is a simple, premium, share-ready DeFi market card maker.
 - Core positioning: “Make DeFi data share-ready.”
 - Supporting copy: “Create clean, source-backed market cards from trusted crypto data.”
@@ -76,16 +76,28 @@
 
 
 
+# v0.10.1 Admin Stability + Public Brand Integration
+
+- The current app version is v0.10.1.
+- Admin pages now use safe DB query wrappers and section-level error panels so expected schema/query/config problems guide the operator instead of showing a generic Application error. Suggested actions include running Admin DB Setup, checking Vercel runtime logs, checking DATABASE_URL and checking recent migrations.
+- Admin DB Setup remains safe and idempotent: run `npm run db:push` and `npm run admin:seed-logos`; the seed imports local vault records and source candidates but preserves existing approved DB logos and does not overwrite admin-approved choices with local manifest, DefiLlama or fallback seed data.
+- Public logo resolution remains approved DB logo URL first, then local source manifest/registry logo, then clean fallback. Overlay failures warn server-side and fall back without breaking public APIs. Alias matching covers common chain/project slug variants including Polygon, BNB Chain, OP Mainnet, XRP Ledger, Filecoin, Render Network, Ethereum, Solana, Arbitrum, Avalanche, Base, Sui and Aptos.
+- Brand Settings now apply to the public homepage hero/header copy, metadata title/description, optional favicon/apple-touch-icon URLs and ShareCard footer/watermark text. If the database is unavailable, the public site falls back to the learnDeFi defaults and does not crash.
+- Brand Settings save now redirects with clear success/error feedback, records a last-saved timestamp and explains that public integration is active while Blob-backed file uploads remain placeholders. Manual asset URL fields save and preview even without Blob.
+- Blob-disabled messaging is consistent: `BLOB_READ_WRITE_TOKEN` missing means URL candidates and local vault imports still work; only file uploads are disabled.
+- API Settings provider statuses use connected, missing key, public-no-key, disabled or error without exposing secrets. CoinMarketCap remains foundation-level: missing `COINMARKETCAP_API_KEY` disables CMC bulk refresh/fetch UI and CMC candidates cannot be approved for public hotlinking unless copied/stored safely.
+- Required environment names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`, `COINGECKO_DEMO_API_KEY`, optional `COINMARKETCAP_API_KEY`, and optional `BLOB_READ_WRITE_TOKEN` for uploads.
+
 # v0.10.0 Admin Operations Dashboard
 
-- The current app version is v0.10.0.
+- The current app version is v0.10.1.
 - `/admin` is now the internal operations dashboard with provider status cards, logo health summary cards, action-required inbox items, Blob setup status, latest bulk refresh summaries and quick links to Logo Manager, API Settings and Brand Settings.
 - `/admin/logos` now includes a Logo QA Inbox and classifies each record with issues: `missing_approved_logo`, `needs_review`, `missing_coingecko_id`, `coingecko_fetch_failed`, `fallback_used`, `visual_rejected`, `approved_but_not_used`, `rejected_source`, `upload_disabled`, `missing_cmc_id` and `cmc_fetch_failed`.
 - Logo Manager defaults to name A→Z, has stronger search across name, slug, IDs, provider and category, filter tabs for important issue groups and sorting by name, status, category, source provider, last updated or issues-first.
 - Bulk source tools live in the Logo Manager Source tools panel instead of the header. Latest CoinGecko and CoinMarketCap bulk refresh summaries are stored in `admin_settings` keys `last_coingecko_bulk_refresh_summary` and `last_cmc_bulk_refresh_summary`.
 - CoinMarketCap is added as a server-only logo provider foundation through `COINMARKETCAP_API_KEY`. If the key is absent, admin shows CMC as missing/disabled and public runtime still works. CMC IDs may be stored on `logos.coinmarketcap_id` or source metadata.
 - `/admin/api` shows provider status for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources. Key presence is yes/no only; secret values are never exposed to the browser.
-- `/admin/brand` stores internal brand text and asset URL candidates in `admin_settings` as groundwork for the future rebrand. These settings do not rename learnDeFi or change public cards in this release.
+- `/admin/brand` stores brand text and asset URL candidates in `admin_settings`; as of v0.10.1, explicitly saved values feed public copy, metadata, optional favicon URLs and card footer text while defaults remain learnDeFi when DB settings are absent.
 - Blob upload disabled behavior is explicit across dashboard, Logo Manager and API Settings: URL candidates and local vault imports still work; only file uploads are disabled when `BLOB_READ_WRITE_TOKEN` is missing.
 - Required admin/setup env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`, `COINGECKO_DEMO_API_KEY`, `COINMARKETCAP_API_KEY` and `BLOB_READ_WRITE_TOKEN`.
 - Public card logo fallback behavior remains stable: approved DB logo URL first when Postgres is available, then existing local logo vault/manifest/registry logo, then a clean fallback. Public cards must not call CoinGecko, CoinMarketCap, DefiLlama or admin APIs during render.
@@ -181,7 +193,7 @@
 
 # Versioning
 
-- Current app version: v0.10.0.
+- Current app version: v0.10.1.
 - Every future release must update both:
   - the version badge source in `lib/version.ts`
   - this `PROJECT_STATE.md` file
