@@ -145,10 +145,10 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-5 md:px-8 md:py-7">
       <header className="mx-auto mb-6 flex max-w-4xl flex-col items-center text-center">
         <button onClick={goHome} className="inline-flex max-w-[90vw] items-center justify-center transition hover:opacity-80" aria-label={`${brand.siteName} home`}>
-          {heroLogoSrc ? <img src={heroLogoSrc} alt={brand.siteName} onError={() => setHeroLogoSrc("")} className="h-auto max-h-44 w-auto max-w-[88vw] object-contain md:max-h-56 md:max-w-[640px]" /> : <span className="text-4xl font-black tracking-[-0.07em] text-slate-950 md:text-6xl">{brand.siteName}</span>}
+          {heroLogoSrc ? <img src={heroLogoSrc} alt={brand.siteName} onError={() => setHeroLogoSrc("")} className="h-auto max-h-28 w-auto max-w-[82vw] object-contain md:max-h-36 md:max-w-[520px]" /> : <span className="font-serif text-4xl font-semibold tracking-[-0.04em] text-slate-950 md:text-6xl">{brand.siteName}</span>}
         </button>
-        <h1 className="mx-auto mt-7 max-w-3xl text-balance text-2xl font-black leading-tight tracking-[-0.045em] text-slate-950 md:text-4xl">{brand.mainSlogan}</h1>
-        {brand.heroSubtitle && brand.heroSubtitle !== brand.mainSlogan && brand.heroSubtitle !== brand.supportingCopy ? <p className="mx-auto mt-3 max-w-2xl text-balance text-sm font-semibold leading-6 text-slate-500 md:text-base">
+        <h1 className="mx-auto mt-5 max-w-3xl text-balance text-xl font-semibold leading-8 tracking-[-0.025em] text-slate-800 md:text-2xl md:leading-9">Clean onchain visuals. Simple explanations. Share-ready cards.</h1>
+        {brand.heroSubtitle && brand.heroSubtitle !== brand.mainSlogan && brand.heroSubtitle !== brand.supportingCopy ? <p className="mx-auto mt-2 max-w-2xl text-balance text-xs font-medium leading-5 text-slate-400 md:text-sm">
           {brand.heroSubtitle}
         </p> : null}
       </header>
