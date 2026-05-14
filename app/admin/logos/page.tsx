@@ -7,6 +7,7 @@ import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, summarizeLogoQa, type LogoQaRow } from "@/lib/admin/logoQa";
 import { blobStatus, getBulkRefreshSummaries, type BulkRefreshSummary } from "@/lib/admin/providerStatus";
+import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 import { METRIC_LOGO_SCAN_SETTING, parseMetricLogoScanSummary } from "@/lib/admin/metricLogoScanner";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ function MetricScanSummary({ scanSummary }: { scanSummary: NonNullable<ReturnTyp
   </div>;
 }
 
-function SourceTools({ summaries, scanSummary, missingMappingRows }: { summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>; scanSummary: ReturnType<typeof parseMetricLogoScanSummary>; missingMappingRows: LogoQaRow[] }) {
+function SourceTools({ summaries, scanSummary, missingMappingRows, cmcEnabled }: { summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>; scanSummary: ReturnType<typeof parseMetricLogoScanSummary>; missingMappingRows: LogoQaRow[]; cmcEnabled: boolean }) {
   const missingEntries = missingMappingRows.map((row) => ({ label: `${row.logo.slug} — ${row.logo.name}`, slug: row.logo.slug }));
   return <AdminSection title="Source Tools" className="lg:sticky lg:top-4">
     <div className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3 lg:grid-cols-2">
@@ -116,7 +117,7 @@ function SourceTools({ summaries, scanSummary, missingMappingRows }: { summaries
       <form action={bulkRefreshCoinGeckoLogosAction}><input type="hidden" name="mode" value="force-all" /><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Force all</button></form>
       <form action={applySafeCoinGeckoCandidatesAction}><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Apply safe CG</button></form>
       <form action={scanMetricLogosAction}><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Scan metrics</button></form>
-      <form action={bulkRefreshCoinMarketCapLogosAction}><button disabled={!process.env.COINMARKETCAP_API_KEY} className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black disabled:opacity-50">Refresh CMC</button></form>
+      <form action={bulkRefreshCoinMarketCapLogosAction}><button disabled={!cmcEnabled} className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black disabled:opacity-50">Refresh CMC</button></form>
     </div>
     <div className="mt-3 grid gap-2">
       {summaries.coingecko ? <CompactRefreshSummary summary={summaries.coingecko} missingMappings={missingEntries} /> : <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">CG refresh: not run yet</div>}
@@ -134,6 +135,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const scanResult = config.hasDatabase ? await safeAdminDbQuery("Metric logo discovery", async () => parseMetricLogoScanSummary(await getSetting(METRIC_LOGO_SCAN_SETTING)), null) : { data: null, error: null };
   const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
   const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
+  const providersReady = { coinmarketcap: Boolean((await resolveApiSecret("coinmarketcap")).value) };
   const summaries = summaryResult.data;
   const scanSummary = scanResult.data;
   const logos = logoResult.data;
@@ -152,7 +154,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const actionMetrics = [
     ["Needs action", needsAction], ["Missing approved logo", counts.missing_approved_logo], ["Missing CoinGecko ID", counts.missing_coingecko_id], ["Provider errors / ID review", providerErrors], ["Fallback used", counts.fallback_used], ["Visual rejected", counts.visual_rejected], ["Newly discovered", qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length],
   ].filter(([, value], index) => index === 0 || Number(value) > 0);
-  const allMatchingRows = sortRows(filterRows(qaRows, filter), sort);
+  const allMatchingRows = sortRows(qaRows, sort);
   const missingMappingRows = qaRows.filter((row) => row.issues.includes("missing_coingecko_id"));
   const clientRows: LogoResultRow[] = allMatchingRows.map((row) => ({
     id: row.logo.id,
@@ -191,10 +193,10 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
           <details className="mt-2 inline-block rounded-full border border-slate-200 bg-white px-3 py-1.5"><summary className="cursor-pointer text-xs font-black text-slate-950">+ Add logo</summary><form action={createLogoAction} className="mt-2 grid gap-2 rounded-xl bg-slate-50 p-2 md:grid-cols-[180px_110px_auto]"><input name="name" className="rounded-lg border border-slate-200 px-3 py-2 text-sm" placeholder="Name" required /><select name="category" className="rounded-lg border border-slate-200 px-3 py-2 text-sm"><option>project</option><option>chain</option><option>asset</option></select><button className="rounded-lg bg-slate-950 px-4 py-2 text-sm font-black text-white">Create</button></form></details>
         </div>
 
-        <LogoResultsClient rows={clientRows} initialQuery={query} defaultLimit={DEFAULT_LIMIT} />
+        <LogoResultsClient rows={clientRows} initialQuery={query} defaultLimit={DEFAULT_LIMIT} activeFilter={filter} />
       </div>
 
-      <SourceTools summaries={summaries} scanSummary={scanSummary} missingMappingRows={missingMappingRows} />
+      <SourceTools summaries={summaries} scanSummary={scanSummary} missingMappingRows={missingMappingRows} cmcEnabled={Boolean(providersReady.coinmarketcap)} />
     </section>
   </AdminShell>;
 }

@@ -34,6 +34,19 @@ CREATE TABLE IF NOT EXISTS logo_sources (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
+CREATE TABLE IF NOT EXISTS admin_api_secrets (
+  provider TEXT PRIMARY KEY,
+  key_name TEXT NOT NULL,
+  encrypted_value TEXT NOT NULL,
+  masked_hint TEXT,
+  last_tested_at TIMESTAMPTZ,
+  last_test_status TEXT,
+  last_error TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS admin_settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,
@@ -61,3 +74,7 @@ CREATE TRIGGER logo_sources_set_updated_at BEFORE UPDATE ON logo_sources FOR EAC
 
 DROP TRIGGER IF EXISTS admin_settings_set_updated_at ON admin_settings;
 CREATE TRIGGER admin_settings_set_updated_at BEFORE UPDATE ON admin_settings FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
+
+DROP TRIGGER IF EXISTS admin_api_secrets_set_updated_at ON admin_api_secrets;
+CREATE TRIGGER admin_api_secrets_set_updated_at BEFORE UPDATE ON admin_api_secrets FOR EACH ROW EXECUTE FUNCTION set_updated_at();

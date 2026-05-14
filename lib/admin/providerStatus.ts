@@ -1,6 +1,7 @@
 import "server-only";
-import { adminConfigState, getSetting } from "@/lib/admin/auth";
+import { getSetting } from "@/lib/admin/auth";
 import { hasDatabaseConfig } from "@/lib/server/postgres";
+import { encryptionAvailable, providerEnvVar, resolveApiSecret } from "@/lib/admin/apiSecrets";
 
 export type ProviderStatus = "connected" | "missing key" | "disabled" | "error" | "public-no-key";
 
@@ -35,8 +36,13 @@ export type ApiProviderCard = {
   name: string;
   status: ProviderStatus;
   keyConfigured: boolean;
+  keySource: "admin" | "env" | "public" | "missing" | "disabled";
+  maskedHint?: string | null;
+  lastTestedAt?: string | null;
+  lastTestStatus?: string | null;
   lastSuccessfulCheck?: string | null;
   lastError?: string | null;
+  active: boolean;
   metrics: string[];
   docsUrl: string;
   notes: string;
@@ -94,95 +100,91 @@ export async function getBulkRefreshSummaries() {
 }
 
 export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
-  const config = adminConfigState();
   const summaries = await getBulkRefreshSummaries();
-  const chainspectKey = Boolean(process.env.CHAINSPECT_API_KEY || process.env.CHAINSPECT_KEY);
-  const coinGeckoKey = Boolean(process.env.COINGECKO_DEMO_API_KEY);
-  const coinMarketCapKey = Boolean(process.env.COINMARKETCAP_API_KEY);
+  const [cg, cmc, llama] = await Promise.all([resolveApiSecret("coingecko"), resolveApiSecret("coinmarketcap"), resolveApiSecret("defillama")]);
+  const inactive = [
+    { id: "chainspect", name: "Chainspect / TPS", envVars: ["CHAINSPECT_API_KEY", "CHAINSPECT_KEY"], metrics: ["Infrastructure TPS snapshots"], docsUrl: "https://chainspect.app/", notes: "Prepared provider. Current parser has verified snapshot fallback.", nextAction: "Optional: configure only if a stable provider API is used." },
+    { id: "depin", name: "DePIN Pulse", envVars: [], metrics: ["DePIN revenue"], docsUrl: "https://depinscan.io/", notes: "Prepared/public source for supported DePIN views.", nextAction: "No key required for current public source." },
+    { id: "rwa", name: "RWA/tokenized sources", envVars: [], metrics: ["BUIDL / BENJI marketcap"], docsUrl: "https://defillama.com/", notes: "Prepared source group; current supported views use public data.", nextAction: "No admin key required right now." },
+    { id: "blob", name: "Vercel Blob", envVars: ["BLOB_READ_WRITE_TOKEN"], metrics: ["Admin uploads", "Brand uploads"], docsUrl: "https://vercel.com/docs/storage/vercel-blob", notes: "Storage token remains environment-managed.", nextAction: process.env.BLOB_READ_WRITE_TOKEN ? "Uploads enabled." : "Set BLOB_READ_WRITE_TOKEN to enable uploads." },
+  ];
 
-  return [
+  const activeProviders: ApiProviderCard[] = [
     {
       id: "coingecko",
       name: "CoinGecko",
-      status: coinGeckoKey ? "connected" : "public-no-key",
-      keyConfigured: coinGeckoKey,
-      lastSuccessfulCheck: summaries.coingecko && summaries.coingecko.errors === 0 ? summaries.coingecko.timestamp : null,
-      lastError: summaries.coingecko?.firstErrors?.[0] ?? null,
+      status: cg.source === "disabled" ? "error" : cg.value ? "connected" : "public-no-key",
+      keyConfigured: Boolean(cg.value),
+      keySource: cg.source,
+      maskedHint: cg.maskedHint,
+      lastTestedAt: cg.record?.last_tested_at ?? null,
+      lastTestStatus: cg.record?.last_test_status ?? null,
+      lastSuccessfulCheck: cg.record?.last_test_status === "ok" ? cg.record.last_tested_at : summaries.coingecko && summaries.coingecko.errors === 0 ? summaries.coingecko.timestamp : null,
+      lastError: cg.record?.last_error ?? summaries.coingecko?.firstErrors?.[0] ?? null,
+      active: true,
       metrics: ["Admin logo candidates", "Bulk logo refresh"],
       docsUrl: "https://docs.coingecko.com/reference/introduction",
-      notes: coinGeckoKey ? "Server-side demo API key configured." : "Manual single fetch can use public API; bulk refresh is disabled without a key.",
-      nextAction: coinGeckoKey ? "Use Logo Manager bulk refresh; fix per-logo IDs where 404s appear." : "Set COINGECKO_DEMO_API_KEY to enable safe bulk refresh.",
-      envVars: ["COINGECKO_DEMO_API_KEY"],
+      notes: cg.value ? "Server-side key resolves from admin secret or env." : "Single fetch can use public API; bulk refresh needs a key.",
+      nextAction: cg.value ? "Use Logo Manager; fix per-logo IDs where 404s appear." : "Add admin key or env fallback for bulk refresh.",
+      envVars: [providerEnvVar("coingecko")],
     },
     {
       id: "coinmarketcap",
       name: "CoinMarketCap",
-      status: coinMarketCapKey ? "connected" : "missing key",
-      keyConfigured: coinMarketCapKey,
-      lastSuccessfulCheck: summaries.coinmarketcap && summaries.coinmarketcap.errors === 0 ? summaries.coinmarketcap.timestamp : null,
-      lastError: summaries.coinmarketcap?.firstErrors?.[0] ?? null,
+      status: cmc.source === "disabled" ? "error" : cmc.value ? "connected" : "missing key",
+      keyConfigured: Boolean(cmc.value),
+      keySource: cmc.source,
+      maskedHint: cmc.maskedHint,
+      lastTestedAt: cmc.record?.last_tested_at ?? null,
+      lastTestStatus: cmc.record?.last_test_status ?? null,
+      lastSuccessfulCheck: cmc.record?.last_test_status === "ok" ? cmc.record.last_tested_at : summaries.coinmarketcap && summaries.coinmarketcap.errors === 0 ? summaries.coinmarketcap.timestamp : null,
+      lastError: cmc.record?.last_error ?? summaries.coinmarketcap?.firstErrors?.[0] ?? null,
+      active: true,
       metrics: ["Admin logo candidates", "Logo QA fallback source"],
       docsUrl: "https://coinmarketcap.com/api/documentation/v1/",
-      notes: coinMarketCapKey ? "Server-side key configured; public runtime never receives it." : "Disabled until COINMARKETCAP_API_KEY is configured.",
-      nextAction: coinMarketCapKey ? "Use CMC only for candidates; approve only copied/stored URLs." : "Set COINMARKETCAP_API_KEY before running CMC fetches.",
-      envVars: ["COINMARKETCAP_API_KEY"],
+      notes: cmc.value ? "Server-side key configured; public runtime never receives it." : "Disabled until an admin key or COINMARKETCAP_API_KEY exists.",
+      nextAction: cmc.value ? "Use CMC only for candidates; approve only copied/stored URLs." : "Add key to enable CMC fetches.",
+      envVars: [providerEnvVar("coinmarketcap")],
     },
     {
       id: "defillama",
       name: "DefiLlama",
-      status: "public-no-key",
-      keyConfigured: false,
-      metrics: ["Revenue", "Stablecoin supply", "TVL", "Tokenized asset views", "Logo candidates"],
+      status: llama.value ? "connected" : "public-no-key",
+      keyConfigured: Boolean(llama.value),
+      keySource: llama.source,
+      maskedHint: llama.maskedHint,
+      lastTestedAt: llama.record?.last_tested_at ?? null,
+      lastTestStatus: llama.record?.last_test_status ?? null,
+      lastSuccessfulCheck: llama.record?.last_test_status === "ok" ? llama.record.last_tested_at : null,
+      lastError: llama.record?.last_error ?? null,
+      active: true,
+      metrics: ["TVL", "Stablecoins", "Revenue", "Public icons"],
       docsUrl: "https://defillama.com/docs/api",
-      notes: "Public no-key source. Admin records candidate URLs; public cards keep existing adapter behavior.",
-      nextAction: "Use detail pages to add DefiLlama candidates; do not auto-approve confusing fallbacks.",
-      envVars: [],
-    },
-    {
-      id: "chainspect",
-      name: "Chainspect / TPS provider",
-      status: chainspectKey ? "connected" : "missing key",
-      keyConfigured: chainspectKey,
-      metrics: ["TPS", "Block time", "Avg tx fee", "Developers"],
-      docsUrl: "https://chainspect.app/",
-      notes: chainspectKey ? "TPS provider key is configured." : "Infrastructure metrics should use existing fallback/snapshot behavior when disabled.",
-      nextAction: chainspectKey ? "Monitor TPS/block-time cards for parser errors." : "Set CHAINSPECT_API_KEY or CHAINSPECT_KEY if private/API access is needed.",
-      envVars: ["CHAINSPECT_API_KEY", "CHAINSPECT_KEY"],
-    },
-    {
-      id: "depinpulse",
-      name: "DePIN Pulse",
-      status: "public-no-key",
-      keyConfigured: false,
-      metrics: ["DePIN 24H revenue", "DePIN 30D annualized revenue"],
-      docsUrl: "https://www.depinpulse.app/",
-      notes: "No admin key required for current adapter.",
-      nextAction: "No key action required; monitor source markup/API changes.",
-      envVars: [],
-    },
-    {
-      id: "rwa",
-      name: "RWA / tokenized asset sources",
-      status: config.hasDatabase ? "public-no-key" : "public-no-key",
-      keyConfigured: false,
-      metrics: ["BUIDL marketcap", "BENJI marketcap"],
-      docsUrl: "https://defillama.com/yields/stablecoins",
-      notes: "Uses existing public source adapters; no browser-exposed secret required.",
-      nextAction: "No admin secret required for current tokenized asset views.",
-      envVars: [],
-    },
-    {
-      id: "vercel-blob",
-      name: "Vercel Blob",
-      status: config.hasBlob ? "connected" : "missing key",
-      keyConfigured: config.hasBlob,
-      metrics: ["Logo uploads", "Brand asset uploads"],
-      docsUrl: "https://vercel.com/docs/storage/vercel-blob",
-      notes: config.hasBlob ? "Blob uploads are enabled for raster admin assets." : "Upload buttons are disabled; manual URL fields and local logo vault imports still work.",
-      nextAction: config.hasBlob ? "Use upload controls for safe PNG/JPEG/WebP assets." : "Set BLOB_READ_WRITE_TOKEN to enable uploads.",
-      envVars: ["BLOB_READ_WRITE_TOKEN"],
+      notes: "Public/no-key by default; optional admin secret is reserved for future paid endpoints.",
+      nextAction: "Test works without a key; add optional key only if needed later.",
+      envVars: [providerEnvVar("defillama")],
     },
   ];
+
+  return [
+    ...activeProviders,
+    ...inactive.map((provider) => ({
+      ...provider,
+      status: provider.id === "blob" && !process.env.BLOB_READ_WRITE_TOKEN ? "missing key" as ProviderStatus : "disabled" as ProviderStatus,
+      keyConfigured: provider.id === "blob" ? Boolean(process.env.BLOB_READ_WRITE_TOKEN) : false,
+      keySource: provider.id === "blob" && process.env.BLOB_READ_WRITE_TOKEN ? "env" as const : "disabled" as const,
+      maskedHint: null,
+      lastTestedAt: null,
+      lastTestStatus: null,
+      lastSuccessfulCheck: null,
+      lastError: null,
+      active: false,
+    })),
+  ];
+}
+
+export function adminEncryptionHealth() {
+  return encryptionAvailable();
 }
 
 export function blobStatus() {
