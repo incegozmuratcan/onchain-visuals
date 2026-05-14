@@ -276,10 +276,30 @@ WITH seed AS (
 	    visual_status = logos.visual_status,
 	    fallback_text = logos.fallback_text,
 	    fallback_color = logos.fallback_color,
-	    notes = CASE
-	      WHEN logos.status = 'approved' AND logos.approved_logo_url IS NOT NULL AND NULLIF(logos.notes, '') IS NOT NULL THEN logos.notes
-	      ELSE NULLIF(CONCAT_WS(E'\n', NULLIF(logos.notes, ''), NULLIF(EXCLUDED.notes, '')), '')
-	    END
+	    notes = (
+	      SELECT NULLIF(
+	        CONCAT_WS(
+	          E'\n',
+	          NULLIF(logos.notes, ''),
+	          NULLIF(string_agg(new_seed_notes.note, E'\n' ORDER BY new_seed_notes.ordinal), '')
+	        ),
+	        ''
+	      )
+	      FROM (
+	        SELECT DISTINCT ON (candidate_notes.note) candidate_notes.note, candidate_notes.ordinal
+	        FROM (
+	          SELECT btrim(seed_notes.value) AS note, seed_notes.ordinal
+	          FROM regexp_split_to_table(COALESCE(EXCLUDED.notes, ''), E'\n') WITH ORDINALITY AS seed_notes(value, ordinal)
+	          WHERE btrim(seed_notes.value) <> ''
+	            AND NOT EXISTS (
+	              SELECT 1
+	              FROM regexp_split_to_table(COALESCE(logos.notes, ''), E'\n') AS existing_notes(value)
+	              WHERE btrim(existing_notes.value) = btrim(seed_notes.value)
+	            )
+	        ) candidate_notes
+	        ORDER BY candidate_notes.note, candidate_notes.ordinal
+	      ) new_seed_notes
+	    )
 	  RETURNING id, slug
 ), source_seed AS (
   SELECT

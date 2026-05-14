@@ -5,6 +5,7 @@ const databaseUrl = process.env.DATABASE_URL;
 const slug = process.env.SEED_PROTECTION_SLUG || "polygon";
 const testUrl = "/test/admin-approved-logo.png";
 const testSourceId = "987654321";
+const manualNote = "seed protection test manual note";
 
 function runPsql(sql, { capture = false } = {}) {
   const result = spawnSync("psql", [databaseUrl, "-v", "ON_ERROR_STOP=1", "-X", capture ? "-tA" : "-a"], {
@@ -13,11 +14,9 @@ function runPsql(sql, { capture = false } = {}) {
     stdio: capture ? ["pipe", "pipe", "inherit"] : ["pipe", "inherit", "inherit"],
   });
   if (result.error) {
-    console.error("Failed to run psql. Install the PostgreSQL client before running the seed protection test.");
-    console.error(result.error.message);
-    process.exit(1);
+    throw new Error(`Failed to run psql. Install the PostgreSQL client before running the seed protection test. ${result.error.message}`);
   }
-  if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.status !== 0) throw new Error(`psql exited with status ${result.status ?? 1}`);
   return result.stdout?.trim() ?? "";
 }
 
@@ -45,7 +44,21 @@ try {
         visual_status = COALESCE(visual_status, 'approved'),
         fallback_text = COALESCE(fallback_text, 'POL'),
         fallback_color = COALESCE(fallback_color, '#8247e5'),
-        notes = COALESCE(NULLIF(notes, ''), 'seed protection test manual note')
+        notes = NULLIF(
+          CONCAT_WS(
+            E'\n',
+            NULLIF(notes, ''),
+            CASE
+              WHEN EXISTS (
+                SELECT 1
+                FROM regexp_split_to_table(COALESCE(notes, ''), E'\n') AS existing_notes(value)
+                WHERE btrim(existing_notes.value) = '${manualNote}'
+              ) THEN NULL
+              ELSE '${manualNote}'
+            END
+          ),
+          ''
+        )
     WHERE slug = '${slug.replaceAll("'", "''")}';
   `);
 
@@ -78,7 +91,7 @@ try {
   if (parsed.visual_status !== "approved") failures.push(`visual_status changed to ${parsed.visual_status}`);
   if (parsed.fallback_text !== "POL") failures.push(`fallback_text changed to ${parsed.fallback_text}`);
   if (parsed.fallback_color !== "#8247e5") failures.push(`fallback_color changed to ${parsed.fallback_color}`);
-  if (!String(parsed.notes || "").includes("seed protection test manual note")) failures.push("manual notes were overwritten");
+  if (!String(parsed.notes || "").includes(manualNote)) failures.push("manual notes were overwritten");
 
   if (failures.length) {
     console.error("Admin seed protection FAILED:");
