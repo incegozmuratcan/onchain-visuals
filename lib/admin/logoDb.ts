@@ -266,7 +266,7 @@ export async function approveSource(sourceId: string) {
   }
   await query(
     `WITH chosen AS (
-       UPDATE logo_sources SET status = 'approved', rejection_reason = NULL WHERE id = $1 RETURNING *
+       UPDATE logo_sources SET status = 'approved', rejection_reason = NULL, metadata = COALESCE(metadata, '{}'::jsonb) || '{"approvalOrigin":"admin"}'::jsonb WHERE id = $1 RETURNING *
      )
      UPDATE logos
      SET status = 'approved', approved_source_id = chosen.id, approved_logo_url = COALESCE(chosen.blob_url, chosen.image_url)

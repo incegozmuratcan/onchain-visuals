@@ -36,6 +36,22 @@ export const coingeckoLogoIds: Record<string, string | null> = {
   helium: "helium",
   livepeer: "livepeer",
   "bsv-blockchain": "bitcoin-sv",
+  geodnet: "geodnet",
+  glow: null,
+  "io-net": "io-net",
+  "io.net": "io-net",
+  dimo: "dimo",
+  "pocket-network": "pocket-network",
+  canton: null,
+  morph: "morph-2",
+  abstract: null,
+  linea: "linea",
+  plume: null,
+  plasma: null,
+  megaeth: null,
+  "mega-eth": null,
+  provenance: null,
+  eni: null,
 };
 
 export function getCoinGeckoLogoId(slug: string) {
