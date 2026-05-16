@@ -322,7 +322,15 @@ export async function approvedLogoOverlay(names: string[]) {
       `SELECT slug, approved_logo_url FROM logos WHERE status = 'approved' AND approved_logo_url IS NOT NULL AND slug IN (${quoted})`,
       slugs
     );
+    const aliasResult = await query<{ alias: string; approved_logo_url: string }>(
+      `SELECT a.alias, l.approved_logo_url
+       FROM logo_aliases a
+       JOIN logos l ON l.id = a.logo_id
+       WHERE l.status = 'approved' AND l.approved_logo_url IS NOT NULL AND a.alias IN (${quoted})`,
+      slugs
+    ).catch(() => ({ rows: [] as { alias: string; approved_logo_url: string }[] }));
     const approvedBySlug = new Map(result.rows.map((row) => [row.slug, row.approved_logo_url]));
+    for (const row of aliasResult.rows) approvedBySlug.set(row.alias, row.approved_logo_url);
     const overlay = new Map<string, string>();
 
     for (const candidates of candidatesByName) {
@@ -337,5 +345,103 @@ export async function approvedLogoOverlay(names: string[]) {
     return new Map<string, string>();
   }
 }
+
+export type LogoAlias = {
+  id: string;
+  logo_id: string;
+  alias: string;
+  source: string;
+  metadata: string | Record<string, unknown>;
+  created_at: string;
+};
+
+export async function ensureLogoAliasTable() {
+  await query(`CREATE TABLE IF NOT EXISTS logo_aliases (
+    id BIGSERIAL PRIMARY KEY,
+    logo_id BIGINT NOT NULL REFERENCES logos(id) ON DELETE CASCADE,
+    alias TEXT NOT NULL,
+    source TEXT NOT NULL DEFAULT 'admin',
+    metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(alias)
+  )`);
+}
+
+export async function addLogoAlias(logoId: string, alias: string, source = "admin", metadata: Record<string, unknown> = {}) {
+  await ensureLogoAliasTable();
+  await query(
+    `INSERT INTO logo_aliases (logo_id, alias, source, metadata)
+     VALUES ($1, $2, $3, $4::jsonb)
+     ON CONFLICT (alias) DO UPDATE SET logo_id = EXCLUDED.logo_id, source = EXCLUDED.source, metadata = logo_aliases.metadata || EXCLUDED.metadata`,
+    [logoId, logoSlug(alias), source, JSON.stringify(metadata)]
+  );
+}
+
+export async function listLogoAliases(logoId?: string) {
+  await ensureLogoAliasTable();
+  return logoId
+    ? query<LogoAlias>("SELECT * FROM logo_aliases WHERE logo_id = $1 ORDER BY alias ASC", [logoId])
+    : query<LogoAlias>("SELECT * FROM logo_aliases ORDER BY alias ASC");
+}
+
+export async function dismissDuplicateWarning(logoId: string, duplicateLogoId: string) {
+  await query(
+    `UPDATE logos SET notes = COALESCE(notes, '') || CASE WHEN COALESCE(notes, '') = '' THEN '' ELSE E'\n' END || $2 WHERE id = $1`,
+    [logoId, `duplicate_dismissed:${duplicateLogoId}`]
+  );
+}
+
+export async function restoreSource(sourceId: string, useAsPrimary = false) {
+  const result = await query<LogoSource>(
+    `UPDATE logo_sources
+     SET status = 'candidate', rejection_reason = NULL,
+         metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('restoredAt', NOW()::text, 'restoredBy', 'admin')
+     WHERE id = $1 AND status = 'rejected'
+     RETURNING *`,
+    [sourceId]
+  );
+  const source = result.rows[0] ?? null;
+  if (source && useAsPrimary) await selectSourceNeedsReview(source.id, "Restored by admin; selected pending review");
+  return source;
+}
+
+export async function findPossibleLogoDuplicates(logo: AdminLogo, sources: LogoSource[]) {
+  const ids = [logo.coingecko_id, logo.coinmarketcap_id].filter(Boolean).map(String);
+  const providerUrls = sources.map((source) => source.source_url || source.image_url).filter(Boolean).map(String);
+  const aliases = approvedLogoCandidateSlugs(logo.name).filter((slug) => slug !== logo.slug);
+  const params = [logo.id, logo.slug, JSON.stringify(ids), JSON.stringify(providerUrls), JSON.stringify(aliases)];
+  const result = await query<AdminLogo & { match_reason: string }>(
+    `WITH other_sources AS (
+       SELECT logo_id, array_agg(COALESCE(source_url, image_url)) AS urls
+       FROM logo_sources
+       WHERE COALESCE(source_url, image_url) IN (SELECT jsonb_array_elements_text($4::jsonb))
+       GROUP BY logo_id
+     )
+     SELECT DISTINCT ON (l.id) l.*,
+       CASE
+         WHEN l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND l.coingecko_id IS NOT NULL THEN 'same CoinGecko ID'
+         WHEN l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND l.coinmarketcap_id IS NOT NULL THEN 'same CMC ID'
+         WHEN os.logo_id IS NOT NULL THEN 'same provider URL'
+         WHEN l.slug IN (SELECT jsonb_array_elements_text($5::jsonb)) THEN 'known alias'
+         WHEN regexp_replace(lower(l.name), '[^a-z0-9]+', '', 'g') = regexp_replace(lower($2), '[^a-z0-9]+', '', 'g') THEN 'similar name'
+         ELSE 'similar slug'
+       END AS match_reason
+     FROM logos l
+     LEFT JOIN other_sources os ON os.logo_id = l.id
+     WHERE l.id <> $1
+        AND (
+         (jsonb_array_length($3::jsonb) > 0 AND (l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)) OR l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($3::jsonb))))
+         OR os.logo_id IS NOT NULL
+         OR l.slug IN (SELECT jsonb_array_elements_text($5::jsonb))
+         OR regexp_replace(lower(l.name), '[^a-z0-9]+', '', 'g') = regexp_replace(lower($2), '[^a-z0-9]+', '', 'g')
+       )
+     ORDER BY l.id ASC
+     LIMIT 8`,
+    params
+  );
+  const dismissed = String(logo.notes || "");
+  return result.rows.filter((row) => !dismissed.includes(`duplicate_dismissed:${row.id}`)).map(withFallback);
+}
+
 
 export { hasDatabaseConfig };

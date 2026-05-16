@@ -35,6 +35,20 @@ CREATE TABLE IF NOT EXISTS logo_sources (
 );
 
 
+CREATE TABLE IF NOT EXISTS logo_aliases (
+  id BIGSERIAL PRIMARY KEY,
+  logo_id BIGINT NOT NULL REFERENCES logos(id) ON DELETE CASCADE,
+  alias TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'admin',
+  metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(alias)
+);
+
+CREATE INDEX IF NOT EXISTS logo_aliases_logo_id_idx ON logo_aliases(logo_id);
+CREATE INDEX IF NOT EXISTS logo_aliases_alias_idx ON logo_aliases(alias);
+
+
 CREATE TABLE IF NOT EXISTS admin_api_secrets (
   provider TEXT PRIMARY KEY,
   key_name TEXT NOT NULL,

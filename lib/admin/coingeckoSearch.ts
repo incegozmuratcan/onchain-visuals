@@ -1,5 +1,6 @@
 import "server-only";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
+import { scoreProviderCandidate, type ConfidenceLabel } from "@/lib/admin/providerScoring";
 
 export type CoinGeckoSearchCandidate = {
   id: string;
@@ -7,6 +8,9 @@ export type CoinGeckoSearchCandidate = {
   symbol: string;
   thumb: string;
   large: string;
+  confidence: ConfidenceLabel;
+  score: number;
+  recommended: boolean;
 };
 
 export type CoinGeckoSearchResult = {
@@ -14,7 +18,9 @@ export type CoinGeckoSearchResult = {
   error: string | null;
 };
 
-export async function searchCoinGeckoIds(query: string): Promise<CoinGeckoSearchResult> {
+type SearchContext = { targetName?: string | null; targetSlug?: string | null; aliases?: string[] };
+
+export async function searchCoinGeckoIds(query: string, context: SearchContext = {}): Promise<CoinGeckoSearchResult> {
   const clean = query.trim().slice(0, 80);
   if (!clean) return { candidates: [], error: null };
   try {
@@ -32,14 +38,33 @@ export async function searchCoinGeckoIds(query: string): Promise<CoinGeckoSearch
     }
     const json = await response.json();
     const coins = Array.isArray(json.coins) ? json.coins : [];
+    const scored: Array<{ coin: Record<string, unknown>; confidence: ConfidenceLabel; score: number; reasons: string[] }> = coins
+      .map((coin: Record<string, unknown>) => {
+        const scored = scoreProviderCandidate({
+          query: clean,
+          targetName: context.targetName,
+          targetSlug: context.targetSlug,
+          aliases: context.aliases,
+          candidateName: String(coin.name || ""),
+          candidateSlug: String(coin.id || ""),
+          candidateSymbol: String(coin.symbol || ""),
+        });
+        return { coin, ...scored };
+      })
+      .filter((item: { coin: Record<string, unknown>; score: number }) => String(item.coin.id || "") && String(item.coin.name || "") && item.score > 0)
+      .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
+      .slice(0, 8);
     return {
-      candidates: coins.slice(0, 8).map((coin: Record<string, unknown>) => ({
+      candidates: scored.map(({ coin, confidence, score }, index: number) => ({
         id: String(coin.id || ""),
         name: String(coin.name || ""),
         symbol: String(coin.symbol || ""),
         thumb: String(coin.thumb || ""),
         large: String(coin.large || ""),
-      })).filter((coin: CoinGeckoSearchCandidate) => coin.id && coin.name),
+        confidence,
+        score,
+        recommended: index === 0 && confidence === "high",
+      })),
       error: null,
     };
   } catch (error) {
