@@ -634,7 +634,7 @@ export async function markNeedsReviewAction(formData: FormData) {
 
 export async function saveBrandSettingsAction(formData: FormData) {
   await requireAdmin();
-  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "heroLogoOffsetX", "heroLogoMaxWidth", "heroLogoSpacing"];
+  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "heroLogoOffsetX", "heroLogoMaxWidth", "heroLogoSpacing", "heroSloganFontSize", "heroSloganFontWeight", "heroSloganLineHeight", "heroSubtitleSize", "heroSubtitleOpacity", "heroSubtitleVisible"];
   const assetFields = ["primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
   const settings: Record<string, unknown> = Object.fromEntries(textFields.map((field) => [field, String(formData.get(field) || "").trim().replace(/on-chain/gi, "onchain")]));
   const assetMetadata: Record<string, Record<string, unknown>> = {};
@@ -663,6 +663,7 @@ export async function saveBrandSettingsAction(formData: FormData) {
     revalidatePath("/", "layout");
     revalidatePath("/admin/brand");
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     console.error("Brand settings save failed", error);
     const message = error instanceof Error ? error.message : "Unknown save error";
     redirect(`/admin/brand?error=${encodeURIComponent(message.slice(0, 160))}`);
@@ -678,19 +679,18 @@ export async function importLocalVaultSourceAction(formData: FormData) {
   if (!entry) redirectLogoNotice(slug, "error", "No local vault source found for this logo.");
   const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
   const localWasRejected = sources.some((source) => source.status === "rejected" && (source.image_url === entry.localPath || sourceMetadata(source).localPath === entry.localPath));
-  const approvedLocal = entry.approvalStatus === "approved" && !entry.visualRejected && !entry.fallbackPreferredUntilManualAsset && !localWasRejected && !hasAdminChosenSource(sources);
-  const created = await upsertLogoSource({
+  const localVaultSafe = entry.approvalStatus === "approved" && !entry.visualRejected && !entry.fallbackPreferredUntilManualAsset && !localWasRejected && !hasAdminChosenSource(sources);
+  await upsertLogoSource({
     logoId: logo.id,
     provider: entry.sourceProvider,
     imageUrl: entry.localPath,
     sourceUrl: entry.sourceUrl || entry.localPath,
-    metadata: { approvalOrigin: "local-vault", sourceProvider: entry.sourceProvider, sha256: entry.sha256, localPath: entry.localPath, sourceUrl: entry.sourceUrl ?? null, approvalStatus: entry.approvalStatus },
-    status: approvedLocal ? "approved" : entry.approvalStatus === "rejected" ? "rejected" : "candidate",
+    metadata: { approvalOrigin: "local-vault", reviewStatus: localVaultSafe ? "selected_needs_review" : "candidate", sourceProvider: entry.sourceProvider, sha256: entry.sha256, localPath: entry.localPath, sourceUrl: entry.sourceUrl ?? null, approvalStatus: entry.approvalStatus },
+    status: entry.approvalStatus === "rejected" || localWasRejected ? "rejected" : "candidate",
   });
-  if (approvedLocal) await autoApproveSource(created.id, "approved local vault source");
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
-  redirectLogoNotice(slug, "success", approvedLocal ? "Local vault source imported and approved." : "Local vault source imported as candidate.");
+  redirectLogoNotice(slug, "success", localVaultSafe ? "Local vault source imported; mark reviewed if it looks correct." : "Local vault source imported as candidate.");
 }
 
 export async function approveSourceAction(formData: FormData) {
@@ -789,9 +789,10 @@ export async function testApiKeyAction(formData: FormData) {
     revalidatePath("/admin/api");
     adminNotice("/admin/api", "success", "API key test succeeded.");
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     const providerForUpdate = parseApiProvider(formData.get("provider"));
     const message = expectedActionMessage(error, "API key test failed.");
-    if (providerForUpdate) await setAdminApiSecretTestResult(providerForUpdate, false, message.slice(0, 180));
+    if (providerForUpdate && !message.startsWith("NEXT_REDIRECT")) await setAdminApiSecretTestResult(providerForUpdate, false, message.slice(0, 180));
     revalidatePath("/admin/api");
     adminNotice("/admin/api", "error", message);
   }
