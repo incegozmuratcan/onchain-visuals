@@ -2,7 +2,7 @@ import Link from "next/link";
 import { AdminSection, AdminShell } from "@/components/admin/AdminPrimitives";
 import { LogoResultsClient, type LogoResultRow } from "@/components/admin/LogoResultsClient";
 import { requireAdmin, adminConfigState, getSetting } from "@/lib/admin/auth";
-import { applySafeCoinGeckoCandidatesAction, bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, scanMetricLogosAction } from "@/lib/admin/actions";
+import { applySafeCoinGeckoCandidatesAction, bulkRefreshCoinGeckoLogosAction, bulkRefreshCoinMarketCapLogosAction, createLogoAction, discoverLogoSourcesBulkAction, scanMetricLogosAction } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, summarizeLogoQa, type LogoQaRow } from "@/lib/admin/logoQa";
@@ -93,6 +93,20 @@ function CompactRefreshSummary({ summary, missingMappings }: { summary: BulkRefr
   </div>;
 }
 
+
+function DiscoverySummary({ summary }: { summary: string }) {
+  try {
+    const data = JSON.parse(summary) as Record<string, unknown>;
+    return <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-xs font-bold text-emerald-800">
+      <div className="font-black text-emerald-950">Logo Source Discovery · {String(data.mode || "smart")}</div>
+      <div className="mt-1">{String(data.checked ?? 0)} checked · {String(data.coingeckoFetched ?? 0)} CG · {String(data.cmcFetched ?? 0)} CMC · {String(data.defillamaFetched ?? 0)} DefiLlama · {String(data.vaultCopiesCreated ?? 0)} vault copies · {String(data.primarySelected ?? 0)} selected · {String(data.needsReview ?? 0)} needs review · {String(data.errors ?? 0)} errors</div>
+      <details className="mt-1"><summary className="cursor-pointer text-emerald-700">Details</summary><DetailList entries={(Array.isArray(data.candidateList) ? data.candidateList : []).map((item) => detailFromText(String(item)))} /></details>
+    </div>;
+  } catch {
+    return <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-xs font-bold text-emerald-800">Last discovery: {summary}</div>;
+  }
+}
+
 function MetricScanSummary({ scanSummary }: { scanSummary: NonNullable<ReturnType<typeof parseMetricLogoScanSummary>> }) {
   const groups = [
     ["Missing CoinGecko ID", scanSummary.details.filter((d) => d.actionTaken === "missing_coingecko_id")],
@@ -108,18 +122,19 @@ function MetricScanSummary({ scanSummary }: { scanSummary: NonNullable<ReturnTyp
   </div>;
 }
 
-function SourceTools({ summaries, scanSummary, missingMappingRows, cmcEnabled }: { summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>; scanSummary: ReturnType<typeof parseMetricLogoScanSummary>; missingMappingRows: LogoQaRow[]; cmcEnabled: boolean }) {
+function SourceTools({ summaries, scanSummary, discoverySummary, missingMappingRows, cmcEnabled, blobEnabled }: { summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>; scanSummary: ReturnType<typeof parseMetricLogoScanSummary>; discoverySummary: string | null; missingMappingRows: LogoQaRow[]; cmcEnabled: boolean; blobEnabled: boolean }) {
   const missingEntries = missingMappingRows.map((row) => ({ label: `${row.logo.slug} — ${row.logo.name}`, slug: row.logo.slug }));
   return <AdminSection title="Source Tools" className="lg:sticky lg:top-4">
     <div className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3 lg:grid-cols-2">
-      <form action={bulkRefreshCoinGeckoLogosAction}><input type="hidden" name="mode" value="smart" /><button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white">Refresh missing</button></form>
+      <form action={discoverLogoSourcesBulkAction}><input type="hidden" name="mode" value="smart" /><button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white">Discover missing sources</button></form>
       <form action={bulkRefreshCoinGeckoLogosAction}><input type="hidden" name="mode" value="retry-errors" /><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Retry failed</button></form>
-      <form action={bulkRefreshCoinGeckoLogosAction}><input type="hidden" name="mode" value="force-all" /><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Force all</button></form>
+      <form action={discoverLogoSourcesBulkAction}><input type="hidden" name="mode" value="force" /><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Force discover all</button></form>
       <form action={applySafeCoinGeckoCandidatesAction}><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Apply safe CG</button></form>
       <form action={scanMetricLogosAction}><button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">Scan metrics</button></form>
-      <form action={bulkRefreshCoinMarketCapLogosAction}><button disabled={!cmcEnabled} className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black disabled:opacity-50">Refresh CMC</button></form>
+      <form action={discoverLogoSourcesBulkAction}><input type="hidden" name="mode" value="vault" /><button disabled={!blobEnabled} className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black disabled:opacity-50">Backup approved to vault</button></form>
     </div>
     <div className="mt-3 grid gap-2">
+      {discoverySummary ? <DiscoverySummary summary={discoverySummary} /> : null}
       {summaries.coingecko ? <CompactRefreshSummary summary={summaries.coingecko} missingMappings={missingEntries} /> : <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">CG refresh: not run yet</div>}
       {scanSummary ? <MetricScanSummary scanSummary={scanSummary} /> : <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">Metric scan: not run yet</div>}
       {summaries.coinmarketcap ? <CompactRefreshSummary summary={summaries.coinmarketcap} /> : null}
@@ -133,6 +148,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const blob = blobStatus();
   const summaryResult = await safeAdminDbQuery("Bulk refresh summaries", getBulkRefreshSummaries, { coingecko: null, coinmarketcap: null });
   const scanResult = config.hasDatabase ? await safeAdminDbQuery("Metric logo discovery", async () => parseMetricLogoScanSummary(await getSetting(METRIC_LOGO_SCAN_SETTING)), null) : { data: null, error: null };
+  const discoveryResult = config.hasDatabase ? await safeAdminDbQuery("Logo source discovery", async () => await getSetting("last_logo_source_discovery_summary"), null) : { data: null, error: null };
   const logoResult = config.hasDatabase ? await safeAdminDbQuery("Logo records", async () => (await listLogos()).rows, []) : { data: [], error: null };
   const sourceResult = config.hasDatabase ? await safeAdminDbQuery("Logo sources", async () => (await getAllLogoSources()).rows, []) : { data: [], error: null };
   const providersReady = { coinmarketcap: Boolean((await resolveApiSecret("coinmarketcap")).value) };
@@ -140,7 +156,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
   const scanSummary = scanResult.data;
   const logos = logoResult.data;
   const sourceRows = sourceResult.data;
-  const dbErrors = [summaryResult.error, scanResult.error, logoResult.error, sourceResult.error].filter(Boolean);
+  const dbErrors = [summaryResult.error, scanResult.error, discoveryResult.error, logoResult.error, sourceResult.error].filter(Boolean);
   const sourcesByLogo = new Map<string, typeof sourceRows>();
   for (const source of sourceRows) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));
@@ -196,7 +212,7 @@ export default async function AdminLogosPage({ searchParams }: { searchParams?: 
         <LogoResultsClient rows={clientRows} initialQuery={query} defaultLimit={DEFAULT_LIMIT} activeFilter={filter} />
       </div>
 
-      <SourceTools summaries={summaries} scanSummary={scanSummary} missingMappingRows={missingMappingRows} cmcEnabled={Boolean(providersReady.coinmarketcap)} />
+      <SourceTools summaries={summaries} scanSummary={scanSummary} discoverySummary={discoveryResult.data} missingMappingRows={missingMappingRows} cmcEnabled={Boolean(providersReady.coinmarketcap)} blobEnabled={config.hasBlob} />
     </section>
   </AdminShell>;
 }

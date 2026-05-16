@@ -267,10 +267,6 @@ export async function updateLogoStatus(slug: string, status: "needs_review" | "a
 }
 
 export async function approveSource(sourceId: string) {
-  const source = (await query<LogoSource>("SELECT * FROM logo_sources WHERE id = $1 LIMIT 1", [sourceId])).rows[0];
-  if (source?.provider === "coinmarketcap" && !source.blob_url) {
-    throw new Error("CoinMarketCap candidates must be copied to Blob/local storage before approval so public cards do not hotlink CMC logos.");
-  }
   await query(
     `WITH chosen AS (
        UPDATE logo_sources SET status = 'approved', rejection_reason = NULL, metadata = COALESCE(metadata, '{}'::jsonb) || '{"approvalOrigin":"admin","reviewStatus":"reviewed"}'::jsonb WHERE id = $1 RETURNING *
@@ -283,8 +279,31 @@ export async function approveSource(sourceId: string) {
   );
 }
 
+export async function selectSourceNeedsReview(sourceId: string, reason = "Auto-selected by source discovery") {
+  await query(
+    `WITH chosen AS (
+       UPDATE logo_sources
+       SET status = 'approved',
+           rejection_reason = NULL,
+           metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('approvalOrigin', 'auto', 'reviewStatus', 'selected_needs_review', 'selectionReason', $2::text)
+       WHERE id = $1 AND status <> 'rejected'
+       RETURNING *
+     )
+     UPDATE logos
+     SET status = 'needs_review', approved_source_id = chosen.id, approved_logo_url = COALESCE(chosen.blob_url, chosen.image_url)
+     FROM chosen
+     WHERE logos.id = chosen.logo_id`,
+    [sourceId, reason]
+  );
+}
+
+export async function getLogoSource(sourceId: string) {
+  return (await query<LogoSource>("SELECT * FROM logo_sources WHERE id = $1 LIMIT 1", [sourceId])).rows[0] ?? null;
+}
+
 export async function rejectSource(sourceId: string, reason: string) {
   await query("UPDATE logo_sources SET status = 'rejected', rejection_reason = $2 WHERE id = $1", [sourceId, reason || "Rejected in admin review"]);
+  await query("UPDATE logos SET status = 'needs_review', approved_source_id = NULL, approved_logo_url = NULL WHERE approved_source_id = $1", [sourceId]);
 }
 
 export async function rejectLogo(slug: string, reason: string) {

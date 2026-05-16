@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, hasAdminChosenSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
+import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, getLogoSource, hasAdminChosenSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, selectSourceNeedsReview, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
+import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { deleteAdminApiSecret, providerEnvVar, resolveApiSecret, saveAdminApiSecret, setAdminApiSecretTestResult, type ApiProviderId } from "@/lib/admin/apiSecrets";
 
 async function ensureLogoFromForm(formData: FormData) {
@@ -448,6 +449,100 @@ export async function applySafeCoinGeckoCandidatesAction() {
   redirect(`/admin/logos?candidateApply=1&checkedCandidates=${counts.checkedCandidates}&autoApproved=${counts.autoApproved}&skipped=${counts.skipped}`);
 }
 
+
+function isNumericCoinMarketCapId(value: string) {
+  return /^\d+$/.test(value.trim());
+}
+
+function latestUsableSource(sources: LogoSource[], provider: string) {
+  return sources.find((source) => source.provider === provider && source.status !== "rejected") ?? null;
+}
+
+async function chooseBestDiscoveredPrimary(logo: AdminLogo, sources: LogoSource[], summary: string[]) {
+  if (hasAdminChosenSource(sources)) {
+    summary.push("Primary: skipped protected admin manual/upload choice");
+    return;
+  }
+  const cg = latestUsableSource(sources, "coingecko");
+  if (cg && canAutoApproveCoinGecko(logo, sources, cg.image_url, cg.source_url).ok) {
+    await autoApproveSource(cg.id, "safe CoinGecko primary source");
+    summary.push("Primary: CoinGecko selected and trusted");
+    return;
+  }
+  const fallback = latestUsableSource(sources, "coinmarketcap") ?? latestUsableSource(sources, "defillama") ?? latestUsableSource(sources, "managed-vault") ?? latestUsableSource(sources, "vault") ?? latestUsableSource(sources, "local-vault");
+  if (fallback && logo.visual_status !== "rejected") {
+    await selectSourceNeedsReview(fallback.id, `${fallback.provider} selected by discovery; admin review required`);
+    summary.push(`Primary: ${fallback.provider} selected (needs review)`);
+  }
+}
+
+async function discoverLogoSources(logo: AdminLogo, options: { force?: boolean; backupVault?: boolean } = {}) {
+  const summary: string[] = [];
+  const before = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  const protectedAdmin = hasAdminChosenSource(before);
+
+  const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
+  if (coinId) {
+    try {
+      const source = await fetchCoinGeckoLogoSource(coinId);
+      const auto = canAutoApproveCoinGecko(logo, before, source.imageUrl, source.sourceUrl);
+      const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, discovery: true, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
+      await updateLogoProviderId(logo.slug, "coingecko", coinId);
+      await updateLogoFetchState(logo.slug, "coingecko", null);
+      if (auto.ok && !protectedAdmin) await autoApproveSource(created.id, auto.reason);
+      summary.push(auto.ok && !protectedAdmin ? "CoinGecko: fetched / selected primary" : `CoinGecko: fetched / ${auto.reason}`);
+    } catch (error) {
+      const message = expectedActionMessage(error, "CoinGecko fetch failed.");
+      await updateLogoFetchState(logo.slug, "coingecko", message);
+      summary.push(`CoinGecko: failed (${message})`);
+    }
+  } else {
+    summary.push("CoinGecko: missing ID");
+  }
+
+  const cmcId = typeof logo.coinmarketcap_id === "string" ? logo.coinmarketcap_id.trim() : "";
+  if (cmcId && isNumericCoinMarketCapId(cmcId)) {
+    try {
+      const source = await fetchCoinMarketCapLogoSource(cmcId);
+      await upsertLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source, metadata: { ...source.metadata, discovery: true, reviewStatus: "selected_needs_review" }, status: "candidate" });
+      await updateLogoFetchState(logo.slug, "coinmarketcap", null);
+      summary.push("CoinMarketCap: fetched / review-needed backup");
+    } catch (error) {
+      const message = expectedActionMessage(error, "CoinMarketCap fetch failed.");
+      await updateLogoFetchState(logo.slug, "coinmarketcap", message);
+      summary.push(`CoinMarketCap: failed (${message})`);
+    }
+  } else if (cmcId) {
+    await updateLogoFetchState(logo.slug, "coinmarketcap", "CMC ID must be numeric; use Find CMC ID.");
+    summary.push("CoinMarketCap: ID review (numeric ID required)");
+  } else if ((await resolveApiSecret("coinmarketcap")).value) {
+    const found = await searchCoinMarketCapIds(`${logo.name} ${logo.slug}`);
+    summary.push(found.candidates.length ? `CoinMarketCap: needs ID (${found.candidates.length} candidates found)` : `CoinMarketCap: needs ID${found.error ? ` (${found.error})` : ""}`);
+  } else {
+    summary.push("CoinMarketCap: API key missing");
+  }
+
+  try {
+    const imageUrl = `https://icons.llama.fi/${encodeURIComponent(logo.slug)}.jpg`;
+    const created = await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl, sourceUrl: `https://defillama.com/protocol/${logo.slug}`, metadata: { slug: logo.slug, discovery: true, reviewStatus: "selected_needs_review" }, status: "candidate" });
+    summary.push(created.status === "rejected" ? "DefiLlama: rejected / skipped" : "DefiLlama: fetched / backup");
+  } catch (error) {
+    summary.push(`DefiLlama: failed (${expectedActionMessage(error, "DefiLlama fetch failed.")})`);
+  }
+
+  const local = logoSourceManifest.find((item) => item.slug === logo.slug && item.category === logo.category) || logoSourceManifest.find((item) => item.slug === logo.slug);
+  if (local) summary.push("Local static manifest: available/importable");
+  else summary.push("Local static manifest: missing");
+
+  const after = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  await chooseBestDiscoveredPrimary(logo, after, summary);
+  if (options.backupVault) {
+    const primary = after.find((source) => source.id === logo.approved_source_id) ?? after.find((source) => source.status === "approved");
+    if (primary) summary.push(await copySourceToVault(logo, primary));
+  }
+  return summary;
+}
+
 async function coinMarketCapHeaders() {
   const resolved = await resolveApiSecret("coinmarketcap");
   if (!resolved.value) throw new Error("CoinMarketCap API key is missing. Add it from API Settings or COINMARKETCAP_API_KEY before using CoinMarketCap logo fetch.");
@@ -458,6 +553,7 @@ async function coinMarketCapHeaders() {
 }
 
 async function fetchCoinMarketCapLogoSource(cmcId: string) {
+  if (!isNumericCoinMarketCapId(cmcId)) throw new Error("CMC ID must be numeric; use Find CMC ID before fetching.");
   const response = await fetch(`https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?id=${encodeURIComponent(cmcId)}`, {
     headers: await coinMarketCapHeaders(),
   });
@@ -484,7 +580,8 @@ export async function addCoinMarketCapAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const cmcId = String(formData.get("coinMarketCapId") || logo.coinmarketcap_id || "").trim();
   if (!(await resolveApiSecret("coinmarketcap")).value) redirectLogoNotice(logo.slug, "warning", "CoinMarketCap API key missing; fetch is disabled. Add it in API Settings.");
-  if (!cmcId) redirectLogoNotice(logo.slug, "warning", "Add CoinMarketCap ID first.");
+  if (!cmcId) redirectLogoNotice(logo.slug, "warning", "Find and save a numeric CoinMarketCap ID first.");
+  if (!isNumericCoinMarketCapId(cmcId)) redirectLogoNotice(logo.slug, "warning", "CMC ID must be numeric; use Find CMC ID instead of a slug.");
   try {
     const source = await fetchCoinMarketCapLogoSource(cmcId);
     await addLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source });
@@ -518,8 +615,12 @@ export async function bulkRefreshCoinMarketCapLogosAction() {
 
   for (const logo of logos) {
     const cmcId = typeof logo.coinmarketcap_id === "string" ? logo.coinmarketcap_id.trim() : "";
-    if (!cmcId) {
+    if (!cmcId || !isNumericCoinMarketCapId(cmcId)) {
       missing += 1;
+      if (cmcId) {
+        errors.push(`${logo.slug}: CMC ID must be numeric; use Find CMC ID.`);
+        await updateLogoFetchState(logo.slug, "coinmarketcap", "CMC ID must be numeric; use Find CMC ID.");
+      }
       continue;
     }
     try {
@@ -541,6 +642,102 @@ export async function bulkRefreshCoinMarketCapLogosAction() {
   const params = new URLSearchParams({ provider: "coinmarketcap", refreshed: String(refreshed), missing: String(missing), errors: String(errors.length) });
   for (const message of errors.slice(0, 3)) params.append("error", message);
   redirect(`/admin/logos?${params.toString()}`);
+}
+
+
+async function uploadBufferToBlob(buffer: Buffer, pathname: string, mimeType: string) {
+  const token = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is missing; Managed Logo Vault is disabled until Blob storage is configured.");
+  const response = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
+    method: "PUT",
+    headers: {
+      authorization: `Bearer ${token}`,
+      "x-api-version": "7",
+      "x-content-type": mimeType,
+      "x-add-random-suffix": "0",
+    },
+    body: new Uint8Array(buffer),
+  });
+  if (!response.ok) throw new Error(`Blob vault upload failed (${response.status}).`);
+  const json = await response.json();
+  return String(json.url || json.downloadUrl || "");
+}
+
+function extensionFromMime(mimeType: string) {
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
+  if (mimeType.includes("webp")) return "webp";
+  return "";
+}
+
+async function copySourceToVault(logo: AdminLogo, source: LogoSource) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return "Managed Vault: Blob token missing";
+  if (source.status === "rejected") return "Managed Vault: skipped rejected source";
+  const imageUrl = source.blob_url || source.image_url;
+  if (!/^https:\/\//.test(imageUrl)) return "Managed Vault: source is not an HTTPS provider image";
+  const response = await fetch(imageUrl, { headers: { accept: "image/png,image/jpeg,image/webp" } });
+  if (!response.ok) throw new Error(`image copy failed (${response.status})`);
+  const mimeType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
+  if (!allowed.has(mimeType)) throw new Error(`content type unsupported: ${mimeType || "unknown"}. SVG vault copies are disabled until sanitization exists.`);
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length) throw new Error("image copy failed: empty file");
+  if (buffer.length > 1_000_000) throw new Error("image copy failed: logo file is larger than 1 MB");
+  const copiedAt = new Date().toISOString();
+  const ext = extensionFromMime(mimeType);
+  const pathname = `logo-vault/${logo.slug}/${source.provider}-${Date.now()}.${ext}`;
+  const blobUrl = await uploadBufferToBlob(buffer, pathname, mimeType);
+  await addLogoSource({
+    logoId: logo.id,
+    provider: "managed-vault",
+    imageUrl: blobUrl,
+    blobUrl,
+    sourceUrl: source.source_url || imageUrl,
+    metadata: { copiedFromProvider: source.provider, copiedFromSourceId: source.id, copiedFromUrl: imageUrl, copiedAt, fileSize: buffer.length, mimeType, reviewStatus: "candidate" },
+  });
+  return "Managed Vault: copy created";
+}
+
+export async function copySourceToVaultAction(formData: FormData) {
+  await requireAdmin();
+  const logo = await ensureLogoFromForm(formData);
+  const sourceId = String(formData.get("sourceId") || "").trim();
+  try {
+    if (!sourceId) redirectLogoNotice(logo.slug, "warning", "Choose a source to copy to Managed Vault.");
+    const source = await getLogoSource(sourceId);
+    if (!source || source.logo_id !== logo.id) redirectLogoNotice(logo.slug, "error", "Source was not found for this logo.");
+    const message = await copySourceToVault(logo, source);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    revalidatePath("/admin/logos");
+    redirectLogoNotice(logo.slug, message.includes("created") ? "success" : "warning", message);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    redirectLogoNotice(logo.slug, "error", expectedActionMessage(error, "Vault copy failed."));
+  }
+}
+
+export async function fetchAllLogoSourcesAction(formData: FormData) {
+  await requireAdmin();
+  const logo = await ensureLogoFromForm(formData);
+  try {
+    const summary = await discoverLogoSources(logo);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    revalidatePath("/admin/logos");
+    redirectLogoNotice(logo.slug, "success", summary.join(" · "));
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    redirectLogoNotice(logo.slug, "error", expectedActionMessage(error, "Fetch all sources failed."));
+  }
+}
+
+export async function useCoinMarketCapIdAction(formData: FormData) {
+  await requireAdmin();
+  const slug = String(formData.get("slug") || "");
+  const cmcId = String(formData.get("coinMarketCapId") || "").trim();
+  if (!isNumericCoinMarketCapId(cmcId)) redirectLogoNotice(slug, "warning", "CMC ID must be numeric; choose a candidate from the finder.");
+  await updateLogoProviderId(slug, "coinmarketcap", cmcId);
+  revalidatePath(`/admin/logos/${slug}`);
+  redirectLogoNotice(slug, "success", "CoinMarketCap numeric ID saved. Fetch CMC to add the logo source.");
 }
 
 async function uploadToBlob(file: File, pathname: string) {
@@ -604,6 +801,50 @@ export async function saveProviderIdsAction(formData: FormData) {
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
   redirectLogoNotice(slug, "success", "Provider IDs saved.");
+}
+
+
+export async function discoverLogoSourcesBulkAction(formData: FormData) {
+  await requireAdmin();
+  const mode = String(formData.get("mode") || "smart");
+  const logos = (await listLogosForCoinGeckoBulk()).rows;
+  const allSources = (await getAllLogoSources()).rows;
+  const sourcesByLogo = new Map<string, LogoSource[]>();
+  for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
+  const counts = { checked: 0, coingeckoFetched: 0, cmcFetched: 0, defillamaFetched: 0, vaultCopiesCreated: 0, primarySelected: 0, needsReview: 0, missingIds: 0, errors: 0, skippedProtectedAdminSources: 0, skippedRejected: 0 };
+  const details: string[] = [];
+  for (const logo of logos) {
+    const sources = sourcesByLogo.get(logo.id) ?? [];
+    const problem = !logo.approved_logo_url || !logo.coingecko_id || !logo.coinmarketcap_id || sources.length === 0 || Boolean(logo.last_fetch_error) || logo.status === "needs_review";
+    if (mode === "smart" && !problem) continue;
+    counts.checked += 1;
+    if (hasAdminChosenSource(sources)) counts.skippedProtectedAdminSources += 1;
+    if (logo.visual_status === "rejected") { counts.skippedRejected += 1; details.push(`${logo.slug}: visual rejected skipped`); continue; }
+    try {
+      const summary = mode === "vault" ? [] : await discoverLogoSources(logo);
+      if (mode === "vault") {
+        const primary = sources.find((source) => source.id === logo.approved_source_id) ?? sources.find((source) => source.status === "approved");
+        if (primary && !sources.some((source) => ["managed-vault", "vault"].includes(source.provider))) summary.push(await copySourceToVault(logo, primary));
+        else summary.push(primary ? "Managed Vault: already available" : "Managed Vault: no approved primary to copy");
+      }
+      const text = summary.join(" | ");
+      if (text.includes("CoinGecko: fetched")) counts.coingeckoFetched += 1;
+      if (text.includes("CoinMarketCap: fetched")) counts.cmcFetched += 1;
+      if (text.includes("DefiLlama: fetched")) counts.defillamaFetched += 1;
+      if (text.includes("Managed Vault: copy created")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Primary:")) counts.primarySelected += 1;
+      if (text.includes("needs review")) counts.needsReview += 1;
+      if (text.includes("missing ID") || text.includes("needs ID")) counts.missingIds += 1;
+      details.push(`${logo.slug}: ${text}`);
+    } catch (error) {
+      counts.errors += 1;
+      details.push(`${logo.slug}: ${expectedActionMessage(error, "Discovery failed.")}`);
+    }
+  }
+  await setAdminSetting("last_logo_source_discovery_summary", JSON.stringify({ provider: "Logo Source Discovery", timestamp: new Date().toISOString(), mode, ...counts, firstErrors: details.filter((d) => d.toLowerCase().includes("failed") || d.toLowerCase().includes("error")).slice(0, 10), firstSkippedReasons: details.filter((d) => d.toLowerCase().includes("skipped")).slice(0, 10), candidateList: details.slice(0, 25) }));
+  revalidatePath("/admin");
+  revalidatePath("/admin/logos");
+  redirect(`/admin/logos?notice=success&message=${encodeURIComponent(`Discovery ${mode} complete: ${counts.checked} checked, ${counts.primarySelected} primary selected, ${counts.needsReview} need review, ${counts.errors} errors`)}`);
 }
 
 export async function saveFallbackAction(formData: FormData) {
