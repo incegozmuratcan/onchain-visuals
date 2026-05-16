@@ -2,20 +2,21 @@ import Link from "next/link";
 import { AdminShell, AdminStatusPill } from "@/components/admin/AdminPrimitives";
 import { notFound } from "next/navigation";
 import { requireAdmin, adminConfigState } from "@/lib/admin/auth";
-import { addCoinGeckoAction, addCoinMarketCapAction, addDefiLlamaAction, addManualUrlAction, approveSourceAction, markNeedsReviewAction, markVisualRejectedAction, rejectLogoAction, rejectSourceAction, saveFallbackAction, saveProviderIdsAction, uploadLogoAction, importLocalVaultSourceAction } from "@/lib/admin/actions";
+import { addCoinGeckoAction, addCoinMarketCapAction, addDefiLlamaAction, addManualUrlAction, approveSourceAction, copySourceToVaultAction, fetchAllLogoSourcesAction, markNeedsReviewAction, markVisualRejectedAction, rejectLogoAction, rejectSourceAction, saveFallbackAction, saveProviderIdsAction, uploadLogoAction, importLocalVaultSourceAction, useCoinMarketCapIdAction } from "@/lib/admin/actions";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { approvedLogoCandidateSlugs, getLogo, getLogoSources, type LogoSource } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, getCoinMarketCapId } from "@/lib/admin/logoQa";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
+import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 
 export const dynamic = "force-dynamic";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 type PillTone = "green" | "amber" | "red" | "gray";
-type ProviderKey = "coingecko" | "coinmarketcap" | "defillama" | "manual" | "local-vault";
+type ProviderKey = "coingecko" | "coinmarketcap" | "defillama" | "managed-vault" | "manual" | "local-vault";
 
 function firstParam(value: string | string[] | undefined, fallback = "") {
   return Array.isArray(value) ? value[0] ?? fallback : value ?? fallback;
@@ -69,7 +70,8 @@ function providerName(provider?: string | null) {
   if (provider === "defillama") return "DefiLlama";
   if (provider === "manual") return "Manual URL";
   if (provider === "upload") return "Upload";
-  if (provider === "local-vault") return "Local Vault";
+  if (provider === "managed-vault" || provider === "vault") return "Managed Vault";
+  if (provider === "local-vault") return "Local Static Manifest";
   return safeString(provider) || "Unknown source";
 }
 
@@ -135,6 +137,17 @@ function ApproveButton({ source, slug, label = "Mark reviewed", dark = false }: 
       <input type="hidden" name="sourceId" value={source.id} />
       <input type="hidden" name="slug" value={slug} />
       <SmallButton dark={dark}>{label}</SmallButton>
+    </form>
+  );
+}
+
+function CopyVaultButton({ source, slug, name, category }: { source: LogoSource; slug: string; name: string; category: string }) {
+  return (
+    <form action={copySourceToVaultAction}>
+      <input type="hidden" name="sourceId" value={source.id} />
+      <input type="hidden" name="name" value={name} />
+      <input type="hidden" name="category" value={category} />
+      <SmallButton>Copy to Vault</SmallButton>
     </form>
   );
 }
@@ -205,9 +218,11 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
   const cgFinderQuery = firstParam(searchParams?.cgq, (!coinGeckoId || cgNeedsReview) ? logoName : "");
   const cgFinderResult = cgFinderQuery ? await searchCoinGeckoIds(cgFinderQuery) : { candidates: [], error: null };
   const cmcReady = Boolean((await resolveApiSecret("coinmarketcap")).value);
+  const cmcFinderQuery = firstParam(searchParams?.cmcq, "");
+  const cmcFinderResult = cmcFinderQuery && cmcReady ? await searchCoinMarketCapIds(cmcFinderQuery) : { candidates: [], error: cmcReady ? null : "Add CoinMarketCap API key first", apiKeyMissing: !cmcReady };
   const hiddenLogoFields = <><input type="hidden" name="name" value={logoName} /><input type="hidden" name="category" value={logoCategory} /></>;
 
-  const priorityOrder = ["manual", "upload", "coingecko", "coinmarketcap", "defillama"];
+  const priorityOrder = ["manual", "upload", "coingecko", "coinmarketcap", "defillama", "managed-vault", "vault"];
   const fallbackPrimary = sources.find((source) => source.status === "approved" && priorityOrder.includes(source.provider)) ?? (localVaultSource?.status === "approved" ? localVaultSource : null);
   const primarySource = approvedSource ?? fallbackPrimary;
   const primaryProvider = providerName(primarySource?.provider);
@@ -220,6 +235,8 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
   const coinGeckoSource = providerSource("coingecko");
   const coinMarketCapSource = providerSource("coinmarketcap");
   const defiLlamaSource = providerSource("defillama");
+  const managedVaultSource = providerSource("managed-vault") ?? providerSource("vault");
+  const cmcNumeric = Boolean(coinMarketCapId && /^\d+$/.test(String(coinMarketCapId)));
   const mainProviders: Array<{ key: ProviderKey; name: string; source: LogoSource | null; status: string; action: React.ReactNode; helper?: string; secondary?: boolean }> = [
     {
       key: "coingecko",
@@ -238,12 +255,12 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
       key: "coinmarketcap",
       name: "CoinMarketCap",
       source: coinMarketCapSource,
-      status: coinMarketCapSource?.status === "rejected" ? "Rejected" : coinMarketCapSource?.id === primarySource?.id ? (primaryNeedsReview ? "Needs review" : "Primary") : coinMarketCapSource ? "Backup" : !cmcReady ? "Missing key" : coinMarketCapId ? "Missing" : "Missing ID",
-      helper: !cmcReady ? "API key missing." : coinMarketCapId ? `ID: ${coinMarketCapId}` : "Add CMC ID.",
+      status: coinMarketCapSource?.status === "rejected" ? "Rejected" : coinMarketCapSource?.id === primarySource?.id ? (primaryNeedsReview ? "Needs review" : "Primary") : coinMarketCapSource ? "Backup" : !cmcReady ? "API key missing" : coinMarketCapId && !cmcNumeric ? "ID review" : coinMarketCapId ? "Missing" : "Missing numeric ID",
+      helper: !cmcReady ? "Add CoinMarketCap API key first." : coinMarketCapId && !cmcNumeric ? "CMC ID must be numeric; use finder." : coinMarketCapId ? `Numeric ID: ${coinMarketCapId}` : "Find and save a numeric CMC ID.",
       action: (
         <div className="flex flex-wrap gap-2">
           {coinMarketCapSource && coinMarketCapSource.status !== "rejected" ? <ApproveButton source={coinMarketCapSource} slug={logoSlug} label={coinMarketCapSource.id === primarySource?.id ? "Mark reviewed" : "Use as primary"} dark={coinMarketCapSource.id !== primarySource?.id} /> : null}
-          <form action={addCoinMarketCapAction}>{hiddenLogoFields}<input type="hidden" name="coinMarketCapId" value={safeString(coinMarketCapId) || ""} /><SmallButton disabled={!coinMarketCapId || !cmcReady}>{logo.last_fetch_provider === "coinmarketcap" && logo.last_fetch_error ? "Retry" : coinMarketCapId ? "Fetch CMC" : "Add ID"}</SmallButton></form>
+          <form action={addCoinMarketCapAction}>{hiddenLogoFields}<input type="hidden" name="coinMarketCapId" value={safeString(coinMarketCapId) || ""} /><SmallButton disabled={!coinMarketCapId || !cmcReady || !cmcNumeric}>{logo.last_fetch_provider === "coinmarketcap" && logo.last_fetch_error ? "Retry" : coinMarketCapId ? "Fetch CMC" : "Find CMC ID"}</SmallButton></form>
         </div>
       ),
     },
@@ -261,6 +278,15 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
       ),
     },
     {
+      key: "managed-vault",
+      name: "Managed Vault",
+      source: managedVaultSource,
+      status: managedVaultSource?.id === primarySource?.id ? (primaryNeedsReview ? "Needs review" : "Primary") : managedVaultSource ? "Backup" : config.hasBlob ? "Missing" : "Blob missing",
+      helper: config.hasBlob ? "Durable Blob copy of a selected provider logo." : "Set BLOB_READ_WRITE_TOKEN to enable vault copies.",
+      secondary: true,
+      action: managedVaultSource && managedVaultSource.status !== "rejected" ? <ApproveButton source={managedVaultSource} slug={logoSlug} label={managedVaultSource.id === primarySource?.id ? "Mark reviewed" : "Use as primary"} dark={managedVaultSource.id !== primarySource?.id} /> : primarySource ? <CopyVaultButton source={primarySource} slug={logoSlug} name={logoName} category={logoCategory} /> : null,
+    },
+    {
       key: "manual",
       name: "Manual / Upload",
       source: manualUploadSource,
@@ -271,7 +297,7 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
     },
     {
       key: "local-vault",
-      name: "Local Vault",
+      name: "Local Static Manifest",
       source: localVaultSource,
       status: localVaultSource?.id === primarySource?.id ? (primaryNeedsReview ? "Needs review" : "Primary") : localVaultSource ? "Backup" : localVault ? "Available · import" : "Missing",
       helper: localVault ? (localVaultUsable ? "Local manifest asset is available." : "Local source needs manual review.") : "No local manifest source.",
@@ -317,7 +343,7 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
               <p className="mt-1 text-sm font-bold text-slate-500">This is what public cards will use. Next: <span className="text-slate-950">{nextAction}</span></p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {qa.issues.slice(0, 4).map((issue) => <AdminStatusPill key={issue} tone={issue === "visual_rejected" ? "red" : "amber"}>{issue.replaceAll("_", " ")}</AdminStatusPill>)}
-                {localVault ? <AdminStatusPill tone={localVaultUsable ? "green" : "amber"}>local vault {localVaultUsable ? "available" : "review"}</AdminStatusPill> : null}
+                {localVault ? <AdminStatusPill tone={localVaultUsable ? "green" : "amber"}>local static {localVaultUsable ? "available" : "review"}</AdminStatusPill> : null}
               </div>
             </div>
           </div>
@@ -344,7 +370,9 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
               <div className="text-sm font-black text-slate-950">{primarySource ? `${primaryProvider} · ${primaryStatus} · Used publicly` : "No approved source · fallback shown publicly"}</div>
               <p className="mt-1 text-xs font-bold text-slate-500">{primarySource ? sourceStatusLabel(primarySource) : "Add or fetch a source, then mark it reviewed."}</p>
               <div className="mt-3 flex flex-wrap gap-2">
+                <form action={fetchAllLogoSourcesAction}>{hiddenLogoFields}<SmallButton dark>Fetch all sources</SmallButton></form>
                 {primarySource && primaryNeedsReview ? <ApproveButton source={primarySource} slug={logoSlug} label="Mark reviewed" dark /> : null}
+                {primarySource ? <CopyVaultButton source={primarySource} slug={logoSlug} name={logoName} category={logoCategory} /> : null}
                 {primarySource ? <RejectButton source={primarySource} slug={logoSlug} /> : null}
               </div>
               {primarySource ? <SourceDetails source={primarySource} /> : null}
@@ -371,6 +399,7 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
                 <Img src={sourceImage(row.source) || (row.key === "local-vault" ? localVault?.localPath : null)} size={42} />
                 <div className="flex flex-wrap items-center justify-start gap-2 md:justify-end">
                   {row.action}
+                  {row.source && row.source.status !== "rejected" && row.key !== "managed-vault" ? <CopyVaultButton source={row.source} slug={logoSlug} name={logoName} category={logoCategory} /> : null}
                   {row.source && row.source.status !== "rejected" ? <RejectButton source={row.source} slug={logoSlug} /> : null}
                 </div>
                 {row.source ? <div className="md:col-span-4"><SourceDetails source={row.source} /></div> : null}
@@ -384,9 +413,14 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Fetch missing sources</p>
-              <h2 className="text-lg font-black text-slate-950">Compact actions</h2>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Compact action bar</p>
+              <h2 className="text-lg font-black text-slate-950">Fetch, backup and IDs</h2>
             </div>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <form action={fetchAllLogoSourcesAction}>{hiddenLogoFields}<SmallButton dark>Fetch all sources</SmallButton></form>
+            {primarySource ? <CopyVaultButton source={primarySource} slug={logoSlug} name={logoName} category={logoCategory} /> : null}
+            <a href="#find-ids" className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-800 shadow-sm">Find ID</a>
           </div>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <form action={saveProviderIdsAction} className="grid gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-3">
@@ -403,7 +437,7 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
           </div>
         </section>
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
+        <section id="find-ids" className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
           <div className="flex items-center justify-between gap-2">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Find CoinGecko ID</p>
@@ -430,6 +464,34 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
               ))}
             </div>
           ) : null}
+
+          <div className="mt-5 border-t border-slate-100 pt-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-400">Find CoinMarketCap ID</p>
+                <h3 className="text-sm font-black text-slate-950">Numeric CMC helper</h3>
+              </div>
+              <AdminStatusPill tone={cmcReady ? (cmcNumeric ? "gray" : "amber") : "amber"}>{cmcReady ? (cmcNumeric ? "optional" : "numeric ID needed") : "API key missing"}</AdminStatusPill>
+            </div>
+            <form className="mt-3 flex gap-2">
+              <input name="cmcq" defaultValue={cmcFinderQuery || logoName} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold" placeholder="Search CMC by name or symbol" />
+              <button disabled={!cmcReady} className="rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white disabled:opacity-40">Search CMC</button>
+            </form>
+            {cmcFinderResult.error ? <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs font-bold text-amber-800">{cmcFinderResult.error}</div> : null}
+            {cmcFinderResult.candidates.length ? (
+              <div className="mt-3 grid gap-2">
+                {cmcFinderResult.candidates.slice(0, 5).map((candidate) => (
+                  <form key={candidate.id} action={useCoinMarketCapIdAction} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs">
+                    <input type="hidden" name="slug" value={logoSlug} />
+                    <input type="hidden" name="coinMarketCapId" value={candidate.id} />
+                    <Img src={candidate.logo} size={30} />
+                    <div className="min-w-0"><div className="truncate font-black text-slate-950">{candidate.name} <span className="text-slate-400">{candidate.symbol}</span></div><div className="truncate font-bold text-slate-400">ID {candidate.id} · {candidate.slug}</div></div>
+                    <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">Use this CMC ID</button>
+                  </form>
+                ))}
+              </div>
+            ) : null}
+          </div>
         </section>
       </section>
 
@@ -449,6 +511,7 @@ export default async function LogoDetailPage({ params, searchParams }: { params:
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {source.status !== "rejected" ? <ApproveButton source={source} slug={logoSlug} label="Use as primary" dark /> : null}
+                  {source.status !== "rejected" && source.provider !== "managed-vault" ? <CopyVaultButton source={source} slug={logoSlug} name={logoName} category={logoCategory} /> : null}
                   <RejectButton source={source} slug={logoSlug} />
                 </div>
                 <SourceDetails source={source} />
