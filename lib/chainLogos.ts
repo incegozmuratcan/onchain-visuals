@@ -1,4 +1,11 @@
-import { getLogoRegistryEntry, hasApprovedLogoSource, logoManifestBySlug, normalizeLogoKey, slugifyLogoKey, type LogoFit, type LogoManifestEntry } from "./logos/logoRegistry";
+import {
+  getLogoRegistryEntry,
+  logoManifestBySlug,
+  normalizeLogoKey,
+  slugifyLogoKey,
+  type LogoFit,
+  type LogoManifestEntry,
+} from "./logos/logoRegistry";
 
 export type { LogoFit } from "./logos/logoRegistry";
 
@@ -8,14 +15,17 @@ export type LogoRenderConfig = {
   scale: number;
   padding: number;
   sourceType?: LogoManifestEntry["sourceType"] | "generated" | "external";
-  quality?: LogoManifestEntry["quality"] | "generated" | "external-only" | "fallback";
+  quality?:
+    | LogoManifestEntry["quality"]
+    | "generated"
+    | "external-only"
+    | "fallback";
 };
 
 type ChainIdentity = {
   name: string;
   aliases: string[];
   slug: string;
-  logoCandidates?: string[];
   manifest?: LogoManifestEntry;
 };
 
@@ -28,27 +38,6 @@ const DEFAULT_LOGO_CONFIG = {
 function generatedLogo(slug: string) {
   return `/api/chain-logo/${encodeURIComponent(slug)}`;
 }
-
-function llamaChain(slug: string) {
-  return `https://icons.llama.fi/chains/rsz_${slug}.jpg`;
-}
-
-function llamaIcon(slug: string) {
-  return `https://icons.llama.fi/${slug}.jpg`;
-}
-
-function coinLogo(id: string) {
-  return `https://assets.coingecko.com/coins/images/${id}/large.png`;
-}
-
-const externalCandidates: Record<string, string[]> = {
-  bsc: [llamaChain("bsc"), llamaIcon("bsc"), coinLogo("825")],
-  base: [llamaChain("base"), llamaIcon("base"), coinLogo("31199")],
-  avalanche: [llamaChain("avalanche"), llamaIcon("avax"), coinLogo("12559")],
-  optimism: [llamaChain("optimism"), llamaIcon("optimism"), coinLogo("25244")],
-  "zksync-era": [llamaChain("zksync-era"), llamaIcon("zksync-era"), coinLogo("24091")],
-  "internet-computer": [llamaChain("internet-computer"), llamaIcon("internet-computer"), coinLogo("14495")],
-};
 
 function fallbackSlug(name: string) {
   return slugifyLogoKey(name);
@@ -63,26 +52,22 @@ function uniqueConfigs(configs: LogoRenderConfig[]) {
   });
 }
 
-function manifestConfig(entry: LogoManifestEntry): LogoRenderConfig | null {
-  if (!entry.localPath) return null;
-  if (entry.requiredActive && !hasApprovedLogoSource(entry)) return null;
-  return {
-    src: entry.localPath,
-    fit: entry.fit,
-    scale: entry.scale,
-    padding: entry.padding,
-    sourceType: entry.sourceType,
-    quality: entry.quality,
-  };
-}
-
-function configFor(slug: string, src: string, overrides?: Partial<LogoRenderConfig>): LogoRenderConfig {
-  const manifest = logoManifestBySlug.get(`chain:${slug}`) ?? logoManifestBySlug.get(`project:${slug}`) ?? logoManifestBySlug.get(`asset:${slug}`);
+// Legacy local registry/source-manifest assets are intentionally not part of active public logo resolution.
+function configFor(
+  slug: string,
+  src: string,
+  overrides?: Partial<LogoRenderConfig>,
+): LogoRenderConfig {
+  const manifest =
+    logoManifestBySlug.get(`chain:${slug}`) ??
+    logoManifestBySlug.get(`project:${slug}`) ??
+    logoManifestBySlug.get(`asset:${slug}`);
   return {
     src,
     fit: overrides?.fit ?? manifest?.fit ?? DEFAULT_LOGO_CONFIG.fit,
     scale: overrides?.scale ?? manifest?.scale ?? DEFAULT_LOGO_CONFIG.scale,
-    padding: overrides?.padding ?? manifest?.padding ?? DEFAULT_LOGO_CONFIG.padding,
+    padding:
+      overrides?.padding ?? manifest?.padding ?? DEFAULT_LOGO_CONFIG.padding,
     sourceType: overrides?.sourceType,
     quality: overrides?.quality,
   };
@@ -96,7 +81,6 @@ export function getChainIdentity(name: string): ChainIdentity {
       name: manifest.canonicalName,
       aliases: manifest.aliases,
       slug: manifest.slug,
-      logoCandidates: externalCandidates[manifest.slug],
       manifest,
     };
   }
@@ -107,16 +91,11 @@ export function normalizeChainName(name: string) {
   return getChainIdentity(name).name;
 }
 
-export function getChainLogoCandidates(name: string, logo?: string | null): LogoRenderConfig[] {
+export function getChainLogoCandidates(
+  name: string,
+  logo?: string | null,
+): LogoRenderConfig[] {
   const identity = getChainIdentity(name);
-  const local = identity.manifest ? manifestConfig(identity.manifest) : null;
-  const verifiedExternal = [
-    ...(logo && /^https:\/\//.test(logo) ? [logo] : []),
-    ...(identity.logoCandidates ?? []),
-    llamaChain(identity.slug),
-    llamaIcon(identity.slug),
-  ];
-
   const providedLogo = logo
     ? [
         configFor(identity.slug, logo, {
@@ -127,16 +106,15 @@ export function getChainLogoCandidates(name: string, logo?: string | null): Logo
         }),
       ]
     : [];
-  const fallbackExternal = verifiedExternal
-    .filter((src) => src !== logo)
-    .map((src) => configFor(identity.slug, src, { fit: "contain", padding: 1, sourceType: "external", quality: "external-only" }));
 
   return uniqueConfigs([
     ...providedLogo,
-    ...(local ? [local] : []),
-    ...(identity.manifest?.requiredActive ? [] : fallbackExternal),
-    ...(!local && identity.manifest?.requiredActive ? [configFor(identity.slug, generatedLogo(identity.slug), { fit: "contain", padding: 0, sourceType: "generated", quality: "fallback" })] : []),
-    ...(identity.manifest?.requiredActive ? [] : [configFor(identity.slug, generatedLogo(identity.slug), { sourceType: "generated", quality: "generated" })]),
+    configFor(identity.slug, generatedLogo(identity.slug), {
+      fit: "contain",
+      padding: 0,
+      sourceType: "generated",
+      quality: identity.manifest?.requiredActive ? "fallback" : "generated",
+    }),
   ]);
 }
 
