@@ -30,9 +30,13 @@ export function slugText(value: unknown) {
   return normalizeProviderText(value).replace(/\s+/g, "-");
 }
 
-export function isDerivativeProviderMatch(...values: unknown[]) {
+export function derivativeMatchTerms(...values: unknown[]) {
   const haystack = values.map((value) => normalizeProviderText(value)).join(" ");
-  return derivativeTerms.some((term) => haystack.includes(normalizeProviderText(term)));
+  return derivativeTerms.filter((term) => haystack.includes(normalizeProviderText(term)));
+}
+
+export function isDerivativeProviderMatch(...values: unknown[]) {
+  return derivativeMatchTerms(...values).length > 0;
 }
 
 export function scoreProviderCandidate(input: {
@@ -83,11 +87,14 @@ export function scoreProviderCandidate(input: {
     score += 8;
     reasons.push("category");
   }
-  if (isDerivativeProviderMatch(input.candidateName, input.candidateSlug)) {
+  const targetDerivativeTerms = derivativeMatchTerms(input.query, input.targetName, input.targetSlug, ...(input.aliases ?? []));
+  const candidateDerivativeTerms = derivativeMatchTerms(input.candidateName, input.candidateSlug);
+  if (candidateDerivativeTerms.length && !candidateDerivativeTerms.some((term) => targetDerivativeTerms.includes(term))) {
     score -= 65;
     reasons.push("derivative penalty");
   }
   score = Math.max(0, Math.min(100, score));
-  const confidence: ConfidenceLabel = score >= 78 ? "high" : score >= 45 ? "medium" : "low";
+  const hasStrongReason = reasons.some((reason) => ["exact name", "exact slug", "alias"].includes(reason));
+  const confidence: ConfidenceLabel = hasStrongReason && score >= 78 ? "high" : score >= 45 ? "medium" : "low";
   return { score, confidence, reasons };
 }
