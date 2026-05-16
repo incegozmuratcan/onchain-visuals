@@ -11,6 +11,7 @@ import {
   bulkRefreshCoinMarketCapLogosAction,
   createLogoAction,
   discoverLogoSourcesBulkAction,
+  importLegacyLocalLogosToVaultAction,
   scanMetricLogosAction,
 } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
@@ -40,7 +41,6 @@ const DEFAULT_LIMIT = 10;
 const ACTION_ISSUES = new Set([
   "needs_review",
   "missing_approved_logo",
-  "missing_coingecko_id",
   "coingecko_id_needs_review",
   "coingecko_fetch_failed",
   "cmc_fetch_failed",
@@ -48,7 +48,6 @@ const ACTION_ISSUES = new Set([
   "visual_rejected",
   "newly_discovered_entity",
   "metric_scan_error",
-  "coingecko_candidate_waiting",
   "metric_scan_missing_coingecko_id",
   "metric_scan_candidate_added",
   "auto_approve_skipped",
@@ -109,8 +108,7 @@ function actionPriority(row: LogoQaRow) {
   const order = [
     "needs_review",
     "missing_approved_logo",
-    "missing_coingecko_id",
-    "coingecko_id_needs_review",
+      "coingecko_id_needs_review",
     "coingecko_fetch_failed",
     "cmc_fetch_failed",
     "fallback_used",
@@ -431,44 +429,62 @@ function SourceTools({
   }));
   return (
     <AdminSection title="Source Tools" className="lg:sticky lg:top-4">
-      <div className="grid grid-cols-2 gap-1.5 text-xs sm:grid-cols-3 lg:grid-cols-2">
-        <form action={discoverLogoSourcesBulkAction}>
-          <input type="hidden" name="mode" value="smart" />
-          <button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white">
-            Discover missing sources
-          </button>
-        </form>
-        <form action={bulkRefreshCoinGeckoLogosAction}>
-          <input type="hidden" name="mode" value="retry-errors" />
-          <button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">
-            Retry failed
-          </button>
-        </form>
-        <form action={discoverLogoSourcesBulkAction}>
-          <input type="hidden" name="mode" value="force" />
-          <button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">
-            Force discover all
-          </button>
-        </form>
-        <form action={applySafeCoinGeckoCandidatesAction}>
-          <button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">
-            Apply safe CG
-          </button>
-        </form>
-        <form action={scanMetricLogosAction}>
-          <button className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black">
-            Scan metrics
-          </button>
-        </form>
-        <form action={discoverLogoSourcesBulkAction}>
-          <input type="hidden" name="mode" value="vault" />
-          <button
-            disabled={!blobEnabled}
-            className="w-full rounded-full border border-slate-200 px-3 py-1.5 font-black disabled:opacity-50"
-          >
-            Backup approved to vault
-          </button>
-        </form>
+      <div className="grid gap-3 text-xs">
+        <div>
+          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Daily actions</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-2">
+            <form action={discoverLogoSourcesBulkAction}>
+              <input type="hidden" name="mode" value="smart" />
+              <button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white shadow-sm">
+                Discover missing sources
+              </button>
+            </form>
+            <form action={bulkRefreshCoinGeckoLogosAction}>
+              <input type="hidden" name="mode" value="retry-errors" />
+              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-700">
+                Retry failed
+              </button>
+            </form>
+            <form action={scanMetricLogosAction}>
+              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-700">
+                Scan metrics
+              </button>
+            </form>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-2">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Maintenance</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-2">
+            <form action={discoverLogoSourcesBulkAction}>
+              <input type="hidden" name="mode" value="force" />
+              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
+                Force discover all
+              </button>
+            </form>
+            <form action={applySafeCoinGeckoCandidatesAction}>
+              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
+                Apply safe CG
+              </button>
+            </form>
+            <form action={discoverLogoSourcesBulkAction}>
+              <input type="hidden" name="mode" value="vault" />
+              <button
+                disabled={!blobEnabled}
+                className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-black text-emerald-800 disabled:opacity-50"
+              >
+                Backup approved to vault
+              </button>
+            </form>
+            <form action={importLegacyLocalLogosToVaultAction}>
+              <button
+                disabled={!blobEnabled}
+                className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600 disabled:opacity-50"
+              >
+                Import legacy local logos to Vault
+              </button>
+            </form>
+          </div>
+        </div>
       </div>
       <div className="mt-3 grid gap-2">
         {discoverySummary ? (

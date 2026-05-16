@@ -78,6 +78,22 @@
 
 
 
+
+## v0.11.4 Logo Source Engine Automation + Cleanup
+
+- Source Tools are grouped by operational importance: **Daily actions** contains Discover missing sources, Retry failed and Scan metrics; **Maintenance** contains Force discover all, Apply safe CG, Backup approved to vault and Import legacy local logos to Vault.
+- Safe CoinGecko primaries now try to create a Managed Vault backup automatically whenever Blob is configured. Vault provenance stores `copiedFromProvider`, `copiedFromSourceId`, `copiedFromUrl`, `copiedAt`, `mimeType`, `fileSize`, `autoVault` and `reason` (`trusted-primary`, `reviewed-primary` or `bulk-backup`). CoinMarketCap and DefiLlama sources are copied to Vault after an admin marks the primary reviewed. Rejected and visual-rejected sources are never copied automatically.
+- A one-time legacy local-logo migration action reads the old source manifest/assets internally and imports useful assets to Managed Vault as `needs_review` candidates only when no active provider/manual/vault source already exists. Local Static Manifest remains absent from normal provider rows, public resolution, badges, QA recommendations and active source selection.
+- CoinGecko and CoinMarketCap finders now score candidates by exact normalized name/slug/alias confidence, penalize wrapped/bridged/staked/LP/IOU/stablecoin derivative matches, label Recommended vs Other matches, and offer **Use + Fetch** for high-confidence candidates. Bulk Fetch all sources can auto-resolve high-confidence CG/CMC IDs before fetching, but uncertain matches remain manual.
+- CoinMarketCap search prioritizes exact name/slug matches over symbol-only results and keeps numeric IDs only for CMC fetches; non-numeric CMC IDs are treated as ID-review cases.
+- DefiLlama is resolved through a server-side index of protocols, chains and stablecoin assets instead of blindly accepting a guessed URL. The helper shows Recommended/Other matches when an actual icon URL resolves, or a compact no-source/error notice when unavailable.
+- Rejected provider rows now expose Restore and Restore and use actions. Normal restore is blocked for safety/visual-rejected rows; restored CoinGecko can become trusted primary only if it still passes the safe CoinGecko checks, while CMC/DefiLlama restore as review-gated sources.
+- Duplicate handling adds a safe `logo_aliases` table plus detail-page duplicate warnings by provider ID, provider URL, known aliases and normalized names. Admins can mark an alternate slug as an alias of the canonical logo or dismiss the warning; public logo overlay resolution checks aliases before falling back.
+- The detail-page top preview now shows provider boxes for CoinGecko, CoinMarketCap and DefiLlama. Public source/status/next action remains in the left summary, and safe CoinGecko primary shows Trusted/No action required instead of false Needs Review noise.
+- Needs-action counting is narrower: fallback/no source, review-gated primary, provider ID/fetch blockers, visual rejection and rejected restore cases count; safe CoinGecko primaries and reviewed non-CG primaries do not count just because backup IDs are missing.
+- Public logo resolution remains explicit: if a Managed Vault source is marked primary, public cards use the Vault URL; if a provider source is marked primary, public cards use that provider URL while Vault remains an admin-visible backup.
+- DB workflow safety: this PR adds only a non-destructive `CREATE TABLE IF NOT EXISTS logo_aliases` schema addition. Admin DB Setup / `npm run db:push` is required to enable alias persistence in environments that have not yet applied the table; all other automation uses existing `logos`, `logo_sources` and `admin_settings` columns.
+
 ## v0.11.3 Logo Source Engine Cleanup + Vault-First Model
 
 - Active logo operations now use a vault-first source model: CoinGecko, CoinMarketCap and DefiLlama are discovery sources; Managed Vault is the durable Blob storage layer; Manual URL/Upload is the admin override; generated fallback icons are last resort.

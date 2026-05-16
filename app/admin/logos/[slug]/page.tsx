@@ -17,8 +17,12 @@ import {
   markVisualRejectedAction,
   rejectLogoAction,
   rejectSourceAction,
+  restoreSourceAction,
   saveFallbackAction,
   saveProviderIdsAction,
+  useCoinGeckoIdAction,
+  markLogoAliasAction,
+  dismissDuplicateWarningAction,
   uploadLogoAction,
   useCoinMarketCapIdAction,
 } from "@/lib/admin/actions";
@@ -26,13 +30,16 @@ import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import {
   approvedLogoCandidateSlugs,
   getLogo,
+  findPossibleLogoDuplicates,
   getLogoSources,
+  listLogoAliases,
   type LogoSource,
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, getCoinMarketCapId } from "@/lib/admin/logoQa";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
+import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 
 export const dynamic = "force-dynamic";
@@ -288,6 +295,25 @@ function RejectButton({ source, slug }: { source: LogoSource; slug: string }) {
   );
 }
 
+
+function RestoreButtons({ source, slug }: { source: LogoSource; slug: string }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      <form action={restoreSourceAction}>
+        <input type="hidden" name="sourceId" value={source.id} />
+        <input type="hidden" name="slug" value={slug} />
+        <SmallButton>Restore</SmallButton>
+      </form>
+      <form action={restoreSourceAction}>
+        <input type="hidden" name="sourceId" value={source.id} />
+        <input type="hidden" name="slug" value={slug} />
+        <input type="hidden" name="useAsPrimary" value="1" />
+        <SmallButton dark>Restore and use</SmallButton>
+      </form>
+    </div>
+  );
+}
+
 function SourceDetails({ source }: { source: LogoSource }) {
   const sourceHref = safeUrl(source.source_url);
   const imageHref = sourceImage(source);
@@ -387,18 +413,31 @@ export default async function LogoDetailPage({
     !coinGeckoId || cgNeedsReview ? logoName : "",
   );
   const cgFinderResult = cgFinderQuery
-    ? await searchCoinGeckoIds(cgFinderQuery)
+    ? await searchCoinGeckoIds(cgFinderQuery, { targetName: logoName, targetSlug: logoSlug })
     : { candidates: [], error: null };
   const cmcReady = Boolean((await resolveApiSecret("coinmarketcap")).value);
   const cmcFinderQuery = firstParam(searchParams?.cmcq, "");
   const cmcFinderResult =
     cmcFinderQuery && cmcReady
-      ? await searchCoinMarketCapIds(cmcFinderQuery)
+      ? await searchCoinMarketCapIds(cmcFinderQuery, { targetName: logoName, targetSlug: logoSlug })
       : {
           candidates: [],
           error: cmcReady ? null : "Add CoinMarketCap API key first",
           apiKeyMissing: !cmcReady,
         };
+  const duplicateResult = await safeAdminDbQuery(
+    "Possible duplicates",
+    () => findPossibleLogoDuplicates(logo, sources),
+    [],
+  );
+  const aliasResult = await safeAdminDbQuery(
+    "Logo aliases",
+    async () => (await listLogoAliases(logo.id)).rows,
+    [],
+  );
+  const possibleDuplicates = duplicateResult.data;
+  const logoAliases = aliasResult.data;
+
   const hiddenLogoFields = (
     <>
       <input type="hidden" name="name" value={logoName} />
@@ -450,14 +489,7 @@ export default async function LogoDetailPage({
     ? `Review ${primaryProvider} logo`
     : !primarySource
       ? "Fetch all sources"
-      : primarySource.provider === "coingecko" &&
-          !sources.some(
-            (source) =>
-              ["managed-vault", "vault"].includes(source.provider) &&
-              source.status !== "rejected",
-          )
-        ? "Backup to Vault"
-        : "No action required";
+      : "No action required";
   const manualUploadSource =
     sources.find(
       (source) =>
@@ -711,7 +743,11 @@ export default async function LogoDetailPage({
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, "-")
       .replace(/^-+|-+$/g, "") || logoSlug;
-  const defiLlamaPreview = `https://icons.llama.fi/${encodeURIComponent(defiLlamaSlug)}.jpg`;
+  const defiLlamaFinderResult = defiLlamaQuery
+    ? await searchDefiLlamaSources(defiLlamaQuery, { targetName: logoName, targetSlug: logoSlug, category: logoCategory })
+    : { candidates: [], error: null };
+  const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended) ?? defiLlamaFinderResult.candidates[0] ?? null;
+  const defiLlamaPreview = recommendedDefiLlama?.imageUrl || `https://icons.llama.fi/${encodeURIComponent(defiLlamaSlug)}.jpg`;
 
   return (
     <AdminShell
@@ -790,21 +826,60 @@ export default async function LogoDetailPage({
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2 text-center text-xs font-black text-slate-500">
-            <div className="rounded-xl bg-white p-2">
-              <Img src={publicPreview} size={36} />
-              <div className="mt-1">Public</div>
-            </div>
-            <div className="rounded-xl bg-white p-2">
-              <Img src={sourceImage(primarySource)} size={36} />
-              <div className="mt-1">Primary</div>
-            </div>
-            <div className="rounded-xl bg-white p-2">
-              <Img src={fallbackPreview} size={36} />
-              <div className="mt-1">Fallback</div>
-            </div>
+            {[mainProviders[0], mainProviders[1], mainProviders[2]].map((provider) => (
+              <div key={provider.key} className="rounded-xl bg-white p-2">
+                <Img src={sourceImage(provider.source)} size={36} />
+                <div className="mt-1 truncate">{provider.name}</div>
+                <div className="mt-0.5 text-[10px] text-slate-400">{provider.status}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
+
+
+      {possibleDuplicates.length || logoAliases.length ? (
+        <section className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 shadow-soft">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Possible duplicate</p>
+              <h2 className="mt-1 text-lg font-black text-slate-950">Alias / merge guard</h2>
+              <p className="mt-1 text-xs font-bold text-amber-800">
+                Public overlays resolve aliases to this canonical logo. Full destructive merges are intentionally not automatic.
+              </p>
+              {logoAliases.length ? (
+                <p className="mt-2 text-xs font-bold text-amber-900">Aliases: {logoAliases.map((alias) => alias.alias).join(", ")}</p>
+              ) : null}
+            </div>
+          </div>
+          {possibleDuplicates.length ? (
+            <div className="mt-3 grid gap-2">
+              {possibleDuplicates.map((duplicate) => (
+                <div key={duplicate.id} className="grid gap-2 rounded-2xl border border-amber-200 bg-white p-3 text-xs md:grid-cols-[1fr_auto] md:items-center">
+                  <div>
+                    <Link href={`/admin/logos/${duplicate.slug}`} className="font-black text-slate-950 underline">{duplicate.name}</Link>
+                    <span className="ml-2 font-bold text-slate-500">{duplicate.slug} · {(duplicate as any).match_reason}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <form action={markLogoAliasAction}>
+                      <input type="hidden" name="canonicalSlug" value={logoSlug} />
+                      <input type="hidden" name="duplicateLogoId" value={duplicate.id} />
+                      <input type="hidden" name="alias" value={duplicate.slug} />
+                      <SmallButton dark>Mark as alias</SmallButton>
+                    </form>
+                    <form action={dismissDuplicateWarningAction}>
+                      <input type="hidden" name="slug" value={logoSlug} />
+                      <input type="hidden" name="logoId" value={logo.id} />
+                      <input type="hidden" name="duplicateLogoId" value={duplicate.id} />
+                      <SmallButton>Dismiss</SmallButton>
+                    </form>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
 
       <section className="mt-4 grid gap-4 lg:grid-cols-[0.95fr_1.35fr]">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
@@ -895,7 +970,7 @@ export default async function LogoDetailPage({
                 </AdminStatusPill>
                 <Img src={sourceImage(row.source)} size={42} />
                 <div className="flex flex-wrap items-center justify-start gap-2 md:justify-end">
-                  {row.action}
+                  {row.source?.status === "rejected" ? <RestoreButtons source={row.source} slug={logoSlug} /> : row.action}
                   {row.source &&
                   row.source.status !== "rejected" &&
                   !["managed-vault", "manual"].includes(row.key) ? (
@@ -1049,7 +1124,7 @@ export default async function LogoDetailPage({
               {cgFinderResult.candidates.slice(0, 4).map((candidate) => (
                 <form
                   key={candidate.id}
-                  action={saveProviderIdsAction}
+                  action={useCoinGeckoIdAction}
                   className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs"
                 >
                   <input type="hidden" name="slug" value={logoSlug} />
@@ -1070,11 +1145,11 @@ export default async function LogoDetailPage({
                       <span className="text-slate-400">{candidate.symbol}</span>
                     </div>
                     <div className="truncate font-bold text-slate-400">
-                      {candidate.id}
+                      {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · {candidate.id}
                     </div>
                   </div>
                   <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                    Use ID
+                    Use + Fetch
                   </button>
                 </form>
               ))}
@@ -1143,11 +1218,11 @@ export default async function LogoDetailPage({
                         </span>
                       </div>
                       <div className="truncate font-bold text-slate-400">
-                        ID {candidate.id} · {candidate.slug}
+                        {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · ID {candidate.id} · slug {candidate.slug}
                       </div>
                     </div>
                     <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                      Use this CMC ID
+                      Use + Fetch
                     </button>
                   </form>
                 ))}
@@ -1162,11 +1237,11 @@ export default async function LogoDetailPage({
                   Find DefiLlama source
                 </p>
                 <h3 className="text-sm font-black text-slate-950">
-                  Slug helper
+                  Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={defiLlamaSource ? "gray" : "amber"}>
-                {defiLlamaSource ? "source present" : "best effort"}
+              <AdminStatusPill tone={defiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : "amber"}>
+                {defiLlamaSource ? "source present" : recommendedDefiLlama ? "recommended" : "no source yet"}
               </AdminStatusPill>
             </div>
             <form className="mt-3 flex gap-2">
@@ -1184,13 +1259,13 @@ export default async function LogoDetailPage({
               <Img src={defiLlamaPreview} size={30} />
               <div className="min-w-0">
                 <div className="truncate font-black text-slate-950">
-                  {defiLlamaSlug}
+                  {recommendedDefiLlama ? `${recommendedDefiLlama.name} · ${recommendedDefiLlama.slug}` : defiLlamaSlug}
                 </div>
                 <a
                   href={defiLlamaPreview}
                   className="truncate font-bold text-slate-400 underline"
                 >
-                  {defiLlamaPreview}
+                  {recommendedDefiLlama ? `${recommendedDefiLlama.recommended ? "Recommended" : "Other match"} · ${recommendedDefiLlama.confidence} confidence · ${recommendedDefiLlama.category}` : defiLlamaFinderResult.error || "No DefiLlama source found."}
                 </a>
               </div>
               <form action={addDefiLlamaAction}>
@@ -1198,10 +1273,10 @@ export default async function LogoDetailPage({
                 <input
                   type="hidden"
                   name="providerSlug"
-                  value={defiLlamaSlug}
+                  value={recommendedDefiLlama?.slug || defiLlamaSlug}
                 />
                 <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                  Fetch DefiLlama
+                  Use + Fetch
                 </button>
               </form>
             </div>
