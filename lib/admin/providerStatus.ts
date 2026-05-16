@@ -1,7 +1,7 @@
 import "server-only";
 import { getSetting } from "@/lib/admin/auth";
 import { hasDatabaseConfig } from "@/lib/server/postgres";
-import { encryptionAvailable, providerEnvVar, resolveApiSecret } from "@/lib/admin/apiSecrets";
+import { encryptionAvailable, providerEnvVar, resolveApiSecret, scrubProviderError } from "@/lib/admin/apiSecrets";
 
 export type ProviderStatus = "connected" | "missing key" | "disabled" | "error" | "public-no-key";
 
@@ -120,7 +120,7 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       lastTestedAt: cg.record?.last_tested_at ?? null,
       lastTestStatus: cg.record?.last_test_status ?? null,
       lastSuccessfulCheck: cg.record?.last_test_status === "ok" ? cg.record.last_tested_at : summaries.coingecko && summaries.coingecko.errors === 0 ? summaries.coingecko.timestamp : null,
-      lastError: cg.record?.last_error ?? summaries.coingecko?.firstErrors?.[0] ?? null,
+      lastError: scrubProviderError(cg.record?.last_error) ?? scrubProviderError(summaries.coingecko?.firstErrors?.[0]),
       active: true,
       metrics: ["Admin logo candidates", "Bulk logo refresh"],
       docsUrl: "https://docs.coingecko.com/reference/introduction",
@@ -138,7 +138,7 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       lastTestedAt: cmc.record?.last_tested_at ?? null,
       lastTestStatus: cmc.record?.last_test_status ?? null,
       lastSuccessfulCheck: cmc.record?.last_test_status === "ok" ? cmc.record.last_tested_at : summaries.coinmarketcap && summaries.coinmarketcap.errors === 0 ? summaries.coinmarketcap.timestamp : null,
-      lastError: cmc.record?.last_error ?? summaries.coinmarketcap?.firstErrors?.[0] ?? null,
+      lastError: scrubProviderError(cmc.record?.last_error) ?? scrubProviderError(summaries.coinmarketcap?.firstErrors?.[0]),
       active: true,
       metrics: ["Admin logo candidates", "Logo QA fallback source"],
       docsUrl: "https://coinmarketcap.com/api/documentation/v1/",
@@ -156,7 +156,7 @@ export async function getApiProviderCards(): Promise<ApiProviderCard[]> {
       lastTestedAt: llama.record?.last_tested_at ?? null,
       lastTestStatus: llama.record?.last_test_status ?? null,
       lastSuccessfulCheck: llama.record?.last_test_status === "ok" ? llama.record.last_tested_at : null,
-      lastError: llama.record?.last_error ?? null,
+      lastError: scrubProviderError(llama.record?.last_error),
       active: true,
       metrics: ["TVL", "Stablecoins", "Revenue", "Public icons"],
       docsUrl: "https://defillama.com/docs/api",

@@ -62,6 +62,12 @@ function mask(value: string) {
   return `••••${end}`;
 }
 
+export function scrubProviderError(value: string | null | undefined) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text || text.startsWith("NEXT_REDIRECT")) return null;
+  return text;
+}
+
 export function providerEnvVar(provider: ApiProviderId) {
   return PROVIDER_ENV[provider];
 }
@@ -70,7 +76,7 @@ export async function listAdminApiSecrets() {
   if (!hasDatabaseConfig()) return [] as ApiSecretRecord[];
   try {
     const result = await query<ApiSecretRecord>("SELECT provider, key_name, encrypted_value, masked_hint, last_tested_at, last_test_status, last_error, updated_at FROM admin_api_secrets ORDER BY provider ASC", []);
-    return result.rows;
+    return result.rows.map((row) => ({ ...row, last_error: scrubProviderError(row.last_error) }));
   } catch {
     return [] as ApiSecretRecord[];
   }
@@ -80,7 +86,8 @@ export async function getAdminApiSecret(provider: ApiProviderId) {
   if (!hasDatabaseConfig()) return null;
   try {
     const result = await query<ApiSecretRecord>("SELECT provider, key_name, encrypted_value, masked_hint, last_tested_at, last_test_status, last_error, updated_at FROM admin_api_secrets WHERE provider = $1 LIMIT 1", [provider]);
-    return result.rows[0] ?? null;
+    const row = result.rows[0];
+    return row ? { ...row, last_error: scrubProviderError(row.last_error) } : null;
   } catch {
     return null;
   }
@@ -107,7 +114,8 @@ export async function deleteAdminApiSecret(provider: ApiProviderId) {
 
 export async function setAdminApiSecretTestResult(provider: ApiProviderId, ok: boolean, error: string | null) {
   if (!hasDatabaseConfig()) return;
-  await query("UPDATE admin_api_secrets SET last_tested_at = NOW(), last_test_status = $2, last_error = $3 WHERE provider = $1", [provider, ok ? "ok" : "error", error]);
+  const safeError = scrubProviderError(error);
+  await query("UPDATE admin_api_secrets SET last_tested_at = NOW(), last_test_status = $2, last_error = $3 WHERE provider = $1", [provider, ok ? "ok" : "error", safeError]);
 }
 
 export async function resolveApiSecret(provider: ApiProviderId): Promise<{ value: string | null; source: ApiSecretSource; maskedHint: string | null; record: ApiSecretRecord | null }> {

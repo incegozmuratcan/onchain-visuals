@@ -19,6 +19,12 @@ export type PublicBrandSettings = {
   heroLogoOffsetX: string;
   heroLogoMaxWidth: string;
   heroLogoSpacing: string;
+  heroSloganFontSize: string;
+  heroSloganFontWeight: string;
+  heroSloganLineHeight: string;
+  heroSubtitleSize: string;
+  heroSubtitleOpacity: string;
+  heroSubtitleVisible: string;
   assetMetadata?: Record<string, { provider: "manual-url" | "upload" | "disabled"; kind: string; fileSize?: number; mimeType?: string; uploadedAt?: string; url?: string }>;
   savedAt?: string;
 };

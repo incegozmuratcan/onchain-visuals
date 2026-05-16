@@ -24,6 +24,12 @@ export const defaultBrandSettings: PublicBrandSettings = {
   heroLogoOffsetX: "0",
   heroLogoMaxWidth: "420",
   heroLogoSpacing: "16",
+  heroSloganFontSize: "20",
+  heroSloganFontWeight: "500",
+  heroSloganLineHeight: "32",
+  heroSubtitleSize: "13",
+  heroSubtitleOpacity: "55",
+  heroSubtitleVisible: "1",
   assetMetadata: {},
 };
 
@@ -69,6 +75,12 @@ export function parseBrandSettings(raw: string | null): PublicBrandSettings {
       heroLogoOffsetX: cleanNumberString(parsed.heroLogoOffsetX, defaultBrandSettings.heroLogoOffsetX, -120, 120),
       heroLogoMaxWidth: cleanNumberString(parsed.heroLogoMaxWidth, defaultBrandSettings.heroLogoMaxWidth, 180, 760),
       heroLogoSpacing: cleanNumberString(parsed.heroLogoSpacing, defaultBrandSettings.heroLogoSpacing, 0, 80),
+      heroSloganFontSize: cleanNumberString(parsed.heroSloganFontSize, defaultBrandSettings.heroSloganFontSize, 14, 40),
+      heroSloganFontWeight: cleanNumberString(parsed.heroSloganFontWeight, defaultBrandSettings.heroSloganFontWeight, 300, 900),
+      heroSloganLineHeight: cleanNumberString(parsed.heroSloganLineHeight, defaultBrandSettings.heroSloganLineHeight, 18, 56),
+      heroSubtitleSize: cleanNumberString(parsed.heroSubtitleSize, defaultBrandSettings.heroSubtitleSize, 10, 24),
+      heroSubtitleOpacity: cleanNumberString(parsed.heroSubtitleOpacity, defaultBrandSettings.heroSubtitleOpacity, 20, 100),
+      heroSubtitleVisible: cleanString(parsed.heroSubtitleVisible) === "0" ? "0" : "1",
       assetMetadata: parsed.assetMetadata && typeof parsed.assetMetadata === "object" ? parsed.assetMetadata as PublicBrandSettings["assetMetadata"] : {},
       savedAt: cleanString(parsed.savedAt) || undefined,
     };
