@@ -746,8 +746,9 @@ export default async function LogoDetailPage({
   const defiLlamaFinderResult = defiLlamaQuery
     ? await searchDefiLlamaSources(defiLlamaQuery, { targetName: logoName, targetSlug: logoSlug, category: logoCategory })
     : { candidates: [], error: null };
-  const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended) ?? defiLlamaFinderResult.candidates[0] ?? null;
-  const defiLlamaPreview = recommendedDefiLlama?.imageUrl || `https://icons.llama.fi/${encodeURIComponent(defiLlamaSlug)}.jpg`;
+  const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended && candidate.confidence === "high") ?? null;
+  const otherDefiLlamaMatches = defiLlamaFinderResult.candidates.filter((candidate) => candidate.id !== recommendedDefiLlama?.id);
+  const defiLlamaPreview = recommendedDefiLlama?.imageUrl || null;
 
   return (
     <AdminShell
@@ -838,7 +839,7 @@ export default async function LogoDetailPage({
       </section>
 
 
-      {possibleDuplicates.length || logoAliases.length ? (
+      {possibleDuplicates.length ? (
         <section className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 shadow-soft">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -858,7 +859,7 @@ export default async function LogoDetailPage({
                 <div key={duplicate.id} className="grid gap-2 rounded-2xl border border-amber-200 bg-white p-3 text-xs md:grid-cols-[1fr_auto] md:items-center">
                   <div>
                     <Link href={`/admin/logos/${duplicate.slug}`} className="font-black text-slate-950 underline">{duplicate.name}</Link>
-                    <span className="ml-2 font-bold text-slate-500">{duplicate.slug} · {(duplicate as any).match_reason}</span>
+                    <span className="ml-2 font-bold text-slate-500">{duplicate.slug} · {(duplicate as any).match_reason} · {(duplicate as any).match_confidence || "high"} confidence</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <form action={markLogoAliasAction}>
@@ -1256,30 +1257,51 @@ export default async function LogoDetailPage({
               </button>
             </form>
             <div className="mt-3 grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs">
-              <Img src={defiLlamaPreview} size={30} />
+              {defiLlamaPreview ? <Img src={defiLlamaPreview} size={30} /> : <div className="h-[30px] w-[30px] rounded-full bg-slate-200" />}
               <div className="min-w-0">
                 <div className="truncate font-black text-slate-950">
-                  {recommendedDefiLlama ? `${recommendedDefiLlama.name} · ${recommendedDefiLlama.slug}` : defiLlamaSlug}
+                  {recommendedDefiLlama ? `${recommendedDefiLlama.name} · ${recommendedDefiLlama.slug}` : "No reliable DefiLlama source found."}
                 </div>
-                <a
-                  href={defiLlamaPreview}
-                  className="truncate font-bold text-slate-400 underline"
-                >
-                  {recommendedDefiLlama ? `${recommendedDefiLlama.recommended ? "Recommended" : "Other match"} · ${recommendedDefiLlama.confidence} confidence · ${recommendedDefiLlama.category}` : defiLlamaFinderResult.error || "No DefiLlama source found."}
-                </a>
+                {recommendedDefiLlama && defiLlamaPreview ? (
+                  <a
+                    href={defiLlamaPreview}
+                    className="truncate font-bold text-slate-400 underline"
+                  >
+                    Recommended · high confidence · {recommendedDefiLlama.category}
+                  </a>
+                ) : (
+                  <p className="truncate font-bold text-slate-400">
+                    {defiLlamaFinderResult.error || "Exact name/slug/category match required."}
+                  </p>
+                )}
               </div>
-              <form action={addDefiLlamaAction}>
-                {hiddenLogoFields}
-                <input
-                  type="hidden"
-                  name="providerSlug"
-                  value={recommendedDefiLlama?.slug || defiLlamaSlug}
-                />
-                <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                  Use + Fetch
-                </button>
-              </form>
+              {recommendedDefiLlama ? (
+                <form action={addDefiLlamaAction}>
+                  {hiddenLogoFields}
+                  <input
+                    type="hidden"
+                    name="providerSlug"
+                    value={recommendedDefiLlama.slug}
+                  />
+                  <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
+                    Use + Fetch
+                  </button>
+                </form>
+              ) : null}
             </div>
+            {otherDefiLlamaMatches.length ? (
+              <details className="mt-2 rounded-xl border border-slate-100 bg-white p-2 text-xs">
+                <summary className="cursor-pointer font-black text-slate-600">Other possible matches</summary>
+                <div className="mt-2 grid gap-1">
+                  {otherDefiLlamaMatches.map((candidate) => (
+                    <div key={candidate.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-1">
+                      <span className="truncate font-bold text-slate-700">{candidate.name} · {candidate.slug}</span>
+                      <span className="shrink-0 font-bold text-slate-400">{candidate.confidence} · {candidate.category}</span>
+                    </div>
+                  ))}
+                </div>
+              </details>
+            ) : null}
           </div>
         </section>
       </section>

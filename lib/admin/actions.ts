@@ -288,9 +288,9 @@ export async function addDefiLlamaAction(formData: FormData) {
     targetSlug: logo.slug,
     category: logo.category,
   });
-  const candidate = found.candidates.find((row) => row.slug === slug) ?? found.candidates[0];
+  const candidate = found.candidates.find((row) => row.slug === slug && row.confidence === "high" && row.recommended) ?? null;
   if (!candidate)
-    redirectLogoNotice(logo.slug, "warning", found.error || "No DefiLlama source found.");
+    redirectLogoNotice(logo.slug, "warning", found.error || "No reliable DefiLlama source found.");
   const created = await upsertLogoSource({
     logoId: logo.id,
     provider: "defillama",

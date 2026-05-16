@@ -1,5 +1,11 @@
 import "server-only";
-import { scoreProviderCandidate, slugText, type ConfidenceLabel } from "@/lib/admin/providerScoring";
+import {
+  derivativeMatchTerms,
+  normalizeProviderText,
+  scoreProviderCandidate,
+  slugText,
+  type ConfidenceLabel,
+} from "@/lib/admin/providerScoring";
 
 export type DefiLlamaCandidate = {
   id: string;
@@ -11,6 +17,7 @@ export type DefiLlamaCandidate = {
   confidence: ConfidenceLabel;
   score: number;
   recommended: boolean;
+  reasons?: string[];
 };
 
 type ResolverContext = { targetName?: string | null; targetSlug?: string | null; category?: string | null; aliases?: string[] };
@@ -84,35 +91,77 @@ async function hasImage(url: string) {
   }
 }
 
+function expectedDefiLlamaCategory(category?: string | null): DefiLlamaCandidate["category"] | null {
+  const normalized = normalizeProviderText(category);
+  if (["chain", "chains", "network", "networks"].includes(normalized)) return "chain";
+  if (["project", "projects", "protocol", "protocols", "depin"].includes(normalized)) return "protocol";
+  if (["asset", "assets", "stablecoin", "stablecoins"].includes(normalized)) return "stablecoin";
+  return null;
+}
+
+function isStrictDefiLlamaMatch(row: IndexRow, context: ResolverContext, query: string) {
+  const targetValues = [query, context.targetName, context.targetSlug, ...(context.aliases ?? [])].filter(Boolean) as string[];
+  const targetTokens = new Set(targetValues.flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean));
+  const candidateName = normalizeProviderText(row.name);
+  const candidateSlug = slugText(row.slug || row.name);
+  const rowAliases = (row.aliases ?? []).flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean);
+  const exactName = Boolean(candidateName && targetTokens.has(candidateName));
+  const exactSlug = Boolean(candidateSlug && targetTokens.has(candidateSlug));
+  const knownAlias = rowAliases.some((alias) => targetTokens.has(alias));
+  const expectedCategory = expectedDefiLlamaCategory(context.category);
+  const categoryMatch = !expectedCategory || row.category === expectedCategory;
+  const targetDerivativeTerms = derivativeMatchTerms(...targetValues);
+  const candidateDerivativeTerms = derivativeMatchTerms(row.name, row.slug, ...(row.aliases ?? []));
+  const derivativeMismatch = candidateDerivativeTerms.length > 0 && !candidateDerivativeTerms.some((term) => targetDerivativeTerms.includes(term));
+
+  const reasons: string[] = [];
+  if (exactName) reasons.push("exact normalized name");
+  if (exactSlug) reasons.push("exact normalized slug");
+  if (knownAlias) reasons.push("known alias");
+  if (!categoryMatch) reasons.push("category_mismatch");
+  if (derivativeMismatch) reasons.push("derivative_asset");
+  if (!exactName && !exactSlug && !knownAlias) reasons.push("low_name_similarity");
+
+  return {
+    ok: categoryMatch && !derivativeMismatch && (exactName || exactSlug || knownAlias),
+    categoryMatch,
+    reasons,
+  };
+}
+
 export async function searchDefiLlamaSources(query: string, context: ResolverContext = {}): Promise<{ candidates: DefiLlamaCandidate[]; error: string | null }> {
   const q = query.trim();
   if (!q) return { candidates: [], error: null };
   try {
     const rows = await defillamaIndex();
+    const expectedCategory = expectedDefiLlamaCategory(context.category);
     const scored = rows
       .map((row) => {
+        const strict = isStrictDefiLlamaMatch(row, context, q);
         const score = scoreProviderCandidate({
           query: q,
           targetName: context.targetName,
           targetSlug: context.targetSlug,
-          aliases: [...(context.aliases ?? []), ...(row.aliases ?? [])],
+          aliases: context.aliases,
           candidateName: row.name,
           candidateSlug: row.slug,
-          categoryMatch: Boolean(context.category && row.category === context.category),
+          categoryMatch: Boolean(expectedCategory && row.category === expectedCategory),
         });
-        return { row, ...score };
+        const confidence: ConfidenceLabel = strict.ok && score.score >= 78 ? "high" : score.score >= 45 ? "medium" : "low";
+        return { row, ...score, confidence, strict };
       })
-      .filter((row) => row.score >= 35)
-      .sort((a, b) => b.score - a.score)
+      .filter((row) => row.strict.ok || row.score >= 45)
+      .sort((a, b) => Number(b.strict.ok) - Number(a.strict.ok) || b.score - a.score)
       .slice(0, 8);
     const candidates: DefiLlamaCandidate[] = [];
-    for (const { row, score, confidence } of scored) {
+    for (const { row, score, confidence, strict } of scored) {
       const imageUrl = `https://icons.llama.fi/${encodeURIComponent(row.slug)}.jpg`;
       if (!(await hasImage(imageUrl))) continue;
-      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl, confidence, score, recommended: false });
+      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl, confidence, score, recommended: false, reasons: strict.reasons });
     }
-    if (candidates[0]?.confidence === "high") candidates[0].recommended = true;
-    return { candidates, error: null };
+    const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity"].includes(reason)));
+    if (recommended) recommended.recommended = true;
+    return { candidates, error: recommended || candidates.length ? null : "No reliable DefiLlama source found." };
   } catch (error) {
     return { candidates: [], error: error instanceof Error ? error.message : "DefiLlama source search failed." };
   }

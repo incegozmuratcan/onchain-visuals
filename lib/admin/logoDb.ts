@@ -406,34 +406,49 @@ export async function restoreSource(sourceId: string, useAsPrimary = false) {
 }
 
 export async function findPossibleLogoDuplicates(logo: AdminLogo, sources: LogoSource[]) {
-  const ids = [logo.coingecko_id, logo.coinmarketcap_id].filter(Boolean).map(String);
-  const providerUrls = sources.map((source) => source.source_url || source.image_url).filter(Boolean).map(String);
+  const coingeckoIds = [logo.coingecko_id].filter(Boolean).map(String);
+  const coinmarketcapIds = [logo.coinmarketcap_id].filter(Boolean).map(String);
+  const sourceUrls = sources.flatMap((source) => [source.source_url, source.image_url]).filter(Boolean).map(String);
+  const approvedLogoUrls = [logo.approved_logo_url].filter(Boolean).map(String);
   const aliases = approvedLogoCandidateSlugs(logo.name).filter((slug) => slug !== logo.slug);
-  const params = [logo.id, logo.slug, JSON.stringify(ids), JSON.stringify(providerUrls), JSON.stringify(aliases)];
-  const result = await query<AdminLogo & { match_reason: string }>(
-    `WITH other_sources AS (
-       SELECT logo_id, array_agg(COALESCE(source_url, image_url)) AS urls
+  const normalizedName = logoSlug(logo.name).replace(/-/g, "");
+  const params = [
+    logo.id,
+    normalizedName,
+    JSON.stringify(coingeckoIds),
+    JSON.stringify(coinmarketcapIds),
+    JSON.stringify(sourceUrls),
+    JSON.stringify(approvedLogoUrls),
+    JSON.stringify(aliases),
+  ];
+  const result = await query<AdminLogo & { match_reason: string; match_confidence: string }>(
+    `WITH matching_sources AS (
+       SELECT logo_id
        FROM logo_sources
-       WHERE COALESCE(source_url, image_url) IN (SELECT jsonb_array_elements_text($4::jsonb))
+       WHERE (COALESCE(source_url, '') <> '' AND source_url IN (SELECT jsonb_array_elements_text($5::jsonb)))
+          OR (COALESCE(image_url, '') <> '' AND image_url IN (SELECT jsonb_array_elements_text($5::jsonb)))
        GROUP BY logo_id
      )
      SELECT DISTINCT ON (l.id) l.*,
        CASE
-         WHEN l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND l.coingecko_id IS NOT NULL THEN 'same CoinGecko ID'
-         WHEN l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($3::jsonb)) AND l.coinmarketcap_id IS NOT NULL THEN 'same CMC ID'
-         WHEN os.logo_id IS NOT NULL THEN 'same provider URL'
-         WHEN l.slug IN (SELECT jsonb_array_elements_text($5::jsonb)) THEN 'known alias'
-         WHEN regexp_replace(lower(l.name), '[^a-z0-9]+', '', 'g') = regexp_replace(lower($2), '[^a-z0-9]+', '', 'g') THEN 'similar name'
-         ELSE 'similar slug'
-       END AS match_reason
+         WHEN jsonb_array_length($3::jsonb) > 0 AND l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)) THEN 'same CoinGecko ID'
+         WHEN jsonb_array_length($4::jsonb) > 0 AND l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($4::jsonb)) THEN 'same CoinMarketCap ID'
+         WHEN jsonb_array_length($6::jsonb) > 0 AND l.approved_logo_url IN (SELECT jsonb_array_elements_text($6::jsonb)) THEN 'same approved logo URL'
+         WHEN ms.logo_id IS NOT NULL THEN 'same exact source URL'
+         WHEN l.slug IN (SELECT jsonb_array_elements_text($7::jsonb)) THEN 'name/slug alias'
+         ELSE 'same normalized name'
+       END AS match_reason,
+       'high' AS match_confidence
      FROM logos l
-     LEFT JOIN other_sources os ON os.logo_id = l.id
+     LEFT JOIN matching_sources ms ON ms.logo_id = l.id
      WHERE l.id <> $1
         AND (
-         (jsonb_array_length($3::jsonb) > 0 AND (l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)) OR l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($3::jsonb))))
-         OR os.logo_id IS NOT NULL
-         OR l.slug IN (SELECT jsonb_array_elements_text($5::jsonb))
-         OR regexp_replace(lower(l.name), '[^a-z0-9]+', '', 'g') = regexp_replace(lower($2), '[^a-z0-9]+', '', 'g')
+         (jsonb_array_length($3::jsonb) > 0 AND l.coingecko_id IN (SELECT jsonb_array_elements_text($3::jsonb)))
+         OR (jsonb_array_length($4::jsonb) > 0 AND l.coinmarketcap_id IN (SELECT jsonb_array_elements_text($4::jsonb)))
+         OR (jsonb_array_length($6::jsonb) > 0 AND l.approved_logo_url IN (SELECT jsonb_array_elements_text($6::jsonb)))
+         OR ms.logo_id IS NOT NULL
+         OR l.slug IN (SELECT jsonb_array_elements_text($7::jsonb))
+         OR regexp_replace(lower(l.name), '[^a-z0-9]+', '', 'g') = $2
        )
      ORDER BY l.id ASC
      LIMIT 8`,
