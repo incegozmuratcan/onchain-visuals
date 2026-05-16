@@ -19,8 +19,8 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 
 - Admin pages share the same authenticated global navigation: Dashboard, Logo Manager, API, Brand and Log out.
 - Logo Manager is now a single-screen, search-first operations view. Empty search shows the default action-needed working set at 10 rows; live search scans all logos across name, slug, category, provider IDs, provider/source fields, safe notes and issue types, ignoring the active filter while typing. Use Show more to load 10 additional rows at a time.
-- Admin actions translate expected validation/provider/storage errors into compact notices. Missing CoinGecko IDs, CoinGecko 404/429/401/403 responses, missing CMC keys, invalid manual URLs, disabled Blob uploads and local-vault imports should not surface generic Application errors. Unexpected failures are still logged server-side with safe admin notices.
-- Logo detail pages now present a deterministic Logo Source Engine: CoinGecko is the trusted first priority, CoinMarketCap and DefiLlama are backup candidates that remain human-review gated, manual/upload choices are protected, and local-vault entries appear as importable sources without overwriting admin-approved selections. Current State is compact with a status strip and contained long errors/URLs.
+- Admin actions translate expected validation/provider/storage errors into compact notices. Missing CoinGecko IDs, CoinGecko 404/429/401/403 responses, missing CMC keys, invalid manual URLs, disabled Blob uploads and vault operations should not surface generic Application errors. Unexpected failures are still logged server-side with safe admin notices.
+- Logo detail pages now present a deterministic Logo Source Engine: CoinGecko is the trusted first priority, CoinMarketCap and DefiLlama are backup candidates that remain human-review gated, manual/upload choices are protected, Managed Vault is the durable storage target, and Local Static Manifest is no longer visible in active admin source operations. Current State is compact with a status strip and contained long errors/URLs.
 - API Settings is an admin-managed provider module for CoinGecko, CoinMarketCap and DefiLlama. Secrets resolve server-side only in this order: encrypted admin DB secret, environment variable, public/no-key fallback where supported, disabled. Decrypted keys are never sent to the browser, logged, revealed or copied. Next.js `NEXT_REDIRECT` control-flow errors are guarded and scrubbed so they are never persisted or displayed as provider errors.
 - Admin-managed API keys require `ADMIN_ENCRYPTION_KEY`. Values are encrypted into `admin_api_secrets`; if the key is missing, save/delete is disabled with a setup warning while env and public providers continue to work. After this schema change, run Admin DB Setup (`npm run db:push`) before using admin-managed API keys.
 - Brand Settings default to public-site assets only: primary/hero logo, header logo, favicon, Apple touch icon and share-card watermark. Social/unused assets live in Optional / Advanced. Brand health warns only about public-site assets and upload availability.
@@ -30,10 +30,21 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 - Workflow: Admin DB Setup is required after this merge because `db/schema.sql` adds `admin_api_secrets`. Seed Protection Test is not required unless seed scripts are changed.
 
 
+## v0.11.3 Logo Source Engine Cleanup + Vault-First Model
+
+- Active logo operations now use a vault-first source model: CoinGecko, CoinMarketCap and DefiLlama are discovery sources; Managed Vault is the durable Blob storage layer; Manual URL/Upload is the admin override; generated fallback icons are last resort.
+- Local Static Manifest was removed from active logo operations. It is no longer shown as a provider row, backup candidate, import action, top badge, recommended action or normal public fallback. Legacy manifest files may remain for audit/build history only and are not part of the active source engine.
+- The logo detail page is minimal by default: top public-logo summary, five provider rows (CoinGecko, CoinMarketCap, DefiLlama, Managed Vault, Manual / Upload), compact Discover/Provider IDs/Manual Source helpers, and a collapsed Advanced section. Raw source records moved into Advanced so backup rows are not duplicated in the main UI.
+- Review rules are source-aware: trusted CoinGecko primary does not count as needs review; CoinMarketCap and DefiLlama primaries stay pending until approved; Managed Vault needs review unless copied from an already reviewed source; manual/upload admin choices are reviewed by default. Rejecting a selected source attempts to choose the next safe source without selecting rejected, visual-rejected or BSV/BTC-confusing candidates.
+- DefiLlama has a slug helper on logo detail. Admins can preview the best-effort `icons.llama.fi/{slug}.jpg` candidate and fetch it as a reviewable DefiLlama discovery source without crashing when unavailable.
+- Bulk Source Tools keep **Discover missing sources**, **Force discover all** and **Backup approved to vault**. Vault backup copies approved primaries when Blob is configured, skips rejected/visual-rejected/already-vaulted sources, keeps provider URLs as provenance, and does not change primary unless an admin chooses the Vault copy.
+- Public logo resolution is DB-approved URL first (manual/upload or selected Managed Vault/provider source), then generated fallback. Provider URLs are used publicly only when selected/approved in DB; Local Static Manifest is not a normal public fallback.
+- No schema change is required. Managed Vault continues to use existing `logo_sources.provider`, `logo_sources.metadata`, `approved_source_id`, `approved_logo_url` and admin setting summary fields. Admin DB Setup is not required for this PR.
+
 ## v0.11.2 Logo Source Discovery + Managed Vault
 
 - Logo sourcing now has a non-destructive discovery workflow. The detail page exposes **Fetch all sources** for one logo, and Logo Manager Source Tools expose **Discover missing sources**, **Force discover all** and **Backup approved to vault** for the database.
-- Source priority is deterministic: protected admin manual/upload choices are preserved first; otherwise safe CoinGecko is trusted/approved; CoinMarketCap, DefiLlama and Managed Vault can be selected as primary with `reviewStatus=selected_needs_review`; local static manifest entries remain importable fallback candidates.
+- Source priority is deterministic: protected admin manual/upload choices are preserved first; otherwise safe CoinGecko is trusted/approved; CoinMarketCap, DefiLlama and Managed Vault can be selected as primary with `reviewStatus=selected_needs_review`; Managed Vault is preferred before reviewed provider fallbacks and Local Static Manifest is removed from active operations.
 - CoinMarketCap IDs are treated as numeric IDs only. Slugs such as `bitcoin` are flagged as ID review, fetch buttons are disabled for non-numeric values, and the CoinMarketCap finder searches server-side with the admin/environ API key and presents candidate name, symbol, numeric ID, slug and logo.
 - Managed Logo Vault copies selected provider images into Vercel Blob under `logo-vault/{slug}/{provider}-{timestamp}.{ext}` when `BLOB_READ_WRITE_TOKEN` is configured. PNG, JPEG and WebP are allowed; SVG is not copied until sanitization exists. Vault records are stored as `logo_sources.provider = managed-vault` with copy provenance metadata.
 - Review flow is one click: **Mark reviewed**, **Use as primary**, **Reject**, **Fetch all sources**, **Copy to Vault** and **Find ID** are the primary actions. Non-CoinGecko automatic selections stay review-needed until an admin marks them reviewed.
@@ -95,7 +106,7 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 
 v0.11.0 keeps the permanent local logo vault and admin source candidate resolution for mapped unresolved entities. The registry alone is not proof that a logo is real or approved. Required active entities need both visual registry config and a source manifest record with provenance and a matching SHA-256 checksum. A source-backed logo can still be visually rejected if it creates confusion or does not represent the entity clearly.
 
-Local vault layout:
+Legacy local vault layout (audit/build history only; not active source-engine fallback):
 
 ```text
 public/logos/
@@ -163,7 +174,7 @@ npm run admin:seed-logos
 
 Public logo resolution remains: approved DB logo URL when available, then the source-backed local logo registry/source manifest, then the clean fallback path. Public cards do not depend on Postgres being available and never use CoinGecko remote image URLs directly at runtime.
 
-`npm run admin:seed-logos` imports `lib/logos/logoRegistry.ts`, `lib/logos/logoSourceManifest.ts` and `lib/logos/metricLogoRequirements.ts`. Existing local vault records with `approvalStatus: "approved"` that are not visually rejected and do not prefer a fallback are inserted as approved `logos` rows, approved `logo_sources` rows and `approved_source_id` links. Visually rejected or fallback-preferred records remain `needs_review`, so fallbacks are never marked approved. After deployment, run the Admin DB Setup workflow again so the database receives these richer seed records.
+`npm run admin:seed-logos` imports `lib/logos/logoRegistry.ts`, `lib/logos/logoSourceManifest.ts` and `lib/logos/metricLogoRequirements.ts`. Existing admin-approved rows are preserved. The active source engine no longer exposes Local Static Manifest import actions; use Managed Vault for durable logo backup. After deployment, run Admin DB Setup only when prior schema/setup changes are missing.
 
 Environment variables:
 
@@ -172,7 +183,7 @@ Environment variables:
 - `ADMIN_SETUP_TOKEN` optionally protects first setup and can also provide a setup-time signing secret.
 - `COINGECKO_DEMO_API_KEY` enables the server-side bulk CoinGecko refresh action. CoinGecko IDs are maintained in `lib/admin/coingeckoLogoIds.ts`; slugs with `null`/missing mappings appear as missing CoinGecko IDs in admin.
 - `COINMARKETCAP_API_KEY` enables server-only CoinMarketCap logo source actions. When absent, the API Settings and Logo Manager source tools show CoinMarketCap as disabled/missing key.
-- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates and local vault imports still work and only file uploads are disabled.
+- `BLOB_READ_WRITE_TOKEN` enables Vercel Blob uploads; without it, admin upload forms show a missing-config state while URL candidates and manual URL candidates still work and only file uploads are disabled.
 
 
 ## Admin operations dashboard
@@ -185,7 +196,7 @@ Bulk CoinGecko and CoinMarketCap refresh results are stored in `admin_settings` 
 
 ## Logo ingestion and QA
 
-Sync required active logos into the local vault with:
+Legacy audit/build command for static logo assets:
 
 ```bash
 npm run logos:sync
@@ -227,18 +238,18 @@ The internal `/logo-audit` route is the visual decision tool. It shows canonical
 - Logo detail pages are the main fixing tool: they show current DB state, approved/fallback/public-card previews, source metadata, provider ID forms, manual URL/DefiLlama/CoinGecko/CoinMarketCap candidate actions, fallback controls, visual-rejection controls and public overlay debug slugs.
 - Bulk CoinGecko/CoinMarketCap refreshes store partial-success summaries in `admin_settings`, revalidate admin pages and translate 429/404/401/403/network failures into operator guidance instead of crashing pages.
 - Provider ID rule: DB provider ID > mapping file provider ID > missing mapping. DB values override code mappings so mapping fixes do not require code changes.
-- Public DB logo overlay order remains DB-approved logo URL first, then local vault/manifest logo, then clean fallback. DB failures log safe server warnings and do not break public cards; alias matching covers Polygon, BNB Chain, OP Mainnet, XRP Ledger, Render Network, Filecoin, Hyperliquid L1, MegaETH, ENI and BSV Blockchain variants.
+- Public DB logo overlay order remains DB-approved logo URL first, then generated fallback; Local Static Manifest is not a normal public fallback. DB failures log safe server warnings and do not break public cards; alias matching covers Polygon, BNB Chain, OP Mainnet, XRP Ledger, Render Network, Filecoin, Hyperliquid L1, MegaETH, ENI and BSV Blockchain variants.
 - Brand Settings remain connected to public site text/metadata/share-card footer with learnDeFi defaults for empty fields. Save feedback confirms “Brand settings saved,” “Public site is using these values,” and Blob-disabled asset upload status.
 - API Settings shows CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized source state, key presence yes/no, last success/error, metrics, exact missing env vars and docs links without exposing secrets.
-- Blob/upload behavior is explicit: without `BLOB_READ_WRITE_TOKEN`, uploads are disabled but URL candidates, local vault imports, manual URL save and brand text save still work. SVG upload remains disabled until sanitization exists; raster upload is constrained by type and size.
+- Blob/upload behavior is explicit: without `BLOB_READ_WRITE_TOKEN`, uploads are disabled but URL candidates, manual URL save and brand text save still work. SVG upload remains disabled until sanitization exists; raster upload is constrained by type and size.
 
 ## v0.10.1 admin stability release
 
 - Admin pages fail gracefully with section-specific error panels for DB/query/config issues instead of generic Application errors.
-- Admin DB Setup is documented as safe/idempotent: run `npm run db:push` followed by `npm run admin:seed-logos`. The logo seed adds local vault records and missing candidates but preserves existing admin-approved `approved_logo_url` choices.
-- Public logo resolution order is DB-approved URL, then local logo source manifest/registry asset, then clean fallback; overlay failures log server-side warnings and do not crash public APIs.
+- Admin DB Setup is documented as safe/idempotent: run `npm run db:push` followed by `npm run admin:seed-logos`. The logo seed preserves existing admin-approved `approved_logo_url` choices; active durable backup is Managed Vault.
+- Public logo resolution order is DB-approved URL, then generated fallback; overlay failures log server-side warnings and do not crash public APIs.
 - Brand Settings now apply to public homepage/header copy, metadata, optional favicon/apple-touch-icon URLs and ShareCard footer text. Saving shows success/error feedback and records a last-saved timestamp.
-- Manual brand asset URL fields remain saveable and previewable without Blob. If `BLOB_READ_WRITE_TOKEN` is missing, URL candidates and local vault imports still work; only file uploads are disabled.
+- Manual brand asset URL fields remain saveable and previewable without Blob. If `BLOB_READ_WRITE_TOKEN` is missing, URL candidates and manual URL candidates still work; vault uploads require Blob and file uploads are disabled.
 - API Settings shows provider states for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA sources using connected, missing key, public-no-key, disabled or error. CMC remains foundation-level and disabled when `COINMARKETCAP_API_KEY` is absent.
 
 Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`, `COINGECKO_DEMO_API_KEY`; optional env names: `COINMARKETCAP_API_KEY` for CMC foundation tools and `BLOB_READ_WRITE_TOKEN` for uploads.

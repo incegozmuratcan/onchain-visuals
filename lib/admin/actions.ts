@@ -2,49 +2,111 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createAdminPassword, createSession, validateAdminPassword, requireAdmin, clearSession, getAdminConfigDiagnostic } from "@/lib/admin/auth";
-import { addLogoSource, approveSource, autoApproveSource, canAutoApproveCoinGecko, getAllLogoSources, getLogoSource, hasAdminChosenSource, listLogosForCoinGeckoBulk, rejectLogo, rejectSource, selectSourceNeedsReview, setAdminSetting, updateLogoFallback, updateLogoFetchState, updateLogoProviderId, updateLogoStatus, upsertLogo, upsertLogoSource, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
+import {
+  createAdminPassword,
+  createSession,
+  validateAdminPassword,
+  requireAdmin,
+  clearSession,
+  getAdminConfigDiagnostic,
+} from "@/lib/admin/auth";
+import {
+  addLogoSource,
+  approveSource,
+  autoApproveSource,
+  canAutoApproveCoinGecko,
+  getAllLogoSources,
+  getLogoSource,
+  getLogoSources,
+  hasAdminChosenSource,
+  listLogosForCoinGeckoBulk,
+  rejectLogo,
+  rejectSource,
+  selectSourceNeedsReview,
+  setAdminSetting,
+  updateLogoFallback,
+  updateLogoFetchState,
+  updateLogoProviderId,
+  updateLogoStatus,
+  upsertLogo,
+  upsertLogoSource,
+  type AdminLogo,
+  type LogoSource,
+} from "@/lib/admin/logoDb";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
-import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
-import { deleteAdminApiSecret, providerEnvVar, resolveApiSecret, saveAdminApiSecret, setAdminApiSecretTestResult, type ApiProviderId } from "@/lib/admin/apiSecrets";
+import {
+  deleteAdminApiSecret,
+  providerEnvVar,
+  resolveApiSecret,
+  saveAdminApiSecret,
+  setAdminApiSecretTestResult,
+  type ApiProviderId,
+} from "@/lib/admin/apiSecrets";
 
 async function ensureLogoFromForm(formData: FormData) {
   await requireAdmin();
   const name = String(formData.get("name") || "").trim();
-  const category = String(formData.get("category") || "project").trim() || "project";
+  const category =
+    String(formData.get("category") || "project").trim() || "project";
   if (!name) throw new Error("Logo name is required.");
   return upsertLogo(name, category);
 }
 
 type CoinGeckoRefreshMode = "smart" | "retry-errors" | "force-all";
 
-function adminNotice(path: string, tone: "success" | "error" | "warning", message: string): never {
-  const params = new URLSearchParams({ notice: tone, message: message.slice(0, 180) });
+function adminNotice(
+  path: string,
+  tone: "success" | "error" | "warning",
+  message: string,
+): never {
+  const params = new URLSearchParams({
+    notice: tone,
+    message: message.slice(0, 180),
+  });
   redirect(`${path}?${params.toString()}`);
 }
 
-function noticeUrl(slug: string, tone: "success" | "error" | "warning", message: string) {
-  const params = new URLSearchParams({ notice: tone, message: message.slice(0, 180) });
+function noticeUrl(
+  slug: string,
+  tone: "success" | "error" | "warning",
+  message: string,
+) {
+  const params = new URLSearchParams({
+    notice: tone,
+    message: message.slice(0, 180),
+  });
   return `/admin/logos/${encodeURIComponent(slug)}?${params.toString()}`;
 }
 
-function redirectLogoNotice(slug: string, tone: "success" | "error" | "warning", message: string): never {
+function redirectLogoNotice(
+  slug: string,
+  tone: "success" | "error" | "warning",
+  message: string,
+): never {
   redirect(noticeUrl(slug, tone, message));
 }
 
 function isNextRedirect(error: unknown) {
-  return typeof error === "object" && error !== null && "digest" in error && String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT");
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    String((error as { digest?: unknown }).digest).startsWith("NEXT_REDIRECT")
+  );
 }
 
 function expectedActionMessage(error: unknown, fallback: string) {
   const message = error instanceof Error ? error.message : fallback;
   if (message.includes("429")) return `${message} Retry later / rate limited.`;
-  if (message.includes("404")) return `${message} Fix CoinGecko ID or use manual URL.`;
-  if (message.includes("401") || message.includes("403")) return `${message} Check provider API key.`;
-  if (message.toLowerCase().includes("blob_read_write_token")) return "Blob token missing; upload is disabled until storage is configured.";
+  if (message.includes("404"))
+    return `${message} Fix CoinGecko ID or use manual URL.`;
+  if (message.includes("401") || message.includes("403"))
+    return `${message} Check provider API key.`;
+  if (message.toLowerCase().includes("blob_read_write_token"))
+    return "Blob token missing; upload is disabled until storage is configured.";
   return message;
 }
 type ProviderErrorKind = "idNeedsReview" | "rateLimited" | "apiKey" | "error";
@@ -65,11 +127,34 @@ type CoinGeckoRefreshCounts = {
 };
 
 function emptyCoinGeckoCounts(): CoinGeckoRefreshCounts {
-  return { checked: 0, fetched: 0, autoApproved: 0, alreadyApproved: 0, candidates: 0, skippedExistingAdminApproved: 0, skippedAlreadyApproved: 0, skippedVisualRejected: 0, skippedPreviousRejected: 0, missingMappings: 0, idNeedsReview: 0, rateLimited: 0, errors: 0 };
+  return {
+    checked: 0,
+    fetched: 0,
+    autoApproved: 0,
+    alreadyApproved: 0,
+    candidates: 0,
+    skippedExistingAdminApproved: 0,
+    skippedAlreadyApproved: 0,
+    skippedVisualRejected: 0,
+    skippedPreviousRejected: 0,
+    missingMappings: 0,
+    idNeedsReview: 0,
+    rateLimited: 0,
+    errors: 0,
+  };
 }
 
-function bulkSummary(provider: string, refreshed: number, missingMappings: number, errors: string[], extra: Record<string, unknown> = {}) {
-  const rateLimitWarnings = errors.filter((error) => error.includes("429") || error.toLowerCase().includes("rate limit"));
+function bulkSummary(
+  provider: string,
+  refreshed: number,
+  missingMappings: number,
+  errors: string[],
+  extra: Record<string, unknown> = {},
+) {
+  const rateLimitWarnings = errors.filter(
+    (error) =>
+      error.includes("429") || error.toLowerCase().includes("rate limit"),
+  );
   return JSON.stringify({
     provider,
     timestamp: new Date().toISOString(),
@@ -82,34 +167,64 @@ function bulkSummary(provider: string, refreshed: number, missingMappings: numbe
   });
 }
 
-function classifyProviderError(error: unknown): { message: string; kind: ProviderErrorKind } {
-  const message = error instanceof Error ? error.message : "Unknown provider error";
-  if (message.includes("429")) return { message: `${message} — Retry later.`, kind: "rateLimited" };
-  if (message.includes("404")) return { message: `${message} — Fix CoinGecko ID or use manual URL.`, kind: "idNeedsReview" };
-  if (message.includes("401") || message.includes("403")) return { message: `${message} — Check API key.`, kind: "apiKey" };
-  if (message.toLowerCase().includes("fetch failed") || message.toLowerCase().includes("network")) return { message: `${message} — Provider/network error.`, kind: "error" };
+function classifyProviderError(error: unknown): {
+  message: string;
+  kind: ProviderErrorKind;
+} {
+  const message =
+    error instanceof Error ? error.message : "Unknown provider error";
+  if (message.includes("429"))
+    return { message: `${message} — Retry later.`, kind: "rateLimited" };
+  if (message.includes("404"))
+    return {
+      message: `${message} — Fix CoinGecko ID or use manual URL.`,
+      kind: "idNeedsReview",
+    };
+  if (message.includes("401") || message.includes("403"))
+    return { message: `${message} — Check API key.`, kind: "apiKey" };
+  if (
+    message.toLowerCase().includes("fetch failed") ||
+    message.toLowerCase().includes("network")
+  )
+    return { message: `${message} — Provider/network error.`, kind: "error" };
   return { message, kind: "error" };
 }
 
 function explainProviderError(provider: string, error: unknown) {
-  const message = error instanceof Error ? error.message : `Unknown ${provider} error`;
+  const message =
+    error instanceof Error ? error.message : `Unknown ${provider} error`;
   if (message.includes("429")) return `${message} — Retry later.`;
-  if (message.includes("404")) return `${message} — Fix ${provider} ID or use manual URL.`;
-  if (message.includes("401") || message.includes("403")) return `${message} — Check API key.`;
-  if (message.toLowerCase().includes("fetch failed") || message.toLowerCase().includes("network")) return `${message} — Provider/network error.`;
+  if (message.includes("404"))
+    return `${message} — Fix ${provider} ID or use manual URL.`;
+  if (message.includes("401") || message.includes("403"))
+    return `${message} — Check API key.`;
+  if (
+    message.toLowerCase().includes("fetch failed") ||
+    message.toLowerCase().includes("network")
+  )
+    return `${message} — Provider/network error.`;
   return message;
 }
 
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
-  if (!diagnostic.hasDatabaseConfig) throw new Error("DATABASE_URL is missing. Configure Postgres before setup.");
-  if (!diagnostic.canReadAdminSettings) throw new Error("Admin configuration could not be read. Check server logs before setup.");
-  if (diagnostic.hasAdminPasswordHash) throw new Error("Admin is already configured. Use /admin/login.");
+  if (!diagnostic.hasDatabaseConfig)
+    throw new Error(
+      "DATABASE_URL is missing. Configure Postgres before setup.",
+    );
+  if (!diagnostic.canReadAdminSettings)
+    throw new Error(
+      "Admin configuration could not be read. Check server logs before setup.",
+    );
+  if (diagnostic.hasAdminPasswordHash)
+    throw new Error("Admin is already configured. Use /admin/login.");
 
   const token = String(formData.get("setupToken") || "");
-  if (process.env.ADMIN_SETUP_TOKEN && token !== process.env.ADMIN_SETUP_TOKEN) throw new Error("Invalid setup token.");
+  if (process.env.ADMIN_SETUP_TOKEN && token !== process.env.ADMIN_SETUP_TOKEN)
+    throw new Error("Invalid setup token.");
   const password = String(formData.get("password") || "");
-  if (password.length < 10) throw new Error("Use an admin password with at least 10 characters.");
+  if (password.length < 10)
+    throw new Error("Use an admin password with at least 10 characters.");
   await createAdminPassword(password);
   createSession();
   redirect("/admin");
@@ -117,7 +232,8 @@ export async function setupAdminAction(formData: FormData) {
 
 export async function loginAction(formData: FormData) {
   const password = String(formData.get("password") || "");
-  if (!(await validateAdminPassword(password))) throw new Error("Invalid admin password.");
+  if (!(await validateAdminPassword(password)))
+    throw new Error("Invalid admin password.");
   createSession();
   redirect("/admin");
 }
@@ -136,8 +252,19 @@ export async function createLogoAction(formData: FormData) {
 export async function addManualUrlAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const imageUrl = String(formData.get("imageUrl") || "").trim();
-  if (!/^https:\/\//.test(imageUrl)) redirectLogoNotice(logo.slug, "error", "Manual logo URL must be a valid HTTPS URL.");
-  await addLogoSource({ logoId: logo.id, provider: "manual", imageUrl, sourceUrl: imageUrl, metadata: { submittedBy: "admin" } });
+  if (!/^https:\/\//.test(imageUrl))
+    redirectLogoNotice(
+      logo.slug,
+      "error",
+      "Manual logo URL must be a valid HTTPS URL.",
+    );
+  await addLogoSource({
+    logoId: logo.id,
+    provider: "manual",
+    imageUrl,
+    sourceUrl: imageUrl,
+    metadata: { submittedBy: "admin" },
+  });
   revalidatePath(`/admin/logos/${logo.slug}`);
   redirectLogoNotice(logo.slug, "success", "Manual URL candidate added.");
 }
@@ -145,16 +272,26 @@ export async function addManualUrlAction(formData: FormData) {
 export async function addDefiLlamaAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const slug = String(formData.get("providerSlug") || logo.slug).trim();
-  if (!slug) redirectLogoNotice(logo.slug, "error", "Add a DefiLlama slug first.");
+  if (!slug)
+    redirectLogoNotice(logo.slug, "error", "Add a DefiLlama slug first.");
   const imageUrl = `https://icons.llama.fi/${encodeURIComponent(slug)}.jpg`;
-  await addLogoSource({ logoId: logo.id, provider: "defillama", imageUrl, sourceUrl: `https://defillama.com/protocol/${slug}`, metadata: { slug } });
+  await addLogoSource({
+    logoId: logo.id,
+    provider: "defillama",
+    imageUrl,
+    sourceUrl: `https://defillama.com/protocol/${slug}`,
+    metadata: { slug },
+  });
   revalidatePath(`/admin/logos/${logo.slug}`);
   redirectLogoNotice(logo.slug, "success", "DefiLlama candidate added.");
 }
 
 async function coinGeckoHeaders(requireKey = false) {
   const resolved = await resolveApiSecret("coingecko");
-  if (requireKey && !resolved.value) throw new Error("CoinGecko API key is missing. Add an admin-managed key or COINGECKO_DEMO_API_KEY before bulk refreshing logos.");
+  if (requireKey && !resolved.value)
+    throw new Error(
+      "CoinGecko API key is missing. Add an admin-managed key or COINGECKO_DEMO_API_KEY before bulk refreshing logos.",
+    );
   return {
     accept: "application/json",
     ...(resolved.value ? { "x-cg-demo-api-key": resolved.value } : {}),
@@ -164,12 +301,17 @@ async function coinGeckoHeaders(requireKey = false) {
 async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
   const response = await fetch(
     `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(coinId)}?localization=false&tickers=false&market_data=false&community_data=false&developer_data=false&sparkline=false`,
-    { headers: await coinGeckoHeaders(requireKey) }
+    { headers: await coinGeckoHeaders(requireKey) },
   );
-  if (!response.ok) throw new Error(`CoinGecko lookup for ${coinId} failed (${response.status}).`);
+  if (!response.ok)
+    throw new Error(
+      `CoinGecko lookup for ${coinId} failed (${response.status}).`,
+    );
   const json = await response.json();
-  const imageUrl = json.image?.large || json.image?.small || json.image?.thumb || "";
-  if (!imageUrl) throw new Error(`CoinGecko did not return an image URL for ${coinId}.`);
+  const imageUrl =
+    json.image?.large || json.image?.small || json.image?.thumb || "";
+  if (!imageUrl)
+    throw new Error(`CoinGecko did not return an image URL for ${coinId}.`);
   return {
     imageUrl,
     sourceUrl: `https://www.coingecko.com/en/coins/${coinId}`,
@@ -189,17 +331,41 @@ async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
 export async function addCoinGeckoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const coinId = String(formData.get("coinGeckoId") || "").trim();
-  if (!coinId) redirectLogoNotice(logo.slug, "warning", "Add CoinGecko ID first.");
+  if (!coinId)
+    redirectLogoNotice(logo.slug, "warning", "Add CoinGecko ID first.");
   try {
     const source = await fetchCoinGeckoLogoSource(coinId);
-    const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
-    const auto = canAutoApproveCoinGecko(logo, sources, source.imageUrl, source.sourceUrl);
-    const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
+    const sources = (await getAllLogoSources()).rows.filter(
+      (row) => row.logo_id === logo.id,
+    );
+    const auto = canAutoApproveCoinGecko(
+      logo,
+      sources,
+      source.imageUrl,
+      source.sourceUrl,
+    );
+    const created = await upsertLogoSource({
+      logoId: logo.id,
+      provider: "coingecko",
+      ...source,
+      metadata: {
+        ...source.metadata,
+        approvalOrigin: auto.ok ? "auto" : "candidate",
+        autoApproveReason: auto.reason,
+      },
+      status: auto.ok ? "approved" : "candidate",
+    });
     if (auto.ok) await autoApproveSource(created.id);
     await updateLogoProviderId(logo.slug, "coingecko", coinId);
     await updateLogoFetchState(logo.slug, "coingecko", null);
     revalidatePath(`/admin/logos/${logo.slug}`);
-    redirectLogoNotice(logo.slug, "success", auto.ok ? "CoinGecko logo fetched and approved." : "CoinGecko candidate fetched for review.");
+    redirectLogoNotice(
+      logo.slug,
+      "success",
+      auto.ok
+        ? "CoinGecko logo fetched and approved."
+        : "CoinGecko candidate fetched for review.",
+    );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const message = expectedActionMessage(error, "CoinGecko fetch failed.");
@@ -211,7 +377,9 @@ export async function addCoinGeckoAction(formData: FormData) {
 
 function isLogoVisuallyRejected(slug: string, category: string) {
   const registry = logoManifestBySlug.get(`${category}:${slug}`);
-  return Boolean(registry?.visualRejected || registry?.fallbackPreferredUntilManualAsset);
+  return Boolean(
+    registry?.visualRejected || registry?.fallbackPreferredUntilManualAsset,
+  );
 }
 
 function parseCoinGeckoRefreshMode(formData?: FormData): CoinGeckoRefreshMode {
@@ -220,7 +388,11 @@ function parseCoinGeckoRefreshMode(formData?: FormData): CoinGeckoRefreshMode {
 }
 
 function isBsvLikeLogo(slug: string, coinId?: string | null) {
-  return [slug, coinId ?? ""].some((value) => ["bsv", "bitcoin-sv", "bsv-blockchain"].includes(String(value).trim().toLowerCase()));
+  return [slug, coinId ?? ""].some((value) =>
+    ["bsv", "bitcoin-sv", "bsv-blockchain"].includes(
+      String(value).trim().toLowerCase(),
+    ),
+  );
 }
 
 function isCoinGeckoSource(source: LogoSource) {
@@ -231,26 +403,43 @@ function sourceMetadata(source: LogoSource) {
   if (typeof source.metadata === "string") {
     try {
       const parsed = JSON.parse(source.metadata);
-      return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+      return parsed && typeof parsed === "object"
+        ? (parsed as Record<string, unknown>)
+        : {};
     } catch {
       return {};
     }
   }
-  return source.metadata && typeof source.metadata === "object" ? source.metadata : {};
+  return source.metadata && typeof source.metadata === "object"
+    ? source.metadata
+    : {};
 }
 
 function sourceIsAdminApproved(source?: LogoSource | null) {
   if (!source) return false;
   const meta = sourceMetadata(source);
-  return source.status === "approved" && (source.provider === "manual" || source.provider === "upload" || meta.approvalOrigin === "admin");
+  return (
+    source.status === "approved" &&
+    (source.provider === "manual" ||
+      source.provider === "upload" ||
+      meta.approvalOrigin === "admin")
+  );
 }
 
 function hasApprovedCoinGeckoSource(logo: AdminLogo, sources: LogoSource[]) {
-  return sources.some((source) => isCoinGeckoSource(source) && source.status === "approved" && logo.approved_source_id === source.id && Boolean(logo.approved_logo_url));
+  return sources.some(
+    (source) =>
+      isCoinGeckoSource(source) &&
+      source.status === "approved" &&
+      logo.approved_source_id === source.id &&
+      Boolean(logo.approved_logo_url),
+  );
 }
 
 function hasCoinGeckoCandidate(sources: LogoSource[]) {
-  return sources.some((source) => isCoinGeckoSource(source) && source.status === "candidate");
+  return sources.some(
+    (source) => isCoinGeckoSource(source) && source.status === "candidate",
+  );
 }
 
 function isStaleFetch(logo: AdminLogo) {
@@ -261,27 +450,56 @@ function isStaleFetch(logo: AdminLogo) {
 }
 
 function isCoinGeckoIdReviewError(error?: string | null) {
-  return Boolean(error && (error.includes("404") || error.toLowerCase().includes("fix coingecko id")));
+  return Boolean(
+    error &&
+    (error.includes("404") || error.toLowerCase().includes("fix coingecko id")),
+  );
 }
 
-function shouldRefreshCoinGeckoLogo(mode: CoinGeckoRefreshMode, logo: AdminLogo, sources: LogoSource[]) {
-  if (sourceIsAdminApproved(sources.find((source) => logo.approved_source_id === source.id)) || sources.some(sourceIsAdminApproved)) return { ok: false, reason: "admin-approved source exists" };
+function shouldRefreshCoinGeckoLogo(
+  mode: CoinGeckoRefreshMode,
+  logo: AdminLogo,
+  sources: LogoSource[],
+) {
+  if (
+    sourceIsAdminApproved(
+      sources.find((source) => logo.approved_source_id === source.id),
+    ) ||
+    sources.some(sourceIsAdminApproved)
+  )
+    return { ok: false, reason: "admin-approved source exists" };
   if (mode === "force-all") return { ok: true, reason: "force-all" };
-  if (mode === "retry-errors") return { ok: logo.last_fetch_provider === "coingecko" && Boolean(logo.last_fetch_error), reason: "retry-errors" };
-  if (hasApprovedCoinGeckoSource(logo, sources) && !logo.last_fetch_error) return { ok: false, reason: "already approved" };
-  if (isCoinGeckoIdReviewError(logo.last_fetch_error)) return { ok: false, reason: "coingecko id needs review" };
-  if (!logo.approved_logo_url) return { ok: true, reason: "missing approved logo" };
-  if (logo.status === "needs_review") return { ok: true, reason: "needs review" };
-  if (!sources.some(isCoinGeckoSource)) return { ok: true, reason: "missing CoinGecko source" };
-  if (logo.last_fetch_provider === "coingecko" && logo.last_fetch_error) return { ok: true, reason: "previous fetch error" };
-  if (hasCoinGeckoCandidate(sources)) return { ok: true, reason: "candidate waiting" };
-  if (isStaleFetch(logo) && !hasApprovedCoinGeckoSource(logo, sources)) return { ok: true, reason: "stale fetch" };
+  if (mode === "retry-errors")
+    return {
+      ok:
+        logo.last_fetch_provider === "coingecko" &&
+        Boolean(logo.last_fetch_error),
+      reason: "retry-errors",
+    };
+  if (hasApprovedCoinGeckoSource(logo, sources) && !logo.last_fetch_error)
+    return { ok: false, reason: "already approved" };
+  if (isCoinGeckoIdReviewError(logo.last_fetch_error))
+    return { ok: false, reason: "coingecko id needs review" };
+  if (!logo.approved_logo_url)
+    return { ok: true, reason: "missing approved logo" };
+  if (logo.status === "needs_review")
+    return { ok: true, reason: "needs review" };
+  if (!sources.some(isCoinGeckoSource))
+    return { ok: true, reason: "missing CoinGecko source" };
+  if (logo.last_fetch_provider === "coingecko" && logo.last_fetch_error)
+    return { ok: true, reason: "previous fetch error" };
+  if (hasCoinGeckoCandidate(sources))
+    return { ok: true, reason: "candidate waiting" };
+  if (isStaleFetch(logo) && !hasApprovedCoinGeckoSource(logo, sources))
+    return { ok: true, reason: "stale fetch" };
   return { ok: false, reason: "not needed" };
 }
 
 async function approveCoinGeckoSourceIfSafe(sourceId: string, reason: string) {
   const approved = await autoApproveSource(sourceId, reason);
-  return Boolean(approved?.source_id === sourceId && approved.approved_logo_url);
+  return Boolean(
+    approved?.source_id === sourceId && approved.approved_logo_url,
+  );
 }
 
 export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
@@ -289,8 +507,17 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
   const mode = parseCoinGeckoRefreshMode(formData);
   const counts = emptyCoinGeckoCounts();
   if (!(await resolveApiSecret("coingecko")).value) {
-    const errors = ["CoinGecko API key is missing. Add it from API Settings or COINGECKO_DEMO_API_KEY before bulk refreshing logos."];
-    await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", 0, 0, errors, { mode, ...counts, errors: errors.length }));
+    const errors = [
+      "CoinGecko API key is missing. Add it from API Settings or COINGECKO_DEMO_API_KEY before bulk refreshing logos.",
+    ];
+    await setAdminSetting(
+      "last_coingecko_bulk_refresh_summary",
+      bulkSummary("CoinGecko", 0, 0, errors, {
+        mode,
+        ...counts,
+        errors: errors.length,
+      }),
+    );
     revalidatePath("/admin");
     revalidatePath("/admin/logos");
     redirect("/admin/logos?provider=coingecko&errors=1");
@@ -303,27 +530,49 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
   const skippedReasons: string[] = [];
   const allSources = (await getAllLogoSources()).rows;
   const sourcesByLogo = new Map<string, LogoSource[]>();
-  for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
+  for (const source of allSources)
+    sourcesByLogo.set(source.logo_id, [
+      ...(sourcesByLogo.get(source.logo_id) ?? []),
+      source,
+    ]);
 
   for (const logo of logos) {
     counts.checked += 1;
     const existingSources = sourcesByLogo.get(logo.id) ?? [];
-    const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
+    const coinId =
+      (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) ||
+      getCoinGeckoLogoId(logo.slug);
     if (!coinId) {
       counts.missingMappings += 1;
       continue;
     }
-    if (isBsvLikeLogo(logo.slug, coinId) || isLogoVisuallyRejected(logo.slug, logo.category) || logo.visual_status === "rejected") {
+    if (
+      isBsvLikeLogo(logo.slug, coinId) ||
+      isLogoVisuallyRejected(logo.slug, logo.category) ||
+      logo.visual_status === "rejected"
+    ) {
       counts.skippedVisualRejected += 1;
-      skippedReasons.push(`${logo.slug}: Keep fallback or add distinct manual logo`);
-      if (isBsvLikeLogo(logo.slug, coinId)) await updateLogoFetchState(logo.slug, "coingecko", "Skipped visual_rejected: BSV/CoinGecko logo is BTC-confusing — Keep fallback or add distinct manual logo.");
+      skippedReasons.push(
+        `${logo.slug}: Keep fallback or add distinct manual logo`,
+      );
+      if (isBsvLikeLogo(logo.slug, coinId))
+        await updateLogoFetchState(
+          logo.slug,
+          "coingecko",
+          "Skipped visual_rejected: BSV/CoinGecko logo is BTC-confusing — Keep fallback or add distinct manual logo.",
+        );
       continue;
     }
     const refresh = shouldRefreshCoinGeckoLogo(mode, logo, existingSources);
     if (!refresh.ok) {
-      if (refresh.reason === "admin-approved source exists") counts.skippedExistingAdminApproved += 1;
-      else if (refresh.reason === "already approved") { counts.skippedAlreadyApproved += 1; counts.alreadyApproved += 1; alreadyApprovedList.push(`${logo.slug} (${coinId})`); }
-      else if (refresh.reason === "coingecko id needs review") counts.idNeedsReview += 1;
+      if (refresh.reason === "admin-approved source exists")
+        counts.skippedExistingAdminApproved += 1;
+      else if (refresh.reason === "already approved") {
+        counts.skippedAlreadyApproved += 1;
+        counts.alreadyApproved += 1;
+        alreadyApprovedList.push(`${logo.slug} (${coinId})`);
+      } else if (refresh.reason === "coingecko id needs review")
+        counts.idNeedsReview += 1;
       skippedReasons.push(`${logo.slug}: ${refresh.reason}`);
       continue;
     }
@@ -331,7 +580,12 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
     try {
       const source = await fetchCoinGeckoLogoSource(coinId, true);
       counts.fetched += 1;
-      const auto = canAutoApproveCoinGecko(logo, existingSources, source.imageUrl, source.sourceUrl);
+      const auto = canAutoApproveCoinGecko(
+        logo,
+        existingSources,
+        source.imageUrl,
+        source.sourceUrl,
+      );
       const created = await upsertLogoSource({
         logoId: logo.id,
         provider: "coingecko",
@@ -348,17 +602,26 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
         },
         status: auto.ok ? "approved" : "candidate",
       });
-      if (created.status === "approved" && logo.approved_source_id === created.id && logo.approved_logo_url) {
+      if (
+        created.status === "approved" &&
+        logo.approved_source_id === created.id &&
+        logo.approved_logo_url
+      ) {
         counts.alreadyApproved += 1;
         alreadyApprovedList.push(`${logo.slug} (${coinId})`);
       } else if (auto.ok) {
-        const approved = await approveCoinGeckoSourceIfSafe(created.id, auto.reason);
+        const approved = await approveCoinGeckoSourceIfSafe(
+          created.id,
+          auto.reason,
+        );
         if (approved) {
           counts.autoApproved += 1;
           autoApprovedList.push(`${logo.slug} (${coinId})`);
         } else {
           counts.errors += 1;
-          errors.push(`${logo.slug}: auto-approve DB update did not select source ${created.id}`);
+          errors.push(
+            `${logo.slug}: auto-approve DB update did not select source ${created.id}`,
+          );
         }
       } else if (auto.reason.includes("admin-approved")) {
         counts.skippedExistingAdminApproved += 1;
@@ -368,7 +631,10 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
         counts.candidates += 1;
         candidateList.push(`${logo.slug} (${coinId})`);
         skippedReasons.push(`${logo.slug}: ${auto.reason}`);
-      } else if (auto.reason.includes("visual") || auto.reason.includes("BSV")) {
+      } else if (
+        auto.reason.includes("visual") ||
+        auto.reason.includes("BSV")
+      ) {
         counts.skippedVisualRejected += 1;
         skippedReasons.push(`${logo.slug}: ${auto.reason}`);
       } else {
@@ -388,19 +654,30 @@ export async function bulkRefreshCoinGeckoLogosAction(formData?: FormData) {
   }
 
   if (errors.length) {
-    console.warn("Bulk CoinGecko logo refresh completed with partial failures", { mode, ...counts, firstErrors: errors.slice(0, 5) });
+    console.warn(
+      "Bulk CoinGecko logo refresh completed with partial failures",
+      { mode, ...counts, firstErrors: errors.slice(0, 5) },
+    );
   }
 
-  await setAdminSetting("last_coingecko_bulk_refresh_summary", bulkSummary("CoinGecko", counts.fetched, counts.missingMappings, errors, {
-    mode,
-    ...counts,
-    firstErrors: errors.slice(0, 5),
-    rateLimitWarnings: errors.filter((error) => error.includes("429") || error.toLowerCase().includes("rate limit")).slice(0, 5),
-    autoApprovedList: autoApprovedList.slice(0, 25),
-    alreadyApprovedList: alreadyApprovedList.slice(0, 25),
-    candidateList: candidateList.slice(0, 25),
-    firstSkippedReasons: skippedReasons.slice(0, 10),
-  }));
+  await setAdminSetting(
+    "last_coingecko_bulk_refresh_summary",
+    bulkSummary("CoinGecko", counts.fetched, counts.missingMappings, errors, {
+      mode,
+      ...counts,
+      firstErrors: errors.slice(0, 5),
+      rateLimitWarnings: errors
+        .filter(
+          (error) =>
+            error.includes("429") || error.toLowerCase().includes("rate limit"),
+        )
+        .slice(0, 5),
+      autoApprovedList: autoApprovedList.slice(0, 25),
+      alreadyApprovedList: alreadyApprovedList.slice(0, 25),
+      candidateList: candidateList.slice(0, 25),
+      firstSkippedReasons: skippedReasons.slice(0, 10),
+    }),
+  );
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
   const params = new URLSearchParams({
@@ -427,70 +704,161 @@ export async function applySafeCoinGeckoCandidatesAction() {
   const logos = (await listLogosForCoinGeckoBulk()).rows;
   const logosById = new Map(logos.map((logo) => [logo.id, logo]));
   const sourcesByLogo = new Map<string, LogoSource[]>();
-  for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
+  for (const source of allSources)
+    sourcesByLogo.set(source.logo_id, [
+      ...(sourcesByLogo.get(source.logo_id) ?? []),
+      source,
+    ]);
 
-  for (const source of allSources.filter((row) => row.provider === "coingecko" && row.status === "candidate")) {
+  for (const source of allSources.filter(
+    (row) => row.provider === "coingecko" && row.status === "candidate",
+  )) {
     counts.checkedCandidates += 1;
     const logo = logosById.get(source.logo_id);
     const sources = sourcesByLogo.get(source.logo_id) ?? [];
-    if (!logo) { counts.skipped += 1; skippedReasons.push(`${source.id}: logo missing or rejected`); continue; }
-    const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
-    if (isBsvLikeLogo(logo.slug, coinId) || isLogoVisuallyRejected(logo.slug, logo.category) || logo.visual_status === "rejected") { counts.skipped += 1; skippedReasons.push(`${logo.slug}: Keep fallback or add distinct manual logo`); continue; }
-    const auto = canAutoApproveCoinGecko(logo, sources, source.image_url, source.source_url);
-    if (!auto.ok) { counts.skipped += 1; skippedReasons.push(`${logo.slug}: ${auto.reason}`); continue; }
+    if (!logo) {
+      counts.skipped += 1;
+      skippedReasons.push(`${source.id}: logo missing or rejected`);
+      continue;
+    }
+    const coinId =
+      (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) ||
+      getCoinGeckoLogoId(logo.slug);
+    if (
+      isBsvLikeLogo(logo.slug, coinId) ||
+      isLogoVisuallyRejected(logo.slug, logo.category) ||
+      logo.visual_status === "rejected"
+    ) {
+      counts.skipped += 1;
+      skippedReasons.push(
+        `${logo.slug}: Keep fallback or add distinct manual logo`,
+      );
+      continue;
+    }
+    const auto = canAutoApproveCoinGecko(
+      logo,
+      sources,
+      source.image_url,
+      source.source_url,
+    );
+    if (!auto.ok) {
+      counts.skipped += 1;
+      skippedReasons.push(`${logo.slug}: ${auto.reason}`);
+      continue;
+    }
     const approved = await approveCoinGeckoSourceIfSafe(source.id, auto.reason);
     if (approved) counts.autoApproved += 1;
-    else { counts.skipped += 1; skippedReasons.push(`${logo.slug}: auto-approve DB update did not select source ${source.id}`); }
+    else {
+      counts.skipped += 1;
+      skippedReasons.push(
+        `${logo.slug}: auto-approve DB update did not select source ${source.id}`,
+      );
+    }
   }
 
-  await setAdminSetting("last_coingecko_candidate_apply_summary", JSON.stringify({ provider: "CoinGecko", timestamp: new Date().toISOString(), ...counts, firstSkippedReasons: skippedReasons.slice(0, 15) }));
+  await setAdminSetting(
+    "last_coingecko_candidate_apply_summary",
+    JSON.stringify({
+      provider: "CoinGecko",
+      timestamp: new Date().toISOString(),
+      ...counts,
+      firstSkippedReasons: skippedReasons.slice(0, 15),
+    }),
+  );
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
-  redirect(`/admin/logos?candidateApply=1&checkedCandidates=${counts.checkedCandidates}&autoApproved=${counts.autoApproved}&skipped=${counts.skipped}`);
+  redirect(
+    `/admin/logos?candidateApply=1&checkedCandidates=${counts.checkedCandidates}&autoApproved=${counts.autoApproved}&skipped=${counts.skipped}`,
+  );
 }
-
 
 function isNumericCoinMarketCapId(value: string) {
   return /^\d+$/.test(value.trim());
 }
 
 function latestUsableSource(sources: LogoSource[], provider: string) {
-  return sources.find((source) => source.provider === provider && source.status !== "rejected") ?? null;
+  return (
+    sources.find(
+      (source) => source.provider === provider && source.status !== "rejected",
+    ) ?? null
+  );
 }
 
-async function chooseBestDiscoveredPrimary(logo: AdminLogo, sources: LogoSource[], summary: string[]) {
+async function chooseBestDiscoveredPrimary(
+  logo: AdminLogo,
+  sources: LogoSource[],
+  summary: string[],
+) {
   if (hasAdminChosenSource(sources)) {
     summary.push("Primary: skipped protected admin manual/upload choice");
     return;
   }
   const cg = latestUsableSource(sources, "coingecko");
-  if (cg && canAutoApproveCoinGecko(logo, sources, cg.image_url, cg.source_url).ok) {
+  if (
+    cg &&
+    canAutoApproveCoinGecko(logo, sources, cg.image_url, cg.source_url).ok
+  ) {
     await autoApproveSource(cg.id, "safe CoinGecko primary source");
     summary.push("Primary: CoinGecko selected and trusted");
     return;
   }
-  const fallback = latestUsableSource(sources, "coinmarketcap") ?? latestUsableSource(sources, "defillama") ?? latestUsableSource(sources, "managed-vault") ?? latestUsableSource(sources, "vault") ?? latestUsableSource(sources, "local-vault");
+  const fallback =
+    latestUsableSource(sources, "managed-vault") ??
+    latestUsableSource(sources, "vault") ??
+    latestUsableSource(sources, "coinmarketcap") ??
+    latestUsableSource(sources, "defillama");
   if (fallback && logo.visual_status !== "rejected") {
-    await selectSourceNeedsReview(fallback.id, `${fallback.provider} selected by discovery; admin review required`);
+    await selectSourceNeedsReview(
+      fallback.id,
+      `${fallback.provider} selected by discovery; admin review required`,
+    );
     summary.push(`Primary: ${fallback.provider} selected (needs review)`);
   }
 }
 
-async function discoverLogoSources(logo: AdminLogo, options: { force?: boolean; backupVault?: boolean } = {}) {
+async function discoverLogoSources(
+  logo: AdminLogo,
+  options: { force?: boolean; backupVault?: boolean } = {},
+) {
   const summary: string[] = [];
-  const before = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  const before = (await getAllLogoSources()).rows.filter(
+    (row) => row.logo_id === logo.id,
+  );
   const protectedAdmin = hasAdminChosenSource(before);
 
-  const coinId = (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) || getCoinGeckoLogoId(logo.slug);
+  const coinId =
+    (typeof logo.coingecko_id === "string" && logo.coingecko_id.trim()) ||
+    getCoinGeckoLogoId(logo.slug);
   if (coinId) {
     try {
       const source = await fetchCoinGeckoLogoSource(coinId);
-      const auto = canAutoApproveCoinGecko(logo, before, source.imageUrl, source.sourceUrl);
-      const created = await upsertLogoSource({ logoId: logo.id, provider: "coingecko", ...source, metadata: { ...source.metadata, discovery: true, approvalOrigin: auto.ok ? "auto" : "candidate", autoApproveReason: auto.reason }, status: auto.ok ? "approved" : "candidate" });
+      const auto = canAutoApproveCoinGecko(
+        logo,
+        before,
+        source.imageUrl,
+        source.sourceUrl,
+      );
+      const created = await upsertLogoSource({
+        logoId: logo.id,
+        provider: "coingecko",
+        ...source,
+        metadata: {
+          ...source.metadata,
+          discovery: true,
+          approvalOrigin: auto.ok ? "auto" : "candidate",
+          autoApproveReason: auto.reason,
+        },
+        status: auto.ok ? "approved" : "candidate",
+      });
       await updateLogoProviderId(logo.slug, "coingecko", coinId);
       await updateLogoFetchState(logo.slug, "coingecko", null);
-      if (auto.ok && !protectedAdmin) await autoApproveSource(created.id, auto.reason);
-      summary.push(auto.ok && !protectedAdmin ? "CoinGecko: fetched / selected primary" : `CoinGecko: fetched / ${auto.reason}`);
+      if (auto.ok && !protectedAdmin)
+        await autoApproveSource(created.id, auto.reason);
+      summary.push(
+        auto.ok && !protectedAdmin
+          ? "CoinGecko: fetched / selected primary"
+          : `CoinGecko: fetched / ${auto.reason}`,
+      );
     } catch (error) {
       const message = expectedActionMessage(error, "CoinGecko fetch failed.");
       await updateLogoFetchState(logo.slug, "coingecko", message);
@@ -500,44 +868,85 @@ async function discoverLogoSources(logo: AdminLogo, options: { force?: boolean; 
     summary.push("CoinGecko: missing ID");
   }
 
-  const cmcId = typeof logo.coinmarketcap_id === "string" ? logo.coinmarketcap_id.trim() : "";
+  const cmcId =
+    typeof logo.coinmarketcap_id === "string"
+      ? logo.coinmarketcap_id.trim()
+      : "";
   if (cmcId && isNumericCoinMarketCapId(cmcId)) {
     try {
       const source = await fetchCoinMarketCapLogoSource(cmcId);
-      await upsertLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source, metadata: { ...source.metadata, discovery: true, reviewStatus: "selected_needs_review" }, status: "candidate" });
+      await upsertLogoSource({
+        logoId: logo.id,
+        provider: "coinmarketcap",
+        ...source,
+        metadata: {
+          ...source.metadata,
+          discovery: true,
+          reviewStatus: "selected_needs_review",
+        },
+        status: "candidate",
+      });
       await updateLogoFetchState(logo.slug, "coinmarketcap", null);
       summary.push("CoinMarketCap: fetched / review-needed backup");
     } catch (error) {
-      const message = expectedActionMessage(error, "CoinMarketCap fetch failed.");
+      const message = expectedActionMessage(
+        error,
+        "CoinMarketCap fetch failed.",
+      );
       await updateLogoFetchState(logo.slug, "coinmarketcap", message);
       summary.push(`CoinMarketCap: failed (${message})`);
     }
   } else if (cmcId) {
-    await updateLogoFetchState(logo.slug, "coinmarketcap", "CMC ID must be numeric; use Find CMC ID.");
+    await updateLogoFetchState(
+      logo.slug,
+      "coinmarketcap",
+      "CMC ID must be numeric; use Find CMC ID.",
+    );
     summary.push("CoinMarketCap: ID review (numeric ID required)");
   } else if ((await resolveApiSecret("coinmarketcap")).value) {
     const found = await searchCoinMarketCapIds(`${logo.name} ${logo.slug}`);
-    summary.push(found.candidates.length ? `CoinMarketCap: needs ID (${found.candidates.length} candidates found)` : `CoinMarketCap: needs ID${found.error ? ` (${found.error})` : ""}`);
+    summary.push(
+      found.candidates.length
+        ? `CoinMarketCap: needs ID (${found.candidates.length} candidates found)`
+        : `CoinMarketCap: needs ID${found.error ? ` (${found.error})` : ""}`,
+    );
   } else {
     summary.push("CoinMarketCap: API key missing");
   }
 
   try {
     const imageUrl = `https://icons.llama.fi/${encodeURIComponent(logo.slug)}.jpg`;
-    const created = await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl, sourceUrl: `https://defillama.com/protocol/${logo.slug}`, metadata: { slug: logo.slug, discovery: true, reviewStatus: "selected_needs_review" }, status: "candidate" });
-    summary.push(created.status === "rejected" ? "DefiLlama: rejected / skipped" : "DefiLlama: fetched / backup");
+    const created = await upsertLogoSource({
+      logoId: logo.id,
+      provider: "defillama",
+      imageUrl,
+      sourceUrl: `https://defillama.com/protocol/${logo.slug}`,
+      metadata: {
+        slug: logo.slug,
+        discovery: true,
+        reviewStatus: "selected_needs_review",
+      },
+      status: "candidate",
+    });
+    summary.push(
+      created.status === "rejected"
+        ? "DefiLlama: rejected / skipped"
+        : "DefiLlama: fetched / backup",
+    );
   } catch (error) {
-    summary.push(`DefiLlama: failed (${expectedActionMessage(error, "DefiLlama fetch failed.")})`);
+    summary.push(
+      `DefiLlama: failed (${expectedActionMessage(error, "DefiLlama fetch failed.")})`,
+    );
   }
 
-  const local = logoSourceManifest.find((item) => item.slug === logo.slug && item.category === logo.category) || logoSourceManifest.find((item) => item.slug === logo.slug);
-  if (local) summary.push("Local static manifest: available/importable");
-  else summary.push("Local static manifest: missing");
-
-  const after = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
+  const after = (await getAllLogoSources()).rows.filter(
+    (row) => row.logo_id === logo.id,
+  );
   await chooseBestDiscoveredPrimary(logo, after, summary);
   if (options.backupVault) {
-    const primary = after.find((source) => source.id === logo.approved_source_id) ?? after.find((source) => source.status === "approved");
+    const primary =
+      after.find((source) => source.id === logo.approved_source_id) ??
+      after.find((source) => source.status === "approved");
     if (primary) summary.push(await copySourceToVault(logo, primary));
   }
   return summary;
@@ -545,7 +954,10 @@ async function discoverLogoSources(logo: AdminLogo, options: { force?: boolean; 
 
 async function coinMarketCapHeaders() {
   const resolved = await resolveApiSecret("coinmarketcap");
-  if (!resolved.value) throw new Error("CoinMarketCap API key is missing. Add it from API Settings or COINMARKETCAP_API_KEY before using CoinMarketCap logo fetch.");
+  if (!resolved.value)
+    throw new Error(
+      "CoinMarketCap API key is missing. Add it from API Settings or COINMARKETCAP_API_KEY before using CoinMarketCap logo fetch.",
+    );
   return {
     accept: "application/json",
     "X-CMC_PRO_API_KEY": resolved.value,
@@ -553,15 +965,26 @@ async function coinMarketCapHeaders() {
 }
 
 async function fetchCoinMarketCapLogoSource(cmcId: string) {
-  if (!isNumericCoinMarketCapId(cmcId)) throw new Error("CMC ID must be numeric; use Find CMC ID before fetching.");
-  const response = await fetch(`https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?id=${encodeURIComponent(cmcId)}`, {
-    headers: await coinMarketCapHeaders(),
-  });
-  if (!response.ok) throw new Error(`CoinMarketCap lookup for ${cmcId} failed (${response.status}).`);
+  if (!isNumericCoinMarketCapId(cmcId))
+    throw new Error("CMC ID must be numeric; use Find CMC ID before fetching.");
+  const response = await fetch(
+    `https://pro-api.coinmarketcap.com/v2/cryptocurrency/info?id=${encodeURIComponent(cmcId)}`,
+    {
+      headers: await coinMarketCapHeaders(),
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      `CoinMarketCap lookup for ${cmcId} failed (${response.status}).`,
+    );
   const json = await response.json();
-  const record = json.data?.[cmcId] ?? Object.values(json.data ?? {})[0] as any;
+  const record =
+    json.data?.[cmcId] ?? (Object.values(json.data ?? {})[0] as any);
   const imageUrl = record?.logo || "";
-  if (!imageUrl || !/^https:\/\//.test(imageUrl)) throw new Error(`CoinMarketCap did not return an HTTPS logo URL for ${cmcId}.`);
+  if (!imageUrl || !/^https:\/\//.test(imageUrl))
+    throw new Error(
+      `CoinMarketCap did not return an HTTPS logo URL for ${cmcId}.`,
+    );
   return {
     imageUrl,
     sourceUrl: `https://coinmarketcap.com/currencies/${record?.slug || cmcId}/`,
@@ -578,17 +1001,42 @@ async function fetchCoinMarketCapLogoSource(cmcId: string) {
 
 export async function addCoinMarketCapAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
-  const cmcId = String(formData.get("coinMarketCapId") || logo.coinmarketcap_id || "").trim();
-  if (!(await resolveApiSecret("coinmarketcap")).value) redirectLogoNotice(logo.slug, "warning", "CoinMarketCap API key missing; fetch is disabled. Add it in API Settings.");
-  if (!cmcId) redirectLogoNotice(logo.slug, "warning", "Find and save a numeric CoinMarketCap ID first.");
-  if (!isNumericCoinMarketCapId(cmcId)) redirectLogoNotice(logo.slug, "warning", "CMC ID must be numeric; use Find CMC ID instead of a slug.");
+  const cmcId = String(
+    formData.get("coinMarketCapId") || logo.coinmarketcap_id || "",
+  ).trim();
+  if (!(await resolveApiSecret("coinmarketcap")).value)
+    redirectLogoNotice(
+      logo.slug,
+      "warning",
+      "CoinMarketCap API key missing; fetch is disabled. Add it in API Settings.",
+    );
+  if (!cmcId)
+    redirectLogoNotice(
+      logo.slug,
+      "warning",
+      "Find and save a numeric CoinMarketCap ID first.",
+    );
+  if (!isNumericCoinMarketCapId(cmcId))
+    redirectLogoNotice(
+      logo.slug,
+      "warning",
+      "CMC ID must be numeric; use Find CMC ID instead of a slug.",
+    );
   try {
     const source = await fetchCoinMarketCapLogoSource(cmcId);
-    await addLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source });
+    await addLogoSource({
+      logoId: logo.id,
+      provider: "coinmarketcap",
+      ...source,
+    });
     await updateLogoProviderId(logo.slug, "coinmarketcap", cmcId);
     await updateLogoFetchState(logo.slug, "coinmarketcap", null);
     revalidatePath(`/admin/logos/${logo.slug}`);
-    redirectLogoNotice(logo.slug, "success", "CoinMarketCap candidate fetched for review.");
+    redirectLogoNotice(
+      logo.slug,
+      "success",
+      "CoinMarketCap candidate fetched for review.",
+    );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const message = expectedActionMessage(error, "CoinMarketCap fetch failed.");
@@ -601,8 +1049,13 @@ export async function addCoinMarketCapAction(formData: FormData) {
 export async function bulkRefreshCoinMarketCapLogosAction() {
   await requireAdmin();
   if (!(await resolveApiSecret("coinmarketcap")).value) {
-    const errors = ["CoinMarketCap API key is missing. Add it in API Settings or COINMARKETCAP_API_KEY before bulk refreshing logos."];
-    await setAdminSetting("last_cmc_bulk_refresh_summary", bulkSummary("CoinMarketCap", 0, 0, errors));
+    const errors = [
+      "CoinMarketCap API key is missing. Add it in API Settings or COINMARKETCAP_API_KEY before bulk refreshing logos.",
+    ];
+    await setAdminSetting(
+      "last_cmc_bulk_refresh_summary",
+      bulkSummary("CoinMarketCap", 0, 0, errors),
+    );
     revalidatePath("/admin");
     revalidatePath("/admin/logos");
     redirect("/admin/logos?provider=coinmarketcap&errors=1");
@@ -614,18 +1067,31 @@ export async function bulkRefreshCoinMarketCapLogosAction() {
   const errors: string[] = [];
 
   for (const logo of logos) {
-    const cmcId = typeof logo.coinmarketcap_id === "string" ? logo.coinmarketcap_id.trim() : "";
+    const cmcId =
+      typeof logo.coinmarketcap_id === "string"
+        ? logo.coinmarketcap_id.trim()
+        : "";
     if (!cmcId || !isNumericCoinMarketCapId(cmcId)) {
       missing += 1;
       if (cmcId) {
         errors.push(`${logo.slug}: CMC ID must be numeric; use Find CMC ID.`);
-        await updateLogoFetchState(logo.slug, "coinmarketcap", "CMC ID must be numeric; use Find CMC ID.");
+        await updateLogoFetchState(
+          logo.slug,
+          "coinmarketcap",
+          "CMC ID must be numeric; use Find CMC ID.",
+        );
       }
       continue;
     }
     try {
       const source = await fetchCoinMarketCapLogoSource(cmcId);
-      await upsertLogoSource({ logoId: logo.id, provider: "coinmarketcap", ...source, metadata: { ...source.metadata, bulkRefresh: true }, status: "candidate" });
+      await upsertLogoSource({
+        logoId: logo.id,
+        provider: "coinmarketcap",
+        ...source,
+        metadata: { ...source.metadata, bulkRefresh: true },
+        status: "candidate",
+      });
       await updateLogoProviderId(logo.slug, "coinmarketcap", cmcId);
       await updateLogoFetchState(logo.slug, "coinmarketcap", null);
       refreshed += 1;
@@ -636,18 +1102,32 @@ export async function bulkRefreshCoinMarketCapLogosAction() {
     }
   }
 
-  await setAdminSetting("last_cmc_bulk_refresh_summary", bulkSummary("CoinMarketCap", refreshed, missing, errors));
+  await setAdminSetting(
+    "last_cmc_bulk_refresh_summary",
+    bulkSummary("CoinMarketCap", refreshed, missing, errors),
+  );
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
-  const params = new URLSearchParams({ provider: "coinmarketcap", refreshed: String(refreshed), missing: String(missing), errors: String(errors.length) });
+  const params = new URLSearchParams({
+    provider: "coinmarketcap",
+    refreshed: String(refreshed),
+    missing: String(missing),
+    errors: String(errors.length),
+  });
   for (const message of errors.slice(0, 3)) params.append("error", message);
   redirect(`/admin/logos?${params.toString()}`);
 }
 
-
-async function uploadBufferToBlob(buffer: Buffer, pathname: string, mimeType: string) {
+async function uploadBufferToBlob(
+  buffer: Buffer,
+  pathname: string,
+  mimeType: string,
+) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is missing; Managed Logo Vault is disabled until Blob storage is configured.");
+  if (!token)
+    throw new Error(
+      "BLOB_READ_WRITE_TOKEN is missing; Managed Logo Vault is disabled until Blob storage is configured.",
+    );
   const response = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
     method: "PUT",
     headers: {
@@ -658,7 +1138,8 @@ async function uploadBufferToBlob(buffer: Buffer, pathname: string, mimeType: st
     },
     body: new Uint8Array(buffer),
   });
-  if (!response.ok) throw new Error(`Blob vault upload failed (${response.status}).`);
+  if (!response.ok)
+    throw new Error(`Blob vault upload failed (${response.status}).`);
   const json = await response.json();
   return String(json.url || json.downloadUrl || "");
 }
@@ -671,29 +1152,71 @@ function extensionFromMime(mimeType: string) {
 }
 
 async function copySourceToVault(logo: AdminLogo, source: LogoSource) {
-  if (!process.env.BLOB_READ_WRITE_TOKEN) return "Managed Vault: Blob token missing";
-  if (source.status === "rejected") return "Managed Vault: skipped rejected source";
+  if (!process.env.BLOB_READ_WRITE_TOKEN)
+    return "Managed Vault: Blob token missing";
+  if (source.status === "rejected")
+    return "Managed Vault: skipped rejected source";
+  const existing = (await getLogoSources(logo.id)).rows;
+  if (
+    existing.some(
+      (row) =>
+        ["managed-vault", "vault"].includes(row.provider) &&
+        row.status !== "rejected" &&
+        (sourceMetadata(row).copiedFromSourceId === source.id ||
+          sourceMetadata(row).copiedFromUrl ===
+            (source.blob_url || source.image_url)),
+    )
+  )
+    return "Managed Vault: already available";
+  const meta = sourceMetadata(source);
+  if (meta.visuallyRejected || meta.visualStatus === "visual_rejected")
+    return "Managed Vault: skipped visual rejected source";
   const imageUrl = source.blob_url || source.image_url;
-  if (!/^https:\/\//.test(imageUrl)) return "Managed Vault: source is not an HTTPS provider image";
-  const response = await fetch(imageUrl, { headers: { accept: "image/png,image/jpeg,image/webp" } });
+  if (!/^https:\/\//.test(imageUrl))
+    return "Managed Vault: source is not an HTTPS provider image";
+  const response = await fetch(imageUrl, {
+    headers: { accept: "image/png,image/jpeg,image/webp" },
+  });
   if (!response.ok) throw new Error(`image copy failed (${response.status})`);
-  const mimeType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  const mimeType = (response.headers.get("content-type") || "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
   const allowed = new Set(["image/png", "image/jpeg", "image/webp"]);
-  if (!allowed.has(mimeType)) throw new Error(`content type unsupported: ${mimeType || "unknown"}. SVG vault copies are disabled until sanitization exists.`);
+  if (!allowed.has(mimeType))
+    throw new Error(
+      `content type unsupported: ${mimeType || "unknown"}. SVG vault copies are disabled until sanitization exists.`,
+    );
   const buffer = Buffer.from(await response.arrayBuffer());
   if (!buffer.length) throw new Error("image copy failed: empty file");
-  if (buffer.length > 1_000_000) throw new Error("image copy failed: logo file is larger than 1 MB");
+  if (buffer.length > 1_000_000)
+    throw new Error("image copy failed: logo file is larger than 1 MB");
   const copiedAt = new Date().toISOString();
   const ext = extensionFromMime(mimeType);
   const pathname = `logo-vault/${logo.slug}/${source.provider}-${Date.now()}.${ext}`;
   const blobUrl = await uploadBufferToBlob(buffer, pathname, mimeType);
-  await addLogoSource({
+  const reviewedCopy =
+    source.status === "approved" &&
+    (source.provider === "coingecko" ||
+      source.provider === "manual" ||
+      source.provider === "upload" ||
+      meta.reviewStatus === "reviewed");
+  await upsertLogoSource({
     logoId: logo.id,
     provider: "managed-vault",
     imageUrl: blobUrl,
     blobUrl,
     sourceUrl: source.source_url || imageUrl,
-    metadata: { copiedFromProvider: source.provider, copiedFromSourceId: source.id, copiedFromUrl: imageUrl, copiedAt, fileSize: buffer.length, mimeType, reviewStatus: "candidate" },
+    status: reviewedCopy ? "approved" : "candidate",
+    metadata: {
+      copiedFromProvider: source.provider,
+      copiedFromSourceId: source.id,
+      copiedFromUrl: imageUrl,
+      copiedAt,
+      fileSize: buffer.length,
+      mimeType,
+      reviewStatus: reviewedCopy ? "reviewed" : "candidate",
+    },
   });
   return "Managed Vault: copy created";
 }
@@ -703,16 +1226,34 @@ export async function copySourceToVaultAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const sourceId = String(formData.get("sourceId") || "").trim();
   try {
-    if (!sourceId) redirectLogoNotice(logo.slug, "warning", "Choose a source to copy to Managed Vault.");
+    if (!sourceId)
+      redirectLogoNotice(
+        logo.slug,
+        "warning",
+        "Choose a source to copy to Managed Vault.",
+      );
     const source = await getLogoSource(sourceId);
-    if (!source || source.logo_id !== logo.id) redirectLogoNotice(logo.slug, "error", "Source was not found for this logo.");
+    if (!source || source.logo_id !== logo.id)
+      redirectLogoNotice(
+        logo.slug,
+        "error",
+        "Source was not found for this logo.",
+      );
     const message = await copySourceToVault(logo, source);
     revalidatePath(`/admin/logos/${logo.slug}`);
     revalidatePath("/admin/logos");
-    redirectLogoNotice(logo.slug, message.includes("created") ? "success" : "warning", message);
+    redirectLogoNotice(
+      logo.slug,
+      message.includes("created") ? "success" : "warning",
+      message,
+    );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    redirectLogoNotice(logo.slug, "error", expectedActionMessage(error, "Vault copy failed."));
+    redirectLogoNotice(
+      logo.slug,
+      "error",
+      expectedActionMessage(error, "Vault copy failed."),
+    );
   }
 }
 
@@ -726,7 +1267,11 @@ export async function fetchAllLogoSourcesAction(formData: FormData) {
     redirectLogoNotice(logo.slug, "success", summary.join(" · "));
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    redirectLogoNotice(logo.slug, "error", expectedActionMessage(error, "Fetch all sources failed."));
+    redirectLogoNotice(
+      logo.slug,
+      "error",
+      expectedActionMessage(error, "Fetch all sources failed."),
+    );
   }
 }
 
@@ -734,15 +1279,25 @@ export async function useCoinMarketCapIdAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
   const cmcId = String(formData.get("coinMarketCapId") || "").trim();
-  if (!isNumericCoinMarketCapId(cmcId)) redirectLogoNotice(slug, "warning", "CMC ID must be numeric; choose a candidate from the finder.");
+  if (!isNumericCoinMarketCapId(cmcId))
+    redirectLogoNotice(
+      slug,
+      "warning",
+      "CMC ID must be numeric; choose a candidate from the finder.",
+    );
   await updateLogoProviderId(slug, "coinmarketcap", cmcId);
   revalidatePath(`/admin/logos/${slug}`);
-  redirectLogoNotice(slug, "success", "CoinMarketCap numeric ID saved. Fetch CMC to add the logo source.");
+  redirectLogoNotice(
+    slug,
+    "success",
+    "CoinMarketCap numeric ID saved. Fetch CMC to add the logo source.",
+  );
 }
 
 async function uploadToBlob(file: File, pathname: string) {
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) throw new Error("BLOB_READ_WRITE_TOKEN is missing; uploads are disabled.");
+  if (!token)
+    throw new Error("BLOB_READ_WRITE_TOKEN is missing; uploads are disabled.");
   const response = await fetch(`https://blob.vercel-storage.com/${pathname}`, {
     method: "PUT",
     headers: {
@@ -761,15 +1316,41 @@ async function uploadToBlob(file: File, pathname: string) {
 export async function uploadLogoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) redirectLogoNotice(logo.slug, "warning", "Blob token missing; upload is disabled until storage is configured.");
+    if (!process.env.BLOB_READ_WRITE_TOKEN)
+      redirectLogoNotice(
+        logo.slug,
+        "warning",
+        "Blob token missing; upload is disabled until storage is configured.",
+      );
     const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) redirectLogoNotice(logo.slug, "error", "Choose a logo file to upload.");
+    if (!(file instanceof File) || file.size === 0)
+      redirectLogoNotice(logo.slug, "error", "Choose a logo file to upload.");
     const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
-    if (!allowedTypes.has(file.type)) redirectLogoNotice(logo.slug, "error", "Only PNG, JPEG or WebP raster uploads are enabled.");
-    if (file.size > 500_000) redirectLogoNotice(logo.slug, "error", "Logo upload is too large. Use a raster file under 500 KB.");
+    if (!allowedTypes.has(file.type))
+      redirectLogoNotice(
+        logo.slug,
+        "error",
+        "Only PNG, JPEG or WebP raster uploads are enabled.",
+      );
+    if (file.size > 500_000)
+      redirectLogoNotice(
+        logo.slug,
+        "error",
+        "Logo upload is too large. Use a raster file under 500 KB.",
+      );
     const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
-    const blobUrl = await uploadToBlob(file, `admin-logos/${logo.slug}/${Date.now()}-${safeName}`);
-    await addLogoSource({ logoId: logo.id, provider: "upload", imageUrl: blobUrl, blobUrl, sourceUrl: null, metadata: { fileName: file.name, size: file.size, type: file.type } });
+    const blobUrl = await uploadToBlob(
+      file,
+      `admin-logos/${logo.slug}/${Date.now()}-${safeName}`,
+    );
+    await addLogoSource({
+      logoId: logo.id,
+      provider: "upload",
+      imageUrl: blobUrl,
+      blobUrl,
+      sourceUrl: null,
+      metadata: { fileName: file.name, size: file.size, type: file.type },
+    });
     revalidatePath(`/admin/logos/${logo.slug}`);
     redirectLogoNotice(logo.slug, "success", "Upload candidate added.");
   } catch (error) {
@@ -785,24 +1366,35 @@ export async function scanMetricLogosAction() {
     await runMetricLogoDiscovery(30);
     revalidatePath("/admin");
     revalidatePath("/admin/logos");
-    redirect("/admin/logos?scan=1&notice=success&message=Metric%20scan%20complete");
+    redirect(
+      "/admin/logos?scan=1&notice=success&message=Metric%20scan%20complete",
+    );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const message = expectedActionMessage(error, "Metric scan failed.");
-    redirect(`/admin/logos?notice=error&message=${encodeURIComponent(message.slice(0, 180))}`);
+    redirect(
+      `/admin/logos?notice=error&message=${encodeURIComponent(message.slice(0, 180))}`,
+    );
   }
 }
 
 export async function saveProviderIdsAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
-  await updateLogoProviderId(slug, "coingecko", String(formData.get("coinGeckoId") || "").trim());
-  await updateLogoProviderId(slug, "coinmarketcap", String(formData.get("coinMarketCapId") || "").trim());
+  await updateLogoProviderId(
+    slug,
+    "coingecko",
+    String(formData.get("coinGeckoId") || "").trim(),
+  );
+  await updateLogoProviderId(
+    slug,
+    "coinmarketcap",
+    String(formData.get("coinMarketCapId") || "").trim(),
+  );
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
   redirectLogoNotice(slug, "success", "Provider IDs saved.");
 }
-
 
 export async function discoverLogoSourcesBulkAction(formData: FormData) {
   await requireAdmin();
@@ -810,47 +1402,119 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
   const logos = (await listLogosForCoinGeckoBulk()).rows;
   const allSources = (await getAllLogoSources()).rows;
   const sourcesByLogo = new Map<string, LogoSource[]>();
-  for (const source of allSources) sourcesByLogo.set(source.logo_id, [...(sourcesByLogo.get(source.logo_id) ?? []), source]);
-  const counts = { checked: 0, coingeckoFetched: 0, cmcFetched: 0, defillamaFetched: 0, vaultCopiesCreated: 0, primarySelected: 0, needsReview: 0, missingIds: 0, errors: 0, skippedProtectedAdminSources: 0, skippedRejected: 0 };
+  for (const source of allSources)
+    sourcesByLogo.set(source.logo_id, [
+      ...(sourcesByLogo.get(source.logo_id) ?? []),
+      source,
+    ]);
+  const counts = {
+    checked: 0,
+    coingeckoFetched: 0,
+    cmcFetched: 0,
+    defillamaFetched: 0,
+    vaultCopiesCreated: 0,
+    primarySelected: 0,
+    needsReview: 0,
+    missingIds: 0,
+    errors: 0,
+    skippedProtectedAdminSources: 0,
+    skippedRejected: 0,
+    skippedAlreadyVaulted: 0,
+    skippedMissingSource: 0,
+  };
   const details: string[] = [];
   for (const logo of logos) {
     const sources = sourcesByLogo.get(logo.id) ?? [];
-    const problem = !logo.approved_logo_url || !logo.coingecko_id || !logo.coinmarketcap_id || sources.length === 0 || Boolean(logo.last_fetch_error) || logo.status === "needs_review";
+    const problem =
+      !logo.approved_logo_url ||
+      !logo.coingecko_id ||
+      !logo.coinmarketcap_id ||
+      sources.length === 0 ||
+      Boolean(logo.last_fetch_error) ||
+      logo.status === "needs_review";
     if (mode === "smart" && !problem) continue;
     counts.checked += 1;
     if (hasAdminChosenSource(sources)) counts.skippedProtectedAdminSources += 1;
-    if (logo.visual_status === "rejected") { counts.skippedRejected += 1; details.push(`${logo.slug}: visual rejected skipped`); continue; }
+    if (logo.visual_status === "rejected") {
+      counts.skippedRejected += 1;
+      details.push(`${logo.slug}: visual rejected skipped`);
+      continue;
+    }
     try {
       const summary = mode === "vault" ? [] : await discoverLogoSources(logo);
       if (mode === "vault") {
-        const primary = sources.find((source) => source.id === logo.approved_source_id) ?? sources.find((source) => source.status === "approved");
-        if (primary && !sources.some((source) => ["managed-vault", "vault"].includes(source.provider))) summary.push(await copySourceToVault(logo, primary));
-        else summary.push(primary ? "Managed Vault: already available" : "Managed Vault: no approved primary to copy");
+        const primary =
+          sources.find((source) => source.id === logo.approved_source_id) ??
+          sources.find((source) => source.status === "approved");
+        if (!primary) {
+          counts.skippedMissingSource += 1;
+          summary.push("Managed Vault: no approved primary to copy");
+        } else if (
+          sources.some(
+            (source) =>
+              ["managed-vault", "vault"].includes(source.provider) &&
+              source.status !== "rejected",
+          )
+        ) {
+          counts.skippedAlreadyVaulted += 1;
+          summary.push("Managed Vault: already available");
+        } else {
+          summary.push(await copySourceToVault(logo, primary));
+        }
       }
       const text = summary.join(" | ");
       if (text.includes("CoinGecko: fetched")) counts.coingeckoFetched += 1;
       if (text.includes("CoinMarketCap: fetched")) counts.cmcFetched += 1;
       if (text.includes("DefiLlama: fetched")) counts.defillamaFetched += 1;
-      if (text.includes("Managed Vault: copy created")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Managed Vault: copy created"))
+        counts.vaultCopiesCreated += 1;
       if (text.includes("Primary:")) counts.primarySelected += 1;
       if (text.includes("needs review")) counts.needsReview += 1;
-      if (text.includes("missing ID") || text.includes("needs ID")) counts.missingIds += 1;
+      if (text.includes("missing ID") || text.includes("needs ID"))
+        counts.missingIds += 1;
       details.push(`${logo.slug}: ${text}`);
     } catch (error) {
       counts.errors += 1;
-      details.push(`${logo.slug}: ${expectedActionMessage(error, "Discovery failed.")}`);
+      details.push(
+        `${logo.slug}: ${expectedActionMessage(error, "Discovery failed.")}`,
+      );
     }
   }
-  await setAdminSetting("last_logo_source_discovery_summary", JSON.stringify({ provider: "Logo Source Discovery", timestamp: new Date().toISOString(), mode, ...counts, firstErrors: details.filter((d) => d.toLowerCase().includes("failed") || d.toLowerCase().includes("error")).slice(0, 10), firstSkippedReasons: details.filter((d) => d.toLowerCase().includes("skipped")).slice(0, 10), candidateList: details.slice(0, 25) }));
+  await setAdminSetting(
+    "last_logo_source_discovery_summary",
+    JSON.stringify({
+      provider: "Logo Source Discovery",
+      timestamp: new Date().toISOString(),
+      mode,
+      ...counts,
+      firstErrors: details
+        .filter(
+          (d) =>
+            d.toLowerCase().includes("failed") ||
+            d.toLowerCase().includes("error"),
+        )
+        .slice(0, 10),
+      firstSkippedReasons: details
+        .filter((d) => d.toLowerCase().includes("skipped"))
+        .slice(0, 10),
+      candidateList: details.slice(0, 25),
+    }),
+  );
   revalidatePath("/admin");
   revalidatePath("/admin/logos");
-  redirect(`/admin/logos?notice=success&message=${encodeURIComponent(`Discovery ${mode} complete: ${counts.checked} checked, ${counts.primarySelected} primary selected, ${counts.needsReview} need review, ${counts.errors} errors`)}`);
+  redirect(
+    `/admin/logos?notice=success&message=${encodeURIComponent(mode === "vault" ? `Vault backup complete: ${counts.checked} checked, ${counts.vaultCopiesCreated} copied, ${counts.skippedAlreadyVaulted} already vaulted, ${counts.skippedMissingSource} missing source, ${counts.errors} errors` : `Discovery ${mode} complete: ${counts.checked} checked, ${counts.primarySelected} primary selected, ${counts.needsReview} need review, ${counts.errors} errors`)}`,
+  );
 }
 
 export async function saveFallbackAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
-  await updateLogoFallback(slug, String(formData.get("fallbackText") || "").trim(), String(formData.get("fallbackColor") || "").trim());
+  await updateLogoFallback(
+    slug,
+    String(formData.get("fallbackText") || "").trim(),
+    String(formData.get("fallbackColor") || "").trim(),
+  );
   revalidatePath(`/admin/logos/${slug}`);
   redirectLogoNotice(slug, "success", "Fallback saved.");
 }
@@ -858,7 +1522,12 @@ export async function saveFallbackAction(formData: FormData) {
 export async function markVisualRejectedAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
-  await updateLogoStatus(slug, "needs_review", "rejected", String(formData.get("reason") || "Visual rejected in admin review"));
+  await updateLogoStatus(
+    slug,
+    "needs_review",
+    "rejected",
+    String(formData.get("reason") || "Visual rejected in admin review"),
+  );
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
   redirectLogoNotice(slug, "success", "Logo marked visually rejected.");
@@ -867,7 +1536,12 @@ export async function markVisualRejectedAction(formData: FormData) {
 export async function markNeedsReviewAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
-  await updateLogoStatus(slug, "needs_review", null, "Marked needs review in admin operations.");
+  await updateLogoStatus(
+    slug,
+    "needs_review",
+    null,
+    "Marked needs review in admin operations.",
+  );
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
   redirectLogoNotice(slug, "success", "Logo marked needs review.");
@@ -875,9 +1549,44 @@ export async function markNeedsReviewAction(formData: FormData) {
 
 export async function saveBrandSettingsAction(formData: FormData) {
   await requireAdmin();
-  const textFields = ["siteName", "shortName", "mainSlogan", "heroSubtitle", "supportingCopy", "cardFooterText", "createdWithText", "metaDescription", "heroLogoOffsetX", "heroLogoMaxWidth", "heroLogoSpacing", "heroSloganFontSize", "heroSloganFontWeight", "heroSloganLineHeight", "heroSubtitleSize", "heroSubtitleOpacity", "heroSubtitleVisible"];
-  const assetFields = ["primaryLogo", "darkLogo", "iconMark", "headerLogo", "favicon", "appleTouchIcon", "xAvatar", "xBanner", "watermarkMark"];
-  const settings: Record<string, unknown> = Object.fromEntries(textFields.map((field) => [field, String(formData.get(field) || "").trim().replace(/on-chain/gi, "onchain")]));
+  const textFields = [
+    "siteName",
+    "shortName",
+    "mainSlogan",
+    "heroSubtitle",
+    "supportingCopy",
+    "cardFooterText",
+    "createdWithText",
+    "metaDescription",
+    "heroLogoOffsetX",
+    "heroLogoMaxWidth",
+    "heroLogoSpacing",
+    "heroSloganFontSize",
+    "heroSloganFontWeight",
+    "heroSloganLineHeight",
+    "heroSubtitleSize",
+    "heroSubtitleOpacity",
+    "heroSubtitleVisible",
+  ];
+  const assetFields = [
+    "primaryLogo",
+    "darkLogo",
+    "iconMark",
+    "headerLogo",
+    "favicon",
+    "appleTouchIcon",
+    "xAvatar",
+    "xBanner",
+    "watermarkMark",
+  ];
+  const settings: Record<string, unknown> = Object.fromEntries(
+    textFields.map((field) => [
+      field,
+      String(formData.get(field) || "")
+        .trim()
+        .replace(/on-chain/gi, "onchain"),
+    ]),
+  );
   const assetMetadata: Record<string, Record<string, unknown>> = {};
   const allowedTypes = new Set(["image/png", "image/jpeg", "image/webp"]);
   try {
@@ -886,52 +1595,62 @@ export async function saveBrandSettingsAction(formData: FormData) {
       const manualUrl = reset ? "" : String(formData.get(field) || "").trim();
       const file = formData.get(`${field}File`);
       settings[field] = manualUrl;
-      if (manualUrl) assetMetadata[field] = { provider: "manual-url", kind: field, url: manualUrl };
+      if (manualUrl)
+        assetMetadata[field] = {
+          provider: "manual-url",
+          kind: field,
+          url: manualUrl,
+        };
       if (file instanceof File && file.size > 0) {
-        if (!process.env.BLOB_READ_WRITE_TOKEN) throw new Error(`BLOB_READ_WRITE_TOKEN is missing; ${field} upload is disabled.`);
-        if (!allowedTypes.has(file.type)) throw new Error(`${field}: only PNG, JPEG and WebP uploads are enabled. SVG upload remains disabled until sanitization exists.`);
+        if (!process.env.BLOB_READ_WRITE_TOKEN)
+          throw new Error(
+            `BLOB_READ_WRITE_TOKEN is missing; ${field} upload is disabled.`,
+          );
+        if (!allowedTypes.has(file.type))
+          throw new Error(
+            `${field}: only PNG, JPEG and WebP uploads are enabled. SVG upload remains disabled until sanitization exists.`,
+          );
         const maxSize = field === "xBanner" ? 2_000_000 : 500_000;
-        if (file.size > maxSize) throw new Error(`${field}: file is too large. Limit is ${field === "xBanner" ? "2 MB" : "500 KB"}.`);
+        if (file.size > maxSize)
+          throw new Error(
+            `${field}: file is too large. Limit is ${field === "xBanner" ? "2 MB" : "500 KB"}.`,
+          );
         const safeName = file.name.toLowerCase().replace(/[^a-z0-9.]+/g, "-");
-        const url = await uploadToBlob(file, `brand-assets/${field}/${Date.now()}-${safeName}`);
+        const url = await uploadToBlob(
+          file,
+          `brand-assets/${field}/${Date.now()}-${safeName}`,
+        );
         settings[field] = url;
-        assetMetadata[field] = { provider: "upload", kind: field, fileSize: file.size, mimeType: file.type, uploadedAt: new Date().toISOString(), url };
+        assetMetadata[field] = {
+          provider: "upload",
+          kind: field,
+          fileSize: file.size,
+          mimeType: file.type,
+          uploadedAt: new Date().toISOString(),
+          url,
+        };
       }
       if (reset) assetMetadata[field] = { provider: "disabled", kind: field };
     }
-    await setAdminSetting("brand_settings", JSON.stringify({ ...settings, assetMetadata, savedAt: new Date().toISOString() }));
+    await setAdminSetting(
+      "brand_settings",
+      JSON.stringify({
+        ...settings,
+        assetMetadata,
+        savedAt: new Date().toISOString(),
+      }),
+    );
     revalidatePath("/");
     revalidatePath("/", "layout");
     revalidatePath("/admin/brand");
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     console.error("Brand settings save failed", error);
-    const message = error instanceof Error ? error.message : "Unknown save error";
+    const message =
+      error instanceof Error ? error.message : "Unknown save error";
     redirect(`/admin/brand?error=${encodeURIComponent(message.slice(0, 160))}`);
   }
   redirect("/admin/brand?saved=1");
-}
-
-export async function importLocalVaultSourceAction(formData: FormData) {
-  await requireAdmin();
-  const slug = String(formData.get("slug") || "");
-  const logo = await upsertLogo(String(formData.get("name") || slug), String(formData.get("category") || "project"));
-  const entry = logoSourceManifest.find((item) => item.slug === slug && item.category === logo.category) || logoSourceManifest.find((item) => item.slug === slug);
-  if (!entry) redirectLogoNotice(slug, "error", "No local vault source found for this logo.");
-  const sources = (await getAllLogoSources()).rows.filter((row) => row.logo_id === logo.id);
-  const localWasRejected = sources.some((source) => source.status === "rejected" && (source.image_url === entry.localPath || sourceMetadata(source).localPath === entry.localPath));
-  const localVaultSafe = entry.approvalStatus === "approved" && !entry.visualRejected && !entry.fallbackPreferredUntilManualAsset && !localWasRejected && !hasAdminChosenSource(sources);
-  await upsertLogoSource({
-    logoId: logo.id,
-    provider: entry.sourceProvider,
-    imageUrl: entry.localPath,
-    sourceUrl: entry.sourceUrl || entry.localPath,
-    metadata: { approvalOrigin: "local-vault", reviewStatus: localVaultSafe ? "selected_needs_review" : "candidate", sourceProvider: entry.sourceProvider, sha256: entry.sha256, localPath: entry.localPath, sourceUrl: entry.sourceUrl ?? null, approvalStatus: entry.approvalStatus },
-    status: entry.approvalStatus === "rejected" || localWasRejected ? "rejected" : "candidate",
-  });
-  revalidatePath(`/admin/logos/${slug}`);
-  revalidatePath("/admin/logos");
-  redirectLogoNotice(slug, "success", localVaultSafe ? "Local vault source imported; mark reviewed if it looks correct." : "Local vault source imported as candidate.");
 }
 
 export async function approveSourceAction(formData: FormData) {
@@ -947,7 +1666,11 @@ export async function approveSourceAction(formData: FormData) {
     redirectLogoNotice(slug, "success", "Source approved.");
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    redirectLogoNotice(slug, "error", expectedActionMessage(error, "Source approval failed."));
+    redirectLogoNotice(
+      slug,
+      "error",
+      expectedActionMessage(error, "Source approval failed."),
+    );
   }
 }
 
@@ -957,6 +1680,12 @@ export async function rejectSourceAction(formData: FormData) {
   const slug = String(formData.get("slug") || "");
   const reason = String(formData.get("reason") || "");
   await rejectSource(sourceId, reason);
+  const logos = (await listLogosForCoinGeckoBulk()).rows;
+  const logo = logos.find((row) => row.slug === slug);
+  if (logo) {
+    const sources = (await getLogoSources(logo.id)).rows;
+    await chooseBestDiscoveredPrimary(logo, sources, []);
+  }
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
   revalidatePath("/");
@@ -976,10 +1705,15 @@ export async function rejectLogoAction(formData: FormData) {
   redirectLogoNotice(slug, "success", "Logo entity rejected.");
 }
 
-
-function parseApiProvider(value: FormDataEntryValue | null): ApiProviderId | null {
+function parseApiProvider(
+  value: FormDataEntryValue | null,
+): ApiProviderId | null {
   const provider = String(value || "").trim();
-  return provider === "coingecko" || provider === "coinmarketcap" || provider === "defillama" ? provider : null;
+  return provider === "coingecko" ||
+    provider === "coinmarketcap" ||
+    provider === "defillama"
+    ? provider
+    : null;
 }
 
 export async function saveApiKeyAction(formData: FormData) {
@@ -992,7 +1726,11 @@ export async function saveApiKeyAction(formData: FormData) {
     adminNotice("/admin/api", "success", "API key saved securely.");
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    adminNotice("/admin/api", "warning", expectedActionMessage(error, "API key could not be saved."));
+    adminNotice(
+      "/admin/api",
+      "warning",
+      expectedActionMessage(error, "API key could not be saved."),
+    );
   }
 }
 
@@ -1006,7 +1744,11 @@ export async function deleteApiKeyAction(formData: FormData) {
     adminNotice("/admin/api", "success", "API key deleted.");
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    adminNotice("/admin/api", "error", expectedActionMessage(error, "API key could not be deleted."));
+    adminNotice(
+      "/admin/api",
+      "error",
+      expectedActionMessage(error, "API key could not be deleted."),
+    );
   }
 }
 
@@ -1016,24 +1758,46 @@ export async function testApiKeyAction(formData: FormData) {
   if (!provider) adminNotice("/admin/api", "error", "Unknown API provider.");
   try {
     const resolved = await resolveApiSecret(provider);
-    if (provider !== "defillama" && !resolved.value) throw new Error(`${providerEnvVar(provider)} is missing.`);
+    if (provider !== "defillama" && !resolved.value)
+      throw new Error(`${providerEnvVar(provider)} is missing.`);
     let response: Response;
     if (provider === "coingecko") {
-      response = await fetch("https://api.coingecko.com/api/v3/ping", { headers: await coinGeckoHeaders(false), cache: "no-store" });
+      response = await fetch("https://api.coingecko.com/api/v3/ping", {
+        headers: await coinGeckoHeaders(false),
+        cache: "no-store",
+      });
     } else if (provider === "coinmarketcap") {
-      response = await fetch("https://pro-api.coinmarketcap.com/v1/key/info", { headers: await coinMarketCapHeaders(), cache: "no-store" });
+      response = await fetch("https://pro-api.coinmarketcap.com/v1/key/info", {
+        headers: await coinMarketCapHeaders(),
+        cache: "no-store",
+      });
     } else {
-      response = await fetch("https://api.llama.fi/protocols", { headers: { accept: "application/json", ...(resolved.value ? { authorization: `Bearer ${resolved.value}` } : {}) }, cache: "no-store" });
+      response = await fetch("https://api.llama.fi/protocols", {
+        headers: {
+          accept: "application/json",
+          ...(resolved.value
+            ? { authorization: `Bearer ${resolved.value}` }
+            : {}),
+        },
+        cache: "no-store",
+      });
     }
-    if (!response.ok) throw new Error(`${provider} test failed (${response.status}).`);
-    if (resolved.source === "admin") await setAdminApiSecretTestResult(provider, true, null);
+    if (!response.ok)
+      throw new Error(`${provider} test failed (${response.status}).`);
+    if (resolved.source === "admin")
+      await setAdminApiSecretTestResult(provider, true, null);
     revalidatePath("/admin/api");
     adminNotice("/admin/api", "success", "API key test succeeded.");
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     const providerForUpdate = parseApiProvider(formData.get("provider"));
     const message = expectedActionMessage(error, "API key test failed.");
-    if (providerForUpdate && !message.startsWith("NEXT_REDIRECT")) await setAdminApiSecretTestResult(providerForUpdate, false, message.slice(0, 180));
+    if (providerForUpdate && !message.startsWith("NEXT_REDIRECT"))
+      await setAdminApiSecretTestResult(
+        providerForUpdate,
+        false,
+        message.slice(0, 180),
+      );
     revalidatePath("/admin/api");
     adminNotice("/admin/api", "error", message);
   }
