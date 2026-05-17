@@ -46,7 +46,7 @@ const ACTION_ISSUES = new Set([
   "cmc_fetch_failed",
   "fallback_used",
   "visual_rejected",
-  "newly_discovered_entity",
+  "unsafe_migrated_candidate",
   "metric_scan_error",
   "metric_scan_missing_coingecko_id",
   "metric_scan_candidate_added",
@@ -106,13 +106,15 @@ function filterRows(rows: LogoQaRow[], filter: string) {
 
 function actionPriority(row: LogoQaRow) {
   const order = [
-    "needs_review",
     "missing_approved_logo",
-      "coingecko_id_needs_review",
+    "fallback_used",
+    "missing_coingecko_id",
+    "coingecko_id_needs_review",
     "coingecko_fetch_failed",
     "cmc_fetch_failed",
-    "fallback_used",
     "visual_rejected",
+    "unsafe_migrated_candidate",
+    "needs_review",
     "newly_discovered_entity",
   ];
   const index = order.findIndex((issue) => row.issues.includes(issue as any));
@@ -605,19 +607,19 @@ export default async function AdminLogosPage({
     counts.coingecko_fetch_failed +
     counts.cmc_fetch_failed +
     counts.coingecko_id_needs_review;
-  const needsAction = qaRows.filter(hasAction).length;
+  const urgentRows = qaRows.filter((row) => row.issues.some((issue) => ["missing_approved_logo", "fallback_used", "missing_coingecko_id", "coingecko_id_needs_review", "coingecko_fetch_failed", "cmc_fetch_failed", "visual_rejected", "unsafe_migrated_candidate"].includes(issue)));
+  const needsAction = urgentRows.length;
+  const reviewLater = qaRows.filter((row) => row.issues.some((issue) => ["needs_review", "newly_discovered_entity", "coingecko_candidate_waiting", "metric_scan_candidate_added"].includes(issue)) && !urgentRows.includes(row)).length;
+  const newlyDiscovered = qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length;
+  const visualIssues = counts.visual_rejected + counts.unsafe_migrated_candidate;
   const actionMetrics = [
-    ["Needs action", needsAction],
+    ["Needs attention", needsAction],
     ["Missing approved logo", counts.missing_approved_logo],
     ["Missing CoinGecko ID", counts.missing_coingecko_id],
     ["Provider errors / ID review", providerErrors],
-    ["Fallback used", counts.fallback_used],
-    ["Visual rejected", counts.visual_rejected],
-    [
-      "Newly discovered",
-      qaRows.filter((row) => row.issues.includes("newly_discovered_entity"))
-        .length,
-    ],
+    ["Visual / unsafe", visualIssues],
+    ["Review later", reviewLater],
+    ["Newly discovered", newlyDiscovered],
   ].filter(([, value], index) => index === 0 || Number(value) > 0);
   const allMatchingRows = sortRows(qaRows, sort);
   const missingMappingRows = qaRows.filter((row) =>
@@ -700,7 +702,7 @@ export default async function AdminLogosPage({
               </h2>
               <p className="text-xs font-bold text-slate-400">
                 Total logos: {counts.all} · Approved: {counts.approved} · Needs
-                action: {needsAction}
+                attention: {needsAction}{reviewLater ? ` · Review later: ${reviewLater}` : ""}
               </p>
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">

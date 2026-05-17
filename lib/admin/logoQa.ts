@@ -16,6 +16,7 @@ export type LogoIssue =
   | "coingecko_fetch_failed"
   | "fallback_used"
   | "visual_rejected"
+  | "unsafe_migrated_candidate"
   | "approved_but_not_used"
   | "db_overlay_not_applied"
   | "rejected_source"
@@ -56,6 +57,7 @@ export type LogoQaCounts = Record<
   | "cmc_fetch_failed"
   | "fallback_used"
   | "visual_rejected"
+  | "unsafe_migrated_candidate"
   | "rejected_source"
   | "db_overlay_not_applied",
   number
@@ -106,7 +108,7 @@ function visualRejected(logo: AdminLogo, sources: LogoSource[]) {
   if (registry?.visualRejected || registry?.fallbackPreferredUntilManualAsset)
     return true;
   return sources.some((source) =>
-    Boolean(metadataObject(source.metadata).visuallyRejected),
+    Boolean(metadataObject(source.metadata).visuallyRejected || metadataObject(source.metadata).visualRejected),
   );
 }
 
@@ -235,6 +237,11 @@ export function classifyLogoQa(
   if (sources.some((source) => sourceHasFetchError(source, "coinmarketcap")))
     issues.push("cmc_fetch_failed");
   if (fallbackUsed) issues.push("fallback_used");
+  if (sources.some((source) => {
+    const meta = metadataObject(source.metadata);
+    return source.status !== "rejected" && meta.migratedFrom === "local-static-manifest" && (meta.unsafe === true || meta.reviewStatus === "needs_review");
+  }))
+    issues.push("unsafe_migrated_candidate");
   if (visualRejected(logo, sources)) {
     issues.push("visual_rejected");
     issues.push("skipped_visual_rejected");
@@ -285,6 +292,8 @@ export function recommendedAction(
     return "Review metric scanner error";
   if (issues.includes("db_overlay_not_applied"))
     return "Check public overlay aliases for this row";
+  if (issues.includes("unsafe_migrated_candidate"))
+    return "Review unsafe migrated vault candidate manually";
   if (issues.includes("skipped_visual_rejected"))
     return "Keep fallback or add distinct manual logo";
   if (issues.includes("coingecko_id_needs_review"))
@@ -377,6 +386,9 @@ export function summarizeLogoQa(rows: LogoQaRow[]): LogoQaCounts {
       .length,
     visual_rejected: rows.filter((row) =>
       row.issues.includes("visual_rejected"),
+    ).length,
+    unsafe_migrated_candidate: rows.filter((row) =>
+      row.issues.includes("unsafe_migrated_candidate"),
     ).length,
     rejected_source: rows.filter((row) =>
       row.issues.includes("rejected_source"),
