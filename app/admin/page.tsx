@@ -67,7 +67,7 @@ export default async function AdminIndex() {
     { label: "DefiLlama", tone: "gray" as AdminTone },
     { label: "TPS", tone: dotTone(providerById.get("chainspect")?.status ?? "missing key") },
     { label: "Blob", tone: config.hasBlob ? "green" as AdminTone : "red" as AdminTone },
-    { label: "Brand", tone: brand.favicon && brand.headerLogo && brand.watermarkMark ? "green" as AdminTone : "amber" as AdminTone },
+    { label: "Brand", tone: (brand.primaryLogo || brand.headerLogo) && brand.favicon ? "green" as AdminTone : "amber" as AdminTone },
   ];
 
   const actionItems = [
@@ -79,9 +79,8 @@ export default async function AdminIndex() {
     counts.missing_coingecko_id ? `${counts.missing_coingecko_id} logos missing CoinGecko ID` : null,
     providerErrors ? `${providerErrors} provider errors / ID reviews` : null,
     scanSummary?.errors.length ? `${scanSummary.errors.length} metric scan errors` : null,
+    !(brand.primaryLogo || brand.headerLogo) ? "primary / hero logo missing" : null,
     !brand.favicon ? "favicon missing" : null,
-    !brand.headerLogo ? "header logo missing" : null,
-    !brand.watermarkMark ? "watermark missing" : null,
   ].filter(Boolean) as string[];
 
   const logoHealth = [
@@ -97,7 +96,7 @@ export default async function AdminIndex() {
   const recentActivity = [
     coingeckoSummary ? `CG refresh: ${coingeckoSummary.checked ?? 0} checked · ${coingeckoSummary.idNeedsReview ?? 0} ID review · ${coingeckoSummary.errors ?? 0} errors` : "CG refresh: not run yet",
     scanSummary ? `Metric scan: ${scanSummary.rowsChecked} entities · ${scanSummary.missingCoinGeckoIds} missing CG · ${scanSummary.errors.length} error${scanSummary.errors.length === 1 ? "" : "s"}` : "Metric scan: not run yet",
-    `Brand: favicon ${brand.favicon ? "ok" : "missing"} · header ${brand.headerLogo ? "ok" : "missing"} · upload ${blob.configured ? "enabled" : "disabled"}`,
+    `Brand: hero ${(brand.primaryLogo || brand.headerLogo) ? "ok" : "missing"} · favicon ${brand.favicon ? "ok" : "missing"} · upload ${blob.configured ? "enabled" : "disabled"}`,
   ];
 
   return (
@@ -137,10 +136,12 @@ export default async function AdminIndex() {
 
         <AdminSection title="Brand Health" action={<Link href="/admin/brand" className="text-xs font-black text-slate-500">Open Brand →</Link>}>
           <div className="flex flex-wrap gap-1.5">
-            <AdminStatusPill tone={brand.favicon ? "green" : "amber"}>Favicon {brand.favicon ? "ok" : "missing"}</AdminStatusPill>
-            <AdminStatusPill tone={brand.headerLogo ? "green" : "amber"}>Header {brand.headerLogo ? "ok" : "missing"}</AdminStatusPill>
-            <AdminStatusPill tone={brand.watermarkMark ? "green" : "amber"}>Watermark {brand.watermarkMark ? "ok" : "missing"}</AdminStatusPill>
+            <AdminStatusPill tone={(brand.primaryLogo || brand.headerLogo) ? "green" : "amber"}>{brand.primaryLogo ? "Primary logo OK" : brand.headerLogo ? "Hero uses header fallback" : "Primary logo missing"}</AdminStatusPill>
+            <AdminStatusPill tone={brand.favicon ? "green" : "amber"}>Favicon {brand.favicon ? "OK" : "missing"}</AdminStatusPill>
             <AdminStatusPill tone={config.hasBlob ? "green" : "gray"}>Upload {config.hasBlob ? "enabled" : "disabled"}</AdminStatusPill>
+            <AdminStatusPill tone={brand.headerLogo ? "green" : "gray"}>Header logo {brand.headerLogo ? "available" : "optional"}</AdminStatusPill>
+            <AdminStatusPill tone={brand.appleTouchIcon ? "green" : "gray"}>Apple touch icon {brand.appleTouchIcon ? "OK" : "optional"}</AdminStatusPill>
+            <AdminStatusPill tone={brand.watermarkMark ? "green" : "gray"}>Watermark {brand.watermarkMark ? "available" : "optional"}</AdminStatusPill>
           </div>
         </AdminSection>
       </section>
