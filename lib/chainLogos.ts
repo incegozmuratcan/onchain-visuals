@@ -93,19 +93,20 @@ export function normalizeChainName(name: string) {
 
 export function getChainLogoCandidates(
   name: string,
-  logo?: string | null,
+  logo?: string | string[] | null,
 ): LogoRenderConfig[] {
   const identity = getChainIdentity(name);
-  const providedLogo = logo
-    ? [
-        configFor(identity.slug, logo, {
-          fit: "contain",
-          padding: 1,
-          sourceType: logo.startsWith("/") ? undefined : "external",
-          quality: logo.startsWith("/") ? undefined : "external-only",
-        }),
-      ]
-    : [];
+  const rawLogos = Array.isArray(logo) ? logo : logo ? [logo] : [];
+  const providedLogo = rawLogos
+    .filter(Boolean)
+    .map((src) =>
+      configFor(identity.slug, src, {
+        fit: "contain",
+        padding: 1,
+        sourceType: src.startsWith("/") ? undefined : "external",
+        quality: src.startsWith("/") ? undefined : "external-only",
+      }),
+    );
 
   return uniqueConfigs([
     ...providedLogo,
@@ -118,7 +119,7 @@ export function getChainLogoCandidates(
   ]);
 }
 
-export function getChainLogo(name: string, logo?: string | null) {
+export function getChainLogo(name: string, logo?: string | string[] | null) {
   return getChainLogoCandidates(name, logo)[0]?.src ?? null;
 }
 

@@ -42,6 +42,7 @@ const KNOWN_ALIAS_GROUPS = [
   ["arbitrum one", "arbitrum-one", "arbitrum", "arb"],
   ["sol", "solana"],
   ["base chain", "base"],
+  ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era", "zk-sync-era"],
   ["katana", "kat"],
   ["megaeth", "mega-eth", "mega"],
   ["render", "render-network", "rndr"],
@@ -107,6 +108,10 @@ function chainIconUrl(value: string) {
   return `https://icons.llama.fi/chains/${encodeURIComponent(value)}.jpg`;
 }
 
+function resizedChainIconUrl(value: string) {
+  return `https://icons.llama.fi/chains/rsz_${encodeURIComponent(value)}.jpg`;
+}
+
 function protocolIconUrl(value: string) {
   return `https://icons.llama.fi/${encodeURIComponent(value)}.jpg`;
 }
@@ -150,8 +155,10 @@ async function defillamaIndex() {
         imageUrls: [
           String(chain.logo || ""),
           String(chain.logoUrl || ""),
+          resizedChainIconUrl(slug),
+          resizedChainIconUrl(name),
           chainIconUrl(name),
-          ...expandKnownAliases(name, slug).map(chainIconUrl),
+          ...expandKnownAliases(name, slug).flatMap((alias) => [resizedChainIconUrl(alias), chainIconUrl(alias)]),
         ].filter(Boolean),
         imageSlugs: [slug, name, ...expandKnownAliases(name, slug)],
       });
@@ -206,7 +213,7 @@ async function resolveImageUrl(row: IndexRow) {
   const urls = unique([
     ...(row.imageUrls ?? []),
     ...(row.category === "chain"
-      ? imageSlugCandidates(row).flatMap((slug) => [chainIconUrl(slug), protocolIconUrl(slug)])
+      ? imageSlugCandidates(row).flatMap((slug) => [resizedChainIconUrl(slug), chainIconUrl(slug), protocolIconUrl(slug)])
       : imageSlugCandidates(row).map(protocolIconUrl)),
   ]).filter((url) => /^https:\/\//.test(url));
   for (const url of urls) {

@@ -23,6 +23,17 @@
 
 
 
+## v0.11.8 Logo Source Reliability + Public Fallback Chain
+
+- Public card rows now receive an ordered `logoCandidates` chain from the server instead of only one approved logo URL. The browser tries admin-selected manual/upload primaries first, then trusted CoinGecko, reviewed CoinMarketCap, reviewed DefiLlama, reviewed optimized Managed Vault and finally the generated fallback; pending, rejected, unsafe and visualRejected sources are excluded from public fallback candidates.
+- Managed Vault provider copies validate PNG/JPEG/WebP content types, keep SVG disabled, record durable provenance metadata (`copiedFromProvider`, `copiedFromSourceId`, `copiedFromUrl`, `copiedAt`, `mimeType`, `fileSize`, width/height, `optimized`, `maxDimension` and reason) and remain the optimized backup used only after approved provider sources are unavailable or explicitly selected. Optional Sharp-based resize is used when available; local/dev builds keep safe validated copies if the optimizer package is unavailable.
+- DefiLlama resolution now explicitly tests `icons.llama.fi/chains/rsz_{slug}.jpg`, `icons.llama.fi/chains/{slug}.jpg` and protocol-level icon paths, while combining chain/protocol/stablecoin indexes, saved DefiLlama Provider ID slugs, aliases and URL verification. Required aliases include BTC/Bitcoin, ETH/Ethereum, ARB/Arbitrum, AVAX/Avalanche, MATIC/POL/Polygon, SOL/Solana, BSC/BNB/BNB Chain, OP/OP Mainnet/Optimism, zkSync variants, Base, Katana/KAT and MegaETH/MEGA.
+- CoinMarketCap helper search uses name, slug and symbol aliases together and only auto-fetches high-confidence non-derivative matches. Katana/KAT, Ethereum/ETH, Arbitrum/ARB and the documented chain aliases are scored above symbol-only or IOU/wrapped/bridged lookalikes.
+- Provider IDs remain compact and save CoinGecko ID, CoinMarketCap numeric ID and DefiLlama slug/source in existing fields/settings. High-confidence provider auto-resolve saves the ID/slug, fetches the source, applies source priority and creates a Managed Vault backup when Blob is configured.
+- Source persistence is DB-first: source upserts revive accidental user rejections when requested, selected sources update `logos.approved_source_id` and `logos.approved_logo_url`, reviewed metadata is preserved and public overlays read the same approved source chain after reload. Expected provider, storage and safety failures show compact admin notices instead of generic Application errors.
+- Legacy local-logo migration remains internal-only and imports BSV/unsafe/visualRejected assets to Managed Vault as `needs_review` candidates with migration metadata (`migratedFrom`, original local path/provider, unsafe and visualRejected flags) without auto-selecting them as public primaries. Rejected sources can be restored; safety/visual rejections remain blocked from normal restore-and-use.
+- Dashboard and Source Tools keep the current layout but emphasize action-first summaries, hide zero-value optional metrics, keep provider breakdowns compact and leave raw counters under Details. No schema changes were made, so Admin DB Setup is not required.
+
 ## v0.11.7 Admin Dashboard + Logo Source Reliability
 
 - Dashboard is action-first and calmer: compact system status dots, a max-five Action Required card, zero-value logo-health metrics hidden, short Recent Activity lines, compact API dots and Brand Health limited to Brand OK / primary logo / favicon / upload enabled.
