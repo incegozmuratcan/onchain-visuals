@@ -29,6 +29,7 @@ import {
   approvedLogoCandidateSlugs,
   getLogo,
   getLogoSources,
+  getSavedDefiLlamaSlug,
   type LogoSource,
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
@@ -393,6 +394,7 @@ export default async function LogoDetailPage({
   const coinGeckoId =
     safeString(logo.coingecko_id) || getCoinGeckoLogoId(logoSlug);
   const coinMarketCapId = getCoinMarketCapId(logo, sources);
+  const savedDefiLlamaSlug = await getSavedDefiLlamaSlug(logoSlug);
   const approvedSource =
     sources.find((source) => source.id === logo.approved_source_id) ?? null;
   const fallbackPreview = safeUrl(logo.fallback_logo_url) || null;
@@ -628,7 +630,7 @@ export default async function LogoDetailPage({
             : activeDefiLlamaSource
               ? "Backup"
               : "Missing",
-      helper: `Default slug: ${logoSlug}`,
+      helper: savedDefiLlamaSlug ? `Slug: ${savedDefiLlamaSlug}` : `Default slug: ${logoSlug}`,
       action: (
         <div className="flex flex-wrap gap-2">
           {activeDefiLlamaSource ? (
@@ -645,7 +647,7 @@ export default async function LogoDetailPage({
           ) : null}
           <form action={addDefiLlamaAction}>
             {hiddenLogoFields}
-            <input type="hidden" name="providerSlug" value={logoSlug} />
+            <input type="hidden" name="providerSlug" value={savedDefiLlamaSlug || logoSlug} />
             <SmallButton>
               {activeDefiLlamaSource ? "Fetch again" : "Fetch"}
             </SmallButton>
@@ -723,7 +725,7 @@ export default async function LogoDetailPage({
         ),
     },
   ];
-  const defiLlamaQuery = firstParam(searchParams?.dflq, logoSlug);
+  const defiLlamaQuery = firstParam(searchParams?.dflq, savedDefiLlamaSlug || logoSlug);
   const defiLlamaSlug =
     (defiLlamaQuery || logoSlug)
       .trim()
@@ -984,7 +986,13 @@ export default async function LogoDetailPage({
                 name="coinMarketCapId"
                 defaultValue={safeString(coinMarketCapId) || ""}
                 className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"
-                placeholder="CoinMarketCap ID"
+                placeholder="CoinMarketCap numeric ID"
+              />
+              <input
+                name="defiLlamaSlug"
+                defaultValue={safeString(savedDefiLlamaSlug) || safeString(activeDefiLlamaSource && metadataObject(activeDefiLlamaSource.metadata).slug) || ""}
+                className="rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold"
+                placeholder="DefiLlama slug/source"
               />
               <button className="rounded-xl bg-slate-950 px-3 py-2 text-sm font-black text-white">
                 Save IDs

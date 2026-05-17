@@ -15,6 +15,24 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.11.0 turns admin into a compact operations console, makes CoinGecko the safe primary auto-approval source, adds metric-driven logo discovery, enables real Blob-backed brand asset uploads, and simplifies the public hero/header while preserving public card generation and fallbacks.
 
 
+
+
+## v0.11.7 Admin Dashboard + Logo Source Reliability
+
+- Dashboard is action-first and calmer: compact system status dots, a max-five Action Required card, zero-value logo-health metrics hidden, short Recent Activity lines, compact API dots and Brand Health limited to Brand OK / primary logo / favicon / upload enabled.
+- Source Tools summaries now lead with operator outcomes: “Discovery complete”, checked count, sources found, need-review count and errors, followed by compact CG / CMC / DefiLlama / Vault provider totals. Raw counters such as selected, already vaulted, missing source, skipped and candidate lists remain under Details.
+- CoinMarketCap helper search expands known name/symbol aliases for BTC, ETH, KAT, ARB, AVAX, POL/MATIC, OP, BNB/BSC, SOL, Base, RNDR, MEGA, XPL, SUI, APT, NEAR and FIL. It dedupes results, scores name + slug + expected symbol together, and keeps symbol-only matches below high confidence.
+- Provider helpers support high-confidence Use + Fetch flows. Bulk Fetch all sources can auto-resolve high-confidence CoinGecko, CoinMarketCap and DefiLlama IDs/slugs, fetch logos, add review-gated sources, respect manual/upload primaries and copy safe primaries to Managed Vault when Blob is configured.
+- DefiLlama resolver now indexes real protocol, chain and stablecoin data, expands common chain/asset aliases, checks both protocol icon and `icons.llama.fi/chains/...` patterns, verifies icon URLs server-side and expects reliable results or accurate no-source messages for btc/bitcoin, ethereum/eth, polygon/matic, arbitrum/arb, avalanche/avax, solana/sol, bsc/bnb/bnb chain, optimism/op mainnet, base, katana and megaeth.
+- Provider IDs now include a compact DefiLlama slug/source field stored in existing `admin_settings` per logo; no schema change is required.
+- Fetch/approve/vault persistence is tightened: source rows are upserted durably, selected sources update `logos.approved_source_id` and `logos.approved_logo_url`, review metadata is preserved, rejected duplicate source URLs can be revived safely, and Managed Vault copies remain visible after reload.
+- Legacy local-logo migration imports visualRejected/unsafe/BSV-style assets into Managed Vault as `needs_review` candidates with migration metadata (`migratedFrom`, `visualRejected`, `unsafe`, original path/provider and timestamp) without making them public primary automatically.
+- Rejected sources expose Restore / Restore and use. Normal restore reactivates accidental rejections; safety or visual-rejected rows remain blocked from normal primary restore and require explicit advanced/manual handling.
+- Alias / merge guard UI remains hidden from normal admin logo detail, and duplicate warnings do not affect needs-action counts.
+- Logo detail top preview boxes are CoinGecko / CoinMarketCap / DefiLlama. Public source/status/next action remain in the left summary, and fallback is not promoted as a top provider box unless no source exists.
+- Needs-action logic is narrowed to real work: no usable source, review-gated primary, provider ID/fetch blockers, visual rejection, migration candidates, rejected-all-source cases and required vault backup issues. Trusted CoinGecko primaries and reviewed CMC/DefiLlama primaries do not count only because optional backup IDs are absent.
+- DB workflow safety: no schema changes in this PR. Admin DB Setup is not required.
+
 ## v0.11.1 Admin Productization + Stability
 
 - Admin pages share the same authenticated global navigation: Dashboard, Logo Manager, API, Brand and Log out.

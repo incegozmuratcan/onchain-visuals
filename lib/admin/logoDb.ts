@@ -204,6 +204,7 @@ export async function upsertLogoSource(input: {
   blobUrl?: string | null;
   metadata?: Record<string, unknown>;
   status?: LogoSource["status"];
+  reviveRejected?: boolean;
 }) {
   const result = await query<LogoSource>(
     `WITH existing AS (
@@ -215,7 +216,7 @@ export async function upsertLogoSource(input: {
        UPDATE logo_sources
        SET blob_url = $5,
            metadata = COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb,
-           status = CASE WHEN logo_sources.status IN ('approved', 'rejected') THEN logo_sources.status ELSE $7 END,
+           status = CASE WHEN logo_sources.status = 'approved' THEN logo_sources.status WHEN logo_sources.status = 'rejected' AND $8::boolean THEN $7 ELSE CASE WHEN logo_sources.status = 'rejected' THEN logo_sources.status ELSE $7 END END,
            rejection_reason = CASE WHEN $7 = 'rejected' THEN logo_sources.rejection_reason ELSE NULL END
        WHERE id IN (SELECT id FROM existing)
        RETURNING *
@@ -229,7 +230,7 @@ export async function upsertLogoSource(input: {
      UNION ALL
      SELECT * FROM inserted
      LIMIT 1`,
-    [input.logoId, input.provider, input.sourceUrl ?? null, input.imageUrl, input.blobUrl ?? null, JSON.stringify(input.metadata ?? {}), input.status ?? "candidate"]
+    [input.logoId, input.provider, input.sourceUrl ?? null, input.imageUrl, input.blobUrl ?? null, JSON.stringify(input.metadata ?? {}), input.status ?? "candidate", Boolean(input.reviveRejected)]
   );
   return result.rows[0];
 }
@@ -244,6 +245,31 @@ export async function getAllLogoSources() {
 
 export async function setAdminSetting(key: string, value: string) {
   await query("INSERT INTO admin_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value", [key, value]);
+}
+
+export async function getAdminSetting(key: string) {
+  const result = await query<{ value: string }>("SELECT value FROM admin_settings WHERE key = $1 LIMIT 1", [key]);
+  return result.rows[0]?.value ?? null;
+}
+
+export function logoProviderIdsSettingKey(slug: string) {
+  return `logo_provider_ids:${slug}`;
+}
+
+export async function getSavedDefiLlamaSlug(slug: string) {
+  const raw = await getAdminSetting(logoProviderIdsSettingKey(slug));
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const value = typeof parsed.defillamaSlug === "string" ? parsed.defillamaSlug.trim() : "";
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveDefiLlamaSlug(slug: string, defillamaSlug: string) {
+  await setAdminSetting(logoProviderIdsSettingKey(slug), JSON.stringify({ defillamaSlug: defillamaSlug.trim() || null, updatedAt: new Date().toISOString() }));
 }
 
 export async function updateLogoFetchState(slug: string, provider: string, error: string | null) {

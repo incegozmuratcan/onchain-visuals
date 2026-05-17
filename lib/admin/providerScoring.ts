@@ -7,6 +7,8 @@ const derivativeTerms = [
   "staking",
   " lp",
   "-lp",
+  " lp ",
+  "liquid staking",
   "iou",
   "weth",
   "wbtc",
@@ -47,6 +49,7 @@ export function scoreProviderCandidate(input: {
   candidateSlug?: string | null;
   candidateSymbol?: string | null;
   aliases?: string[];
+  expectedSymbols?: string[];
   categoryMatch?: boolean;
 }) {
   const names = [input.query, input.targetName, input.targetSlug]
@@ -56,6 +59,7 @@ export function scoreProviderCandidate(input: {
   const candidateName = normalizeProviderText(input.candidateName);
   const candidateSlug = slugText(input.candidateSlug || input.candidateName);
   const candidateSymbol = normalizeProviderText(input.candidateSymbol);
+  const expectedSymbols = new Set((input.expectedSymbols ?? []).map(normalizeProviderText).filter(Boolean));
   let score = 0;
   const reasons: string[] = [];
   if (targets.has(candidateName) && candidateName) {
@@ -83,6 +87,10 @@ export function scoreProviderCandidate(input: {
     score += 8;
     reasons.push("symbol only");
   }
+  if (candidateSymbol && expectedSymbols.has(candidateSymbol)) {
+    score += 18;
+    reasons.push("expected symbol");
+  }
   if (input.categoryMatch) {
     score += 8;
     reasons.push("category");
@@ -95,6 +103,7 @@ export function scoreProviderCandidate(input: {
   }
   score = Math.max(0, Math.min(100, score));
   const hasStrongReason = reasons.some((reason) => ["exact name", "exact slug", "alias"].includes(reason));
-  const confidence: ConfidenceLabel = hasStrongReason && score >= 78 ? "high" : score >= 45 ? "medium" : "low";
+  const symbolOnly = reasons.includes("symbol only") && !hasStrongReason;
+  const confidence: ConfidenceLabel = hasStrongReason && !symbolOnly && score >= 78 ? "high" : score >= 45 ? "medium" : "low";
   return { score, confidence, reasons };
 }

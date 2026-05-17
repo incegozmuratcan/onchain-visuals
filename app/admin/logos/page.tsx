@@ -292,40 +292,52 @@ function CompactRefreshSummary({
   );
 }
 
+function summaryToneClass(errors: number, warnings: number) {
+  if (errors > 0) return "border-red-100 bg-red-50 text-red-800";
+  if (warnings > 0) return "border-amber-100 bg-amber-50 text-amber-800";
+  return "border-emerald-100 bg-emerald-50 text-emerald-800";
+}
+
 function DiscoverySummary({ summary }: { summary: string }) {
   try {
     const data = JSON.parse(summary) as Record<string, unknown>;
+    const checked = Number(data.checked ?? 0);
+    const cg = Number(data.coingeckoFetched ?? 0);
+    const cmc = Number(data.cmcFetched ?? 0);
+    const dfl = Number(data.defillamaFetched ?? 0);
+    const vault = Number(data.vaultCopiesCreated ?? 0);
+    const found = cg + cmc + dfl + vault;
+    const needsReview = Number(data.needsReview ?? 0);
+    const errors = Number(data.errors ?? 0);
+    const detailEntries = [
+      `selected: ${String(data.primarySelected ?? 0)}`,
+      `already vaulted: ${String(data.skippedAlreadyVaulted ?? 0)}`,
+      `missing source: ${String(data.skippedMissingSource ?? 0)}`,
+      `protected admin sources: ${String(data.skippedProtectedAdminSources ?? 0)}`,
+      `skipped rejected: ${String(data.skippedRejected ?? 0)}`,
+      `checked: ${checked}`,
+      `raw CG: ${cg}`,
+      `raw CMC: ${cmc}`,
+      `raw DefiLlama: ${dfl}`,
+      `raw Vault: ${vault}`,
+      ...(Array.isArray(data.candidateList) ? data.candidateList.map(String) : []),
+    ].map(detailFromText);
     return (
-      <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-xs font-bold text-emerald-800">
-        <div className="font-black text-emerald-950">
-          Logo Source Discovery · {String(data.mode || "smart")}
+      <div className={`rounded-2xl border p-3 text-xs font-bold ${summaryToneClass(errors, needsReview)}`}>
+        <div className="text-sm font-black">Discovery complete</div>
+        <div className="mt-1 text-slate-700">
+          {checked} checked · {found} sources found · {needsReview} need review · {errors} errors
         </div>
-        <div className="mt-1">
-          {String(data.checked ?? 0)} checked ·{" "}
-          {String(data.coingeckoFetched ?? 0)} CG ·{" "}
-          {String(data.cmcFetched ?? 0)} CMC ·{" "}
-          {String(data.defillamaFetched ?? 0)} DefiLlama ·{" "}
-          {String(data.vaultCopiesCreated ?? 0)} vault copies ·{" "}
-          {String(data.skippedAlreadyVaulted ?? 0)} already vaulted ·{" "}
-          {String(data.skippedMissingSource ?? 0)} missing source ·{" "}
-          {String(data.primarySelected ?? 0)} selected ·{" "}
-          {String(data.needsReview ?? 0)} needs review ·{" "}
-          {String(data.errors ?? 0)} errors
-        </div>
-        <details className="mt-1">
-          <summary className="cursor-pointer text-emerald-700">Details</summary>
-          <DetailList
-            entries={(Array.isArray(data.candidateList)
-              ? data.candidateList
-              : []
-            ).map((item) => detailFromText(String(item)))}
-          />
+        <div className="mt-1 text-slate-500">CG {cg} · CMC {cmc} · DefiLlama {dfl} · Vault {vault}</div>
+        <details className="mt-2">
+          <summary className="cursor-pointer text-slate-500">Details</summary>
+          <DetailList entries={detailEntries} />
         </details>
       </div>
     );
   } catch {
     return (
-      <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-2 text-xs font-bold text-emerald-800">
+      <div className="rounded-lg border border-slate-100 bg-slate-50 p-2 text-xs font-bold text-slate-700">
         Last discovery: {summary}
       </div>
     );
