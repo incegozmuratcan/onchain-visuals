@@ -1241,6 +1241,84 @@ function extensionFromMime(mimeType: string) {
   return "";
 }
 
+
+type OptimizedLogo = {
+  buffer: Buffer;
+  mimeType: string;
+  width: number | null;
+  height: number | null;
+  optimized: boolean;
+  maxDimension: number;
+};
+
+function readPngDimensions(buffer: Buffer) {
+  if (buffer.length < 24 || buffer.toString("ascii", 1, 4) !== "PNG") return null;
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+function readJpegDimensions(buffer: Buffer) {
+  let offset = 2;
+  if (buffer.length < 4 || buffer[0] !== 0xff || buffer[1] !== 0xd8) return null;
+  while (offset + 9 < buffer.length) {
+    if (buffer[offset] !== 0xff) return null;
+    const marker = buffer[offset + 1];
+    const length = buffer.readUInt16BE(offset + 2);
+    if (length < 2) return null;
+    if (marker >= 0xc0 && marker <= 0xc3) {
+      return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+    }
+    offset += 2 + length;
+  }
+  return null;
+}
+
+function readWebpDimensions(buffer: Buffer) {
+  if (buffer.length < 30 || buffer.toString("ascii", 0, 4) !== "RIFF" || buffer.toString("ascii", 8, 12) !== "WEBP") return null;
+  const chunk = buffer.toString("ascii", 12, 16);
+  if (chunk === "VP8X" && buffer.length >= 30) {
+    return { width: 1 + buffer.readUIntLE(24, 3), height: 1 + buffer.readUIntLE(27, 3) };
+  }
+  if (chunk === "VP8 " && buffer.length >= 30) {
+    return { width: buffer.readUInt16LE(26) & 0x3fff, height: buffer.readUInt16LE(28) & 0x3fff };
+  }
+  if (chunk === "VP8L" && buffer.length >= 25) {
+    const b0 = buffer[21];
+    const b1 = buffer[22];
+    const b2 = buffer[23];
+    const b3 = buffer[24];
+    return { width: 1 + (((b1 & 0x3f) << 8) | b0), height: 1 + (((b3 & 0x0f) << 10) | (b2 << 2) | ((b1 & 0xc0) >> 6)) };
+  }
+  return null;
+}
+
+function readImageDimensions(buffer: Buffer, mimeType: string) {
+  if (mimeType === "image/png") return readPngDimensions(buffer);
+  if (mimeType === "image/jpeg") return readJpegDimensions(buffer);
+  if (mimeType === "image/webp") return readWebpDimensions(buffer);
+  return null;
+}
+
+async function optimizeLogoBuffer(buffer: Buffer, mimeType: string, maxDimension = 256): Promise<OptimizedLogo> {
+  const dimensions = readImageDimensions(buffer, mimeType);
+  const needsResize = Boolean(dimensions && Math.max(dimensions.width, dimensions.height) > maxDimension);
+  if (needsResize) {
+    try {
+      const importer = new Function("specifier", "return import(specifier)") as (specifier: string) => Promise<any>;
+      const sharpModule = await importer("sharp");
+      const sharp = sharpModule.default ?? sharpModule;
+      let pipeline = sharp(buffer, { failOn: "none" }).rotate().resize({ width: maxDimension, height: maxDimension, fit: "inside", withoutEnlargement: true });
+      if (mimeType === "image/png") pipeline = pipeline.png({ compressionLevel: 9, adaptiveFiltering: true });
+      else if (mimeType === "image/webp") pipeline = pipeline.webp({ quality: 84 });
+      else pipeline = pipeline.jpeg({ quality: 86, mozjpeg: true });
+      const output = await pipeline.toBuffer({ resolveWithObject: true });
+      return { buffer: output.data, mimeType, width: output.info.width ?? dimensions?.width ?? null, height: output.info.height ?? dimensions?.height ?? null, optimized: true, maxDimension };
+    } catch {
+      // Keep provider copies durable even when the optional optimizer is unavailable in local/dev builds.
+    }
+  }
+  return { buffer, mimeType, width: dimensions?.width ?? null, height: dimensions?.height ?? null, optimized: true, maxDimension };
+}
+
 async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: { autoVault?: boolean; reason?: string } = {}) {
   if (!process.env.BLOB_READ_WRITE_TOKEN)
     return "Managed Vault: Blob token missing";
@@ -1259,7 +1337,7 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
   )
     return "Managed Vault: already available";
   const meta = sourceMetadata(source);
-  if (meta.visuallyRejected || meta.visualStatus === "visual_rejected")
+  if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
   const imageUrl = source.blob_url || source.image_url;
   if (!/^https:\/\//.test(imageUrl))
@@ -1281,10 +1359,11 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
   if (!buffer.length) throw new Error("image copy failed: empty file");
   if (buffer.length > 1_000_000)
     throw new Error("image copy failed: logo file is larger than 1 MB");
+  const optimized = await optimizeLogoBuffer(buffer, mimeType, 256);
   const copiedAt = new Date().toISOString();
-  const ext = extensionFromMime(mimeType);
+  const ext = extensionFromMime(optimized.mimeType);
   const pathname = `logo-vault/${logo.slug}/${source.provider}-${Date.now()}.${ext}`;
-  const blobUrl = await uploadBufferToBlob(buffer, pathname, mimeType);
+  const blobUrl = await uploadBufferToBlob(optimized.buffer, pathname, optimized.mimeType);
   const reviewedCopy =
     source.status === "approved" &&
     (source.provider === "coingecko" ||
@@ -1303,8 +1382,12 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       copiedFromSourceId: source.id,
       copiedFromUrl: imageUrl,
       copiedAt,
-      fileSize: buffer.length,
-      mimeType,
+      fileSize: optimized.buffer.length,
+      mimeType: optimized.mimeType,
+      width: optimized.width,
+      height: optimized.height,
+      optimized: optimized.optimized,
+      maxDimension: optimized.maxDimension,
       reviewStatus: reviewedCopy ? "reviewed" : "candidate",
       autoVault: Boolean(options.autoVault),
       reason: options.reason || (options.autoVault ? "trusted-primary" : "bulk-backup"),
@@ -1316,7 +1399,7 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
 async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reason: "trusted-primary" | "reviewed-primary" | "bulk-backup" = "trusted-primary") {
   if (source.status === "rejected") return "Managed Vault: skipped rejected source";
   const meta = sourceMetadata(source);
-  if (meta.visuallyRejected || meta.visualStatus === "visual_rejected")
+  if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
   return copySourceToVault(logo, source, { autoVault: true, reason });
 }

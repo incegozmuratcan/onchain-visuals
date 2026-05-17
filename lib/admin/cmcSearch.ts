@@ -24,6 +24,7 @@ const CMC_ALIAS_GROUPS = [
   ["bnb-chain", "bnb", "bsc", "binance-smart-chain"],
   ["solana", "sol"],
   ["base", "base-chain"],
+  ["zksync", "zk-sync", "zksync-era", "zk-sync-era"],
   ["render", "rndr", "render-network"],
   ["megaeth", "mega", "mega-eth"],
   ["plasma", "xpl"],

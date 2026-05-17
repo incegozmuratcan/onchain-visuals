@@ -36,9 +36,9 @@ function formatNumber(value: number, suffix?: string) {
   return suffix ? `${formatted} ${suffix}` : formatted;
 }
 
-function ChainLogo({ name, logo }: { name: string; logo?: string | null; compact: boolean }) {
+function ChainLogo({ name, logo, logoCandidates }: { name: string; logo?: string | null; logoCandidates?: string[]; compact: boolean }) {
   const [candidateIndex, setCandidateIndex] = useState(0);
-  const candidates = useMemo(() => getChainLogoCandidates(name, logo), [name, logo]);
+  const candidates = useMemo(() => getChainLogoCandidates(name, logoCandidates?.length ? logoCandidates : logo), [name, logo, logoCandidates]);
   const candidate = candidates[candidateIndex];
 
   if (!candidate) return <>{getInitials(name)}</>;
@@ -109,7 +109,7 @@ export function ShareCard({
               <div className="text-right text-sm font-black text-slate-400">{row.rank}</div>
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`${compact ? "h-6 w-6" : "h-7 w-7"} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500`}>
-                  <ChainLogo name={row.name} logo={row.logo} compact={compact} />
+                  <ChainLogo name={row.name} logo={row.logo} logoCandidates={row.logoCandidates} compact={compact} />
                 </div>
                 <div className={`${compact ? "text-sm" : "text-base"} truncate font-black text-slate-950`}>{row.name}</div>
               </div>

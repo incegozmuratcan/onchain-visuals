@@ -336,40 +336,113 @@ export async function rejectLogo(slug: string, reason: string) {
   await query("UPDATE logos SET status = 'rejected', notes = $2 WHERE slug = $1", [slug, reason || "Rejected in admin review"]);
 }
 
-export async function approvedLogoOverlay(names: string[]) {
-  if (!hasDatabaseConfig() || names.length === 0) return new Map<string, string>();
+
+function isReviewedMetadata(meta: Record<string, unknown>) {
+  return meta.reviewStatus === "reviewed" || meta.approvalOrigin === "admin" || meta.autoApproved === true;
+}
+
+function isUnsafePublicMetadata(meta: Record<string, unknown>) {
+  return Boolean(
+    meta.unsafe === true ||
+      meta.visualRejected === true ||
+      meta.visuallyRejected === true ||
+      meta.visualStatus === "visual_rejected" ||
+      meta.reviewStatus === "selected_needs_review" ||
+      meta.reviewStatus === "needs_review" ||
+      meta.reviewStatus === "pending"
+  );
+}
+
+function sourcePublicUrl(source: LogoSource) {
+  return source.blob_url || source.image_url || null;
+}
+
+function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo, "approved_source_id">) {
+  if (source.status !== "approved") return false;
+  const meta = metadataObject(source.metadata);
+  const reviewed = isReviewedMetadata(meta);
+  const unsafe = isUnsafePublicMetadata(meta);
+  if (unsafe && !reviewed) return false;
+  if (isManualOrUpload(source.provider)) return logo.approved_source_id === source.id && reviewed;
+  if (source.provider === "coingecko") return reviewed || meta.approvalOrigin === "auto" || meta.autoApproved === true;
+  if (source.provider === "coinmarketcap" || source.provider === "defillama") return reviewed;
+  if (source.provider === "managed-vault" || source.provider === "vault") return reviewed && (meta.optimized === true || meta.reason === "legacy-migration" || meta.copiedFromProvider);
+  return false;
+}
+
+function orderedPublicSourceUrls(logo: Pick<AdminLogo, "approved_source_id">, sources: LogoSource[]) {
+  const selected = sources.find((source) => source.id === logo.approved_source_id);
+  const providerUrl = (provider: string) =>
+    sources.find((source) => source.provider === provider && sourceIsPublicCandidate(source, logo));
+  const ordered = [
+    selected && isManualOrUpload(selected.provider) && sourceIsPublicCandidate(selected, logo) ? selected : null,
+    providerUrl("coingecko"),
+    providerUrl("coinmarketcap"),
+    providerUrl("defillama"),
+    providerUrl("managed-vault") ?? providerUrl("vault"),
+  ];
+  return uniqueSlugs(ordered.map((source) => (source ? sourcePublicUrl(source) || "" : "")));
+}
+
+export async function approvedLogoCandidateOverlay(names: string[]) {
+  if (!hasDatabaseConfig() || names.length === 0) return new Map<string, string[]>();
   try {
     const candidatesByName = names.map((name) => approvedLogoCandidateSlugs(name));
     const slugs = uniqueSlugs(candidatesByName.flat());
-    if (slugs.length === 0) return new Map<string, string>();
+    if (slugs.length === 0) return new Map<string, string[]>();
 
     const quoted = slugs.map((_, index) => `$${index + 1}`).join(", ");
-    const result = await query<{ slug: string; approved_logo_url: string }>(
-      `SELECT slug, approved_logo_url FROM logos WHERE status = 'approved' AND approved_logo_url IS NOT NULL AND slug IN (${quoted})`,
-      slugs
-    );
-    const aliasResult = await query<{ alias: string; approved_logo_url: string }>(
-      `SELECT a.alias, l.approved_logo_url
+    const logoResult = await query<AdminLogo>(`SELECT * FROM logos WHERE status = 'approved' AND slug IN (${quoted})`, slugs);
+    const aliasResult = await query<AdminLogo & { alias: string }>(
+      `SELECT l.*, a.alias
        FROM logo_aliases a
        JOIN logos l ON l.id = a.logo_id
-       WHERE l.status = 'approved' AND l.approved_logo_url IS NOT NULL AND a.alias IN (${quoted})`,
+       WHERE l.status = 'approved' AND a.alias IN (${quoted})`,
       slugs
-    ).catch(() => ({ rows: [] as { alias: string; approved_logo_url: string }[] }));
-    const approvedBySlug = new Map(result.rows.map((row) => [row.slug, row.approved_logo_url]));
-    for (const row of aliasResult.rows) approvedBySlug.set(row.alias, row.approved_logo_url);
-    const overlay = new Map<string, string>();
-
-    for (const candidates of candidatesByName) {
-      const approvedLogo = candidates.map((slug) => approvedBySlug.get(slug)).find(Boolean);
-      if (!approvedLogo) continue;
-      for (const candidate of candidates) overlay.set(candidate, approvedLogo);
+    ).catch(() => ({ rows: [] as (AdminLogo & { alias: string })[] }));
+    const logosBySlug = new Map<string, AdminLogo>();
+    for (const row of logoResult.rows) logosBySlug.set(row.slug, row);
+    for (const row of aliasResult.rows) logosBySlug.set(row.alias, row);
+    const logoIds = uniqueSlugs([...logoResult.rows, ...aliasResult.rows].map((row) => String(row.id)));
+    const sourcesByLogoId = new Map<string, LogoSource[]>();
+    if (logoIds.length) {
+      const idQuoted = logoIds.map((_, index) => `$${index + 1}`).join(", ");
+      const sourceResult = await query<LogoSource>(`SELECT * FROM logo_sources WHERE logo_id IN (${idQuoted}) ORDER BY created_at ASC`, logoIds);
+      for (const source of sourceResult.rows) {
+        const list = sourcesByLogoId.get(String(source.logo_id)) ?? [];
+        list.push(source);
+        sourcesByLogoId.set(String(source.logo_id), list);
+      }
     }
 
+    const overlay = new Map<string, string[]>();
+    for (const candidates of candidatesByName) {
+      let urls: string[] = [];
+      for (const slug of candidates) {
+        const logo = logosBySlug.get(slug);
+        if (!logo) continue;
+        urls = orderedPublicSourceUrls(logo, sourcesByLogoId.get(String(logo.id)) ?? []);
+        if (!urls.length && logo.approved_logo_url) urls = [logo.approved_logo_url];
+        if (urls.length) break;
+      }
+      if (!urls.length) continue;
+      for (const candidate of candidates) overlay.set(candidate, urls);
+    }
     return overlay;
   } catch (error) {
-    console.warn("Approved logo overlay unavailable", error);
-    return new Map<string, string>();
+    console.warn("Approved logo candidate overlay unavailable", error);
+    return new Map<string, string[]>();
   }
+}
+
+export async function approvedLogoOverlay(names: string[]) {
+  const candidateOverlay = await approvedLogoCandidateOverlay(names);
+  const overlay = new Map<string, string>();
+  for (const [slug, candidates] of candidateOverlay) {
+    const first = candidates[0];
+    if (first) overlay.set(slug, first);
+  }
+  return overlay;
 }
 
 export type LogoAlias = {

@@ -3,7 +3,7 @@ import { getChainspectAvgTxFee, getChainspectBlockTime, getChainspectDevelopers,
 import { getDepinRevenue } from "@/lib/depinpulse";
 import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
-import { approvedLogoCandidateSlugs, approvedLogoOverlay, logoSlug } from "@/lib/admin/logoDb";
+import { approvedLogoCandidateOverlay, approvedLogoCandidateSlugs, logoSlug } from "@/lib/admin/logoDb";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +34,15 @@ export async function GET(request: NextRequest) {
                         ? await getChainTvl(parsed.limit)
                         : await getChainRevenue(parsed.limit, parsed.timeframe);
 
-    const overlay = await approvedLogoOverlay(data.rows.map((row) => row.name));
+    const overlay = await approvedLogoCandidateOverlay(data.rows.map((row) => row.name));
     let approvedLogoOverlayCount = 0;
     const rows = data.rows.map((row) => {
-      const approvedLogo =
+      const logoCandidates =
         approvedLogoCandidateSlugs(row.name)
           .map((slug) => overlay.get(slug))
-          .find(Boolean) ?? overlay.get(logoSlug(row.name));
-      if (approvedLogo) approvedLogoOverlayCount += 1;
-      return approvedLogo ? { ...row, logo: approvedLogo } : row;
+          .find((urls) => urls?.length) ?? overlay.get(logoSlug(row.name));
+      if (logoCandidates?.length) approvedLogoOverlayCount += 1;
+      return logoCandidates?.length ? { ...row, logo: logoCandidates[0], logoCandidates } : row;
     });
 
     return NextResponse.json({
