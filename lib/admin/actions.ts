@@ -299,7 +299,7 @@ export async function addDefiLlamaAction(formData: FormData) {
     provider: "defillama",
     imageUrl: candidate.imageUrl,
     sourceUrl: candidate.sourceUrl,
-    metadata: { slug: candidate.slug, resolver: true, confidence: candidate.confidence, score: candidate.score, reviewStatus: "selected_needs_review" },
+    metadata: { slug: candidate.slug, resolver: true, confidence: candidate.confidence, score: candidate.score, reviewStatus: "selected_needs_review", resolverDebug: candidate.debug },
     status: "candidate",
     reviveRejected: true,
   });
@@ -1003,6 +1003,7 @@ async function discoverLogoSources(
           confidence: recommended.confidence,
           score: recommended.score,
           reviewStatus: "selected_needs_review",
+          resolverDebug: recommended.debug,
         },
         status: "candidate",
         reviveRejected: true,
@@ -2093,16 +2094,25 @@ export async function importLegacyLocalLogosToVaultAction() {
     const logo = logos.find((row) => row.slug === manifest.slug && row.category === manifest.category) ?? logos.find((row) => row.slug === manifest.slug);
     if (!logo) continue;
     const sources = sourcesByLogo.get(logo.id) ?? [];
-    if (sources.some((source) => ["managed-vault", "vault"].includes(source.provider) && source.status !== "rejected")) {
+    const legacyVisualRejected = Boolean((manifest as any).visualRejected || (manifest as any).fallbackPreferredUntilManualAsset);
+    const legacyUnsafe = legacyVisualRejected || manifest.approvalStatus !== "approved" || ["bsv", "bitcoin-sv", "bsv-blockchain"].includes(manifest.slug);
+    const alreadyMigrated = sources.some((source) => {
+      let meta: Record<string, unknown> = {};
+      try {
+        meta = typeof source.metadata === "string" ? JSON.parse(source.metadata || "{}") : (source.metadata as Record<string, unknown>) || {};
+      } catch {
+        meta = {};
+      }
+      return ["managed-vault", "vault"].includes(source.provider) && source.status !== "rejected" && meta.migratedFrom === "local-static-manifest" && meta.originalLocalPath === manifest.localPath;
+    });
+    if (alreadyMigrated || sources.some((source) => ["managed-vault", "vault"].includes(source.provider) && source.status !== "rejected" && !legacyUnsafe)) {
       counts.skippedAlreadyVaulted += 1;
       continue;
     }
-    if (sources.some((source) => ["manual", "upload", "coingecko", "coinmarketcap", "defillama"].includes(source.provider) && source.status !== "rejected")) {
+    if (!legacyUnsafe && sources.some((source) => ["manual", "upload", "coingecko", "coinmarketcap", "defillama"].includes(source.provider) && source.status !== "rejected")) {
       counts.skippedExistingSource += 1;
       continue;
     }
-    const legacyVisualRejected = Boolean((manifest as any).visualRejected || (manifest as any).fallbackPreferredUntilManualAsset);
-    const legacyUnsafe = legacyVisualRejected || manifest.approvalStatus !== "approved" || ["bsv", "bitcoin-sv", "bsv-blockchain"].includes(manifest.slug);
     try {
       const localPath = String(manifest.localPath || "");
       if (!localPath.startsWith("/")) throw new Error("invalid local path");

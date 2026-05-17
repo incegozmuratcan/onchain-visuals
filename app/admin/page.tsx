@@ -34,12 +34,12 @@ function metricLine(label: string, value: number) {
 }
 
 const DASHBOARD_ACTION_ISSUES = new Set([
-  "needs_review",
   "missing_approved_logo",
   "coingecko_id_needs_review",
   "coingecko_fetch_failed",
   "cmc_fetch_failed",
   "visual_rejected",
+  "unsafe_migrated_candidate",
   "metric_scan_error",
   "metric_scan_candidate_added",
   "metric_scan_missing_coingecko_id",
@@ -70,6 +70,7 @@ export default async function AdminIndex() {
   const qaRows = logos.map((logo) => classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob));
   const counts = summarizeLogoQa(qaRows);
   const providerErrors = counts.coingecko_fetch_failed + counts.cmc_fetch_failed + counts.coingecko_id_needs_review;
+  const visualIssues = counts.visual_rejected + counts.unsafe_migrated_candidate;
   const needsAction = qaRows.filter((row) => row.issues.some((issue) => DASHBOARD_ACTION_ISSUES.has(issue))).length;
 
   const providerById = new Map(providers.map((provider) => [provider.id, provider]));
@@ -89,6 +90,7 @@ export default async function AdminIndex() {
     counts.missing_approved_logo ? `${counts.missing_approved_logo} logos need a source` : null,
     counts.missing_coingecko_id ? `${counts.missing_coingecko_id} logos missing CoinGecko ID` : null,
     providerErrors ? `${providerErrors} provider reviews` : null,
+    visualIssues ? `${visualIssues} visual / unsafe reviews` : null,
     scanSummary?.errors.length ? `${scanSummary.errors.length} metric scan errors` : null,
     !(brand.primaryLogo || brand.headerLogo) ? "primary / hero logo missing" : null,
     !brand.favicon ? "favicon missing" : null,
@@ -97,7 +99,7 @@ export default async function AdminIndex() {
   const logoHealth = [
     metricLine("missing CG", counts.missing_coingecko_id),
     metricLine("provider reviews", providerErrors),
-    metricLine("visual issues", counts.visual_rejected),
+    metricLine("visual issues", visualIssues),
   ].filter(Boolean);
 
   const coingeckoSummary = summaries.coingecko;

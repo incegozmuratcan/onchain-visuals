@@ -7,6 +7,15 @@ import {
   type ConfidenceLabel,
 } from "@/lib/admin/providerScoring";
 
+export type DefiLlamaDebugAttempt = {
+  url: string;
+  method: "HEAD" | "GET";
+  status: number | null;
+  contentType: string | null;
+  accepted: boolean;
+  reason: string;
+};
+
 export type DefiLlamaCandidate = {
   id: string;
   name: string;
@@ -18,6 +27,25 @@ export type DefiLlamaCandidate = {
   score: number;
   recommended: boolean;
   reasons?: string[];
+  debug?: {
+    selectedReason: string;
+    aliasesTried: string[];
+    urlPatternsTried: string[];
+    attempts: DefiLlamaDebugAttempt[];
+  };
+};
+
+export type DefiLlamaSearchDebug = {
+  query: string;
+  targetName: string | null;
+  targetSlug: string | null;
+  targetCategory: string | null;
+  expectedCategory: string | null;
+  aliasesTried: string[];
+  urlPatternsTried: string[];
+  attempts: DefiLlamaDebugAttempt[];
+  selectedCandidateReason: string | null;
+  notices: string[];
 };
 
 type ResolverContext = { targetName?: string | null; targetSlug?: string | null; category?: string | null; aliases?: string[] };
@@ -30,21 +58,30 @@ type IndexRow = {
   aliases?: string[];
   imageUrls?: string[];
   imageSlugs?: string[];
+  trusted?: boolean;
 };
 
+const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases: string[] }> = [
+  { name: "Ethereum", slug: "ethereum", aliases: ["ethereum", "eth"] },
+  { name: "Bitcoin", slug: "bitcoin", aliases: ["bitcoin", "btc"] },
+  { name: "Polygon", slug: "polygon", aliases: ["polygon", "matic", "pol"] },
+  { name: "Arbitrum", slug: "arbitrum", aliases: ["arbitrum", "arb", "arbitrum one", "arbitrum-one"] },
+  { name: "Avalanche", slug: "avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"] },
+  { name: "Solana", slug: "solana", aliases: ["solana", "sol"] },
+  { name: "BNB Chain", slug: "bsc", aliases: ["bnb", "bnb-chain", "bnb chain", "bsc", "binance smart chain"] },
+  { name: "Optimism", slug: "optimism", aliases: ["optimism", "op", "op mainnet", "op-mainnet"] },
+  { name: "Base", slug: "base", aliases: ["base", "base chain"] },
+  { name: "zkSync Era", slug: "zksync era", aliases: ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era"] },
+  { name: "Katana", slug: "katana", aliases: ["katana", "kat"] },
+  { name: "MegaETH", slug: "megaeth", aliases: ["megaeth", "mega-eth", "mega"] },
+];
+
 const KNOWN_ALIAS_GROUPS = [
-  ["btc", "bitcoin"],
-  ["eth", "ethereum"],
+  ...TRUSTED_NATIVE_CHAIN_MAPPINGS.map((mapping) => mapping.aliases),
   ["bsc", "bnb-chain", "bnb chain", "binance smart chain", "bnb", "binance"],
   ["op mainnet", "op-mainnet", "optimism", "optimism mainnet", "op"],
-  ["avax", "avalanche", "avalanche c-chain", "avalanche c chain"],
   ["matic", "polygon", "polygon pos", "polygon-pos", "pol"],
-  ["arbitrum one", "arbitrum-one", "arbitrum", "arb"],
-  ["sol", "solana"],
-  ["base chain", "base"],
   ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era", "zk-sync-era"],
-  ["katana", "kat"],
-  ["megaeth", "mega-eth", "mega"],
   ["render", "render-network", "rndr"],
   ["plasma", "xpl"],
   ["sui", "sui-network"],
@@ -116,9 +153,26 @@ function protocolIconUrl(value: string) {
   return `https://icons.llama.fi/${encodeURIComponent(value)}.jpg`;
 }
 
+function trustedRows(): IndexRow[] {
+  return TRUSTED_NATIVE_CHAIN_MAPPINGS.map((mapping) => ({
+    name: mapping.name,
+    slug: mapping.slug,
+    category: "chain",
+    sourceUrl: `https://defillama.com/chain/${slugText(mapping.slug)}`,
+    aliases: chainAliases(mapping.name, mapping.slug).concat(mapping.aliases),
+    imageUrls: unique([mapping.slug, ...mapping.aliases, ...expandKnownAliases(mapping.slug, ...mapping.aliases)]).flatMap((alias) => [
+      resizedChainIconUrl(alias),
+      chainIconUrl(alias),
+      protocolIconUrl(alias),
+    ]),
+    imageSlugs: unique([mapping.slug, ...mapping.aliases]),
+    trusted: true,
+  }));
+}
+
 async function defillamaIndex() {
   if (cachedIndex && Date.now() - cachedIndex.at < 1000 * 60 * 60) return cachedIndex.rows;
-  const rows: IndexRow[] = [];
+  const rows: IndexRow[] = trustedRows();
   const errors: string[] = [];
   try {
     const protocols = await jsonRows("https://api.llama.fi/protocols");
@@ -127,15 +181,7 @@ async function defillamaIndex() {
       const name = String(protocol.name || "").trim();
       if (!slug || !name) continue;
       const aliases = unique([String(protocol.symbol || ""), String(protocol.parentProtocol || ""), ...expandKnownAliases(name, slug, protocol.symbol)]);
-      rows.push({
-        name,
-        slug,
-        category: "protocol",
-        sourceUrl: `https://defillama.com/protocol/${slug}`,
-        aliases,
-        imageUrls: [String(protocol.logo || ""), String(protocol.logoUrl || "")].filter(Boolean),
-        imageSlugs: [slug],
-      });
+      rows.push({ name, slug, category: "protocol", sourceUrl: `https://defillama.com/protocol/${slug}`, aliases, imageUrls: [String(protocol.logo || ""), String(protocol.logoUrl || "")].filter(Boolean), imageSlugs: [slug] });
     }
   } catch (error) {
     errors.push(error instanceof Error ? error.message : "protocol index failed");
@@ -155,10 +201,7 @@ async function defillamaIndex() {
         imageUrls: [
           String(chain.logo || ""),
           String(chain.logoUrl || ""),
-          resizedChainIconUrl(slug),
-          resizedChainIconUrl(name),
-          chainIconUrl(name),
-          ...expandKnownAliases(name, slug).flatMap((alias) => [resizedChainIconUrl(alias), chainIconUrl(alias)]),
+          ...imageSlugCandidates({ name, slug, aliases: chainAliases(name, slug), imageSlugs: [slug, name] }).flatMap((alias) => [resizedChainIconUrl(alias), chainIconUrl(alias), protocolIconUrl(alias)]),
         ].filter(Boolean),
         imageSlugs: [slug, name, ...expandKnownAliases(name, slug)],
       });
@@ -173,15 +216,7 @@ async function defillamaIndex() {
       const symbol = String(stable.symbol || "").trim();
       const slug = slugText(name || symbol);
       if (!slug || !name) continue;
-      rows.push({
-        name,
-        slug,
-        category: "stablecoin",
-        sourceUrl: `https://defillama.com/stablecoin/${slug}`,
-        aliases: unique([symbol, ...expandKnownAliases(name, slug, symbol)]),
-        imageUrls: [String(stable.logo || ""), String(stable.logoUrl || "")].filter(Boolean),
-        imageSlugs: [slug, symbol],
-      });
+      rows.push({ name, slug, category: "stablecoin", sourceUrl: `https://defillama.com/stablecoin/${slug}`, aliases: unique([symbol, ...expandKnownAliases(name, slug, symbol)]), imageUrls: [String(stable.logo || ""), String(stable.logoUrl || "")].filter(Boolean), imageSlugs: [slug, symbol] });
     }
   } catch (error) {
     errors.push(error instanceof Error ? error.message : "stablecoin index failed");
@@ -191,43 +226,69 @@ async function defillamaIndex() {
   return rows;
 }
 
-async function hasImage(url: string) {
+function imageLike(contentType: string | null) {
+  return Boolean(contentType && contentType.toLowerCase().startsWith("image/"));
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 4500);
   try {
-    const head = await fetch(url, { method: "HEAD", headers: { accept: "image/png,image/jpeg,image/webp,*/*" }, cache: "no-store" });
-    const contentType = head.headers.get("content-type") || "";
-    if (head.ok && (contentType.startsWith("image/") || !contentType)) return true;
-    if (![403, 405].includes(head.status)) return false;
-  } catch {
-    // Some DefiLlama image edges reject HEAD; verify with a tiny GET below.
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function hasImage(url: string): Promise<{ ok: boolean; attempts: DefiLlamaDebugAttempt[] }> {
+  const attempts: DefiLlamaDebugAttempt[] = [];
+  try {
+    const head = await fetchWithTimeout(url, { method: "HEAD", headers: { accept: "image/png,image/jpeg,image/webp,*/*" }, cache: "no-store" });
+    const contentType = head.headers.get("content-type");
+    const accepted = head.ok && imageLike(contentType);
+    attempts.push({ url, method: "HEAD", status: head.status, contentType, accepted, reason: accepted ? "image content-type" : head.ok ? "weak_or_missing_content_type" : `status_${head.status}` });
+    if (accepted) return { ok: true, attempts };
+  } catch (error) {
+    attempts.push({ url, method: "HEAD", status: null, contentType: null, accepted: false, reason: error instanceof Error ? error.message : "head_failed" });
   }
   try {
-    const response = await fetch(url, { headers: { accept: "image/png,image/jpeg,image/webp,*/*", range: "bytes=0-0" }, cache: "no-store" });
-    const contentType = response.headers.get("content-type") || "";
-    return response.ok && (contentType.startsWith("image/") || !contentType);
-  } catch {
-    return false;
+    const response = await fetchWithTimeout(url, { headers: { accept: "image/png,image/jpeg,image/webp,*/*", range: "bytes=0-2047" }, cache: "no-store" });
+    const contentType = response.headers.get("content-type");
+    const accepted = response.ok && imageLike(contentType);
+    attempts.push({ url, method: "GET", status: response.status, contentType, accepted, reason: accepted ? "partial GET image content-type" : response.ok ? "weak_or_missing_content_type" : `status_${response.status}` });
+    return { ok: accepted, attempts };
+  } catch (error) {
+    attempts.push({ url, method: "GET", status: null, contentType: null, accepted: false, reason: error instanceof Error ? error.message : "get_failed" });
+    return { ok: false, attempts };
   }
 }
 
 async function resolveImageUrl(row: IndexRow) {
   const urls = unique([
     ...(row.imageUrls ?? []),
-    ...(row.category === "chain"
-      ? imageSlugCandidates(row).flatMap((slug) => [resizedChainIconUrl(slug), chainIconUrl(slug), protocolIconUrl(slug)])
-      : imageSlugCandidates(row).map(protocolIconUrl)),
+    ...(row.category === "chain" ? imageSlugCandidates(row).flatMap((slug) => [resizedChainIconUrl(slug), chainIconUrl(slug), protocolIconUrl(slug)]) : imageSlugCandidates(row).map(protocolIconUrl)),
   ]).filter((url) => /^https:\/\//.test(url));
+  const attempts: DefiLlamaDebugAttempt[] = [];
   for (const url of urls) {
-    if (await hasImage(url)) return url;
+    const result = await hasImage(url);
+    attempts.push(...result.attempts);
+    if (result.ok) return { imageUrl: url, urls, attempts };
   }
-  return null;
+  return { imageUrl: null, urls, attempts };
+}
+
+function isStablecoinCategory(category?: string | null) {
+  const normalized = normalizeProviderText(category);
+  return ["stablecoin", "stablecoins"].includes(normalized);
 }
 
 function expectedDefiLlamaCategory(category?: string | null): DefiLlamaCandidate["category"] | null {
   const normalized = normalizeProviderText(category);
   if (["chain", "chains", "network", "networks"].includes(normalized)) return "chain";
   if (["protocol", "protocols", "depin"].includes(normalized)) return "protocol";
-  if (["project", "projects"].includes(normalized)) return null;
-  if (["asset", "assets", "stablecoin", "stablecoins"].includes(normalized)) return "stablecoin";
+  if (isStablecoinCategory(category)) return "stablecoin";
+  // Generic assets can be native tokens; do not force ETH/BTC/SOL/etc. into stablecoin-only matching.
+  if (["asset", "assets", "project", "projects"].includes(normalized)) return null;
   return null;
 }
 
@@ -242,33 +303,35 @@ function isStrictDefiLlamaMatch(row: IndexRow, context: ResolverContext, query: 
   const knownAlias = rowAliases.some((alias) => targetTokens.has(alias));
   const expectedCategory = expectedDefiLlamaCategory(context.category);
   const categoryMatch = !expectedCategory || row.category === expectedCategory;
+  const stablecoinBlocked = isStablecoinCategory(context.category) && row.category !== "stablecoin";
   const targetDerivativeTerms = derivativeMatchTerms(...targetValues);
   const candidateDerivativeTerms = derivativeMatchTerms(row.name, row.slug, ...(row.aliases ?? []));
   const derivativeMismatch = candidateDerivativeTerms.length > 0 && !candidateDerivativeTerms.some((term) => targetDerivativeTerms.includes(term));
 
   const reasons: string[] = [];
+  if (row.trusted) reasons.push("trusted native chain mapping");
   if (exactName) reasons.push("exact normalized name");
   if (exactSlug) reasons.push("exact normalized slug");
   if (knownAlias) reasons.push("known alias");
   if (categoryMatch && expectedCategory) reasons.push("category match");
   if (!categoryMatch) reasons.push("category_mismatch");
+  if (stablecoinBlocked) reasons.push("stablecoin_only_category");
   if (derivativeMismatch) reasons.push("derivative_asset");
   if (!exactName && !exactSlug && !knownAlias) reasons.push("low_name_similarity");
 
-  return {
-    ok: categoryMatch && !derivativeMismatch && (exactName || exactSlug || knownAlias),
-    categoryMatch,
-    reasons,
-  };
+  return { ok: categoryMatch && !stablecoinBlocked && !derivativeMismatch && (exactName || exactSlug || knownAlias), categoryMatch, reasons };
 }
 
-export async function searchDefiLlamaSources(query: string, context: ResolverContext = {}): Promise<{ candidates: DefiLlamaCandidate[]; error: string | null }> {
+export async function searchDefiLlamaSources(query: string, context: ResolverContext = {}): Promise<{ candidates: DefiLlamaCandidate[]; error: string | null; debug: DefiLlamaSearchDebug }> {
   const q = query.trim();
-  if (!q) return { candidates: [], error: null };
+  const emptyDebug: DefiLlamaSearchDebug = { query: q, targetName: context.targetName ?? null, targetSlug: context.targetSlug ?? null, targetCategory: context.category ?? null, expectedCategory: expectedDefiLlamaCategory(context.category), aliasesTried: [], urlPatternsTried: [], attempts: [], selectedCandidateReason: null, notices: [] };
+  if (!q) return { candidates: [], error: null, debug: emptyDebug };
   try {
     const rows = await defillamaIndex();
     const expectedCategory = expectedDefiLlamaCategory(context.category);
     const aliasContext = unique([...(context.aliases ?? []), ...expandKnownAliases(q, context.targetName, context.targetSlug)]);
+    const debug: DefiLlamaSearchDebug = { ...emptyDebug, aliasesTried: aliasContext, expectedCategory, notices: [] };
+    if (context.category && !expectedCategory && normalizeProviderText(context.category).includes("asset")) debug.notices.push("Asset category allowed chain/native-token matches.");
     const scored = rows
       .map((row) => {
         const strict = isStrictDefiLlamaMatch(row, { ...context, aliases: aliasContext }, q);
@@ -282,21 +345,27 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
           categoryMatch: Boolean(expectedCategory && row.category === expectedCategory),
         });
         const confidence: ConfidenceLabel = strict.ok ? "high" : score.score >= 45 ? "medium" : "low";
-        return { row, score: strict.ok ? Math.max(score.score, strict.categoryMatch ? 90 : 82) : score.score, confidence, strict };
+        return { row, score: strict.ok ? Math.max(score.score, strict.categoryMatch ? 92 : 86) : score.score, confidence, strict };
       })
       .filter((row) => row.strict.ok || row.score >= 45)
-      .sort((a, b) => Number(b.strict.ok) - Number(a.strict.ok) || b.score - a.score)
-      .slice(0, 8);
+      .sort((a, b) => Number(b.row.trusted) - Number(a.row.trusted) || Number(b.strict.ok) - Number(a.strict.ok) || b.score - a.score)
+      .slice(0, 10);
     const candidates: DefiLlamaCandidate[] = [];
     for (const { row, score, confidence, strict } of scored) {
-      const imageUrl = await resolveImageUrl(row);
-      if (!imageUrl) continue;
-      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl, confidence, score, recommended: false, reasons: strict.reasons });
+      const resolved = await resolveImageUrl(row);
+      debug.urlPatternsTried.push(...resolved.urls);
+      debug.attempts.push(...resolved.attempts);
+      if (!resolved.imageUrl) continue;
+      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl: resolved.imageUrl, confidence, score, recommended: false, reasons: strict.reasons, debug: { selectedReason: strict.reasons.join(", "), aliasesTried: aliasContext, urlPatternsTried: resolved.urls, attempts: resolved.attempts } });
     }
-    const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity"].includes(reason)));
-    if (recommended) recommended.recommended = true;
-    return { candidates, error: recommended || candidates.length ? null : "No reliable DefiLlama source found." };
+    const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity", "stablecoin_only_category"].includes(reason)));
+    if (recommended) {
+      recommended.recommended = true;
+      debug.selectedCandidateReason = `${recommended.name} selected: ${recommended.reasons?.join(", ") || "high confidence"}`;
+    }
+    debug.urlPatternsTried = unique(debug.urlPatternsTried);
+    return { candidates, error: recommended || candidates.length ? null : "No reliable DefiLlama source found.", debug };
   } catch (error) {
-    return { candidates: [], error: error instanceof Error ? error.message : "DefiLlama source search failed." };
+    return { candidates: [], error: error instanceof Error ? error.message : "DefiLlama source search failed.", debug: { ...emptyDebug, notices: [error instanceof Error ? error.message : "DefiLlama source search failed."] } };
   }
 }

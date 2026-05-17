@@ -412,7 +412,22 @@ export default async function LogoDetailPage({
   );
   const cgFinderResult = cgFinderQuery
     ? await searchCoinGeckoIds(cgFinderQuery, { targetName: logoName, targetSlug: logoSlug })
-    : { candidates: [], error: null };
+    : {
+        candidates: [],
+        error: null,
+        debug: {
+          query: "",
+          targetName: logoName,
+          targetSlug: logoSlug,
+          targetCategory: logoCategory,
+          expectedCategory: null,
+          aliasesTried: [],
+          urlPatternsTried: [],
+          attempts: [],
+          selectedCandidateReason: null,
+          notices: [],
+        },
+      };
   const cmcReady = Boolean((await resolveApiSecret("coinmarketcap")).value);
   const cmcFinderQuery = firstParam(searchParams?.cmcq, "");
   const cmcFinderResult =
@@ -734,7 +749,22 @@ export default async function LogoDetailPage({
       .replace(/^-+|-+$/g, "") || logoSlug;
   const defiLlamaFinderResult = defiLlamaQuery
     ? await searchDefiLlamaSources(defiLlamaQuery, { targetName: logoName, targetSlug: logoSlug, category: logoCategory })
-    : { candidates: [], error: null };
+    : {
+        candidates: [],
+        error: null,
+        debug: {
+          query: "",
+          targetName: logoName,
+          targetSlug: logoSlug,
+          targetCategory: logoCategory,
+          expectedCategory: null,
+          aliasesTried: [],
+          urlPatternsTried: [],
+          attempts: [],
+          selectedCandidateReason: null,
+          notices: [],
+        },
+      };
   const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended && candidate.confidence === "high") ?? null;
   const otherDefiLlamaMatches = defiLlamaFinderResult.candidates.filter((candidate) => candidate.id !== recommendedDefiLlama?.id);
   const defiLlamaPreview = recommendedDefiLlama?.imageUrl || null;
@@ -1269,6 +1299,39 @@ export default async function LogoDetailPage({
           Advanced
         </summary>
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <section className="rounded-2xl border border-slate-100 bg-slate-50 p-3 lg:col-span-2">
+            <h3 className="text-sm font-black text-slate-950">
+              DefiLlama resolver details
+            </h3>
+            <dl className="mt-2 grid gap-1 text-xs text-slate-600">
+              <KV k="query" v={defiLlamaFinderResult.debug.query} />
+              <KV k="target name" v={defiLlamaFinderResult.debug.targetName} />
+              <KV k="target slug" v={defiLlamaFinderResult.debug.targetSlug} />
+              <KV k="target category" v={defiLlamaFinderResult.debug.targetCategory} />
+              <KV k="expected category" v={defiLlamaFinderResult.debug.expectedCategory || "native/any"} />
+              <KV k="aliases tried" v={defiLlamaFinderResult.debug.aliasesTried.join(", ")} />
+              <KV k="selected" v={defiLlamaFinderResult.debug.selectedCandidateReason || "none"} />
+              <KV k="notices" v={defiLlamaFinderResult.debug.notices.join(" · ")} />
+            </dl>
+            <details className="mt-2 text-xs">
+              <summary className="cursor-pointer font-black text-slate-500">URL patterns tried ({defiLlamaFinderResult.debug.urlPatternsTried.length})</summary>
+              <div className="mt-1 grid gap-1 text-slate-500">
+                {defiLlamaFinderResult.debug.urlPatternsTried.slice(0, 40).map((url) => (
+                  <a key={url} href={url} className="truncate underline">{url}</a>
+                ))}
+              </div>
+            </details>
+            <details className="mt-2 text-xs">
+              <summary className="cursor-pointer font-black text-slate-500">Verification attempts ({defiLlamaFinderResult.debug.attempts.length})</summary>
+              <div className="mt-1 grid gap-1 text-slate-500">
+                {defiLlamaFinderResult.debug.attempts.slice(0, 80).map((attempt, index) => (
+                  <div key={`${attempt.url}-${attempt.method}-${index}`} className={attempt.accepted ? "text-emerald-700" : "text-slate-500"}>
+                    {attempt.method} {attempt.status ?? "n/a"} · {attempt.contentType || "no content-type"} · {attempt.accepted ? "accepted" : attempt.reason} · {attempt.url}
+                  </div>
+                ))}
+              </div>
+            </details>
+          </section>
           <section className="rounded-2xl border border-slate-100 bg-slate-50 p-3 lg:col-span-2">
             <h3 className="text-sm font-black text-slate-950">
               Source records

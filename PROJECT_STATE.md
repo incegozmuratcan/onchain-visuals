@@ -23,6 +23,16 @@
 
 
 
+## v0.11.9 Final Logo Reliability + QA Priority
+
+- DefiLlama resolution now starts with deterministic trusted native-chain mappings for Ethereum/ETH, Bitcoin/BTC, Polygon/MATIC/POL, Arbitrum/ARB, Avalanche/AVAX, Solana/SOL, BNB/BSC, Optimism/OP, Base, zkSync, Katana/KAT and MegaETH/MEGA before falling back to DefiLlama protocol/chain/stablecoin indexes. Generic `asset` rows are no longer forced into stablecoin-only matching, so native tokens can use verified chain icons.
+- DefiLlama icon verification tries `https://icons.llama.fi/chains/rsz_{slug}.jpg`, `https://icons.llama.fi/chains/{slug}.jpg` and `https://icons.llama.fi/{slug}.jpg` across saved slugs and aliases. The admin helper records query, target, aliases, URL patterns, HEAD/partial-GET status, content type, reject reason and selected-candidate reason under resolver details while keeping the main UI to Source Present / Recommended / No reliable source / Other possible matches.
+- Provider IDs continue to persist CoinGecko ID, numeric CoinMarketCap ID and DefiLlama slug/source without schema changes. High-confidence provider matches may save the provider ID/slug, fetch the source and create review-gated candidates; weak or derivative-looking matches remain manual review only.
+- Legacy local-logo migration remains internal-only but now imports unsafe/visual-rejected BSV-like local assets into Managed Vault as visible `needs_review` candidates with `migratedFrom`, original local path/provider, `unsafe`, `visualRejected`, `reviewStatus` and `migratedAt` metadata. These candidates are never auto-approved or public primaries.
+- Source persistence remains DB-first: successful fetch/use/review/vault operations keep `logo_sources`, source status/review metadata, `logos.approved_source_id`, `logos.approved_logo_url` and public candidate ordering stable after page reload. The public card fallback chain remains manual/upload primary, approved CoinGecko, reviewed CoinMarketCap, reviewed DefiLlama, reviewed optimized Managed Vault and generated fallback, excluding pending/rejected/unsafe/visual-rejected rows.
+- Logo Manager QA now separates urgent “Needs attention” from “Review later” newly discovered/pending-review work and sorts rows by no usable source, missing CoinGecko ID, provider ID/error, visual/unsafe, pending review, newly discovered and healthy approved. Dashboard and Source Tools summaries are shorter, hide zero-value optional metrics and keep raw counters/details collapsed.
+- No database schema changes were made; Admin DB Setup is not required.
+
 ## v0.11.8 Logo Source Reliability + Public Fallback Chain
 
 - Public card rows now receive an ordered `logoCandidates` chain from the server instead of only one approved logo URL. The browser tries admin-selected manual/upload primaries first, then trusted CoinGecko, reviewed CoinMarketCap, reviewed DefiLlama, reviewed optimized Managed Vault and finally the generated fallback; pending, rejected, unsafe and visualRejected sources are excluded from public fallback candidates.
