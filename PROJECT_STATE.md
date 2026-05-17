@@ -79,6 +79,15 @@
 
 
 
+## v0.11.5 Admin Logo Detail Cleanup + DefiLlama Resolver Fix
+
+- Alias / merge guard duplicate warnings are no longer rendered in the normal admin logo detail page. The dormant `logo_aliases` infrastructure can remain for future use, but logo detail now stays focused on source summary, provider rows, Managed Vault, Manual / Upload and collapsed Advanced debug.
+- DefiLlama source discovery now expands common aliases (`btc`/Bitcoin, `eth`/Ethereum, `bsc`/BNB Chain, `op mainnet`/Optimism, `avax`/Avalanche, `matic`/Polygon, `arbitrum one`/Arbitrum) against the server-side chain/protocol/stablecoin indexes and verifies icon URLs before presenting a candidate.
+- DefiLlama recommendations are strict: exact normalized name, exact slug or known alias matches can be high confidence, category-compatible matches get a boost, and unrelated substring/first-letter matches stay out of the recommended path. Weak matches, when present, remain collapsed under Other possible matches and cannot be auto-fetched from the helper.
+- The DefiLlama helper shows Source present only when this logo already has a non-rejected DefiLlama source row. A newly found reliable resolver candidate is labeled Recommended source found until an admin uses/fetches it; no-source states say No reliable DefiLlama source found without implying a stored source.
+- Fetch all sources uses the same fixed DefiLlama resolver. High-confidence DefiLlama matches can be added as review-gated candidates and selected only when safer sources are missing; low-confidence or missing matches create a clear non-fatal notice instead of an Application error.
+- DB workflow safety: no schema changes in this PR. Admin DB Setup is not required.
+
 ## v0.11.4 Logo Source Engine Automation + Cleanup
 
 - Source Tools are grouped by operational importance: **Daily actions** contains Discover missing sources, Retry failed and Scan metrics; **Maintenance** contains Force discover all, Apply safe CG, Backup approved to vault and Import legacy local logos to Vault.
@@ -88,7 +97,7 @@
 - CoinMarketCap search prioritizes exact name/slug matches over symbol-only results and keeps numeric IDs only for CMC fetches; non-numeric CMC IDs are treated as ID-review cases.
 - DefiLlama is resolved through a server-side index of protocols, chains and stablecoin assets instead of blindly accepting a guessed URL. The helper shows Recommended/Other matches when an actual icon URL resolves, or a compact no-source/error notice when unavailable.
 - Rejected provider rows now expose Restore and Restore and use actions. Normal restore is blocked for safety/visual-rejected rows; restored CoinGecko can become trusted primary only if it still passes the safe CoinGecko checks, while CMC/DefiLlama restore as review-gated sources.
-- Duplicate handling adds a safe `logo_aliases` table plus detail-page duplicate warnings by provider ID, provider URL, known aliases and normalized names. Admins can mark an alternate slug as an alias of the canonical logo or dismiss the warning; public logo overlay resolution checks aliases before falling back.
+- Duplicate handling added a safe `logo_aliases` table and dormant backend helpers for future alias support. Duplicate / alias warnings are no longer shown in the normal admin logo detail UI; public logo overlay resolution can still check aliases before falling back.
 - The detail-page top preview now shows provider boxes for CoinGecko, CoinMarketCap and DefiLlama. Public source/status/next action remains in the left summary, and safe CoinGecko primary shows Trusted/No action required instead of false Needs Review noise.
 - Needs-action counting is narrower: fallback/no source, review-gated primary, provider ID/fetch blockers, visual rejection and rejected restore cases count; safe CoinGecko primaries and reviewed non-CG primaries do not count just because backup IDs are missing.
 - Public logo resolution remains explicit: if a Managed Vault source is marked primary, public cards use the Vault URL; if a provider source is marked primary, public cards use that provider URL while Vault remains an admin-visible backup.
@@ -100,7 +109,7 @@
 - Local Static Manifest was removed from active logo operations. It is no longer shown as a provider row, backup candidate, import action, top badge, recommended action or normal public fallback. Legacy manifest files may remain for audit/build history only and are not part of the active source engine.
 - The logo detail page is minimal by default: top public-logo summary, five provider rows (CoinGecko, CoinMarketCap, DefiLlama, Managed Vault, Manual / Upload), compact Discover/Provider IDs/Manual Source helpers, and a collapsed Advanced section. Raw source records moved into Advanced so backup rows are not duplicated in the main UI.
 - Review rules are source-aware: trusted CoinGecko primary does not count as needs review; CoinMarketCap and DefiLlama primaries stay pending until approved; Managed Vault needs review unless copied from an already reviewed source; manual/upload admin choices are reviewed by default. Rejecting a selected source attempts to choose the next safe source without selecting rejected, visual-rejected or BSV/BTC-confusing candidates.
-- DefiLlama has a slug helper on logo detail. Admins can preview the best-effort `icons.llama.fi/{slug}.jpg` candidate and fetch it as a reviewable DefiLlama discovery source without crashing when unavailable.
+- DefiLlama has a compact source resolver on logo detail. Admins can search by name, slug or known alias, see only verified high-confidence recommendations with preview/source URL, and fetch them as reviewable DefiLlama discovery sources; weak matches stay collapsed and unavailable for auto-fetch.
 - Bulk Source Tools keep **Discover missing sources**, **Force discover all** and **Backup approved to vault**. Vault backup copies approved primaries when Blob is configured, skips rejected/visual-rejected/already-vaulted sources, keeps provider URLs as provenance, and does not change primary unless an admin chooses the Vault copy.
 - Public logo resolution is DB-approved URL first (manual/upload or selected Managed Vault/provider source), then generated fallback. Provider URLs are used publicly only when selected/approved in DB; Local Static Manifest is not a normal public fallback.
 - No schema change is required. Managed Vault continues to use existing `logo_sources.provider`, `logo_sources.metadata`, `approved_source_id`, `approved_logo_url` and admin setting summary fields. Admin DB Setup is not required for this PR.

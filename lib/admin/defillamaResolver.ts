@@ -22,14 +22,75 @@ export type DefiLlamaCandidate = {
 
 type ResolverContext = { targetName?: string | null; targetSlug?: string | null; category?: string | null; aliases?: string[] };
 
-type IndexRow = { name: string; slug: string; category: DefiLlamaCandidate["category"]; sourceUrl: string; aliases?: string[] };
+type IndexRow = {
+  name: string;
+  slug: string;
+  category: DefiLlamaCandidate["category"];
+  sourceUrl: string;
+  aliases?: string[];
+  imageUrls?: string[];
+  imageSlugs?: string[];
+};
+
+const KNOWN_ALIAS_GROUPS = [
+  ["btc", "bitcoin"],
+  ["eth", "ethereum"],
+  ["bsc", "bnb-chain", "bnb chain", "binance smart chain", "bnb", "binance"],
+  ["op mainnet", "op-mainnet", "optimism", "optimism mainnet", "op"],
+  ["avax", "avalanche", "avalanche c-chain", "avalanche c chain"],
+  ["matic", "polygon", "polygon pos", "polygon-pos"],
+  ["arbitrum one", "arbitrum-one", "arbitrum"],
+  ["sol", "solana"],
+  ["base chain", "base"],
+];
+
+const aliasLookup = new Map<string, Set<string>>();
+for (const group of KNOWN_ALIAS_GROUPS) {
+  const normalized = group.flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean);
+  for (const value of normalized) {
+    const set = aliasLookup.get(value) ?? new Set<string>();
+    normalized.forEach((alias) => set.add(alias));
+    aliasLookup.set(value, set);
+  }
+}
 
 let cachedIndex: { at: number; rows: IndexRow[] } | null = null;
+
+function unique(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function expandKnownAliases(...values: unknown[]) {
+  const tokens = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeProviderText(value);
+    const slug = slugText(value);
+    for (const token of [normalized, slug]) {
+      if (!token) continue;
+      tokens.add(token);
+      aliasLookup.get(token)?.forEach((alias) => tokens.add(alias));
+    }
+  }
+  return [...tokens];
+}
 
 async function jsonRows(url: string) {
   const response = await fetch(url, { headers: { accept: "application/json" }, next: { revalidate: 3600 } });
   if (!response.ok) throw new Error(`DefiLlama index fetch failed (${response.status}).`);
   return response.json();
+}
+
+function chainAliases(name: string, slug: string) {
+  return unique([name, slug, ...expandKnownAliases(name, slug)]);
+}
+
+function imageSlugCandidates(row: Pick<IndexRow, "name" | "slug" | "aliases" | "imageSlugs">) {
+  return unique([
+    ...(row.imageSlugs ?? []),
+    row.slug,
+    slugText(row.name),
+    ...(row.aliases ?? []).map(slugText),
+  ]);
 }
 
 async function defillamaIndex() {
@@ -42,12 +103,15 @@ async function defillamaIndex() {
       const slug = String(protocol.slug || "").trim();
       const name = String(protocol.name || "").trim();
       if (!slug || !name) continue;
+      const aliases = unique([String(protocol.symbol || ""), String(protocol.parentProtocol || ""), ...expandKnownAliases(name, slug, protocol.symbol)]);
       rows.push({
         name,
         slug,
         category: "protocol",
         sourceUrl: `https://defillama.com/protocol/${slug}`,
-        aliases: [String(protocol.symbol || ""), String(protocol.parentProtocol || "")].filter(Boolean),
+        aliases,
+        imageUrls: [String(protocol.logo || ""), String(protocol.logoUrl || "")].filter(Boolean),
+        imageSlugs: [slug],
       });
     }
   } catch (error) {
@@ -59,7 +123,15 @@ async function defillamaIndex() {
       const name = String(chain.name || "").trim();
       if (!name) continue;
       const slug = slugText(name);
-      rows.push({ name, slug, category: "chain", sourceUrl: `https://defillama.com/chain/${encodeURIComponent(name)}` });
+      rows.push({
+        name,
+        slug,
+        category: "chain",
+        sourceUrl: `https://defillama.com/chain/${slug}`,
+        aliases: chainAliases(name, slug),
+        imageUrls: [String(chain.logo || ""), String(chain.logoUrl || "")].filter(Boolean),
+        imageSlugs: [slug, ...expandKnownAliases(name, slug)],
+      });
     }
   } catch (error) {
     errors.push(error instanceof Error ? error.message : "chain index failed");
@@ -71,7 +143,15 @@ async function defillamaIndex() {
       const symbol = String(stable.symbol || "").trim();
       const slug = slugText(name || symbol);
       if (!slug || !name) continue;
-      rows.push({ name, slug, category: "stablecoin", sourceUrl: `https://defillama.com/stablecoin/${slug}`, aliases: [symbol].filter(Boolean) });
+      rows.push({
+        name,
+        slug,
+        category: "stablecoin",
+        sourceUrl: `https://defillama.com/stablecoin/${slug}`,
+        aliases: unique([symbol, ...expandKnownAliases(name, slug, symbol)]),
+        imageUrls: [String(stable.logo || ""), String(stable.logoUrl || "")].filter(Boolean),
+        imageSlugs: [slug, symbol],
+      });
     }
   } catch (error) {
     errors.push(error instanceof Error ? error.message : "stablecoin index failed");
@@ -83,12 +163,31 @@ async function defillamaIndex() {
 
 async function hasImage(url: string) {
   try {
-    const response = await fetch(url, { method: "HEAD", headers: { accept: "image/png,image/jpeg,image/webp" }, cache: "no-store" });
+    const head = await fetch(url, { method: "HEAD", headers: { accept: "image/png,image/jpeg,image/webp,*/*" }, cache: "no-store" });
+    const contentType = head.headers.get("content-type") || "";
+    if (head.ok && (contentType.startsWith("image/") || !contentType)) return true;
+    if (![403, 405].includes(head.status)) return false;
+  } catch {
+    // Some DefiLlama image edges reject HEAD; verify with a tiny GET below.
+  }
+  try {
+    const response = await fetch(url, { headers: { accept: "image/png,image/jpeg,image/webp,*/*", range: "bytes=0-0" }, cache: "no-store" });
     const contentType = response.headers.get("content-type") || "";
-    return response.ok && contentType.startsWith("image/");
+    return response.ok && (contentType.startsWith("image/") || !contentType);
   } catch {
     return false;
   }
+}
+
+async function resolveImageUrl(row: IndexRow) {
+  const urls = unique([
+    ...(row.imageUrls ?? []),
+    ...imageSlugCandidates(row).map((slug) => `https://icons.llama.fi/${encodeURIComponent(slug)}.jpg`),
+  ]).filter((url) => /^https:\/\//.test(url));
+  for (const url of urls) {
+    if (await hasImage(url)) return url;
+  }
+  return null;
 }
 
 function expectedDefiLlamaCategory(category?: string | null): DefiLlamaCandidate["category"] | null {
@@ -101,10 +200,10 @@ function expectedDefiLlamaCategory(category?: string | null): DefiLlamaCandidate
 
 function isStrictDefiLlamaMatch(row: IndexRow, context: ResolverContext, query: string) {
   const targetValues = [query, context.targetName, context.targetSlug, ...(context.aliases ?? [])].filter(Boolean) as string[];
-  const targetTokens = new Set(targetValues.flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean));
+  const targetTokens = new Set(expandKnownAliases(...targetValues));
   const candidateName = normalizeProviderText(row.name);
   const candidateSlug = slugText(row.slug || row.name);
-  const rowAliases = (row.aliases ?? []).flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean);
+  const rowAliases = expandKnownAliases(row.name, row.slug, ...(row.aliases ?? []));
   const exactName = Boolean(candidateName && targetTokens.has(candidateName));
   const exactSlug = Boolean(candidateSlug && targetTokens.has(candidateSlug));
   const knownAlias = rowAliases.some((alias) => targetTokens.has(alias));
@@ -118,6 +217,7 @@ function isStrictDefiLlamaMatch(row: IndexRow, context: ResolverContext, query: 
   if (exactName) reasons.push("exact normalized name");
   if (exactSlug) reasons.push("exact normalized slug");
   if (knownAlias) reasons.push("known alias");
+  if (categoryMatch && expectedCategory) reasons.push("category match");
   if (!categoryMatch) reasons.push("category_mismatch");
   if (derivativeMismatch) reasons.push("derivative_asset");
   if (!exactName && !exactSlug && !knownAlias) reasons.push("low_name_similarity");
@@ -135,28 +235,29 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
   try {
     const rows = await defillamaIndex();
     const expectedCategory = expectedDefiLlamaCategory(context.category);
+    const aliasContext = unique([...(context.aliases ?? []), ...expandKnownAliases(q, context.targetName, context.targetSlug)]);
     const scored = rows
       .map((row) => {
-        const strict = isStrictDefiLlamaMatch(row, context, q);
+        const strict = isStrictDefiLlamaMatch(row, { ...context, aliases: aliasContext }, q);
         const score = scoreProviderCandidate({
           query: q,
           targetName: context.targetName,
           targetSlug: context.targetSlug,
-          aliases: context.aliases,
+          aliases: aliasContext,
           candidateName: row.name,
           candidateSlug: row.slug,
           categoryMatch: Boolean(expectedCategory && row.category === expectedCategory),
         });
-        const confidence: ConfidenceLabel = strict.ok && score.score >= 78 ? "high" : score.score >= 45 ? "medium" : "low";
-        return { row, ...score, confidence, strict };
+        const confidence: ConfidenceLabel = strict.ok ? "high" : score.score >= 45 ? "medium" : "low";
+        return { row, score: strict.ok ? Math.max(score.score, strict.categoryMatch ? 90 : 82) : score.score, confidence, strict };
       })
       .filter((row) => row.strict.ok || row.score >= 45)
       .sort((a, b) => Number(b.strict.ok) - Number(a.strict.ok) || b.score - a.score)
       .slice(0, 8);
     const candidates: DefiLlamaCandidate[] = [];
     for (const { row, score, confidence, strict } of scored) {
-      const imageUrl = `https://icons.llama.fi/${encodeURIComponent(row.slug)}.jpg`;
-      if (!(await hasImage(imageUrl))) continue;
+      const imageUrl = await resolveImageUrl(row);
+      if (!imageUrl) continue;
       candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl, confidence, score, recommended: false, reasons: strict.reasons });
     }
     const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity"].includes(reason)));

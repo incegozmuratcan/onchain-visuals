@@ -21,8 +21,6 @@ import {
   saveFallbackAction,
   saveProviderIdsAction,
   useCoinGeckoIdAction,
-  markLogoAliasAction,
-  dismissDuplicateWarningAction,
   uploadLogoAction,
   useCoinMarketCapIdAction,
 } from "@/lib/admin/actions";
@@ -30,9 +28,7 @@ import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import {
   approvedLogoCandidateSlugs,
   getLogo,
-  findPossibleLogoDuplicates,
   getLogoSources,
-  listLogoAliases,
   type LogoSource,
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
@@ -425,18 +421,7 @@ export default async function LogoDetailPage({
           error: cmcReady ? null : "Add CoinMarketCap API key first",
           apiKeyMissing: !cmcReady,
         };
-  const duplicateResult = await safeAdminDbQuery(
-    "Possible duplicates",
-    () => findPossibleLogoDuplicates(logo, sources),
-    [],
-  );
-  const aliasResult = await safeAdminDbQuery(
-    "Logo aliases",
-    async () => (await listLogoAliases(logo.id)).rows,
-    [],
-  );
-  const possibleDuplicates = duplicateResult.data;
-  const logoAliases = aliasResult.data;
+
 
   const hiddenLogoFields = (
     <>
@@ -507,6 +492,10 @@ export default async function LogoDetailPage({
   const coinGeckoSource = providerSource("coingecko");
   const coinMarketCapSource = providerSource("coinmarketcap");
   const defiLlamaSource = providerSource("defillama");
+  const activeDefiLlamaSource =
+    defiLlamaSource && defiLlamaSource.status !== "rejected"
+      ? defiLlamaSource
+      : null;
   const managedVaultSource =
     providerSource("managed-vault") ?? providerSource("vault");
   const cmcNumeric = Boolean(
@@ -632,35 +621,33 @@ export default async function LogoDetailPage({
       status:
         defiLlamaSource?.status === "rejected"
           ? "Rejected"
-          : defiLlamaSource?.id === primarySource?.id
+          : activeDefiLlamaSource?.id === primarySource?.id
             ? primaryNeedsReview
               ? "Pending review"
               : "Primary"
-            : defiLlamaSource
+            : activeDefiLlamaSource
               ? "Backup"
               : "Missing",
       helper: `Default slug: ${logoSlug}`,
       action: (
         <div className="flex flex-wrap gap-2">
-          {defiLlamaSource && defiLlamaSource.status !== "rejected" ? (
+          {activeDefiLlamaSource ? (
             <ApproveButton
-              source={defiLlamaSource}
+              source={activeDefiLlamaSource}
               slug={logoSlug}
               label={
-                defiLlamaSource.id === primarySource?.id
+                activeDefiLlamaSource.id === primarySource?.id
                   ? "Mark reviewed"
                   : "Use as primary"
               }
-              dark={defiLlamaSource.id !== primarySource?.id}
+              dark={activeDefiLlamaSource.id !== primarySource?.id}
             />
           ) : null}
           <form action={addDefiLlamaAction}>
             {hiddenLogoFields}
             <input type="hidden" name="providerSlug" value={logoSlug} />
             <SmallButton>
-              {defiLlamaSource && defiLlamaSource.status !== "rejected"
-                ? "Fetch again"
-                : "Fetch"}
+              {activeDefiLlamaSource ? "Fetch again" : "Fetch"}
             </SmallButton>
           </form>
         </div>
@@ -838,49 +825,6 @@ export default async function LogoDetailPage({
         </div>
       </section>
 
-
-      {possibleDuplicates.length ? (
-        <section className="mt-4 rounded-3xl border border-amber-200 bg-amber-50 p-4 shadow-soft">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.14em] text-amber-700">Possible duplicate</p>
-              <h2 className="mt-1 text-lg font-black text-slate-950">Alias / merge guard</h2>
-              <p className="mt-1 text-xs font-bold text-amber-800">
-                Public overlays resolve aliases to this canonical logo. Full destructive merges are intentionally not automatic.
-              </p>
-              {logoAliases.length ? (
-                <p className="mt-2 text-xs font-bold text-amber-900">Aliases: {logoAliases.map((alias) => alias.alias).join(", ")}</p>
-              ) : null}
-            </div>
-          </div>
-          {possibleDuplicates.length ? (
-            <div className="mt-3 grid gap-2">
-              {possibleDuplicates.map((duplicate) => (
-                <div key={duplicate.id} className="grid gap-2 rounded-2xl border border-amber-200 bg-white p-3 text-xs md:grid-cols-[1fr_auto] md:items-center">
-                  <div>
-                    <Link href={`/admin/logos/${duplicate.slug}`} className="font-black text-slate-950 underline">{duplicate.name}</Link>
-                    <span className="ml-2 font-bold text-slate-500">{duplicate.slug} · {(duplicate as any).match_reason} · {(duplicate as any).match_confidence || "high"} confidence</span>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <form action={markLogoAliasAction}>
-                      <input type="hidden" name="canonicalSlug" value={logoSlug} />
-                      <input type="hidden" name="duplicateLogoId" value={duplicate.id} />
-                      <input type="hidden" name="alias" value={duplicate.slug} />
-                      <SmallButton dark>Mark as alias</SmallButton>
-                    </form>
-                    <form action={dismissDuplicateWarningAction}>
-                      <input type="hidden" name="slug" value={logoSlug} />
-                      <input type="hidden" name="logoId" value={logo.id} />
-                      <input type="hidden" name="duplicateLogoId" value={duplicate.id} />
-                      <SmallButton>Dismiss</SmallButton>
-                    </form>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
 
       <section className="mt-4 grid gap-4 lg:grid-cols-[0.95fr_1.35fr]">
         <section className="rounded-3xl border border-slate-200 bg-white p-4 shadow-soft">
@@ -1241,8 +1185,12 @@ export default async function LogoDetailPage({
                   Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={defiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : "amber"}>
-                {defiLlamaSource ? "source present" : recommendedDefiLlama ? "recommended" : "no source yet"}
+              <AdminStatusPill tone={activeDefiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : "amber"}>
+                {activeDefiLlamaSource
+                  ? "source present"
+                  : recommendedDefiLlama
+                    ? "recommended source found"
+                    : "no reliable source"}
               </AdminStatusPill>
             </div>
             <form className="mt-3 flex gap-2">
@@ -1263,12 +1211,14 @@ export default async function LogoDetailPage({
                   {recommendedDefiLlama ? `${recommendedDefiLlama.name} · ${recommendedDefiLlama.slug}` : "No reliable DefiLlama source found."}
                 </div>
                 {recommendedDefiLlama && defiLlamaPreview ? (
-                  <a
-                    href={defiLlamaPreview}
-                    className="truncate font-bold text-slate-400 underline"
-                  >
-                    Recommended · high confidence · {recommendedDefiLlama.category}
-                  </a>
+                  <div className="grid gap-0.5 font-bold text-slate-400">
+                    <a href={recommendedDefiLlama.sourceUrl} className="truncate underline">
+                      Recommended · high confidence · {recommendedDefiLlama.category} · {recommendedDefiLlama.sourceUrl}
+                    </a>
+                    <a href={defiLlamaPreview} className="truncate underline">
+                      Icon: {defiLlamaPreview}
+                    </a>
+                  </div>
                 ) : (
                   <p className="truncate font-bold text-slate-400">
                     {defiLlamaFinderResult.error || "Exact name/slug/category match required."}
