@@ -1,6 +1,6 @@
 import "server-only";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
-import { scoreProviderCandidate, type ConfidenceLabel } from "@/lib/admin/providerScoring";
+import { normalizeProviderText, scoreProviderCandidate, slugText, type ConfidenceLabel } from "@/lib/admin/providerScoring";
 
 export type CoinMarketCapCandidate = {
   id: string;
@@ -13,8 +13,60 @@ export type CoinMarketCapCandidate = {
   recommended: boolean;
 };
 
+const CMC_ALIAS_GROUPS = [
+  ["bitcoin", "btc"],
+  ["ethereum", "eth"],
+  ["katana", "kat"],
+  ["arbitrum", "arb", "arbitrum-one"],
+  ["avalanche", "avax", "avalanche-c-chain"],
+  ["polygon", "pol", "matic", "matic-network"],
+  ["optimism", "op", "op-mainnet"],
+  ["bnb-chain", "bnb", "bsc", "binance-smart-chain"],
+  ["solana", "sol"],
+  ["base", "base-chain"],
+  ["render", "rndr", "render-network"],
+  ["megaeth", "mega", "mega-eth"],
+  ["plasma", "xpl"],
+  ["sui"],
+  ["aptos", "apt"],
+  ["near"],
+  ["filecoin", "fil"],
+];
+
+const aliasLookup = new Map<string, Set<string>>();
+for (const group of CMC_ALIAS_GROUPS) {
+  const normalized = group.flatMap((value) => [normalizeProviderText(value), slugText(value)]).filter(Boolean);
+  for (const value of normalized) {
+    const set = aliasLookup.get(value) ?? new Set<string>();
+    normalized.forEach((alias) => set.add(alias));
+    aliasLookup.set(value, set);
+  }
+}
+
 function clean(value: unknown) {
   return typeof value === "string" || typeof value === "number" ? String(value).trim() : "";
+}
+
+function unique(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function expandCmcAliases(...values: unknown[]) {
+  const tokens = new Set<string>();
+  for (const value of values) {
+    const normalized = normalizeProviderText(value);
+    const slug = slugText(value);
+    for (const token of [normalized, slug]) {
+      if (!token) continue;
+      tokens.add(token);
+      aliasLookup.get(token)?.forEach((alias) => tokens.add(alias));
+    }
+  }
+  return [...tokens];
+}
+
+function symbolTokens(tokens: string[]) {
+  return tokens.filter((token) => /^[a-z0-9]{2,6}$/.test(token) && !token.includes("-"));
 }
 
 async function cmcHeaders() {
@@ -30,13 +82,14 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
   if (!q) return { candidates: [], error: null };
   try {
     const headers = await cmcHeaders();
-    const symbol = q.replace(/[^a-z0-9]/gi, "").toUpperCase();
-    const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-    const urls = [
-      symbol ? `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?symbol=${encodeURIComponent(symbol)}&listing_status=active,untracked` : "",
-      slug ? `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?slug=${encodeURIComponent(slug)}&listing_status=active,untracked` : "",
+    const aliasTokens = unique([...expandCmcAliases(q, context.targetName, context.targetSlug, ...(context.aliases ?? [])), ...(context.aliases ?? [])]);
+    const slugTokens = unique([slugText(q), ...aliasTokens.map(slugText)]).slice(0, 10);
+    const symbols = unique([q.replace(/[^a-z0-9]/gi, "").toUpperCase(), ...symbolTokens(aliasTokens).map((token) => token.toUpperCase())]).slice(0, 10);
+    const urls = unique([
+      ...symbols.map((symbol) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?symbol=${encodeURIComponent(symbol)}&listing_status=active,untracked`),
+      ...slugTokens.map((slug) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?slug=${encodeURIComponent(slug)}&listing_status=active,untracked`),
       `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?listing_status=active&sort=cmc_rank&limit=500`,
-    ].filter(Boolean);
+    ]);
     const rows: any[] = [];
     for (const url of urls) {
       const response = await fetch(url, { headers, next: { revalidate: 0 } });
@@ -51,7 +104,8 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
           query: q,
           targetName: context.targetName,
           targetSlug: context.targetSlug,
-          aliases: context.aliases,
+          aliases: aliasTokens,
+          expectedSymbols: symbolTokens(aliasTokens),
           candidateName: clean(row.name),
           candidateSlug: clean(row.slug),
           candidateSymbol: clean(row.symbol),

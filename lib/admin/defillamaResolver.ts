@@ -38,10 +38,18 @@ const KNOWN_ALIAS_GROUPS = [
   ["bsc", "bnb-chain", "bnb chain", "binance smart chain", "bnb", "binance"],
   ["op mainnet", "op-mainnet", "optimism", "optimism mainnet", "op"],
   ["avax", "avalanche", "avalanche c-chain", "avalanche c chain"],
-  ["matic", "polygon", "polygon pos", "polygon-pos"],
-  ["arbitrum one", "arbitrum-one", "arbitrum"],
+  ["matic", "polygon", "polygon pos", "polygon-pos", "pol"],
+  ["arbitrum one", "arbitrum-one", "arbitrum", "arb"],
   ["sol", "solana"],
   ["base chain", "base"],
+  ["katana", "kat"],
+  ["megaeth", "mega-eth", "mega"],
+  ["render", "render-network", "rndr"],
+  ["plasma", "xpl"],
+  ["sui", "sui-network"],
+  ["apt", "aptos", "aptos-network"],
+  ["near"],
+  ["fil", "filecoin", "filecoin-chain"],
 ];
 
 const aliasLookup = new Map<string, Set<string>>();
@@ -89,8 +97,18 @@ function imageSlugCandidates(row: Pick<IndexRow, "name" | "slug" | "aliases" | "
     ...(row.imageSlugs ?? []),
     row.slug,
     slugText(row.name),
+    normalizeProviderText(row.name),
     ...(row.aliases ?? []).map(slugText),
+    ...(row.aliases ?? []).map(normalizeProviderText),
   ]);
+}
+
+function chainIconUrl(value: string) {
+  return `https://icons.llama.fi/chains/${encodeURIComponent(value)}.jpg`;
+}
+
+function protocolIconUrl(value: string) {
+  return `https://icons.llama.fi/${encodeURIComponent(value)}.jpg`;
 }
 
 async function defillamaIndex() {
@@ -129,8 +147,13 @@ async function defillamaIndex() {
         category: "chain",
         sourceUrl: `https://defillama.com/chain/${slug}`,
         aliases: chainAliases(name, slug),
-        imageUrls: [String(chain.logo || ""), String(chain.logoUrl || "")].filter(Boolean),
-        imageSlugs: [slug, ...expandKnownAliases(name, slug)],
+        imageUrls: [
+          String(chain.logo || ""),
+          String(chain.logoUrl || ""),
+          chainIconUrl(name),
+          ...expandKnownAliases(name, slug).map(chainIconUrl),
+        ].filter(Boolean),
+        imageSlugs: [slug, name, ...expandKnownAliases(name, slug)],
       });
     }
   } catch (error) {
@@ -182,7 +205,9 @@ async function hasImage(url: string) {
 async function resolveImageUrl(row: IndexRow) {
   const urls = unique([
     ...(row.imageUrls ?? []),
-    ...imageSlugCandidates(row).map((slug) => `https://icons.llama.fi/${encodeURIComponent(slug)}.jpg`),
+    ...(row.category === "chain"
+      ? imageSlugCandidates(row).flatMap((slug) => [chainIconUrl(slug), protocolIconUrl(slug)])
+      : imageSlugCandidates(row).map(protocolIconUrl)),
   ]).filter((url) => /^https:\/\//.test(url));
   for (const url of urls) {
     if (await hasImage(url)) return url;
@@ -193,7 +218,8 @@ async function resolveImageUrl(row: IndexRow) {
 function expectedDefiLlamaCategory(category?: string | null): DefiLlamaCandidate["category"] | null {
   const normalized = normalizeProviderText(category);
   if (["chain", "chains", "network", "networks"].includes(normalized)) return "chain";
-  if (["project", "projects", "protocol", "protocols", "depin"].includes(normalized)) return "protocol";
+  if (["protocol", "protocols", "depin"].includes(normalized)) return "protocol";
+  if (["project", "projects"].includes(normalized)) return null;
   if (["asset", "assets", "stablecoin", "stablecoins"].includes(normalized)) return "stablecoin";
   return null;
 }
