@@ -21,6 +21,14 @@
 - DePIN Pulse
 - html-to-image for PNG export
 
+## v0.11.6 Brand Settings Asset Health Cleanup
+
+- Brand Health now distinguishes active public-site assets from optional/future assets. Primary/hero logo, favicon and upload availability are active checks; header logo, Apple touch icon and watermark are neutral optional statuses unless their public feature is enabled.
+- Header logo remains editable but is labeled optional: it is used only if a separate public header is enabled, and otherwise acts only as the public hero fallback when `primaryLogo` is empty. Missing header logo is not an amber action-required warning when primary/hero logo exists.
+- Brand asset rows are grouped by use: Main public assets, Optional public assets and Advanced / social assets. No asset fields were removed.
+- Public hero fallback remains `primaryLogo` → `headerLogo` → `siteName`; share-card/export behavior and favicon handling were not changed.
+- DB workflow safety: no schema changes in this PR. Admin DB Setup is not required.
+
 # Active Metrics
 
 ## Chains

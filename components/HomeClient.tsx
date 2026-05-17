@@ -60,6 +60,8 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [captionCopied, setCaptionCopied] = useState(false);
+  // Hero logo fallback order: primaryLogo → headerLogo → siteName text.
+  // Header logo is only a fallback when no primary / hero logo is configured.
   const [heroLogoSrc, setHeroLogoSrc] = useState(() => brand.primaryLogo || brand.headerLogo || "");
   const didLoadDefault = useRef(false);
 
