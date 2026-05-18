@@ -51,7 +51,7 @@ import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
-import { validateDefiLlamaSourceForLogo } from "@/lib/admin/defillamaValidator";
+import { validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
 import {
   deleteAdminApiSecret,
   providerEnvVar,
@@ -227,16 +227,19 @@ export async function validateDefiLlamaSourcesAction() {
   const logos = (await listLogos()).rows;
   const sources = (await getAllLogoSources()).rows.filter((s) => s.provider === "defillama");
   const byLogo = new Map(logos.map((l) => [l.id, l]));
-  let valid=0, invalidated=0, placeholders=0, mismatches=0, errors=0;
+  let valid=0, invalidated=0, noReliable=0, mismatches=0, errors=0;
   for (const source of sources) {
     const logo = byLogo.get(source.logo_id);
     if (!logo) continue;
     try {
-      const result = validateDefiLlamaSourceForLogo({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source });
+      const result = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source });
       const meta = typeof source.metadata === "string" ? JSON.parse(source.metadata || "{}") : (source.metadata || {});
       if (!result.valid) {
-        invalidated++; if (result.isPlaceholder) placeholders++; if (result.isMismatched) mismatches++;
-        const nextMeta = { ...meta, invalidForTarget:true, invalidReason:result.reason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug };
+        invalidated++;
+        if (result.reason === "resolver_no_reliable_source") noReliable++;
+        if (result.isMismatched) mismatches++;
+        const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : "placeholder_or_unverified";
+        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
       } else {
         valid++;
@@ -246,7 +249,7 @@ export async function validateDefiLlamaSourcesAction() {
     } catch { errors++; }
   }
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', 'success', `DefiLlama validation complete: logos ${logos.length}, rows ${sources.length}, valid ${valid}, invalidated ${invalidated}, placeholders ${placeholders}, mismatches ${mismatches}, errors ${errors}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `DefiLlama validation complete: checked logos ${logos.length}, checked sources ${sources.length}, valid ${valid}, invalidated ${invalidated}, no reliable source ${noReliable}, target mismatch ${mismatches}, errors ${errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();

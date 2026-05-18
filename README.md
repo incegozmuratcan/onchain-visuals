@@ -445,3 +445,11 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Added Source Tools maintenance action **Validate DefiLlama sources** to mark bad persisted DefiLlama rows as invalid/hidden in metadata (non-destructive).
 - Invalid/placeholder/mismatched DefiLlama rows do not clear Missing DefiLlama and are excluded from public candidates.
 - Quai helper matching keeps `Quai Network` actionable while unrelated candidates like Pendle remain details-only/non-actionable.
+
+## DefiLlama source truth rules (v0.11.16)
+
+- A DefiLlama row counts only when persisted, target-matching, non-placeholder, non-rejected/unsafe, and resolver-confirmed as reliable; explicit admin-reviewed rows remain valid.
+- Auto-selected `selected_needs_review`/`needs_review`/`pending` DefiLlama rows are invalidated when resolver currently reports no reliable source.
+- Source Tools → Maintenance includes **Validate DefiLlama sources** to hide/flag stale rows and stamp validation metadata without deleting rows.
+- Missing DefiLlama and SOURCE PRESENT badges ignore invalid/hidden DefiLlama rows.
+- Invalid DefiLlama history remains available only under hidden source history.

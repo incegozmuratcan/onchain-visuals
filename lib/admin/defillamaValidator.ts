@@ -2,8 +2,10 @@ import "server-only";
 import type { LogoSource } from "@/lib/admin/logoDb";
 import { normalizeProviderText, slugText } from "@/lib/admin/providerScoring";
 import { sourceMetadataObject } from "@/lib/admin/providerState";
+import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 
 export type DefiLlamaValidationResult = { valid: boolean; reason: string; normalizedSourceSlug?: string; normalizedTargetSlugs?: string[]; isPlaceholder?: boolean; isMismatched?: boolean };
+const AUTO_REVIEW_STATUSES = new Set(["selected_needs_review", "needs_review", "pending"]);
 
 const SAFE_SUFFIX = ["network","chain","protocol","labs","foundation","dao","token"];
 const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","placeholder","blank","empty","default-fallback","/api/chain-logo","generic"];
@@ -33,4 +35,21 @@ export function validateDefiLlamaSourceForLogo(input: { logoName?: string; logoS
   const sourceOk = targetSlugs.some((t) => t && (sourceSlug===t || sourceSlug.startsWith(`${t}-`) && SAFE_SUFFIX.some((s)=>sourceSlug===`${t}-${s}`)));
   if (!sourceOk) return { valid:false, reason:"Target mismatch", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isMismatched:true };
   return { valid:true, reason:"OK", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs };
+}
+
+export async function validateDefiLlamaSourceForLogoWithResolver(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): Promise<DefiLlamaValidationResult> {
+  const base = validateDefiLlamaSourceForLogo(input);
+  if (!base.valid) return base;
+  const source = input.source!;
+  const meta = sourceMetadataObject(source.metadata);
+  const reviewStatus = String(meta.reviewStatus || "").toLowerCase();
+  const approvalOrigin = String(meta.approvalOrigin || "").toLowerCase();
+  const adminReviewed = reviewStatus === "reviewed" && approvalOrigin === "admin";
+  if (adminReviewed) return base;
+  const query = String(meta.slug || meta.defillamaSlug || input.logoSlug || input.logoName || "").trim();
+  const found = await searchDefiLlamaSources(query, { targetName: input.logoName, targetSlug: input.logoSlug, category: input.logoCategory, aliases: input.knownAliases || [] });
+  const reliable = found.candidates.some((candidate) => candidate.recommended && candidate.confidence === "high");
+  if (reliable) return base;
+  if (AUTO_REVIEW_STATUSES.has(reviewStatus)) return { ...base, valid: false, reason: "resolver_no_reliable_source" };
+  return { ...base, valid: false, reason: "placeholder_or_unverified" };
 }
