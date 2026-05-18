@@ -214,16 +214,23 @@ export async function upsertLogoSource(input: {
          AND (
            (image_url = $4 AND COALESCE(source_url, '') = COALESCE($3, ''))
            OR (COALESCE(metadata->>'slug', '') <> '' AND COALESCE(metadata->>'slug', '') = COALESCE($6::jsonb->>'slug', ''))
+           OR (provider = 'defillama' AND COALESCE(metadata->>'defillamaSlug', '') <> '' AND COALESCE(metadata->>'defillamaSlug', '') = COALESCE($6::jsonb->>'defillamaSlug', $6::jsonb->>'slug', ''))
            OR (provider = 'coinmarketcap' AND COALESCE(metadata->>'coinMarketCapId', metadata->>'cmcId', metadata->>'id', '') <> '' AND COALESCE(metadata->>'coinMarketCapId', metadata->>'cmcId', metadata->>'id', '') = COALESCE($6::jsonb->>'coinMarketCapId', $6::jsonb->>'cmcId', $6::jsonb->>'id', ''))
          )
        ORDER BY status = 'rejected', id ASC
        LIMIT 1
      ), updated AS (
        UPDATE logo_sources
-       SET blob_url = $5,
-           metadata = COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb,
+       SET source_url = CASE WHEN logo_sources.status = 'rejected' AND NOT $8::boolean THEN logo_sources.source_url ELSE $3 END,
+           image_url = CASE WHEN logo_sources.status = 'rejected' AND NOT $8::boolean THEN logo_sources.image_url ELSE $4 END,
+           blob_url = CASE WHEN logo_sources.status = 'rejected' AND NOT $8::boolean THEN logo_sources.blob_url ELSE $5 END,
+           metadata = CASE
+             WHEN logo_sources.status = 'approved' AND COALESCE(logo_sources.metadata->>'reviewStatus', '') = 'reviewed'
+               THEN COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb || jsonb_build_object('reviewStatus', 'reviewed')
+             ELSE COALESCE(logo_sources.metadata, '{}'::jsonb) || $6::jsonb
+           END,
            status = CASE WHEN logo_sources.status = 'approved' THEN logo_sources.status WHEN logo_sources.status = 'rejected' AND $8::boolean THEN $7 ELSE CASE WHEN logo_sources.status = 'rejected' THEN logo_sources.status ELSE $7 END END,
-           rejection_reason = CASE WHEN $7 = 'rejected' THEN logo_sources.rejection_reason ELSE NULL END
+           rejection_reason = CASE WHEN logo_sources.status = 'rejected' AND NOT $8::boolean THEN logo_sources.rejection_reason WHEN $7 = 'rejected' THEN logo_sources.rejection_reason ELSE NULL END
        WHERE id IN (SELECT id FROM existing)
        RETURNING *
      ), inserted AS (

@@ -29,6 +29,7 @@ import {
   selectSourceNeedsReview,
   getSavedDefiLlamaSlug,
   saveDefiLlamaSlug,
+  sourceIsPublicCandidate,
   setAdminSetting,
   updateLogoFallback,
   updateLogoFetchState,
@@ -282,45 +283,140 @@ export async function addManualUrlAction(formData: FormData) {
 
 export async function addDefiLlamaAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
-  const slug = String(formData.get("providerSlug") || logo.slug).trim();
-  if (!slug)
+  const requestedSlug = String(formData.get("providerSlug") || logo.slug).trim();
+  if (!requestedSlug)
     redirectLogoNotice(logo.slug, "error", "Add a DefiLlama slug first.");
-  const found = await searchDefiLlamaSources(slug, {
-    targetName: logo.name,
-    targetSlug: logo.slug,
-    category: logo.category,
-  });
-  const candidate = found.candidates.find((row) => row.slug === slug && row.confidence === "high" && row.recommended) ?? found.candidates.find((row) => row.confidence === "high" && row.recommended) ?? null;
-  if (!candidate)
-    redirectLogoNotice(logo.slug, "warning", found.error || "No reliable DefiLlama source found.");
-  await saveDefiLlamaSlug(logo.slug, candidate.slug);
-  const created = await upsertLogoSource({
-    logoId: logo.id,
-    provider: "defillama",
-    imageUrl: candidate.imageUrl,
-    sourceUrl: candidate.sourceUrl,
-    metadata: {
-      slug: candidate.slug,
-      resolver: true,
-      resolverConfidence: candidate.confidence,
-      resolverReasons: candidate.reasons ?? [],
-      confidence: candidate.confidence,
-      score: candidate.score,
-      fetchedAt: new Date().toISOString(),
-      reviewStatus: "selected_needs_review",
-      resolverDebug: candidate.debug,
-    },
-    status: "candidate",
-    reviveRejected: true,
-  });
-  const sources = (await getLogoSources(logo.id)).rows;
-  await updateLogoFetchState(logo.slug, "defillama", null);
-  if (!logo.approved_logo_url && logo.visual_status !== "rejected") {
-    await selectSourceNeedsReview(created.id, "DefiLlama resolver selected source; admin review required");
+
+  try {
+    const sourcesBefore = (await getLogoSources(logo.id)).rows;
+    const found = await searchDefiLlamaSources(requestedSlug, {
+      targetName: logo.name,
+      targetSlug: logo.slug,
+      category: logo.category,
+      aliases: [requestedSlug],
+    });
+    const candidate =
+      found.candidates.find(
+        (row) =>
+          row.slug === requestedSlug &&
+          row.confidence === "high" &&
+          row.recommended,
+      ) ??
+      found.candidates.find(
+        (row) => row.confidence === "high" && row.recommended,
+      ) ??
+      null;
+
+    if (!candidate) {
+      await updateLogoFetchState(
+        logo.slug,
+        "defillama",
+        found.error || "No reliable DefiLlama source found.",
+      );
+      redirectLogoNotice(
+        logo.slug,
+        "warning",
+        found.error || "No reliable DefiLlama source found.",
+      );
+    }
+
+    const existingDefiLlamaSource = sourcesBefore.find((source) => {
+      const meta = sourceMetadata(source);
+      return (
+        source.provider === "defillama" &&
+        source.status !== "rejected" &&
+        (source.image_url === candidate.imageUrl ||
+          source.source_url === candidate.sourceUrl ||
+          meta.slug === candidate.slug ||
+          meta.defillamaSlug === candidate.slug)
+      );
+    });
+    const existingDefiLlamaMeta = existingDefiLlamaSource
+      ? sourceMetadata(existingDefiLlamaSource)
+      : {};
+    const shouldSelect =
+      !hasAdminChosenSource(sourcesBefore) &&
+      !sourcesBefore.some((source) => sourceIsPublicCandidate(source, logo)) &&
+      logo.visual_status !== "rejected";
+    const reviewStatus =
+      existingDefiLlamaSource?.status === "approved" ||
+      existingDefiLlamaMeta.reviewStatus === "reviewed"
+        ? existingDefiLlamaMeta.reviewStatus || "reviewed"
+        : shouldSelect
+          ? "selected_needs_review"
+          : "needs_review";
+
+    await saveDefiLlamaSlug(logo.slug, candidate.slug);
+    const created = await upsertLogoSource({
+      logoId: logo.id,
+      provider: "defillama",
+      imageUrl: candidate.imageUrl,
+      sourceUrl: candidate.sourceUrl,
+      metadata: {
+        slug: candidate.slug,
+        defillamaSlug: candidate.slug,
+        resolver: true,
+        resolverConfidence: candidate.confidence,
+        resolverReasons: candidate.reasons ?? [],
+        confidence: candidate.confidence,
+        score: candidate.score,
+        fetchedAt: new Date().toISOString(),
+        reviewStatus,
+        sourceOrigin: "defillama-helper",
+        resolverDebug: candidate.debug,
+      },
+      status: "candidate",
+      reviveRejected: false,
+    });
+
+    if (!created) {
+      await updateLogoFetchState(
+        logo.slug,
+        "defillama",
+        "DB upsert failed while saving DefiLlama source.",
+      );
+      redirectLogoNotice(
+        logo.slug,
+        "error",
+        "DB upsert failed while saving DefiLlama source.",
+      );
+    }
+
+    if (created.status === "rejected") {
+      await updateLogoFetchState(
+        logo.slug,
+        "defillama",
+        "DefiLlama source already rejected; restore it before refetching.",
+      );
+      redirectLogoNotice(
+        logo.slug,
+        "warning",
+        "DefiLlama source already rejected; restore it before refetching.",
+      );
+    }
+
+    await updateLogoFetchState(logo.slug, "defillama", null);
+    if (shouldSelect) {
+      await selectSourceNeedsReview(
+        created.id,
+        "DefiLlama resolver selected source; admin review required",
+      );
+    }
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    revalidatePath("/admin/logos");
+    redirectLogoNotice(
+      logo.slug,
+      "success",
+      shouldSelect
+        ? "DefiLlama source fetched and selected pending review."
+        : "DefiLlama source added as backup pending review.",
+    );
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    const message = expectedActionMessage(error, "DefiLlama fetch failed.");
+    await updateLogoFetchState(logo.slug, "defillama", message);
+    redirectLogoNotice(logo.slug, "error", message);
   }
-  revalidatePath(`/admin/logos/${logo.slug}`);
-  revalidatePath("/admin/logos");
-  redirectLogoNotice(logo.slug, "success", sources.some((source) => source.provider === "coingecko" && source.status === "approved") ? "DefiLlama source added as backup." : "DefiLlama source fetched and selected pending review.");
 }
 
 async function coinGeckoHeaders(requireKey = false) {
@@ -1015,6 +1111,7 @@ async function discoverLogoSources(
         sourceUrl: recommended.sourceUrl,
         metadata: {
           slug: recommended.slug,
+          defillamaSlug: recommended.slug,
           discovery: true,
           resolver: true,
           resolverConfidence: recommended.confidence,
@@ -1023,10 +1120,11 @@ async function discoverLogoSources(
           score: recommended.score,
           fetchedAt: new Date().toISOString(),
           reviewStatus: "selected_needs_review",
+          sourceOrigin: "defillama-helper",
           resolverDebug: recommended.debug,
         },
         status: "candidate",
-        reviveRejected: true,
+        reviveRejected: false,
       });
       await saveDefiLlamaSlug(logo.slug, recommended.slug);
       await updateLogoFetchState(logo.slug, "defillama", null);
