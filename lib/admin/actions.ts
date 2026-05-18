@@ -227,7 +227,7 @@ export async function validateDefiLlamaSourcesAction() {
   const logos = (await listLogos()).rows;
   const sources = (await getAllLogoSources()).rows.filter((s) => s.provider === "defillama");
   const byLogo = new Map(logos.map((l) => [l.id, l]));
-  let valid=0, invalidated=0, noReliable=0, mismatches=0, errors=0;
+  let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0;
   for (const source of sources) {
     const logo = byLogo.get(source.logo_id);
     if (!logo) continue;
@@ -237,8 +237,9 @@ export async function validateDefiLlamaSourcesAction() {
       if (!result.valid) {
         invalidated++;
         if (result.reason === "resolver_no_reliable_source") noReliable++;
+        if (result.reason === "placeholder_image") placeholders++;
         if (result.isMismatched) mismatches++;
-        const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : "placeholder_or_unverified";
+        const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
         const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
       } else {
@@ -249,7 +250,7 @@ export async function validateDefiLlamaSourcesAction() {
     } catch { errors++; }
   }
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `DefiLlama validation complete: checked logos ${logos.length}, checked sources ${sources.length}, valid ${valid}, invalidated ${invalidated}, no reliable source ${noReliable}, target mismatch ${mismatches}, errors ${errors}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama sources complete: checked logos ${logos.length}, checked sources ${sources.length}, valid ${valid}, invalidated ${invalidated}, placeholder images ${placeholders}, resolver no reliable ${noReliable}, target mismatch ${mismatches}, errors ${errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
