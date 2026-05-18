@@ -655,8 +655,10 @@ export default async function LogoDetailPage({
               ? "Pending review"
               : "Primary"
             : activeDefiLlamaSource
-              ? "Backup"
-              : "Missing",
+              ? `Backup / ${providerCoverage.defillama}`
+              : providerCoverage.defillama === "ERR"
+                ? "Error"
+                : "Missing",
       helper: savedDefiLlamaSlug ? `Slug: ${savedDefiLlamaSlug}` : `Default slug: ${logoSlug}`,
       action: (
         <div className="flex flex-wrap gap-2">
