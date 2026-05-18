@@ -51,7 +51,7 @@ function rowMatchesFilter(row: LogoResultRow, filter: string) {
 
 function displayPrimaryProvider(provider: string) {
   if (provider === "coingecko") return "CoinGecko";
-  if (provider === "coinmarketcap") return "CMC";
+  if (provider === "coinmarketcap") return "CoinMarketCap";
   if (provider === "defillama") return "DefiLlama";
   if (provider === "managed-vault" || provider === "vault") return "Vault";
   if (provider === "manual" || provider === "upload" || provider === "manual/upload") return "Manual";
@@ -59,16 +59,48 @@ function displayPrimaryProvider(provider: string) {
   return provider;
 }
 
+function formatProviderSummary(summary: string | null | undefined) {
+  const raw = typeof summary === "string" ? summary : "";
+  const providerLabelMap: Record<string, string> = {
+    CG: "CG",
+    CMC: "CMC",
+    DL: "DefiLlama",
+    Vault: "Vault",
+  };
+  const states = raw.split("·").map((part) => part.trim()).filter(Boolean);
+  const missing: string[] = [];
+  const review: string[] = [];
+  const error: string[] = [];
+  for (const state of states) {
+    const [providerRaw, statusRaw] = state.split(/\s+/);
+    const provider = providerLabelMap[providerRaw || ""];
+    const status = (statusRaw || "").toUpperCase();
+    if (!provider) continue;
+    if (status === "NO") missing.push(provider);
+    if (status === "REVIEW") review.push(provider);
+    if (status === "ERR") error.push(provider);
+  }
+  if (!missing.length && !review.length && !error.length) return ["Complete"];
+  const lines: string[] = [];
+  if (missing.length) lines.push(`Missing: ${missing.join(" · ")}`);
+  if (review.length) lines.push(`Review: ${review.join(" · ")}`);
+  if (error.length) lines.push(`Error: ${error.join(" · ")}`);
+  return lines;
+}
+
 function LogoRow({ row }: { row: LogoResultRow }) {
   const preview = safeUrl(row.approvedLogoUrl) || safeUrl(row.fallbackLogoUrl);
   const displayIssue = row.issues.find((issue) => ACTION_ISSUES.has(issue));
   const provider = displayPrimaryProvider(row.provider || "fallback");
-  const coverage = row.providerSummary || "CG NO · CMC NO · DL NO · Vault NO";
+  const sourceLines = formatProviderSummary(row.providerSummary || "CG NO · CMC NO · DL NO · Vault NO");
   return <Link href={`/admin/logos/${encodeURIComponent(row.slug)}`} className="grid min-h-[50px] gap-2 border-b border-slate-100 px-2 py-1.5 transition hover:bg-slate-50 md:grid-cols-[minmax(190px,1.25fr)_74px_92px_132px_112px] md:items-center">
     <div className="flex min-w-0 items-center gap-2">{preview ? <img src={preview} alt="" className="h-7 w-7 rounded-full border border-slate-200 bg-white object-contain" /> : <div className="h-7 w-7 rounded-full bg-slate-100" />}<div className="min-w-0"><div className="truncate text-sm font-black text-slate-950">{row.name}</div><div className="truncate text-[11px] font-bold text-slate-400">{row.slug}</div></div></div>
     <div className="truncate text-xs font-black text-slate-600">{row.category}</div>
     <StatusBadge status={row.status || "unknown"} />
-    <div className="min-w-0 text-[11px] font-bold leading-4 text-slate-500"><div className="truncate font-black text-slate-700" title={`Primary: ${provider}`}>Primary: {provider}</div><div className="truncate" title={coverage}>{coverage}</div></div>
+    <div className="min-w-0 text-[11px] font-bold leading-4 text-slate-500">
+      <div className="truncate font-black text-slate-700" title={`Primary: ${provider}`}>Primary: {provider}</div>
+      {sourceLines.map((line) => <div key={line} className="truncate" title={line}>{line}</div>)}
+    </div>
     <div className="min-w-0">{displayIssue ? <IssueDot issue={displayIssue} /> : <span className="text-[10px] font-black uppercase tracking-[0.08em] text-emerald-600">healthy</span>}</div>
   </Link>;
 }
