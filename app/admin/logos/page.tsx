@@ -59,9 +59,9 @@ const PRIMARY_FILTERS = [
   ["issues", "Needs action"],
   ["missing_approved_logo", "Missing logo"],
   ["missing_coingecko_id", "Missing CG"],
-  ["provider_errors", "Provider review"],
-  ["fallback_used", "Fallback"],
-  ["visual_rejected", "Rejected"],
+  ["missing_cmc_id", "Missing CMC"],
+  ["missing_defillama_source", "Missing DefiLlama"],
+  ["needs_review", "Needs review"],
   ["newly_discovered_entity", "New"],
 ] as const;
 
@@ -69,10 +69,13 @@ const MORE_FILTERS = [
   ["all", "All"],
   ["approved", "Approved"],
   ["coingecko_candidate_waiting", "CG candidates"],
-  ["missing_cmc_id", "Missing CMC"],
+  ["provider_errors", "Provider review"],
+  ["fallback_used", "Fallback"],
+  ["visual_rejected", "Visual / unsafe"],
+  ["rejected_source", "Rejected"],
+  ["defillama_no_reliable_source", "No reliable DefiLlama"],
   ["cmc_fetch_failed", "CMC errors"],
   ["db_overlay_not_applied", "Overlay"],
-  ["rejected_source", "Rejected sources"],
   ["coingecko_rate_limited", "Rate limited"],
   ["metric_scan_error", "Scan errors"],
 ] as const;
@@ -93,6 +96,7 @@ function filterRows(rows: LogoQaRow[], filter: string) {
       (row) =>
         row.issues.includes("coingecko_fetch_failed") ||
         row.issues.includes("cmc_fetch_failed") ||
+        row.issues.includes("defillama_no_reliable_source") ||
         row.issues.includes("coingecko_id_needs_review"),
     );
   if (filter === "approved")
@@ -107,11 +111,13 @@ function filterRows(rows: LogoQaRow[], filter: string) {
 function actionPriority(row: LogoQaRow) {
   const order = [
     "missing_approved_logo",
-    "fallback_used",
     "missing_coingecko_id",
+    "missing_cmc_id",
+    "missing_defillama_source",
     "coingecko_id_needs_review",
     "coingecko_fetch_failed",
     "cmc_fetch_failed",
+    "defillama_no_reliable_source",
     "visual_rejected",
     "unsafe_migrated_candidate",
     "needs_review",
@@ -304,11 +310,17 @@ function DiscoverySummary({ summary }: { summary: string }) {
   try {
     const data = JSON.parse(summary) as Record<string, unknown>;
     const checked = Number(data.checked ?? 0);
-    const cg = Number(data.coingeckoFetched ?? 0);
-    const cmc = Number(data.cmcFetched ?? 0);
-    const dfl = Number(data.defillamaFetched ?? 0);
-    const vault = Number(data.vaultCopiesCreated ?? 0);
+    const cg = Number(data.coingeckoFetched ?? data.cgFound ?? 0);
+    const cmc = Number(data.cmcFetched ?? data.cmcFound ?? 0);
+    const dfl = Number(data.defillamaFetched ?? data.defillamaFound ?? 0);
+    const vault = Number(data.vaultCopiesCreated ?? data.vaultCopied ?? 0);
     const found = cg + cmc + dfl + vault;
+    const cgMissing = Number(data.cgMissing ?? 0);
+    const cmcMissing = Number(data.cmcMissing ?? 0);
+    const dflNoReliable = Number(data.defillamaNoReliable ?? data.defillamaMissing ?? 0);
+    const dflErrors = Number(data.defillamaErrors ?? 0);
+    const vaultMissing = Number(data.vaultMissing ?? data.skippedMissingSource ?? 0);
+    const vaultAlready = Number(data.vaultAlready ?? data.skippedAlreadyVaulted ?? 0);
     const needsReview = Number(data.needsReview ?? 0);
     const errors = Number(data.errors ?? 0);
     const detailEntries = [
@@ -320,8 +332,12 @@ function DiscoverySummary({ summary }: { summary: string }) {
       `checked: ${checked}`,
       `raw CG: ${cg}`,
       `raw CMC: ${cmc}`,
-      `raw DefiLlama: ${dfl}`,
-      `raw Vault: ${vault}`,
+      `raw DefiLlama found: ${dfl}`,
+      `DefiLlama no reliable source: ${dflNoReliable}`,
+      `DefiLlama errors: ${dflErrors}`,
+      `raw Vault copied: ${vault}`,
+      `Vault missing: ${vaultMissing}`,
+      `already vaulted: ${vaultAlready}`,
       ...(Array.isArray(data.candidateList) ? data.candidateList.map(String) : []),
     ].map(detailFromText);
     return (
@@ -330,7 +346,13 @@ function DiscoverySummary({ summary }: { summary: string }) {
         <div className="mt-1 text-slate-700">
           {checked} checked · {found} sources found · {needsReview} need review · {errors} errors
         </div>
-        <div className="mt-1 text-slate-500">CG {cg} · CMC {cmc} · DefiLlama {dfl} · Vault {vault}</div>
+        <div className="mt-2 rounded-xl bg-white p-2 text-slate-600">
+          <div className="font-black text-slate-950">Provider coverage</div>
+          <div>CG {cg} found · {cgMissing} missing</div>
+          <div>CMC {cmc} found · {cmcMissing} missing</div>
+          <div>DefiLlama {dfl} found · {dflNoReliable} no reliable source · {dflErrors} errors</div>
+          <div>Vault {vault} copied · {vaultMissing} missing · {vaultAlready} already vaulted</div>
+        </div>
         <details className="mt-2">
           <summary className="cursor-pointer text-slate-500">Details</summary>
           <DetailList entries={detailEntries} />
@@ -450,7 +472,7 @@ function SourceTools({
             <form action={discoverLogoSourcesBulkAction}>
               <input type="hidden" name="mode" value="smart" />
               <button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white shadow-sm">
-                Discover missing sources
+                Complete logo coverage
               </button>
             </form>
             <form action={bulkRefreshCoinGeckoLogosAction}>
@@ -461,7 +483,7 @@ function SourceTools({
             </form>
             <form action={scanMetricLogosAction}>
               <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-700">
-                Scan metrics
+                Scan metric entities
               </button>
             </form>
           </div>
@@ -606,21 +628,26 @@ export default async function AdminLogosPage({
   const providerErrors =
     counts.coingecko_fetch_failed +
     counts.cmc_fetch_failed +
+    counts.defillama_no_reliable_source +
     counts.coingecko_id_needs_review;
-  const urgentRows = qaRows.filter((row) => row.issues.some((issue) => ["missing_approved_logo", "fallback_used", "missing_coingecko_id", "coingecko_id_needs_review", "coingecko_fetch_failed", "cmc_fetch_failed", "visual_rejected", "unsafe_migrated_candidate"].includes(issue)));
+  const urgentRows = qaRows.filter((row) => row.issues.some((issue) => ["missing_approved_logo", "missing_coingecko_id", "missing_cmc_id", "missing_defillama_source", "coingecko_id_needs_review", "coingecko_fetch_failed", "cmc_fetch_failed", "defillama_no_reliable_source", "visual_rejected", "unsafe_migrated_candidate"].includes(issue)));
   const needsAction = urgentRows.length;
   const reviewLater = qaRows.filter((row) => row.issues.some((issue) => ["needs_review", "newly_discovered_entity", "coingecko_candidate_waiting", "metric_scan_candidate_added"].includes(issue)) && !urgentRows.includes(row)).length;
   const newlyDiscovered = qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length;
   const visualIssues = counts.visual_rejected + counts.unsafe_migrated_candidate;
-  const actionMetrics = [
-    ["Needs attention", needsAction],
-    ["Missing approved logo", counts.missing_approved_logo],
-    ["Missing CoinGecko ID", counts.missing_coingecko_id],
-    ["Provider errors / ID review", providerErrors],
+  const coverageMetrics = [
+    ["Needs action", needsAction],
+    ["Missing logo", counts.missing_approved_logo],
+    ["Missing CG", counts.missing_coingecko_id],
+    ["Missing CMC", counts.missing_cmc_id],
+    ["Missing DefiLlama", counts.missing_defillama_source],
+  ];
+  const reviewMetrics = [
+    ["Needs review", counts.needs_review],
     ["Visual / unsafe", visualIssues],
-    ["Review later", reviewLater],
     ["Newly discovered", newlyDiscovered],
-  ].filter(([, value], index) => index === 0 || Number(value) > 0);
+    ["Provider review", providerErrors],
+  ].filter(([, value]) => Number(value) > 0);
   const allMatchingRows = sortRows(qaRows, sort);
   const missingMappingRows = qaRows.filter((row) =>
     row.issues.includes("missing_coingecko_id"),
@@ -635,8 +662,8 @@ export default async function AdminLogosPage({
     fallbackLogoUrl: row.logo.fallback_logo_url,
     coinGeckoId: row.coinGeckoId,
     coinMarketCapId: row.coinMarketCapId,
-    provider: row.logo.last_fetch_provider,
-    providerSummary: row.providerSummary,
+    provider: row.primarySourceLabel,
+    providerSummary: row.coverageSummary,
     issues: row.issues,
     searchText: [
       row.logo.name,
@@ -654,6 +681,8 @@ export default async function AdminLogosPage({
         source.source_url,
         source.status,
       ]),
+      row.primarySourceLabel,
+      row.coverageSummary,
       ...row.issues,
     ]
       .filter(Boolean)
@@ -705,20 +734,27 @@ export default async function AdminLogosPage({
                 attention: {needsAction}{reviewLater ? ` · Review later: ${reviewLater}` : ""}
               </p>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {actionMetrics.map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1"
-                >
-                  <span className="text-xs font-black text-slate-950">
-                    {value}
-                  </span>
-                  <span className="ml-1 text-[10px] font-black uppercase tracking-[0.08em] text-amber-800">
-                    {label}
-                  </span>
+            <div className="mt-2 grid gap-1.5">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Coverage</span>
+                {coverageMetrics.map(([label, value]) => (
+                  <div key={label} className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1">
+                    <span className="text-xs font-black text-slate-950">{value}</span>
+                    <span className="ml-1 text-[10px] font-black uppercase tracking-[0.08em] text-amber-800">{label}</span>
+                  </div>
+                ))}
+              </div>
+              {reviewMetrics.length ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="mr-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Review</span>
+                  {reviewMetrics.map(([label, value]) => (
+                    <div key={label} className="rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1">
+                      <span className="text-xs font-black text-slate-950">{value}</span>
+                      <span className="ml-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">{label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              ) : null}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {PRIMARY_FILTERS.map(([key, label]) => (
