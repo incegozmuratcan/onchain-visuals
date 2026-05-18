@@ -1,7 +1,7 @@
 import "server-only";
 import type { AdminLogo, LogoSource } from "@/lib/admin/logoDb";
 
-export type ProviderCoverageState = "OK" | "PEND" | "NO" | "ERR";
+export type ProviderCoverageState = "OK" | "REVIEW" | "NO" | "ERR";
 export type CanonicalProviderKey =
   | "coingecko"
   | "coinmarketcap"
@@ -18,6 +18,40 @@ export type CanonicalProviderState = {
   sources: LogoSource[];
   reason: "reviewed" | "pending" | "candidate" | "error" | "missing";
 };
+
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export function sourceHasRealLogoUrl(source: LogoSource) {
+  const metadata = sourceMetadataObject(source.metadata);
+  const imageUrl = stringValue(source.image_url);
+  const blobUrl = stringValue(source.blob_url);
+  const url = blobUrl || imageUrl;
+  if (!url) return false;
+  if (!/^(https?:\/\/|\/)/i.test(url)) return false;
+
+  const combined = [
+    url,
+    imageUrl,
+    stringValue(source.source_url),
+    stringValue(metadata.sourceOrigin),
+    stringValue(metadata.origin),
+    stringValue(metadata.reason),
+    stringValue(metadata.kind),
+    stringValue(metadata.type),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (metadata.generatedFallback === true || metadata.placeholder === true || metadata.fallback === true) return false;
+  if (metadata.isGeneratedFallback === true || metadata.generated === true || metadata.placeholderIcon === true) return false;
+  if (combined.includes("/api/chain-logo/")) return false;
+  if (combined.includes("generated fallback") || combined.includes("generated-fallback")) return false;
+  if (combined.includes("placeholder") || combined.includes("empty icon") || combined.includes("generic icon")) return false;
+  if (combined.includes("fallback logo") || combined.includes("fallback-logo")) return false;
+  return true;
+}
 
 export function sourceMetadataObject(metadata: unknown): Record<string, unknown> {
   if (typeof metadata === "string") {
@@ -110,7 +144,15 @@ export function resolveCanonicalProviderState(
     return { provider, state: "NO", source: null, sources: [], reason: "missing" };
   }
 
-  const sorted = [...providerSources].sort((a, b) => {
+  const realSourceRows = providerSources.filter(sourceHasRealLogoUrl);
+  if (!realSourceRows.length) {
+    const errorSource = providerSources.find(sourceHasInvalidState) ?? null;
+    return errorSource
+      ? { provider, state: "ERR", source: errorSource, sources: providerSources, reason: "error" }
+      : { provider, state: "NO", source: null, sources: providerSources, reason: "missing" };
+  }
+
+  const sorted = [...realSourceRows].sort((a, b) => {
     const rankDiff = sourceRank(a, logo) - sourceRank(b, logo);
     if (rankDiff !== 0) return rankDiff;
     const selectedDiff = Number(b.id === logo?.approved_source_id) - Number(a.id === logo?.approved_source_id);
@@ -125,7 +167,7 @@ export function resolveCanonicalProviderState(
   if (sourceIsPending(source)) {
     return {
       provider,
-      state: "PEND",
+      state: "REVIEW",
       source,
       sources: providerSources,
       reason: source.status === "candidate" ? "candidate" : "pending",

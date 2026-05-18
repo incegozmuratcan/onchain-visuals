@@ -2,7 +2,7 @@ import "server-only";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
 import { getChainIdentity, getChainLogo } from "@/lib/chainLogos";
 import { slugifyLogoKey, logoManifestBySlug } from "@/lib/logos/logoRegistry";
-import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
+import { resolveCanonicalProviderState, sourceHasRealLogoUrl } from "@/lib/admin/providerState";
 
 export type AdminLogo = {
   id: string;
@@ -373,6 +373,7 @@ export function sourcePublicUrl(source: LogoSource) {
 
 export function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo, "approved_source_id">) {
   if (source.status !== "approved") return false;
+  if (!sourceHasRealLogoUrl(source)) return false;
   const meta = metadataObject(source.metadata);
   const reviewed = isReviewedMetadata(meta);
   const unsafe = isUnsafePublicMetadata(meta);

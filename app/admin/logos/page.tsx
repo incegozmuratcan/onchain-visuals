@@ -693,9 +693,7 @@ export default async function AdminLogosPage({
     ["Provider review", providerErrors],
   ].filter(([, value]) => Number(value) > 0);
   const allMatchingRows = sortRows(qaRows, sort);
-  const missingMappingRows = qaRows.filter((row) =>
-    row.issues.includes("missing_coingecko_id"),
-  );
+  const missingMappingRows = qaRows.filter((row) => !row.coinGeckoId);
   const clientRows: LogoResultRow[] = allMatchingRows.map((row) => ({
     id: row.logo.id,
     slug: row.logo.slug,

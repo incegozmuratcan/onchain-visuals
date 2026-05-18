@@ -408,7 +408,7 @@ export async function addDefiLlamaAction(formData: FormData) {
     redirectLogoNotice(
       logo.slug,
       "success",
-      "DefiLlama source saved. Review pending.",
+      "DefiLlama source saved. Needs review.",
     );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
