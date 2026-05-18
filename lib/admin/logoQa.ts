@@ -1,6 +1,7 @@
 import "server-only";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
 import { sourceIsPublicCandidate, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
+import { resolveCanonicalProviderState, sourceHasInvalidState, type ProviderCoverageState } from "@/lib/admin/providerState";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 
 export type LogoIssue =
@@ -143,42 +144,18 @@ export function getCoinMarketCapId(
   return null;
 }
 
-export type ProviderCoverageState = "OK" | "PEND" | "NO" | "ERR";
+export type { ProviderCoverageState } from "@/lib/admin/providerState";
 
 function metadataMarksSourceInvalid(source: LogoSource) {
-  const metadata = metadataObject(source.metadata);
-  return Boolean(
-    metadata.fetchError ||
-    metadata.lastError ||
-    metadata.error ||
-    metadata.invalid ||
-    metadata.blocked ||
-    metadata.unsafe ||
-    metadata.visualRejected ||
-    metadata.visuallyRejected,
-  );
-}
-
-function sourceIsReviewedForCoverage(source: LogoSource, logo: AdminLogo) {
-  if (sourceIsPublicCandidate(source, logo)) return true;
-  const metadata = metadataObject(source.metadata);
-  return source.provider === "coingecko" && source.status === "approved" && (metadata.autoApproved === true || metadata.approvalOrigin === "auto");
+  return sourceHasInvalidState(source);
 }
 
 export function providerCoverageStatus(sources: LogoSource[], provider: string, logo: AdminLogo): ProviderCoverageState {
-  const providerSources = sources.filter((source) => source.provider === provider);
-  if (!providerSources.length) return "NO";
-  if (providerSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source) && sourceIsReviewedForCoverage(source, logo))) return "OK";
-  if (providerSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source))) return "PEND";
-  return "ERR";
+  return resolveCanonicalProviderState(sources, provider, logo).state;
 }
 
 export function vaultCoverageStatus(sources: LogoSource[], logo: AdminLogo): ProviderCoverageState {
-  const vaultSources = sources.filter((source) => ["managed-vault", "vault"].includes(source.provider));
-  if (!vaultSources.length) return "NO";
-  if (vaultSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source) && sourceIsReviewedForCoverage(source, logo))) return "OK";
-  if (vaultSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source))) return "PEND";
-  return "ERR";
+  return resolveCanonicalProviderState(sources, "managed-vault", logo).state;
 }
 
 function sourceDisplayProvider(provider: string | null | undefined) {

@@ -34,6 +34,7 @@ import {
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, getCoinMarketCapId, providerCoverageStatus, vaultCoverageStatus } from "@/lib/admin/logoQa";
+import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
@@ -498,25 +499,19 @@ export default async function LogoDetailPage({
     : !primarySource
       ? "Fetch all sources"
       : "No action required";
-  const manualUploadSource =
-    sources.find(
-      (source) =>
-        ["manual", "upload"].includes(source.provider) &&
-        source.status !== "rejected",
-    ) ??
-    sources.find((source) => ["manual", "upload"].includes(source.provider)) ??
-    null;
-  const providerSource = (provider: string) =>
-    sources.find(
-      (source) => source.provider === provider && source.status !== "rejected",
-    ) ??
-    sources.find((source) => source.provider === provider) ??
-    null;
-  const coinGeckoSource = providerSource("coingecko");
-  const coinMarketCapSource = providerSource("coinmarketcap");
-  const defiLlamaSource = providerSource("defillama");
+  const canonicalProviders = {
+    coingecko: resolveCanonicalProviderState(sources, "coingecko", logo),
+    coinmarketcap: resolveCanonicalProviderState(sources, "coinmarketcap", logo),
+    defillama: resolveCanonicalProviderState(sources, "defillama", logo),
+    vault: resolveCanonicalProviderState(sources, "managed-vault", logo),
+    manual: resolveCanonicalProviderState(sources, "manual", logo),
+  };
+  const manualUploadSource = canonicalProviders.manual.source;
+  const coinGeckoSource = canonicalProviders.coingecko.source;
+  const coinMarketCapSource = canonicalProviders.coinmarketcap.source;
+  const defiLlamaSource = canonicalProviders.defillama.source;
   const activeDefiLlamaSource =
-    defiLlamaSource && defiLlamaSource.status !== "rejected"
+    canonicalProviders.defillama.state === "OK" || canonicalProviders.defillama.state === "PEND"
       ? defiLlamaSource
       : null;
   const providerCoverage = {
@@ -525,8 +520,7 @@ export default async function LogoDetailPage({
     defillama: providerCoverageStatus(sources, "defillama", logo),
     vault: vaultCoverageStatus(sources, logo),
   };
-  const managedVaultSource =
-    providerSource("managed-vault") ?? providerSource("vault");
+  const managedVaultSource = canonicalProviders.vault.source;
   const cmcNumeric = Boolean(
     coinMarketCapId && /^\d+$/.test(String(coinMarketCapId)),
   );
@@ -1252,8 +1246,8 @@ export default async function LogoDetailPage({
                   Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={activeDefiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
-                {activeDefiLlamaSource
+              <AdminStatusPill tone={providerCoverage.defillama === "OK" || providerCoverage.defillama === "PEND" ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
+                {providerCoverage.defillama === "OK" || providerCoverage.defillama === "PEND"
                   ? "SOURCE PRESENT"
                   : recommendedDefiLlama
                     ? "RECOMMENDED SOURCE"
@@ -1368,7 +1362,14 @@ export default async function LogoDetailPage({
               Source records
             </h3>
             <div className="mt-3 grid gap-2 md:grid-cols-2">
-              {sources.map((source) => (
+              {sources.map((source) => {
+                const canonicalState =
+                  source.id === canonicalProviders.coingecko.source?.id ||
+                  source.id === canonicalProviders.coinmarketcap.source?.id ||
+                  source.id === canonicalProviders.defillama.source?.id ||
+                  source.id === canonicalProviders.vault.source?.id ||
+                  source.id === canonicalProviders.manual.source?.id;
+                return (
                 <div
                   key={source.id}
                   className="rounded-xl border border-slate-100 bg-white p-3"
@@ -1383,13 +1384,17 @@ export default async function LogoDetailPage({
                         {sourceStatusLabel(source)}
                       </div>
                     </div>
+                    <AdminStatusPill tone={canonicalState ? "green" : "gray"}>
+                      {canonicalState ? "canonical" : source.status === "rejected" ? "rejected" : "historical"}
+                    </AdminStatusPill>
                     <AdminStatusPill tone={statusTone(source.status)}>
                       {source.status}
                     </AdminStatusPill>
                   </div>
                   <SourceDetails source={source} />
                 </div>
-              ))}
+                );
+              })}
               {!sources.length ? (
                 <p className="text-xs font-bold text-slate-400">
                   No source records yet.

@@ -22,6 +22,16 @@
 - html-to-image for PNG export
 
 
+
+## v0.11.12 Provider Source Canonicalization + DefiLlama Coverage Fix
+
+- Logo QA now resolves one canonical source per logo/provider before computing coverage, provider rows, source badges, missing-source filters and public candidates. Canonical states are `OK` for reviewed/admin-approved/auto-approved public-eligible sources, `PEND` for persisted sources that still need review, `NO` when no DB source row exists and `ERR` when the only persisted rows are rejected, unsafe, invalid or errored.
+- DefiLlama duplicate rows are treated as history rather than active state: an approved/reviewed DefiLlama row keeps `DL OK` even when older candidate or selected-needs-review rows exist, while a selected-needs-review row keeps `DL PEND` when no reviewed source exists. Helper previews alone remain `DL NO`.
+- DefiLlama Use + Fetch continues to upsert by logo/provider plus stable DefiLlama slug/source/image identity, preserves already reviewed rows, will not silently revive rejected rows and records resolver metadata such as `defillamaSlug`, confidence, reasons, `fetchedAt`, review status, `sourceOrigin = defillama-helper` and canonical-candidate hints. Success notices are shown only after the DB source row is saved and both logo admin routes are revalidated.
+- Missing DefiLlama now includes only canonical `DL NO` and `DL ERR`; canonical `DL PEND` and `DL OK` clear the Missing DefiLlama filter. Missing logo still means no reviewed/approved public-eligible source exists, so pending DefiLlama clears Missing DefiLlama but does not make the logo healthy until reviewed.
+- Logo Manager source cells and detail provider rows use the canonical coverage display (`Primary: <provider>` plus `CG/CMC/DL/Vault OK/PEND/NO/ERR`). The DefiLlama helper badge shows `SOURCE PRESENT` only for canonical persisted `DL OK` or `DL PEND`, `RECOMMENDED SOURCE` for unsaved high-confidence resolver matches, `OTHER MATCHES ONLY` for weaker matches and `NO RELIABLE SOURCE` when no reliable match exists.
+- Public card logo candidates use canonical public-eligible sources only: selected reviewed primary, reviewed Managed Vault, reviewed CoinGecko, reviewed CoinMarketCap, reviewed DefiLlama, then generated fallback. Pending, rejected, unsafe, visualRejected, helper-preview-only and non-canonical duplicate candidates are excluded. Existing duplicate rows are not deleted; Advanced / Source records labels the canonical row and keeps historical rows visible. No schema changes were made; Admin DB Setup is not required.
+
 ## v0.11.11 Provider Coverage + Fetch Persistence + Source Tools UX
 
 - Provider coverage now uses a DB-backed state machine for CoinGecko, CoinMarketCap, DefiLlama and Managed Vault: `OK` means a reviewed/approved public-eligible source row exists, `PEND` means a non-rejected source row exists but still needs review, `NO` means no source row exists and `ERR` means the saved provider source is rejected, unsafe, invalid or blocked by fetch/provider review. Helper previews, guessed URLs, generated fallbacks and logos from other providers do not count as provider coverage.
