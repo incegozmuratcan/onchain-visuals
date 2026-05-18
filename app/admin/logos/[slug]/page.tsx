@@ -34,7 +34,7 @@ import {
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
 import { classifyLogoQa, getCoinMarketCapId, providerCoverageStatus, vaultCoverageStatus } from "@/lib/admin/logoQa";
-import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
+import { resolveCanonicalProviderState, sourceHasInvalidState } from "@/lib/admin/providerState";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
@@ -398,6 +398,7 @@ export default async function LogoDetailPage({
   const savedDefiLlamaSlug = await getSavedDefiLlamaSlug(logoSlug);
   const approvedSource =
     sources.find((source) => source.id === logo.approved_source_id) ?? null;
+  const approvedSourceValid = approvedSource ? !sourceHasInvalidState(approvedSource) : false;
   const fallbackPreview = safeUrl(logo.fallback_logo_url) || null;
   const publicPreview = safeUrl(logo.approved_logo_url) || fallbackPreview;
   const overlaySlugs = approvedLogoCandidateSlugs(logoName);
@@ -472,7 +473,7 @@ export default async function LogoDetailPage({
         ),
       )
       .find(Boolean) ?? null;
-  const primarySource = approvedSource ?? fallbackPrimary;
+  const primarySource = approvedSourceValid ? approvedSource : fallbackPrimary;
   const primaryProvider = providerName(primarySource?.provider);
   const primaryMeta = metadataObject(primarySource?.metadata);
   const primaryNeedsReview = Boolean(
@@ -1426,14 +1427,14 @@ export default async function LogoDetailPage({
                         {providerName(source.provider)}
                       </div>
                       <div className="truncate text-xs font-bold text-slate-500">
-                        {sourceStatusLabel(source)}
+                        {hidden && sourceHasInvalidState(source) ? "Invalid historical" : sourceStatusLabel(source)}
                       </div>
                     </div>
                     <AdminStatusPill tone={hidden ? "gray" : "green"}>
                       {hidden ? "Hidden" : "canonical"}
                     </AdminStatusPill>
                     <AdminStatusPill tone={statusTone(source.status)}>
-                      {source.status}
+                      {hidden && sourceHasInvalidState(source) ? "Hidden invalid" : source.status}
                     </AdminStatusPill>
                     {hidden && metadataObject(source.metadata).invalidForTarget ? (
                       <AdminStatusPill tone="red">Invalid</AdminStatusPill>

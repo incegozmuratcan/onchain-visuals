@@ -52,6 +52,7 @@ import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
 import { validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
+import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 import {
   deleteAdminApiSecret,
   providerEnvVar,
@@ -222,12 +223,29 @@ function explainProviderError(provider: string, error: unknown) {
 }
 
 
+function chooseReplacementPrimary(logo: AdminLogo, sources: LogoSource[]) {
+  const pick = (provider: string, requireOk = true) => {
+    const state = resolveCanonicalProviderState(sources, provider, logo);
+    if (requireOk) return state.state === "OK" ? state.source : null;
+    return state.state === "OK" || state.state === "REVIEW" ? state.source : null;
+  };
+  return pick("manual") ?? pick("managed-vault") ?? pick("coingecko") ?? pick("coinmarketcap") ?? pick("defillama");
+}
+
+
 export async function validateDefiLlamaSourcesAction() {
   await requireAdmin();
   const logos = (await listLogos()).rows;
-  const sources = (await getAllLogoSources()).rows.filter((s) => s.provider === "defillama");
+  const allSources = (await getAllLogoSources()).rows;
+  const sources = allSources.filter((s) => s.provider === "defillama");
   const byLogo = new Map(logos.map((l) => [l.id, l]));
-  let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0;
+  const byLogoSources = new Map<string, LogoSource[]>();
+  for (const row of allSources) {
+    const list = byLogoSources.get(row.logo_id) ?? [];
+    list.push(row);
+    byLogoSources.set(row.logo_id, list);
+  }
+  let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0, detachedPrimary=0, reassignedPrimary=0, clearedPrimary=0, missingAfterRepair=0;
   for (const source of sources) {
     const logo = byLogo.get(source.logo_id);
     if (!logo) continue;
@@ -242,6 +260,18 @@ export async function validateDefiLlamaSourcesAction() {
         const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
         const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
+        if (logo.approved_source_id === source.id) {
+          detachedPrimary++;
+          const freshSources = (await getLogoSources(logo.id)).rows;
+          const replacement = chooseReplacementPrimary(logo, freshSources);
+          if (replacement) {
+            await query(`UPDATE logos SET approved_source_id = $2, approved_logo_url = COALESCE($3, $4), status = 'approved' WHERE id = $1`, [logo.id, replacement.id, replacement.blob_url, replacement.image_url]);
+            reassignedPrimary++;
+          } else {
+            await query(`UPDATE logos SET approved_source_id = NULL, approved_logo_url = NULL, status = 'needs_review' WHERE id = $1`, [logo.id]);
+            clearedPrimary++;
+          }
+        }
       } else {
         valid++;
         const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString() };
@@ -249,8 +279,13 @@ export async function validateDefiLlamaSourcesAction() {
       }
     } catch { errors++; }
   }
+  missingAfterRepair = logos.filter((logo) => {
+    const rows = byLogoSources.get(logo.id) ?? [];
+    const state = resolveCanonicalProviderState(rows, "defillama", logo);
+    return state.state !== "OK" && state.state !== "REVIEW";
+  }).length;
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama sources complete: checked logos ${logos.length}, checked sources ${sources.length}, valid ${valid}, invalidated ${invalidated}, placeholder images ${placeholders}, resolver no reliable ${noReliable}, target mismatch ${mismatches}, errors ${errors}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama complete: ${logos.length} logos · ${sources.length} DL rows checked · ${valid} valid · ${invalidated} invalidated · ${detachedPrimary} primaries detached · ${reassignedPrimary} reassigned · ${clearedPrimary} cleared · ${missingAfterRepair} missing after repair · ${errors} errors · placeholders ${placeholders} · resolver no reliable ${noReliable} · target mismatch ${mismatches}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
