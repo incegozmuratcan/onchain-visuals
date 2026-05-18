@@ -1150,7 +1150,10 @@ export default async function LogoDetailPage({
           {cgFinderResult.candidates.length ? (
             <div className="mt-3 grid gap-2">
               {cgFinderResult.candidates.slice(0, 4).map((candidate) => {
-                const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && isActionableMediumMatch(logoName, logoSlug, candidate.name, candidate.id));
+                const canUse =
+                  (candidate.recommended && candidate.confidence === "high") ||
+                  (candidate.confidence === "medium" &&
+                    isActionableRelatedMatch(logoName, logoSlug, candidate.name, candidate.id, candidate.symbol));
                 const row = (
                   <>
                     <Img src={candidate.thumb || candidate.large} size={30} />
@@ -1226,7 +1229,10 @@ export default async function LogoDetailPage({
             {cmcFinderResult.candidates.length ? (
               <div className="mt-3 grid gap-2">
                 {cmcFinderResult.candidates.slice(0, 5).map((candidate) => {
-                  const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && isActionableMediumMatch(logoName, logoSlug, candidate.name, candidate.slug));
+                  const canUse =
+                    (candidate.recommended && candidate.confidence === "high") ||
+                    (candidate.confidence === "medium" &&
+                      isActionableRelatedMatch(logoName, logoSlug, candidate.name, candidate.slug, candidate.symbol));
                   const row = (
                     <>
                       <Img src={candidate.logo} size={30} />
@@ -1544,19 +1550,52 @@ export default async function LogoDetailPage({
   );
 }
 
-function isActionableMediumMatch(targetName: string, targetSlug: string, candidateName: string, candidateSlug: string) {
+function isActionableRelatedMatch(
+  targetName: string,
+  targetSlug: string,
+  candidateName: string,
+  candidateSlug: string,
+  candidateSymbol: string,
+) {
   const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   const compact = (v: string) => normalize(v).replace(/\s+/g, "");
-  const base = new Set([normalize(targetName), normalize(targetSlug), compact(targetName), compact(targetSlug)]);
-  const candName = normalize(candidateName);
-  const candSlug = normalize(candidateSlug);
-  const candCompact = compact(candidateName + " " + candidateSlug);
-  if (!candName && !candSlug) return false;
-  const hasCore = Array.from(base).some((token) => token && (candName.includes(token) || candSlug.includes(token) || candCompact.includes(token)));
-  if (!hasCore) return false;
-  const safeExtensions = ["network", "chain", "protocol", "labs", "finance", "token", "dao", "foundation"];
-  const hasSafeExtension = safeExtensions.some((term) => candName.includes(term) || candSlug.includes(term));
-  const unrelated = ["iou", "wrapped", "bridged", "leveraged", "pendle"];
-  if (unrelated.some((t) => candName.includes(t) || candSlug.includes(t))) return false;
-  return hasSafeExtension || hasCore;
+  const words = (v: string) => normalize(v).split(" ").filter(Boolean);
+  const safeSuffixes = new Set(["network", "chain", "protocol", "labs", "foundation", "dao", "token"]);
+  const blockedTerms = ["iou", "wrapped", "bridged", "leveraged", "pendle"];
+
+  const targetNameNorm = normalize(targetName);
+  const targetSlugNorm = normalize(targetSlug);
+  const targetNameCompact = compact(targetName);
+  const targetSlugCompact = compact(targetSlug);
+  const targetWordSet = new Set(words(targetNameNorm));
+  words(targetSlugNorm).forEach((w) => targetWordSet.add(w));
+  const primaryToken = words(targetNameNorm)[0] || words(targetSlugNorm)[0] || targetNameCompact || targetSlugCompact;
+
+  const candNameNorm = normalize(candidateName);
+  const candSlugNorm = normalize(candidateSlug);
+  const candNameCompact = compact(candidateName);
+  const candSlugCompact = compact(candidateSlug);
+  const candSymbolCompact = compact(candidateSymbol);
+  if (!candNameNorm && !candSlugNorm) return false;
+  if (blockedTerms.some((term) => candNameNorm.includes(term) || candSlugNorm.includes(term))) return false;
+
+  const candNameWords = words(candNameNorm);
+  const candSlugWords = words(candSlugNorm);
+  const wholeWordNameMatch = primaryToken ? candNameWords.includes(primaryToken) : false;
+  const wholeWordSlugMatch = primaryToken ? candSlugWords.includes(primaryToken) : false;
+  const slugStartsWithTarget = Boolean(targetSlugCompact) && candSlugCompact.startsWith(targetSlugCompact);
+  const symbolMatchesTargetToken = Boolean(primaryToken) && candSymbolCompact === primaryToken;
+  const hasKnownTargetWord = candNameWords.some((word) => targetWordSet.has(word)) || candSlugWords.some((word) => targetWordSet.has(word));
+
+  const nonTargetNameWords = candNameWords.filter((word) => !targetWordSet.has(word));
+  const extendsWithSafeSuffix =
+    nonTargetNameWords.length > 0 &&
+    nonTargetNameWords.every((word) => safeSuffixes.has(word)) &&
+    (wholeWordNameMatch || wholeWordSlugMatch || slugStartsWithTarget);
+
+  const exactName = targetNameCompact && candNameCompact === targetNameCompact;
+  const exactSlug = targetSlugCompact && candSlugCompact === targetSlugCompact;
+  if (exactName || exactSlug) return true;
+
+  return extendsWithSafeSuffix || (hasKnownTargetWord && slugStartsWithTarget && symbolMatchesTargetToken);
 }
