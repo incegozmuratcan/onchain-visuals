@@ -105,7 +105,14 @@ function sourceHasFetchError(source: LogoSource, provider: string) {
     metadata.fetchError ||
     metadata.lastError ||
     metadata.error ||
-    source.rejection_reason?.toLowerCase().includes("failed"),
+    metadata.invalid ||
+    metadata.blocked ||
+    metadata.unsafe ||
+    metadata.visualRejected ||
+    metadata.visuallyRejected ||
+    source.rejection_reason?.toLowerCase().includes("failed") ||
+    source.rejection_reason?.toLowerCase().includes("invalid") ||
+    source.rejection_reason?.toLowerCase().includes("unsafe"),
   );
 }
 
@@ -136,20 +143,42 @@ export function getCoinMarketCapId(
   return null;
 }
 
-function providerCoverageStatus(sources: LogoSource[], provider: string) {
-  const providerSources = sources.filter((source) => source.provider === provider);
-  if (providerSources.some((source) => source.status === "approved")) return "OK";
-  if (providerSources.some((source) => source.status === "candidate")) return "review";
-  if (providerSources.some((source) => source.status === "rejected")) return "rejected";
-  return "missing";
+export type ProviderCoverageState = "OK" | "PEND" | "NO" | "ERR";
+
+function metadataMarksSourceInvalid(source: LogoSource) {
+  const metadata = metadataObject(source.metadata);
+  return Boolean(
+    metadata.fetchError ||
+    metadata.lastError ||
+    metadata.error ||
+    metadata.invalid ||
+    metadata.blocked ||
+    metadata.unsafe ||
+    metadata.visualRejected ||
+    metadata.visuallyRejected,
+  );
 }
 
-function vaultCoverageStatus(sources: LogoSource[]) {
+function sourceIsReviewedForCoverage(source: LogoSource, logo: AdminLogo) {
+  if (sourceIsPublicCandidate(source, logo)) return true;
+  const metadata = metadataObject(source.metadata);
+  return source.provider === "coingecko" && source.status === "approved" && (metadata.autoApproved === true || metadata.approvalOrigin === "auto");
+}
+
+export function providerCoverageStatus(sources: LogoSource[], provider: string, logo: AdminLogo): ProviderCoverageState {
+  const providerSources = sources.filter((source) => source.provider === provider);
+  if (!providerSources.length) return "NO";
+  if (providerSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source) && sourceIsReviewedForCoverage(source, logo))) return "OK";
+  if (providerSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source))) return "PEND";
+  return "ERR";
+}
+
+export function vaultCoverageStatus(sources: LogoSource[], logo: AdminLogo): ProviderCoverageState {
   const vaultSources = sources.filter((source) => ["managed-vault", "vault"].includes(source.provider));
-  if (vaultSources.some((source) => source.status === "approved")) return "OK";
-  if (vaultSources.some((source) => source.status === "candidate")) return "review";
-  if (vaultSources.some((source) => source.status === "rejected")) return "rejected";
-  return "missing";
+  if (!vaultSources.length) return "NO";
+  if (vaultSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source) && sourceIsReviewedForCoverage(source, logo))) return "OK";
+  if (vaultSources.some((source) => source.status !== "rejected" && !metadataMarksSourceInvalid(source))) return "PEND";
+  return "ERR";
 }
 
 function sourceDisplayProvider(provider: string | null | undefined) {
@@ -258,9 +287,13 @@ export function classifyLogoQa(
     issues.push("coingecko_auto_approved");
   if (logo.status === "approved" && Boolean(logo.approved_logo_url))
     issues.push("already_approved");
-  if (!coinMarketCapId) issues.push("missing_cmc_id");
+  const cgCoverage = providerCoverageStatus(sources, "coingecko", logo);
+  const cmcCoverage = providerCoverageStatus(sources, "coinmarketcap", logo);
+  const defiLlamaCoverage = providerCoverageStatus(sources, "defillama", logo);
+  const vaultCoverage = vaultCoverageStatus(sources, logo);
+  if (cmcCoverage === "NO" || cmcCoverage === "ERR") issues.push("missing_cmc_id");
   const defiLlamaSources = sources.filter((source) => source.provider === "defillama");
-  if (!defiLlamaSources.some((source) => source.status !== "rejected"))
+  if (defiLlamaCoverage === "NO" || defiLlamaCoverage === "ERR")
     issues.push("missing_defillama_source");
   if (
     defiLlamaSources.some((source) => {
@@ -311,10 +344,10 @@ export function classifyLogoQa(
       ? sourceDisplayProvider(sources.find((source) => sourceIsPublicCandidate(source, logo))?.provider)
       : "fallback";
   const coverageSummary = [
-    `CG ${providerCoverageStatus(sources, "coingecko")}`,
-    `CMC ${providerCoverageStatus(sources, "coinmarketcap")}`,
-    `DLL ${providerCoverageStatus(sources, "defillama")}`,
-    `Vault ${vaultCoverageStatus(sources)}`,
+    `CG ${cgCoverage}`,
+    `CMC ${cmcCoverage}`,
+    `DL ${defiLlamaCoverage}`,
+    `Vault ${vaultCoverage}`,
   ].join(" · ");
 
   const providerSummary =

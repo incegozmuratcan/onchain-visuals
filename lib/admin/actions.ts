@@ -299,15 +299,27 @@ export async function addDefiLlamaAction(formData: FormData) {
     provider: "defillama",
     imageUrl: candidate.imageUrl,
     sourceUrl: candidate.sourceUrl,
-    metadata: { slug: candidate.slug, resolver: true, confidence: candidate.confidence, score: candidate.score, reviewStatus: "selected_needs_review", resolverDebug: candidate.debug },
+    metadata: {
+      slug: candidate.slug,
+      resolver: true,
+      resolverConfidence: candidate.confidence,
+      resolverReasons: candidate.reasons ?? [],
+      confidence: candidate.confidence,
+      score: candidate.score,
+      fetchedAt: new Date().toISOString(),
+      reviewStatus: "selected_needs_review",
+      resolverDebug: candidate.debug,
+    },
     status: "candidate",
     reviveRejected: true,
   });
   const sources = (await getLogoSources(logo.id)).rows;
+  await updateLogoFetchState(logo.slug, "defillama", null);
   if (!logo.approved_logo_url && logo.visual_status !== "rejected") {
     await selectSourceNeedsReview(created.id, "DefiLlama resolver selected source; admin review required");
   }
   revalidatePath(`/admin/logos/${logo.slug}`);
+  revalidatePath("/admin/logos");
   redirectLogoNotice(logo.slug, "success", sources.some((source) => source.provider === "coingecko" && source.status === "approved") ? "DefiLlama source added as backup." : "DefiLlama source fetched and selected pending review.");
 }
 
@@ -1005,8 +1017,11 @@ async function discoverLogoSources(
           slug: recommended.slug,
           discovery: true,
           resolver: true,
+          resolverConfidence: recommended.confidence,
+          resolverReasons: recommended.reasons ?? [],
           confidence: recommended.confidence,
           score: recommended.score,
+          fetchedAt: new Date().toISOString(),
           reviewStatus: "selected_needs_review",
           resolverDebug: recommended.debug,
         },
