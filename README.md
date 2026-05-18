@@ -4,6 +4,15 @@ Make DeFi data share-ready.
 
 learnDeFi creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
 
+## v0.11.18 DefiLlama v2 Strict Source System (Blocker)
+
+- Old guessed DefiLlama protocol auto-source discovery is disabled for persistence: `https://defillama.com/protocol/{slug}` + `https://icons.llama.fi/{slug}.jpg` is never trusted as a saved source unless resolver/index validation passes.
+- DefiLlama validation now classifies persisted rows with `defillamaV2`: `chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`, or `invalid`.
+- `icons.llama.fi/{slug}.jpg` protocol-style URLs are not trusted by default and are invalidated when resolver confirmation is missing or image appears placeholder/generic.
+- Valid mirrored chain assets remain accepted (for example `/logos/chains/*` mirrored from `https://icons.llama.fi/chains/rsz_{slug}.jpg`).
+- Source Tools maintenance **Validate DefiLlama sources** performs repair: invalid rows are hidden/invalidated, and invalid DefiLlama primaries are detached/reassigned/cleared. Run this once after deploy.
+- Missing DefiLlama and public logo candidate eligibility now accept only DefiLlama v2-valid rows.
+
 ## v0.11.17 DefiLlama Placeholder Invalidation (Akash Fix)
 
 - DefiLlama validation now treats external `icons.llama.fi/{slug}.jpg` protocol images as invalid when resolver confirmation is missing, and marks known placeholder/question-mark/generic icons as `placeholder_image` instead of accepting HTTP 200 alone.
