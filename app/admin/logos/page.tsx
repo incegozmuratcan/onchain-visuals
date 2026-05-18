@@ -368,6 +368,39 @@ function DiscoverySummary({ summary }: { summary: string }) {
   }
 }
 
+function DefiLlamaDiscoveryCard({ summary }: { summary: string }) {
+  try {
+    const data = JSON.parse(summary) as Record<string, unknown>;
+    const checked = Number(data.checked ?? 0);
+    const found = Number(data.defillamaFetched ?? data.defillamaFound ?? 0);
+    const noReliable = Number(data.defillamaNoReliable ?? data.defillamaMissing ?? 0);
+    const missing = Number(data.defillamaMissing ?? data.defillamaNoReliable ?? 0);
+    const errors = Number(data.defillamaErrors ?? 0);
+    const details = [
+      ...(Array.isArray(data.candidateList) ? data.candidateList.map(String).filter((item) => item.includes("DefiLlama")) : []),
+      ...(Array.isArray(data.firstErrors) ? data.firstErrors.map(String).filter((item) => item.includes("DefiLlama")) : []),
+      ...(Array.isArray(data.firstSkippedReasons) ? data.firstSkippedReasons.map(String).filter((item) => item.includes("DefiLlama")) : []),
+    ].map(detailFromText);
+    return (
+      <div className={`rounded-lg border p-2 text-xs font-bold ${summaryToneClass(errors, noReliable)}`}>
+        <div className="flex items-center justify-between gap-2">
+          <div className="font-black">DefiLlama discovery</div>
+          <div className="text-slate-400">{data.timestamp ? new Date(String(data.timestamp)).toLocaleString() : "latest"}</div>
+        </div>
+        <div className="mt-1">
+          {checked} checked · {found} found · {noReliable} no reliable · {missing} missing · {errors} errors
+        </div>
+        <details className="mt-1">
+          <summary className="cursor-pointer text-slate-500">Details</summary>
+          <DetailList entries={details} empty="No DefiLlama details recorded" />
+        </details>
+      </div>
+    );
+  } catch {
+    return <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">DefiLlama discovery: not run yet</div>;
+  }
+}
+
 function MetricScanSummary({
   scanSummary,
 }: {
@@ -526,16 +559,6 @@ function SourceTools({
         {discoverySummary ? (
           <DiscoverySummary summary={discoverySummary} />
         ) : null}
-        {summaries.coingecko ? (
-          <CompactRefreshSummary
-            summary={summaries.coingecko}
-            missingMappings={missingEntries}
-          />
-        ) : (
-          <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
-            CG refresh: not run yet
-          </div>
-        )}
         {scanSummary ? (
           <MetricScanSummary scanSummary={scanSummary} />
         ) : (
@@ -543,9 +566,30 @@ function SourceTools({
             Metric scan: not run yet
           </div>
         )}
+        {summaries.coingecko ? (
+          <CompactRefreshSummary
+            summary={summaries.coingecko}
+            missingMappings={missingEntries}
+          />
+        ) : (
+          <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
+            CoinGecko refresh: not run yet
+          </div>
+        )}
         {summaries.coinmarketcap ? (
           <CompactRefreshSummary summary={summaries.coinmarketcap} />
-        ) : null}
+        ) : (
+          <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
+            CoinMarketCap refresh: not run yet
+          </div>
+        )}
+        {discoverySummary ? (
+          <DefiLlamaDiscoveryCard summary={discoverySummary} />
+        ) : (
+          <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
+            DefiLlama discovery: not run yet
+          </div>
+        )}
       </div>
     </AdminSection>
   );

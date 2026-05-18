@@ -58,7 +58,7 @@ function LogoRow({ row }: { row: LogoResultRow }) {
     <div className="flex min-w-0 items-center gap-2">{preview ? <img src={preview} alt="" className="h-7 w-7 rounded-full border border-slate-200 bg-white object-contain" /> : <div className="h-7 w-7 rounded-full bg-slate-100" />}<div className="min-w-0"><div className="truncate text-sm font-black text-slate-950">{row.name}</div><div className="truncate text-[11px] font-bold text-slate-400">{row.slug}</div></div></div>
     <div className="truncate text-xs font-black text-slate-600">{row.category}</div>
     <StatusBadge status={row.status || "unknown"} />
-    <div className="min-w-0 text-[11px] font-bold leading-4 text-slate-500"><div className="truncate font-black text-slate-700" title={provider}>source: {provider}</div><div className="truncate" title={coverage}>{coverage}</div></div>
+    <div className="min-w-0 text-[11px] font-bold leading-4 text-slate-500"><div className="truncate font-black text-slate-700" title={`Primary: ${provider}`}>Primary: {provider}</div><div className="truncate" title={coverage}>{coverage}</div></div>
     <div className="min-w-0">{displayIssue ? <IssueDot issue={displayIssue} /> : <span className="text-[10px] font-black uppercase tracking-[0.08em] text-emerald-600">healthy</span>}</div>
   </Link>;
 }

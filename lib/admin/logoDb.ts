@@ -209,8 +209,14 @@ export async function upsertLogoSource(input: {
   const result = await query<LogoSource>(
     `WITH existing AS (
        SELECT id FROM logo_sources
-       WHERE logo_id = $1 AND provider = $2 AND image_url = $4 AND COALESCE(source_url, '') = COALESCE($3, '')
-       ORDER BY id ASC
+       WHERE logo_id = $1
+         AND provider = $2
+         AND (
+           (image_url = $4 AND COALESCE(source_url, '') = COALESCE($3, ''))
+           OR (COALESCE(metadata->>'slug', '') <> '' AND COALESCE(metadata->>'slug', '') = COALESCE($6::jsonb->>'slug', ''))
+           OR (provider = 'coinmarketcap' AND COALESCE(metadata->>'coinMarketCapId', metadata->>'cmcId', metadata->>'id', '') <> '' AND COALESCE(metadata->>'coinMarketCapId', metadata->>'cmcId', metadata->>'id', '') = COALESCE($6::jsonb->>'coinMarketCapId', $6::jsonb->>'cmcId', $6::jsonb->>'id', ''))
+         )
+       ORDER BY status = 'rejected', id ASC
        LIMIT 1
      ), updated AS (
        UPDATE logo_sources

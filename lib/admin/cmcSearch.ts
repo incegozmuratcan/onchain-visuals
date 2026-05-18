@@ -32,6 +32,7 @@ const CMC_ALIAS_GROUPS = [
   ["aptos", "apt"],
   ["near"],
   ["filecoin", "fil"],
+  ["geodnet", "geod", "geod-network"],
 ];
 
 const aliasLookup = new Map<string, Set<string>>();
@@ -42,6 +43,44 @@ for (const group of CMC_ALIAS_GROUPS) {
     normalized.forEach((alias) => set.add(alias));
     aliasLookup.set(value, set);
   }
+}
+
+
+const SUFFIX_ALIASES = ["network", "net", "protocol", "chain", "token", "finance", "labs"];
+const SHORT_SYMBOL_ALIASES: Record<string, string[]> = {
+  geodnet: ["geod"],
+  katana: ["kat"],
+  ethereum: ["eth"],
+  bitcoin: ["btc"],
+  arbitrum: ["arb"],
+  avalanche: ["avax"],
+  polygon: ["pol", "matic"],
+  optimism: ["op"],
+  "bnb-chain": ["bnb"],
+  solana: ["sol"],
+  render: ["rndr"],
+};
+
+function derivedTickerAliases(value: unknown) {
+  const normalized = normalizeProviderText(value);
+  const slug = slugText(value);
+  const compact = normalized.replace(/[^a-z0-9]+/g, "");
+  const aliases = new Set<string>();
+  for (const key of [normalized, slug, compact]) {
+    (SHORT_SYMBOL_ALIASES[key] ?? []).forEach((alias) => aliases.add(alias));
+  }
+  for (const suffix of SUFFIX_ALIASES) {
+    const suffixCompact = suffix.replace(/[^a-z0-9]/g, "");
+    if (compact.endsWith(suffixCompact) && compact.length > suffixCompact.length + 1) {
+      const shortened = compact.slice(0, -suffixCompact.length);
+      if (/^[a-z0-9]{2,6}$/.test(shortened)) aliases.add(shortened);
+    }
+    if (normalized.endsWith(` ${suffix}`)) {
+      const shortened = normalized.slice(0, -suffix.length).trim().replace(/[^a-z0-9]/g, "");
+      if (/^[a-z0-9]{2,6}$/.test(shortened)) aliases.add(shortened);
+    }
+  }
+  return [...aliases];
 }
 
 function clean(value: unknown) {
@@ -57,7 +96,7 @@ function expandCmcAliases(...values: unknown[]) {
   for (const value of values) {
     const normalized = normalizeProviderText(value);
     const slug = slugText(value);
-    for (const token of [normalized, slug]) {
+    for (const token of [normalized, slug, ...derivedTickerAliases(value)]) {
       if (!token) continue;
       tokens.add(token);
       aliasLookup.get(token)?.forEach((alias) => tokens.add(alias));

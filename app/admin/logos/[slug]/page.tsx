@@ -33,7 +33,7 @@ import {
   type LogoSource,
 } from "@/lib/admin/logoDb";
 import { AdminDbErrorPanel, safeAdminDbQuery } from "@/lib/admin/adminDbError";
-import { classifyLogoQa, getCoinMarketCapId } from "@/lib/admin/logoQa";
+import { classifyLogoQa, getCoinMarketCapId, providerCoverageStatus, vaultCoverageStatus } from "@/lib/admin/logoQa";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
@@ -429,10 +429,16 @@ export default async function LogoDetailPage({
         },
       };
   const cmcReady = Boolean((await resolveApiSecret("coinmarketcap")).value);
-  const cmcFinderQuery = firstParam(searchParams?.cmcq, "");
+  const providerAliasTokens = sources.flatMap((source) => {
+    const meta = metadataObject(source.metadata);
+    return [meta.symbol, meta.name, meta.slug, meta.coinGeckoId, meta.defillamaSlug, meta.alias, ...(Array.isArray(meta.aliases) ? meta.aliases : [])]
+      .map((value) => safeString(value))
+      .filter(Boolean) as string[];
+  });
+  const cmcFinderQuery = firstParam(searchParams?.cmcq, !coinMarketCapId ? logoName : "");
   const cmcFinderResult =
     cmcFinderQuery && cmcReady
-      ? await searchCoinMarketCapIds(cmcFinderQuery, { targetName: logoName, targetSlug: logoSlug })
+      ? await searchCoinMarketCapIds(cmcFinderQuery, { targetName: logoName, targetSlug: logoSlug, aliases: providerAliasTokens })
       : {
           candidates: [],
           error: cmcReady ? null : "Add CoinMarketCap API key first",
@@ -513,6 +519,12 @@ export default async function LogoDetailPage({
     defiLlamaSource && defiLlamaSource.status !== "rejected"
       ? defiLlamaSource
       : null;
+  const providerCoverage = {
+    coingecko: providerCoverageStatus(sources, "coingecko", logo),
+    coinmarketcap: providerCoverageStatus(sources, "coinmarketcap", logo),
+    defillama: providerCoverageStatus(sources, "defillama", logo),
+    vault: vaultCoverageStatus(sources, logo),
+  };
   const managedVaultSource =
     providerSource("managed-vault") ?? providerSource("vault");
   const cmcNumeric = Boolean(
@@ -793,6 +805,9 @@ export default async function LogoDetailPage({
           </span>
           <span className="text-xs font-bold text-slate-400">
             CMC {safeString(coinMarketCapId) || "missing"}
+          </span>
+          <span className="text-xs font-bold text-slate-400">
+            Coverage CG {providerCoverage.coingecko} · CMC {providerCoverage.coinmarketcap} · DL {providerCoverage.defillama} · Vault {providerCoverage.vault}
           </span>
         </div>
       }
@@ -1235,12 +1250,14 @@ export default async function LogoDetailPage({
                   Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={activeDefiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : "amber"}>
+              <AdminStatusPill tone={activeDefiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
                 {activeDefiLlamaSource
-                  ? "source present"
+                  ? "SOURCE PRESENT"
                   : recommendedDefiLlama
-                    ? "recommended source found"
-                    : "no reliable source"}
+                    ? "RECOMMENDED SOURCE"
+                    : otherDefiLlamaMatches.length
+                      ? "OTHER MATCHES ONLY"
+                      : "NO RELIABLE SOURCE"}
               </AdminStatusPill>
             </div>
             <form className="mt-3 flex gap-2">
