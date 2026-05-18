@@ -29,6 +29,14 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 - Provider helper badges are DB-truthful: `SOURCE PRESENT` appears only for a non-rejected saved source row with a real image; unsaved high-confidence helper matches are `RECOMMENDED SOURCE`, and unresolved helpers stay `NO RELIABLE SOURCE`.
 - Public card candidates remain selected reviewed primary → reviewed Managed Vault → reviewed CoinGecko/CoinMarketCap/DefiLlama → generated fallback. `NO`, `REVIEW`, `ERR`, helper previews, provider IDs/slugs, generated placeholders and non-canonical duplicate candidates are excluded. Advanced source records show canonical/current rows by default and hide historical duplicate rows behind “Show hidden source history.” No schema changes were made; Admin DB Setup is not required.
 
+
+## v0.11.14 Logo Manager Reliability Finalization
+
+- DefiLlama canonical coverage now treats target-mismatched rows as canonical `ERR` (not coverage), including stale cross-logo rows, and excludes placeholder/question-mark/unknown-logo style URLs from real source coverage.
+- CoinGecko/CMC helper action policy now allows strong medium-confidence related matches (for example target-short-name plus `Network/Chain/Protocol`) while blocking unrelated/derivative suggestions (for example Pendle for Quai) from actionable CTA state.
+- Missing DefiLlama, Source Present, provider rows and public candidate eligibility remain driven by persisted canonical source rows only; helper previews, saved slugs/IDs, placeholders and stale mismatches do not clear missing state.
+- No schema changes were made; Admin DB Setup is not required.
+
 ## v0.11.13 Provider Helper Accuracy + DefiLlama Poisoned Source Cleanup
 
 - DefiLlama coverage now requires target-aware source matching. Persisted DefiLlama rows only count when metadata slug, DefiLlama slug, source URL slug, or image URL slug matches the current logo slug/name; mismatched historical rows (for example Pendle on Akash) are excluded from canonical coverage and missing-filter resolution.
