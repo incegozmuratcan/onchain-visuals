@@ -51,7 +51,7 @@ import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
-import { validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
+import { classifyDefiLlamaSourceV2, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
 import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 import {
   deleteAdminApiSecret,
@@ -246,7 +246,7 @@ export async function validateDefiLlamaSourcesAction() {
     byLogoSources.set(row.logo_id, list);
   }
   let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0, detachedPrimary=0, reassignedPrimary=0, clearedPrimary=0, missingAfterRepair=0;
-  let validChainMirrors = 0, validChainIcons = 0, validProtocols = 0, invalidGuessedProtocolRows = 0;
+  let validChainMirrors = 0, validChainIcons = 0, validProtocols = 0, validManualReviewed = 0, invalidGuessedProtocolRows = 0;
   for (const source of sources) {
     const logo = byLogo.get(source.logo_id);
     if (!logo) continue;
@@ -260,7 +260,7 @@ export async function validateDefiLlamaSourcesAction() {
         if (result.reason === "old_guessed_protocol_source") invalidGuessedProtocolRows++;
         if (result.isMismatched) mismatches++;
         const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
-        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV2: "invalid" };
+        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV2: "invalid", superseded: false };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
         if (logo.approved_source_id === source.id) {
           detachedPrimary++;
@@ -279,7 +279,8 @@ export async function validateDefiLlamaSourcesAction() {
         if (result.sourceType === "chain-mirror") validChainMirrors++;
         else if (result.sourceType === "chain-icon") validChainIcons++;
         else if (result.sourceType === "protocol-index") validProtocols++;
-        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV2: result.sourceType };
+        else if (result.sourceType === "manual-reviewed") validManualReviewed++;
+        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV2: result.sourceType, hidden:false, invalidForTarget:false, invalidReason:null };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
       }
     } catch { errors++; }
@@ -290,7 +291,7 @@ export async function validateDefiLlamaSourcesAction() {
     return state.state !== "OK" && state.state !== "REVIEW";
   }).length;
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama complete: ${logos.length} logos · ${sources.length} DL rows checked · valid: mirrors ${validChainMirrors}, chain icons ${validChainIcons}, protocols ${validProtocols} (${valid} total) · invalidated ${invalidated} (guessed protocol ${invalidGuessedProtocolRows}, placeholders ${placeholders}, resolver no reliable ${noReliable}, target mismatch ${mismatches}) · primaries detached ${detachedPrimary}, reassigned ${reassignedPrimary}, cleared ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Reset DefiLlama sources v2 complete: checked logos ${logos.length} · checked DefiLlama rows ${sources.length} · valid chain mirrors ${validChainMirrors}, valid chain icons ${validChainIcons}, valid protocols ${validProtocols}, valid manual reviewed ${validManualReviewed} (${valid} total) · invalidated guessed protocol rows ${invalidGuessedProtocolRows}, invalidated placeholders ${placeholders}, invalidated target mismatches ${mismatches}, invalidated resolver no reliable ${noReliable} (${invalidated} total) · detached primaries ${detachedPrimary}, reassigned primaries ${reassignedPrimary}, cleared primaries ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
@@ -393,6 +394,28 @@ export async function addDefiLlamaAction(formData: FormData) {
         found.error || "No reliable DefiLlama source found.",
       );
     }
+    const classified = classifyDefiLlamaSourceV2({
+      logoName: logo.name,
+      logoSlug: logo.slug,
+      logoCategory: logo.category,
+      knownAliases: [requestedSlug, candidate.slug],
+      source: {
+        id: "candidate",
+        logo_id: logo.id,
+        provider: "defillama",
+        image_url: candidate.imageUrl,
+        source_url: candidate.sourceUrl,
+        blob_url: null,
+        status: "candidate",
+        rejection_reason: null,
+        created_at: new Date().toISOString(),
+        metadata: { slug: candidate.slug, defillamaSlug: candidate.slug },
+      } as unknown as LogoSource,
+    });
+    if (!classified.valid) {
+      await updateLogoFetchState(logo.slug, "defillama", "No reliable DefiLlama source found.");
+      redirectLogoNotice(logo.slug, "warning", `No reliable DefiLlama source found (${classified.reason}).`);
+    }
 
     const existingDefiLlamaSource = sourcesBefore.find((source) => {
       const meta = sourceMetadata(source);
@@ -439,6 +462,7 @@ export async function addDefiLlamaAction(formData: FormData) {
         sourceOrigin: "defillama-helper",
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
+        defillamaV2: classified.sourceType,
       },
       status: "candidate",
       reviveRejected: false,

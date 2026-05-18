@@ -555,7 +555,7 @@ function SourceTools({
             </form>
             <form action={validateDefiLlamaSourcesAction}>
               <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
-                Validate DefiLlama sources
+                Reset DefiLlama sources v2
               </button>
             </form>
           </div>

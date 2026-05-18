@@ -4,6 +4,15 @@ Make DeFi data share-ready.
 
 learnDeFi creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
 
+## v0.11.19 DefiLlama v2 Reset + Rediscovery (Blocker)
+
+- Added strict `classifyDefiLlamaSourceV2(logo, source)` classification semantics for persisted DefiLlama rows: `chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`, `invalid`.
+- Old guessed protocol rows are not trusted as coverage, backup, review or active source state unless resolver/index validation confirms a real non-placeholder match.
+- Source Tools maintenance action is now **Reset DefiLlama sources v2** with explicit invalidation + primary repair summary counters.
+- DefiLlama fetch/discovery persistence is v2-strict: only v2-valid candidates are saved; guessed/placeholder/unreliable rows are rejected.
+- Missing DefiLlama now means no persisted v2-valid DefiLlama source exists for the logo.
+- Post-deploy runbook: run **Reset DefiLlama sources v2** first, then run discovery to repopulate valid DefiLlama review candidates.
+
 ## v0.11.18 DefiLlama v2 Strict Source System (Blocker)
 
 - Old guessed DefiLlama protocol auto-source discovery is disabled for persistence: `https://defillama.com/protocol/{slug}` + `https://icons.llama.fi/{slug}.jpg` is never trusted as a saved source unless resolver/index validation passes.
