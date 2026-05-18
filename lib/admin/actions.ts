@@ -494,6 +494,50 @@ export async function addDefiLlamaAction(formData: FormData) {
       );
     }
 
+    await query(
+      `update logo_sources
+          set metadata = jsonb_strip_nulls(
+            jsonb_set(
+              jsonb_set(
+                jsonb_set(coalesce(metadata, '{}'::jsonb), '{hidden}', 'false'::jsonb, true),
+                '{invalidForTarget}',
+                'false'::jsonb,
+                true
+              ),
+              '{invalidReason}',
+              'null'::jsonb,
+              true
+            ) || jsonb_build_object(
+              'validatedForTarget', true,
+              'validatedAt', now()::text,
+              'reviewStatus', coalesce((coalesce(metadata,'{}'::jsonb)->>'reviewStatus'), 'needs_review'),
+              'defillamaV2', $3
+            )
+          )
+        where id = $1 and logo_id = $2`,
+      [created.id, logo.id, classified.sourceType],
+    );
+
+    const postSaveSources = (await getLogoSources(logo.id)).rows;
+    for (const stale of postSaveSources.filter((s) => s.provider === "defillama" && s.id !== created.id)) {
+      const staleCheck = classifyDefiLlamaSourceV2({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: stale });
+      if (!staleCheck.valid) {
+        await query(
+          `update logo_sources
+             set metadata = coalesce(metadata, '{}'::jsonb) ||
+               jsonb_build_object('hidden', true, 'superseded', true, 'supersededBy', $2)
+           where id = $1`,
+          [stale.id, created.id],
+        );
+      }
+    }
+
+    const canonical = resolveCanonicalProviderState((await getLogoSources(logo.id)).rows, "defillama", logo);
+    if (canonical.state === "ERR" || canonical.state === "NO") {
+      await updateLogoFetchState(logo.slug, "defillama", "DefiLlama source saved but canonical state did not update.");
+      redirectLogoNotice(logo.slug, "error", "DefiLlama source saved but canonical state did not update.");
+    }
+
     await updateLogoFetchState(logo.slug, "defillama", null);
     if (shouldSelect) {
       await selectSourceNeedsReview(

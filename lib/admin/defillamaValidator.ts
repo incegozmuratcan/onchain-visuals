@@ -24,6 +24,16 @@ function isExternalProtocolIcon(url: string) {
 }
 
 function uniq(values: string[]) { return [...new Set(values.filter(Boolean))]; }
+function aliasFamily(slugs: string[]) {
+  const normalized = slugs.map((s) => slugText(s)).filter(Boolean);
+  const hasBnb = normalized.some((s) =>
+    ["bnb", "bnb-chain", "bsc", "binance-smart-chain", "binancecoin"].includes(s),
+  );
+  if (hasBnb) {
+    normalized.push("bnb", "bnb-chain", "bnb-chain-network", "bsc", "binance-smart-chain", "binancecoin");
+  }
+  return uniq(normalized);
+}
 function slugFromUrl(value: string) {
   const v = String(value||"").toLowerCase();
   const m1 = v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);
@@ -44,7 +54,7 @@ export function classifyDefiLlamaSourceV2(input: { logoName?: string; logoSlug?:
   if (PLACEHOLDER_PATTERNS.some((p) => combined.includes(p))) return { valid:false, reason:"placeholder_image", sourceType:"invalid", isPlaceholder:true, isExternalProtocolIcon: externalProtocolIcon };
 
   const sourceSlug = slugText(String(meta.slug||meta.defillamaSlug||meta.savedProviderSlug||"") || slugFromUrl(sourceUrl) || slugFromUrl(imageUrl));
-  const targetSlugs = uniq([
+  const targetSlugs = aliasFamily([
     slugText(input.logoSlug||""), slugText(input.logoName||""), ...(input.knownAliases||[]).map((a)=>slugText(a)),
   ]);
   const sourceOk = targetSlugs.some((t) => t && (sourceSlug===t || sourceSlug.startsWith(`${t}-`) && SAFE_SUFFIX.some((s)=>sourceSlug===`${t}-${s}`)));
@@ -58,7 +68,16 @@ export function classifyDefiLlamaSourceV2(input: { logoName?: string; logoSlug?:
   if (adminReviewed) return { valid:true, reason:"admin_reviewed", sourceType:"manual-reviewed", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
   if (chainMirror) return { valid:true, reason:"valid_chain_mirror", sourceType:"chain-mirror", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
   if (chainIcon) return { valid:true, reason:"valid_chain_icon", sourceType:"chain-icon", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
-  if (isGuessedProtocolRow(sourceUrl, imageUrl)) return { valid:false, reason:"old_guessed_protocol_source", sourceType:"invalid", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
+  const resolverConfirmed =
+    meta.resolver === true ||
+    String(meta.sourceOrigin || "").toLowerCase() === "defillama-helper" ||
+    String(meta.resolverConfidence || "").toLowerCase() === "high" ||
+    meta.indexConfirmed === true ||
+    meta.protocolIndexConfirmed === true;
+  if (isGuessedProtocolRow(sourceUrl, imageUrl) && !resolverConfirmed) return { valid:false, reason:"old_guessed_protocol_source", sourceType:"invalid", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
+  if (!resolverConfirmed) {
+    return { valid:false, reason:"resolver_no_reliable_source", sourceType:"invalid", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
+  }
   return { valid:true, reason:"valid_protocol_index_candidate", sourceType:"protocol-index", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
 }
 

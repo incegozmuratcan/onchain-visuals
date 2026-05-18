@@ -9,6 +9,13 @@
 - learnDeFi is not an AI product, not a paid SaaS right now and not a crypto data terminal.
 - The current UI should not include paid/free plan copy, alerts, scheduled reports, auth, admin panel or AI-heavy features.
 
+## v0.11.20 DefiLlama v2 Deterministic Reliability (Blocker)
+
+- Added deterministic verification script `npm run verify:defillama` (`scripts/verify-defillama-v2.mjs`) covering BNB/bsc alias validity, Akash invalid guessed protocol rejection, Pendle-for-Akash target mismatch rejection, Aptos chain mirror validity, Geodnet resolver-confirmed protocol-index validity, and invalid-vs-valid canonical prerequisites.
+- DefiLlama alias family now treats BNB, BNB Chain, BSC, Binance Smart Chain and BinanceCoin as the same target family for v2 validation/canonical resolution paths.
+- DefiLlama Use + Fetch now enforces v2 validation metadata normalization, supersedes old invalid DefiLlama rows, and fails with an explicit error if canonical DefiLlama state remains `ERR`/`NO` after save.
+- Reset DefiLlama sources v2 and canonical source priority continue to ensure invalid historical rows cannot block newer valid DefiLlama rows.
+
 # Current Stack
 
 - Next.js

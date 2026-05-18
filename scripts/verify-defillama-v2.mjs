@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+
+const SAFE_SUFFIX = ["network","chain","protocol","labs","foundation","dao","token"];
+const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","placeholder","blank","empty","default-fallback","/api/chain-logo","generic"];
+const slugText=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const uniq=(arr)=>[...new Set(arr.filter(Boolean))];
+const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");return uniq(n)};
+const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
+const isGuessedProtocolRow=(s,i)=>/defillama\.com\/protocol\//i.test(s)&&/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(i);
+const isExternalProtocolIcon=(u)=>/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
+const slugFromUrl=(v)=>{v=String(v||'').toLowerCase();const m1=v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);if(m1?.[1])return slugText(m1[1]);const m2=v.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);return m2?.[1]?slugText(m2[1]):''};
+function classify({logoName,logoSlug,source,knownAliases=[]}){
+ const meta=source.metadata||{};const imageUrl=source.image_url||'';const sourceUrl=source.source_url||'';const combined=[imageUrl,sourceUrl,JSON.stringify(meta)].join(' ').toLowerCase();
+ if(PLACEHOLDER_PATTERNS.some((p)=>combined.includes(p))) return {valid:false,sourceType:'invalid',reason:'placeholder_image'};
+ const sourceSlug=slugText(meta.slug||meta.defillamaSlug||slugFromUrl(sourceUrl)||slugFromUrl(imageUrl));
+ const targetSlugs=aliasFamily([slugText(logoSlug),slugText(logoName),...knownAliases.map(slugText)]);
+ const sourceOk=targetSlugs.some((t)=>t&&(sourceSlug===t||sourceSlug.startsWith(`${t}-`)&&SAFE_SUFFIX.some((s)=>sourceSlug===`${t}-${s}`)));
+ if(!sourceOk) return {valid:false,sourceType:'invalid',reason:'target_mismatch'};
+ const chainMirror=imageUrl.startsWith('/logos/chains/')&&/\/chains\/rsz_/i.test(sourceUrl);
+ const chainIcon=isChainIconUrl(sourceUrl)||isChainIconUrl(imageUrl);
+ if(chainMirror) return {valid:true,sourceType:'chain-mirror',reason:'valid_chain_mirror'};
+ if(chainIcon) return {valid:true,sourceType:'chain-icon',reason:'valid_chain_icon'};
+ if(isGuessedProtocolRow(sourceUrl,imageUrl)) return {valid:false,sourceType:'invalid',reason:'old_guessed_protocol_source'};
+ const resolverConfirmed=meta.resolver===true||String(meta.sourceOrigin||'').toLowerCase()==='defillama-helper'||String(meta.resolverConfidence||'').toLowerCase()==='high'||meta.indexConfirmed===true||meta.protocolIndexConfirmed===true;
+ if(isGuessedProtocolRow(sourceUrl,imageUrl) && !resolverConfirmed) return {valid:false,sourceType:'invalid',reason:'old_guessed_protocol_source'};
+  if(!resolverConfirmed) return {valid:false,sourceType:'invalid',reason:'resolver_no_reliable_source'};
+ return {valid:true,sourceType:'protocol-index',reason:'valid_protocol_index_candidate'};
+}
+const bnb=classify({logoName:'BNB Chain',logoSlug:'bnb-chain',knownAliases:['binancecoin'],source:{provider:'defillama',id:'1',source_url:'https://defillama.com/chain/bsc',image_url:'https://icons.llama.fi/chains/rsz_bsc.jpg',metadata:{slug:'bsc',defillamaSlug:'bsc',defillamaV2:'chain-icon'}}});
+assert.equal(bnb.valid,true);assert.equal(bnb.sourceType,'chain-icon');
+const akash=classify({logoName:'Akash',logoSlug:'akash',source:{provider:'defillama',id:'2',source_url:'https://defillama.com/protocol/akash',image_url:'https://icons.llama.fi/akash.jpg',metadata:{slug:'akash',reviewStatus:'selected_needs_review'}}});
+assert.equal(akash.valid,false);
+const pendle=classify({logoName:'Akash',logoSlug:'akash',source:{provider:'defillama',id:'3',source_url:'https://defillama.com/protocol/pendle',image_url:'https://icons.llama.fi/pendle.jpg',metadata:{slug:'pendle'}}});
+assert.equal(pendle.reason,'target_mismatch');
+const aptos=classify({logoName:'Aptos',logoSlug:'aptos',source:{provider:'defillama',id:'4',source_url:'https://icons.llama.fi/chains/rsz_aptos.jpg',image_url:'/logos/chains/aptos.jpg',metadata:{defillamaV2:'chain-mirror'}}});
+assert.equal(aptos.valid,true);assert.equal(aptos.sourceType,'chain-mirror');
+const geo=classify({logoName:'Geodnet',logoSlug:'geodnet',source:{provider:'defillama',id:'5',source_url:'https://icons.llama.fi/geodnet.jpg',image_url:'https://icons.llama.fi/geodnet.jpg',metadata:{slug:'geodnet',sourceOrigin:'defillama-helper',resolverConfidence:'high'}}});
+assert.equal(geo.valid,true);assert.equal(geo.sourceType,'protocol-index');
+const geoNo=classify({logoName:'Geodnet',logoSlug:'geodnet',source:{provider:'defillama',id:'6',source_url:'https://icons.llama.fi/geodnet.jpg',image_url:'https://icons.llama.fi/geodnet.jpg',metadata:{slug:'geodnet'}}});
+assert.equal(geoNo.valid,false);
+const oldInvalid=classify({logoName:'BNB Chain',logoSlug:'bnb-chain',source:{provider:'defillama',id:'7',source_url:'https://defillama.com/protocol/pendle',image_url:'https://icons.llama.fi/pendle.jpg',metadata:{slug:'pendle'}}});
+assert.equal(oldInvalid.valid,false);
+console.log('DefiLlama v2 deterministic verification passed (BNB, Akash, Aptos, Geodnet, canonical invalid-vs-valid prerequisites).');

@@ -10,7 +10,8 @@
     "logos:sync": "node scripts/sync-logos.mjs",
     "db:push": "node scripts/db-push.mjs",
     "admin:seed-logos": "node scripts/admin-seed-logos.mjs",
-    "admin:test-seed-protection": "node scripts/admin-test-seed-protection.mjs"
+    "admin:test-seed-protection": "node scripts/admin-test-seed-protection.mjs",
+    "verify:defillama": "node scripts/verify-defillama-v2.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
