@@ -514,7 +514,6 @@ export default async function LogoDetailPage({
     canonicalProviders.defillama.state === "OK" || canonicalProviders.defillama.state === "REVIEW"
       ? defiLlamaSource
       : null;
-  const hasReliableDefiLlamaSource = Boolean(activeDefiLlamaSource);
   const providerCoverage = {
     coingecko: providerCoverageStatus(sources, "coingecko", logo),
     coinmarketcap: providerCoverageStatus(sources, "coinmarketcap", logo),
@@ -524,6 +523,43 @@ export default async function LogoDetailPage({
   const managedVaultSource = canonicalProviders.vault.source;
   const cmcNumeric = Boolean(
     coinMarketCapId && /^\d+$/.test(String(coinMarketCapId)),
+  );
+  const defiLlamaQuery = firstParam(searchParams?.dflq, savedDefiLlamaSlug || logoSlug);
+  const defiLlamaSlug =
+    (defiLlamaQuery || logoSlug)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || logoSlug;
+  const defiLlamaFinderResult = defiLlamaQuery
+    ? await searchDefiLlamaSources(defiLlamaQuery, { targetName: logoName, targetSlug: logoSlug, category: logoCategory })
+    : {
+        candidates: [],
+        error: null,
+        debug: {
+          query: "",
+          targetName: logoName,
+          targetSlug: logoSlug,
+          targetCategory: logoCategory,
+          expectedCategory: null,
+          aliasesTried: [],
+          urlPatternsTried: [],
+          attempts: [],
+          selectedCandidateReason: null,
+          notices: [],
+        },
+      };
+  const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended && candidate.confidence === "high") ?? null;
+  const otherDefiLlamaMatches = defiLlamaFinderResult.candidates.filter((candidate) => candidate.id !== recommendedDefiLlama?.id);
+  const defiLlamaPreview = recommendedDefiLlama?.imageUrl || null;
+  const activeDefiLlamaMeta = metadataObject(defiLlamaSource?.metadata);
+  const activeDefiLlamaIsAdminReviewed =
+    String(activeDefiLlamaMeta.reviewStatus || "").toLowerCase() === "reviewed" &&
+    String(activeDefiLlamaMeta.approvalOrigin || "").toLowerCase() === "admin";
+  const resolverHasReliableDefiLlama = Boolean(recommendedDefiLlama);
+  const hasReliableDefiLlamaSource = Boolean(
+    activeDefiLlamaSource &&
+      (activeDefiLlamaIsAdminReviewed || resolverHasReliableDefiLlama),
   );
   const mainProviders: Array<{
     key: ProviderKey;
@@ -766,34 +802,6 @@ export default async function LogoDetailPage({
         ),
     },
   ];
-  const defiLlamaQuery = firstParam(searchParams?.dflq, savedDefiLlamaSlug || logoSlug);
-  const defiLlamaSlug =
-    (defiLlamaQuery || logoSlug)
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9-]+/g, "-")
-      .replace(/^-+|-+$/g, "") || logoSlug;
-  const defiLlamaFinderResult = defiLlamaQuery
-    ? await searchDefiLlamaSources(defiLlamaQuery, { targetName: logoName, targetSlug: logoSlug, category: logoCategory })
-    : {
-        candidates: [],
-        error: null,
-        debug: {
-          query: "",
-          targetName: logoName,
-          targetSlug: logoSlug,
-          targetCategory: logoCategory,
-          expectedCategory: null,
-          aliasesTried: [],
-          urlPatternsTried: [],
-          attempts: [],
-          selectedCandidateReason: null,
-          notices: [],
-        },
-      };
-  const recommendedDefiLlama = defiLlamaFinderResult.candidates.find((candidate) => candidate.recommended && candidate.confidence === "high") ?? null;
-  const otherDefiLlamaMatches = defiLlamaFinderResult.candidates.filter((candidate) => candidate.id !== recommendedDefiLlama?.id);
-  const defiLlamaPreview = recommendedDefiLlama?.imageUrl || null;
 
   return (
     <AdminShell

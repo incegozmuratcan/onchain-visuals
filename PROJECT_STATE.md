@@ -37,6 +37,15 @@
 
 
 
+## v0.11.16 DefiLlama Source Truth Validation
+
+- DefiLlama source validity now requires current resolver confirmation for non-admin-reviewed rows. Auto-selected `selected_needs_review`/`needs_review`/`pending` rows are invalidated when resolver returns no reliable candidate.
+- Added/updated **Validate DefiLlama sources** maintenance action to scan all DefiLlama rows and mark stale rows hidden/invalid with reasons (`resolver_no_reliable_source`, `target_mismatch`, `placeholder_or_unverified`) and validation timestamps.
+- Missing DefiLlama truth now uses valid DefiLlama rows only; invalid/hidden rows do not count as coverage and remain visible only in hidden source history.
+- DefiLlama provider row truth now shows Missing / No reliable source when saved rows are invalid or unverified by resolver, preventing false Backup/Needs review states.
+- Public candidate resolution excludes invalid DefiLlama rows.
+- No schema changes were made; Admin DB Setup is not required.
+
 ## v0.11.15 Logo Manager Truth Hard-Fix
 
 - DefiLlama canonical state is now strict-source truth: a saved row only counts when it is persisted, non-rejected, non-hidden/non-superseded, target-matching, and backed by a real non-placeholder image URL/blob URL. Slug-only/default-slug/helper-preview states are explicitly treated as missing.
