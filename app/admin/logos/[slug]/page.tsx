@@ -846,13 +846,23 @@ export default async function LogoDetailPage({
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2 text-center text-xs font-black text-slate-500">
-            {[mainProviders[0], mainProviders[1], mainProviders[2]].map((provider) => (
-              <div key={provider.key} className="rounded-xl bg-white p-2">
-                <Img src={sourceImage(provider.source)} size={36} />
-                <div className="mt-1 truncate">{provider.name}</div>
-                <div className="mt-0.5 text-[10px] text-slate-400">{provider.status}</div>
-              </div>
-            ))}
+            {[mainProviders[0], mainProviders[1], mainProviders[2]].map((provider) => {
+              const isPrimary = provider.source?.id === primarySource?.id;
+              const isRejected = provider.source?.status === "rejected";
+              const isPending = provider.status.toLowerCase().includes("pending") || provider.status.toLowerCase().includes("review");
+              return (
+                <div
+                  key={provider.key}
+                  className={`rounded-xl border p-2 ${isPrimary ? "border-emerald-200 bg-emerald-50 text-emerald-900" : isRejected ? "border-red-100 bg-red-50 text-red-700" : isPending ? "border-amber-100 bg-amber-50 text-amber-800" : "border-slate-100 bg-white text-slate-500"}`}
+                >
+                  <Img src={sourceImage(provider.source)} size={36} />
+                  <div className="mt-1 truncate">{provider.name}</div>
+                  <div className={`mt-0.5 text-[10px] ${isPrimary ? "font-black text-emerald-700" : "text-slate-400"}`}>
+                    {isPrimary ? "PRIMARY" : provider.source ? "Backup" : provider.status}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -934,7 +944,7 @@ export default async function LogoDetailPage({
             {mainProviders.map((row) => (
               <div
                 key={row.key}
-                className={`${row.secondary ? "bg-slate-50/70" : "bg-white"} grid gap-3 rounded-2xl border border-slate-100 p-3 md:grid-cols-[170px_110px_64px_1fr] md:items-center`}
+                className={`${row.source?.id === primarySource?.id ? "border-emerald-200 bg-emerald-50/70" : row.source?.status === "rejected" ? "border-red-100 bg-red-50/70" : row.status.toLowerCase().includes("pending") || row.status.toLowerCase().includes("review") ? "border-amber-100 bg-amber-50/60" : row.secondary ? "border-slate-100 bg-slate-50/70" : "border-slate-100 bg-white"} grid gap-3 rounded-2xl border p-3 md:grid-cols-[170px_110px_64px_1fr] md:items-center`}
               >
                 <div className="min-w-0">
                   <div className="font-black text-slate-950">{row.name}</div>
@@ -1104,38 +1114,38 @@ export default async function LogoDetailPage({
           ) : null}
           {cgFinderResult.candidates.length ? (
             <div className="mt-3 grid gap-2">
-              {cgFinderResult.candidates.slice(0, 4).map((candidate) => (
-                <form
-                  key={candidate.id}
-                  action={useCoinGeckoIdAction}
-                  className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs"
-                >
-                  <input type="hidden" name="slug" value={logoSlug} />
-                  <input
-                    type="hidden"
-                    name="coinGeckoId"
-                    value={candidate.id}
-                  />
-                  <input
-                    type="hidden"
-                    name="coinMarketCapId"
-                    value={safeString(coinMarketCapId) || ""}
-                  />
-                  <Img src={candidate.thumb || candidate.large} size={30} />
-                  <div className="min-w-0">
-                    <div className="truncate font-black text-slate-950">
-                      {candidate.name}{" "}
-                      <span className="text-slate-400">{candidate.symbol}</span>
+              {cgFinderResult.candidates.slice(0, 4).map((candidate) => {
+                const canUse = candidate.recommended && candidate.confidence === "high";
+                const row = (
+                  <>
+                    <Img src={candidate.thumb || candidate.large} size={30} />
+                    <div className="min-w-0">
+                      <div className="truncate font-black text-slate-950">
+                        {candidate.name}{" "}
+                        <span className="text-slate-400">{candidate.symbol}</span>
+                      </div>
+                      <div className="truncate font-bold text-slate-400">
+                        {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · {candidate.id}
+                      </div>
                     </div>
-                    <div className="truncate font-bold text-slate-400">
-                      {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · {candidate.id}
-                    </div>
-                  </div>
-                  <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                    Use + Fetch
-                  </button>
-                </form>
-              ))}
+                    {canUse ? (
+                      <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">Use + Fetch</button>
+                    ) : (
+                      <span className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-black text-slate-400">Details only</span>
+                    )}
+                  </>
+                );
+                return canUse ? (
+                  <form key={candidate.id} action={useCoinGeckoIdAction} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-xs">
+                    <input type="hidden" name="slug" value={logoSlug} />
+                    <input type="hidden" name="coinGeckoId" value={candidate.id} />
+                    <input type="hidden" name="coinMarketCapId" value={safeString(coinMarketCapId) || ""} />
+                    {row}
+                  </form>
+                ) : (
+                  <div key={candidate.id} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs">{row}</div>
+                );
+              })}
             </div>
           ) : null}
 
@@ -1180,35 +1190,37 @@ export default async function LogoDetailPage({
             ) : null}
             {cmcFinderResult.candidates.length ? (
               <div className="mt-3 grid gap-2">
-                {cmcFinderResult.candidates.slice(0, 5).map((candidate) => (
-                  <form
-                    key={candidate.id}
-                    action={useCoinMarketCapIdAction}
-                    className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs"
-                  >
-                    <input type="hidden" name="slug" value={logoSlug} />
-                    <input
-                      type="hidden"
-                      name="coinMarketCapId"
-                      value={candidate.id}
-                    />
-                    <Img src={candidate.logo} size={30} />
-                    <div className="min-w-0">
-                      <div className="truncate font-black text-slate-950">
-                        {candidate.name}{" "}
-                        <span className="text-slate-400">
-                          {candidate.symbol}
-                        </span>
+                {cmcFinderResult.candidates.slice(0, 5).map((candidate) => {
+                  const canUse = candidate.recommended && candidate.confidence === "high";
+                  const row = (
+                    <>
+                      <Img src={candidate.logo} size={30} />
+                      <div className="min-w-0">
+                        <div className="truncate font-black text-slate-950">
+                          {candidate.name}{" "}
+                          <span className="text-slate-400">{candidate.symbol}</span>
+                        </div>
+                        <div className="truncate font-bold text-slate-400">
+                          {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · ID {candidate.id} · slug {candidate.slug}
+                        </div>
                       </div>
-                      <div className="truncate font-bold text-slate-400">
-                        {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · ID {candidate.id} · slug {candidate.slug}
-                      </div>
-                    </div>
-                    <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
-                      Use + Fetch
-                    </button>
-                  </form>
-                ))}
+                      {canUse ? (
+                        <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">Use + Fetch</button>
+                      ) : (
+                        <span className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-black text-slate-400">Details only</span>
+                      )}
+                    </>
+                  );
+                  return canUse ? (
+                    <form key={candidate.id} action={useCoinMarketCapIdAction} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-xs">
+                      <input type="hidden" name="slug" value={logoSlug} />
+                      <input type="hidden" name="coinMarketCapId" value={candidate.id} />
+                      {row}
+                    </form>
+                  ) : (
+                    <div key={candidate.id} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 text-xs">{row}</div>
+                  );
+                })}
               </div>
             ) : null}
           </div>

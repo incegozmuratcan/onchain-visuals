@@ -1,6 +1,6 @@
 import "server-only";
 import { getCoinGeckoLogoId } from "@/lib/admin/coingeckoLogoIds";
-import type { AdminLogo, LogoSource } from "@/lib/admin/logoDb";
+import { sourceIsPublicCandidate, type AdminLogo, type LogoSource } from "@/lib/admin/logoDb";
 import { logoManifestBySlug } from "@/lib/logos/logoRegistry";
 
 export type LogoIssue =
@@ -22,7 +22,9 @@ export type LogoIssue =
   | "rejected_source"
   | "upload_disabled"
   | "missing_cmc_id"
+  | "missing_defillama_source"
   | "cmc_fetch_failed"
+  | "defillama_no_reliable_source"
   | "newly_discovered_entity"
   | "metric_scan_error"
   | "auto_logo_imported"
@@ -36,6 +38,8 @@ export type LogoQaRow = {
   issues: LogoIssue[];
   coinGeckoId: string | null;
   coinMarketCapId: string | null;
+  primarySourceLabel: string;
+  coverageSummary: string;
   providerSummary: string;
   recommendedAction: string;
 };
@@ -54,7 +58,9 @@ export type LogoQaCounts = Record<
   | "skipped_visual_rejected"
   | "coingecko_fetch_failed"
   | "missing_cmc_id"
+  | "missing_defillama_source"
   | "cmc_fetch_failed"
+  | "defillama_no_reliable_source"
   | "fallback_used"
   | "visual_rejected"
   | "unsafe_migrated_candidate"
@@ -130,6 +136,33 @@ export function getCoinMarketCapId(
   return null;
 }
 
+function providerCoverageStatus(sources: LogoSource[], provider: string) {
+  const providerSources = sources.filter((source) => source.provider === provider);
+  if (providerSources.some((source) => source.status === "approved")) return "OK";
+  if (providerSources.some((source) => source.status === "candidate")) return "review";
+  if (providerSources.some((source) => source.status === "rejected")) return "rejected";
+  return "missing";
+}
+
+function vaultCoverageStatus(sources: LogoSource[]) {
+  const vaultSources = sources.filter((source) => ["managed-vault", "vault"].includes(source.provider));
+  if (vaultSources.some((source) => source.status === "approved")) return "OK";
+  if (vaultSources.some((source) => source.status === "candidate")) return "review";
+  if (vaultSources.some((source) => source.status === "rejected")) return "rejected";
+  return "missing";
+}
+
+function sourceDisplayProvider(provider: string | null | undefined) {
+  if (!provider) return "fallback";
+  if (provider === "upload") return "manual/upload";
+  if (provider === "vault") return "managed-vault";
+  return provider;
+}
+
+function hasUsableReviewedPublicSource(logo: AdminLogo, sources: LogoSource[]) {
+  return sources.some((source) => sourceIsPublicCandidate(source, logo));
+}
+
 export function classifyLogoQa(
   logo: AdminLogo,
   sources: LogoSource[],
@@ -191,7 +224,7 @@ export function classifyLogoQa(
     issues.push("auto_approve_skipped");
   if (logo.notes?.includes("metric_scan_missing_coingecko_id"))
     issues.push("metric_scan_missing_coingecko_id");
-  if (!logo.approved_logo_url) issues.push("missing_approved_logo");
+  if (!hasUsableReviewedPublicSource(logo, sources)) issues.push("missing_approved_logo");
   if (!coinGeckoId) issues.push("missing_coingecko_id");
   const coinGeckoError = String(
     logo.last_fetch_provider === "coingecko" ? logo.last_fetch_error || "" : "",
@@ -226,6 +259,18 @@ export function classifyLogoQa(
   if (logo.status === "approved" && Boolean(logo.approved_logo_url))
     issues.push("already_approved");
   if (!coinMarketCapId) issues.push("missing_cmc_id");
+  const defiLlamaSources = sources.filter((source) => source.provider === "defillama");
+  if (!defiLlamaSources.some((source) => source.status !== "rejected"))
+    issues.push("missing_defillama_source");
+  if (
+    defiLlamaSources.some((source) => {
+      const meta = metadataObject(source.metadata);
+      return Boolean(meta.noReliableSource || meta.noReliableDefiLlamaSource);
+    }) ||
+    (logo.last_fetch_provider === "defillama" &&
+      String(logo.last_fetch_error || "").toLowerCase().includes("no reliable"))
+  )
+    issues.push("defillama_no_reliable_source");
   if (
     sources.some((source) => sourceHasFetchError(source, "coingecko")) ||
     (logo.last_fetch_provider === "coingecko" &&
@@ -259,6 +304,19 @@ export function classifyLogoQa(
   if (!uploadEnabled) issues.push("upload_disabled");
 
   const uniqueIssues = Array.from(new Set(issues));
+  const selectedSource = sources.find((source) => source.id === logo.approved_source_id) ?? null;
+  const primarySourceLabel = selectedSource && selectedSource.status !== "rejected"
+    ? sourceDisplayProvider(selectedSource.provider)
+    : hasUsableReviewedPublicSource(logo, sources)
+      ? sourceDisplayProvider(sources.find((source) => sourceIsPublicCandidate(source, logo))?.provider)
+      : "fallback";
+  const coverageSummary = [
+    `CG ${providerCoverageStatus(sources, "coingecko")}`,
+    `CMC ${providerCoverageStatus(sources, "coinmarketcap")}`,
+    `DLL ${providerCoverageStatus(sources, "defillama")}`,
+    `Vault ${vaultCoverageStatus(sources)}`,
+  ].join(" · ");
+
   const providerSummary =
     Array.from(
       new Set(
@@ -276,6 +334,8 @@ export function classifyLogoQa(
     issues: uniqueIssues,
     coinGeckoId: coinGeckoId || null,
     coinMarketCapId,
+    primarySourceLabel,
+    coverageSummary,
     providerSummary,
     recommendedAction: recommendedAction(logo, uniqueIssues, sources),
   };
@@ -323,6 +383,8 @@ export function recommendedAction(
     return "Review metric scan candidate";
   if (issues.includes("missing_coingecko_id")) return "Add CoinGecko ID";
   if (issues.includes("missing_cmc_id")) return "Add CoinMarketCap ID";
+  if (issues.includes("missing_defillama_source"))
+    return "Resolve and review DefiLlama source";
   if (issues.includes("visual_rejected"))
     return "Use fallback or upload distinct logo";
   if (
@@ -379,6 +441,12 @@ export function summarizeLogoQa(rows: LogoQaRow[]): LogoQaCounts {
     ).length,
     missing_cmc_id: rows.filter((row) => row.issues.includes("missing_cmc_id"))
       .length,
+    missing_defillama_source: rows.filter((row) =>
+      row.issues.includes("missing_defillama_source"),
+    ).length,
+    defillama_no_reliable_source: rows.filter((row) =>
+      row.issues.includes("defillama_no_reliable_source"),
+    ).length,
     cmc_fetch_failed: rows.filter((row) =>
       row.issues.includes("cmc_fetch_failed"),
     ).length,

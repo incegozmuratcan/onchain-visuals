@@ -16,6 +16,14 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 
 
 
+## v0.11.10 Logo Source Priority + Coverage UX
+
+- Admin-selected primary sources now drive logo detail, provider rows, the Logo Manager source column and public `logoCandidates`. Public cards resolve candidates as selected reviewed primary → reviewed Managed Vault backup → remaining reviewed providers in CoinGecko, CoinMarketCap, DefiLlama order → generated fallback. Pending, rejected and unsafe/visualRejected sources stay out of the public chain unless explicitly reviewed and approved.
+- Logo Manager is coverage-first: the daily queue highlights Missing logo, Missing CG, Missing CMC and Missing DefiLlama before review/new-work buckets, and the list separates `source:` from coverage (`CG OK · CMC OK · DLL OK · Vault OK`). Missing logo now means no usable reviewed/approved public source exists, so generated-only, pending-only, rejected-only, unsafe-only or low-confidence-unreviewed records remain actionable.
+- DefiLlama is first-class across provider previews, provider rows, Provider IDs, missing-source filters and Source Tools. Discovery summaries show found/missing/no reliable/error counters instead of an ambiguous “DefiLlama 0”, while Source Tools separates coverage completion from metric scanning.
+- Provider helper results only show the primary “Use + Fetch” button for high-confidence recommended matches. Medium/low-confidence CoinGecko, CoinMarketCap and DefiLlama matches remain informational/detail-only and are never auto-fetched from the helper UI.
+- Source persistence continues to use existing `logo_sources`, `logos.approved_source_id`, `logos.approved_logo_url` and `admin_settings` fields. No schema changes were made; Admin DB Setup is not required.
+
 
 ## v0.11.9 Final Logo Reliability + QA Priority
 

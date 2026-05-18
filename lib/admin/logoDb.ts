@@ -353,11 +353,11 @@ function isUnsafePublicMetadata(meta: Record<string, unknown>) {
   );
 }
 
-function sourcePublicUrl(source: LogoSource) {
+export function sourcePublicUrl(source: LogoSource) {
   return source.blob_url || source.image_url || null;
 }
 
-function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo, "approved_source_id">) {
+export function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo, "approved_source_id">) {
   if (source.status !== "approved") return false;
   const meta = metadataObject(source.metadata);
   const reviewed = isReviewedMetadata(meta);
@@ -372,15 +372,16 @@ function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo, "appr
 
 function orderedPublicSourceUrls(logo: Pick<AdminLogo, "approved_source_id">, sources: LogoSource[]) {
   const selected = sources.find((source) => source.id === logo.approved_source_id);
-  const providerUrl = (provider: string) =>
-    sources.find((source) => source.provider === provider && sourceIsPublicCandidate(source, logo));
-  const ordered = [
-    selected && isManualOrUpload(selected.provider) && sourceIsPublicCandidate(selected, logo) ? selected : null,
-    providerUrl("coingecko"),
-    providerUrl("coinmarketcap"),
-    providerUrl("defillama"),
-    providerUrl("managed-vault") ?? providerUrl("vault"),
-  ];
+  const eligibleSources = sources.filter((source) => sourceIsPublicCandidate(source, logo));
+  const byProvider = (providers: string[]) =>
+    eligibleSources.find((source) => providers.includes(source.provider) && source.id !== selected?.id) ?? null;
+  const selectedPrimary =
+    selected && sourceIsPublicCandidate(selected, logo) ? selected : null;
+  const vaultBackup = byProvider(["managed-vault", "vault"]);
+  const providerBackups = ["coingecko", "coinmarketcap", "defillama"].map((provider) =>
+    byProvider([provider]),
+  );
+  const ordered = [selectedPrimary, vaultBackup, ...providerBackups];
   return uniqueSlugs(ordered.map((source) => (source ? sourcePublicUrl(source) || "" : "")));
 }
 

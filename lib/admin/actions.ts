@@ -989,6 +989,11 @@ async function discoverLogoSources(
     const found = await searchDefiLlamaSources(savedDefiLlamaSlug || logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category, aliases: savedDefiLlamaSlug ? [savedDefiLlamaSlug] : [] });
     const recommended = found.candidates.find((candidate) => candidate.recommended && candidate.confidence === "high");
     if (!recommended) {
+      await updateLogoFetchState(
+        logo.slug,
+        "defillama",
+        found.error || "No reliable DefiLlama source found.",
+      );
       summary.push(found.error ? `DefiLlama: failed (${found.error})` : "DefiLlama: no source found");
     } else {
       const created = await upsertLogoSource({
@@ -1009,6 +1014,7 @@ async function discoverLogoSources(
         reviveRejected: true,
       });
       await saveDefiLlamaSlug(logo.slug, recommended.slug);
+      await updateLogoFetchState(logo.slug, "defillama", null);
       summary.push(
         created.status === "rejected"
           ? "DefiLlama: rejected / skipped"
@@ -1582,6 +1588,7 @@ export async function scanMetricLogosAction() {
 export async function saveProviderIdsAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
+  const defiLlamaSlug = String(formData.get("defiLlamaSlug") || "").trim();
   await updateLogoProviderId(
     slug,
     "coingecko",
@@ -1592,13 +1599,35 @@ export async function saveProviderIdsAction(formData: FormData) {
     "coinmarketcap",
     String(formData.get("coinMarketCapId") || "").trim(),
   );
-  await saveDefiLlamaSlug(
-    slug,
-    String(formData.get("defiLlamaSlug") || "").trim(),
-  );
+  await saveDefiLlamaSlug(slug, defiLlamaSlug);
+  let notice: "success" | "warning" = "success";
+  let message = "Provider IDs saved.";
+  if (defiLlamaSlug) {
+    const logo = await getLogo(slug);
+    if (logo) {
+      const resolved = await searchDefiLlamaSources(defiLlamaSlug, {
+        targetName: logo.name,
+        targetSlug: logo.slug,
+        category: logo.category,
+        aliases: [defiLlamaSlug],
+      });
+      const valid = resolved.candidates.some(
+        (candidate) => candidate.recommended && candidate.confidence === "high",
+      );
+      if (!valid) {
+        await updateLogoFetchState(
+          slug,
+          "defillama",
+          resolved.error || "Saved DefiLlama slug did not resolve to a reliable source.",
+        );
+        notice = "warning";
+        message = "Provider IDs saved, but the DefiLlama slug did not resolve reliably.";
+      }
+    }
+  }
   revalidatePath(`/admin/logos/${slug}`);
   revalidatePath("/admin/logos");
-  redirectLogoNotice(slug, "success", "Provider IDs saved.");
+  redirectLogoNotice(slug, notice, message);
 }
 
 export async function discoverLogoSourcesBulkAction(formData: FormData) {
@@ -1626,6 +1655,12 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
     skippedRejected: 0,
     skippedAlreadyVaulted: 0,
     skippedMissingSource: 0,
+    cgMissing: 0,
+    cmcMissing: 0,
+    defillamaNoReliable: 0,
+    defillamaErrors: 0,
+    vaultMissing: 0,
+    vaultAlready: 0,
   };
   const details: string[] = [];
   for (const logo of logos) {
@@ -1669,10 +1704,17 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
       }
       const text = summary.join(" | ");
       if (text.includes("CoinGecko: fetched")) counts.coingeckoFetched += 1;
+      if (text.includes("CoinGecko: missing ID")) counts.cgMissing += 1;
       if (text.includes("CoinMarketCap: fetched")) counts.cmcFetched += 1;
-      if (text.includes("DefiLlama: fetched")) counts.defillamaFetched += 1;
-      if (text.includes("Managed Vault: copy created"))
-        counts.vaultCopiesCreated += 1;
+      if (text.includes("CoinMarketCap: needs ID") || text.includes("CoinMarketCap: ID review") || text.includes("CoinMarketCap: API key missing"))
+        counts.cmcMissing += 1;
+      if (text.includes("DefiLlama: auto-resolved") || text.includes("DefiLlama: fetched"))
+        counts.defillamaFetched += 1;
+      if (text.includes("DefiLlama: no source found")) counts.defillamaNoReliable += 1;
+      if (text.includes("DefiLlama: failed")) counts.defillamaErrors += 1;
+      if (text.includes("Managed Vault: copy created")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Managed Vault: no approved primary")) counts.vaultMissing += 1;
+      if (text.includes("Managed Vault: already available")) counts.vaultAlready += 1;
       if (text.includes("Primary:")) counts.primarySelected += 1;
       if (text.includes("needs review")) counts.needsReview += 1;
       if (text.includes("missing ID") || text.includes("needs ID"))
