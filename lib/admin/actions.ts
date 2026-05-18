@@ -246,6 +246,7 @@ export async function validateDefiLlamaSourcesAction() {
     byLogoSources.set(row.logo_id, list);
   }
   let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0, detachedPrimary=0, reassignedPrimary=0, clearedPrimary=0, missingAfterRepair=0;
+  let validChainMirrors = 0, validChainIcons = 0, validProtocols = 0, invalidGuessedProtocolRows = 0;
   for (const source of sources) {
     const logo = byLogo.get(source.logo_id);
     if (!logo) continue;
@@ -256,9 +257,10 @@ export async function validateDefiLlamaSourcesAction() {
         invalidated++;
         if (result.reason === "resolver_no_reliable_source") noReliable++;
         if (result.reason === "placeholder_image") placeholders++;
+        if (result.reason === "old_guessed_protocol_source") invalidGuessedProtocolRows++;
         if (result.isMismatched) mismatches++;
         const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
-        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug };
+        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV2: "invalid" };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
         if (logo.approved_source_id === source.id) {
           detachedPrimary++;
@@ -274,7 +276,10 @@ export async function validateDefiLlamaSourcesAction() {
         }
       } else {
         valid++;
-        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString() };
+        if (result.sourceType === "chain-mirror") validChainMirrors++;
+        else if (result.sourceType === "chain-icon") validChainIcons++;
+        else if (result.sourceType === "protocol-index") validProtocols++;
+        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV2: result.sourceType };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
       }
     } catch { errors++; }
@@ -285,7 +290,7 @@ export async function validateDefiLlamaSourcesAction() {
     return state.state !== "OK" && state.state !== "REVIEW";
   }).length;
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama complete: ${logos.length} logos · ${sources.length} DL rows checked · ${valid} valid · ${invalidated} invalidated · ${detachedPrimary} primaries detached · ${reassignedPrimary} reassigned · ${clearedPrimary} cleared · ${missingAfterRepair} missing after repair · ${errors} errors · placeholders ${placeholders} · resolver no reliable ${noReliable} · target mismatch ${mismatches}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Validate DefiLlama complete: ${logos.length} logos · ${sources.length} DL rows checked · valid: mirrors ${validChainMirrors}, chain icons ${validChainIcons}, protocols ${validProtocols} (${valid} total) · invalidated ${invalidated} (guessed protocol ${invalidGuessedProtocolRows}, placeholders ${placeholders}, resolver no reliable ${noReliable}, target mismatch ${mismatches}) · primaries detached ${detachedPrimary}, reassigned ${reassignedPrimary}, cleared ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
