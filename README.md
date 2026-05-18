@@ -4,6 +4,14 @@ Make DeFi data share-ready.
 
 learnDeFi creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
 
+## v0.11.17 DefiLlama Placeholder Invalidation (Akash Fix)
+
+- DefiLlama validation now treats external `icons.llama.fi/{slug}.jpg` protocol images as invalid when resolver confirmation is missing, and marks known placeholder/question-mark/generic icons as `placeholder_image` instead of accepting HTTP 200 alone.
+- Valid mirrored chain assets remain allowed (for example `https://icons.llama.fi/chains/rsz_aptos.jpg` and local mirror `/logos/chains/aptos.jpg`).
+- Invalid DefiLlama rows are hidden/invalid metadata rows (`invalidForTarget`, `hidden`, `invalidReason`, `invalidatedAt`, `targetSlug`) and must not render as active provider rows or actionable source details.
+- Validate DefiLlama sources maintenance now reports checked/valid/invalidated/placeholder/resolver-no-reliable/errors and should be run after deploy to clean stale rows (including Akash placeholder history).
+
+
 ## Current product
 
 - Create market cards from supported DeFi metrics.

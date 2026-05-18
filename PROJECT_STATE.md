@@ -24,6 +24,14 @@
 
 
 
+## v0.11.17 DefiLlama Placeholder Invalidation (Akash Fix)
+
+- DefiLlama validation now treats external `icons.llama.fi/{slug}.jpg` protocol images as invalid when resolver confirmation is missing, and marks known placeholder/question-mark/generic icons as `placeholder_image` instead of accepting HTTP 200 alone.
+- Valid mirrored chain assets remain allowed (for example `https://icons.llama.fi/chains/rsz_aptos.jpg` and local mirror `/logos/chains/aptos.jpg`).
+- Invalid DefiLlama rows are hidden/invalid metadata rows (`invalidForTarget`, `hidden`, `invalidReason`, `invalidatedAt`, `targetSlug`) and must not render as active provider rows or actionable source details.
+- Validate DefiLlama sources maintenance now reports checked/valid/invalidated/placeholder/resolver-no-reliable/errors and should be run after deploy to clean stale rows (including Akash placeholder history).
+
+
 ## Provider Coverage Truth + Missing Filters Fix
 
 - Provider coverage is now truth-based: `CG`, `CMC`, `DL` and `Vault` count as covered only when a canonical `logo_sources` row has a real persisted `image_url` or `blob_url`, is not a generated fallback/placeholder, and is not unsafe, visualRejected, invalid or rejected. Provider IDs, saved slugs, default slugs, guessed URLs, helper previews and generated fallbacks are never coverage.

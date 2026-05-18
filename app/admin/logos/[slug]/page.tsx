@@ -570,6 +570,8 @@ export default async function LogoDetailPage({
     helper?: string;
     needsReview?: boolean;
     secondary?: boolean;
+    showSourceDetails?: boolean;
+    allowCopyToVault?: boolean;
   }> = [
     {
       key: "coingecko",
@@ -648,6 +650,8 @@ export default async function LogoDetailPage({
               : `ID saved · fetch needed (${coinMarketCapId})`
             : "Find and save numeric CMC ID",
       needsReview: providerCoverage.coinmarketcap === "REVIEW",
+      showSourceDetails: hasReliableDefiLlamaSource,
+      allowCopyToVault: hasReliableDefiLlamaSource,
       action: (
         <div className="flex flex-wrap gap-2">
           {coinMarketCapSource && coinMarketCapSource.status !== "rejected" ? (
@@ -686,7 +690,7 @@ export default async function LogoDetailPage({
     {
       key: "defillama",
       name: "DefiLlama",
-      source: defiLlamaSource,
+      source: hasReliableDefiLlamaSource ? activeDefiLlamaSource : null,
       status:
         defiLlamaSource?.status === "rejected"
           ? "Rejected"
@@ -703,10 +707,10 @@ export default async function LogoDetailPage({
         ? savedDefiLlamaSlug
           ? `Slug: ${savedDefiLlamaSlug}`
           : `Fetched source saved`
-        : savedDefiLlamaSlug
-          ? `No reliable source · slug saved (${savedDefiLlamaSlug})`
-          : `No reliable source found`,
+        : `No reliable source found`,
       needsReview: providerCoverage.defillama === "REVIEW",
+      showSourceDetails: hasReliableDefiLlamaSource,
+      allowCopyToVault: hasReliableDefiLlamaSource,
       action: (
         <div className="flex flex-wrap gap-2">
           {hasReliableDefiLlamaSource ? (
@@ -1002,8 +1006,7 @@ export default async function LogoDetailPage({
                   {row.source?.status === "rejected" ? <RestoreButtons source={row.source} slug={logoSlug} /> : row.action}
                   {row.source &&
                   row.source.status !== "rejected" &&
-                  (row.key !== "defillama" || hasReliableDefiLlamaSource) &&
-                  !["managed-vault", "manual"].includes(row.key) ? (
+                  (row.allowCopyToVault ?? true) && !["managed-vault", "manual"].includes(row.key) ? (
                     <CopyVaultButton
                       source={row.source}
                       slug={logoSlug}
@@ -1015,7 +1018,7 @@ export default async function LogoDetailPage({
                     <RejectButton source={row.source} slug={logoSlug} />
                   ) : null}
                 </div>
-                {row.source ? (
+                {row.source && (row.showSourceDetails ?? true) ? (
                   <div className="md:col-span-4">
                     <SourceDetails source={row.source} />
                   </div>
@@ -1427,11 +1430,20 @@ export default async function LogoDetailPage({
                       </div>
                     </div>
                     <AdminStatusPill tone={hidden ? "gray" : "green"}>
-                      {hidden ? "history" : "canonical"}
+                      {hidden ? "Hidden" : "canonical"}
                     </AdminStatusPill>
                     <AdminStatusPill tone={statusTone(source.status)}>
                       {source.status}
                     </AdminStatusPill>
+                    {hidden && metadataObject(source.metadata).invalidForTarget ? (
+                      <AdminStatusPill tone="red">Invalid</AdminStatusPill>
+                    ) : null}
+                    {hidden && metadataObject(source.metadata).invalidReason === "placeholder_image" ? (
+                      <AdminStatusPill tone="red">Placeholder image</AdminStatusPill>
+                    ) : null}
+                    {hidden && metadataObject(source.metadata).invalidReason === "resolver_no_reliable_source" ? (
+                      <AdminStatusPill tone="amber">No reliable source</AdminStatusPill>
+                    ) : null}
                   </div>
                   <SourceDetails source={source} />
                 </div>
