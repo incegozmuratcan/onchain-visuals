@@ -29,6 +29,16 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 - Provider helper badges are DB-truthful: `SOURCE PRESENT` appears only for a non-rejected saved source row with a real image; unsaved high-confidence helper matches are `RECOMMENDED SOURCE`, and unresolved helpers stay `NO RELIABLE SOURCE`.
 - Public card candidates remain selected reviewed primary → reviewed Managed Vault → reviewed CoinGecko/CoinMarketCap/DefiLlama → generated fallback. `NO`, `REVIEW`, `ERR`, helper previews, provider IDs/slugs, generated placeholders and non-canonical duplicate candidates are excluded. Advanced source records show canonical/current rows by default and hide historical duplicate rows behind “Show hidden source history.” No schema changes were made; Admin DB Setup is not required.
 
+## v0.11.13 Provider Helper Accuracy + DefiLlama Poisoned Source Cleanup
+
+- DefiLlama coverage now requires target-aware source matching. Persisted DefiLlama rows only count when metadata slug, DefiLlama slug, source URL slug, or image URL slug matches the current logo slug/name; mismatched historical rows (for example Pendle on Akash) are excluded from canonical coverage and missing-filter resolution.
+- Canonical DefiLlama state now behaves like truthful provider missing/error states: stale mismatched rows no longer produce Source Present/Backup/Needs review, and Missing DefiLlama includes logos that only have invalid or mismatched DefiLlama rows.
+- Provider invalid-state logic now treats `metadata.invalidForTarget` as invalid coverage/input, preventing poisoned historical rows from participating in provider coverage or public candidate ordering.
+- CMC recommendation scoring now requires name/slug relationship evidence in addition to symbol support; symbol-only or unrelated matches can no longer become high-confidence Recommended.
+- Helper action policy now allows strong medium-confidence matches with clear name/slug overlap to be actionable (`Use + Fetch`) while keeping unrelated low-confidence rows as details-only.
+- CMC provider row and action state now explicitly keeps “Find CMC ID” usable when API search is available, and the helper copy emphasizes “Find and save numeric CMC ID”.
+- No schema changes were made; Admin DB Setup is not required.
+
 ## v0.11.12 Provider Source Canonicalization + DefiLlama Coverage Fix
 
 - Logo QA now resolves one canonical source per logo/provider before computing coverage, provider rows, source badges, missing-source filters and public candidates. Canonical states are `OK` for reviewed/admin-approved/auto-approved public-eligible sources, `REVIEW` for persisted sources that still need review, `NO` when no DB source row exists and `ERR` when the only persisted rows are rejected, unsafe, invalid or errored.

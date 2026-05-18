@@ -173,7 +173,7 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
         logo: logos.get(String(row.id)) || null,
         confidence,
         score,
-        recommended: index === 0 && confidence === "high",
+        recommended: index === 0 && confidence === "high" && score >= 78,
       })),
       error: null,
     };

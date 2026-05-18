@@ -609,7 +609,7 @@ export default async function LogoDetailPage({
             ? coinMarketCapSource
               ? `Numeric ID: ${coinMarketCapId}`
               : `ID saved · fetch needed (${coinMarketCapId})`
-            : "Find and save a numeric CMC ID.",
+            : "Find and save numeric CMC ID",
       needsReview: providerCoverage.coinmarketcap === "REVIEW",
       action: (
         <div className="flex flex-wrap gap-2">
@@ -633,7 +633,7 @@ export default async function LogoDetailPage({
               value={safeString(coinMarketCapId) || ""}
             />
             <SmallButton
-              disabled={!coinMarketCapId || !cmcReady || !cmcNumeric}
+              disabled={!cmcReady || (Boolean(coinMarketCapId) && !cmcNumeric)}
             >
               {logo.last_fetch_provider === "coinmarketcap" &&
               logo.last_fetch_error
@@ -1148,7 +1148,7 @@ export default async function LogoDetailPage({
           {cgFinderResult.candidates.length ? (
             <div className="mt-3 grid gap-2">
               {cgFinderResult.candidates.slice(0, 4).map((candidate) => {
-                const canUse = candidate.recommended && candidate.confidence === "high";
+                const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && (candidate.name.toLowerCase().includes(logoSlug.toLowerCase()) || candidate.id.toLowerCase().includes(logoSlug.toLowerCase()) || logoName.toLowerCase().includes(candidate.name.toLowerCase())));
                 const row = (
                   <>
                     <Img src={candidate.thumb || candidate.large} size={30} />
@@ -1224,7 +1224,7 @@ export default async function LogoDetailPage({
             {cmcFinderResult.candidates.length ? (
               <div className="mt-3 grid gap-2">
                 {cmcFinderResult.candidates.slice(0, 5).map((candidate) => {
-                  const canUse = candidate.recommended && candidate.confidence === "high";
+                  const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && (candidate.name.toLowerCase().includes(logoSlug.toLowerCase()) || candidate.slug.toLowerCase().includes(logoSlug.toLowerCase()) || logoName.toLowerCase().includes(candidate.name.toLowerCase())));
                   const row = (
                     <>
                       <Img src={candidate.logo} size={30} />

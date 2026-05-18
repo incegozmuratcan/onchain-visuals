@@ -79,6 +79,49 @@ export function providerMatches(sourceProvider: string, provider: string) {
   return sourceProvider === provider;
 }
 
+
+function tokenSet(values: Array<string | null | undefined>) {
+  const out = new Set<string>();
+  for (const value of values) {
+    const v = stringValue(value).toLowerCase();
+    if (!v) continue;
+    out.add(v);
+    out.add(v.replace(/\s+/g, "-"));
+    out.add(v.replace(/-/g, " "));
+  }
+  return out;
+}
+
+function defillamaSlugFromUrl(url: string) {
+  const clean = stringValue(url).toLowerCase();
+  if (!clean) return "";
+  const match = clean.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);
+  if (match?.[1]) return match[1].trim();
+  const icon = clean.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);
+  return icon?.[1]?.trim() ?? "";
+}
+
+function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
+  if (source.provider !== "defillama") return true;
+  const meta = sourceMetadataObject(source.metadata);
+  const targetTokens = tokenSet([
+    logo?.slug,
+    logo?.name,
+    String(meta.targetSlug || ""),
+  ]);
+  if (!targetTokens.size) return true;
+  const candidateTokens = tokenSet([
+    String(meta.defillamaSlug || ""),
+    String(meta.slug || ""),
+    defillamaSlugFromUrl(stringValue(source.source_url)),
+    defillamaSlugFromUrl(stringValue(source.image_url)),
+    String(meta.name || ""),
+  ]);
+  for (const token of candidateTokens) {
+    if (targetTokens.has(token)) return true;
+  }
+  return false;
+}
 export function sourceHasInvalidState(source: LogoSource) {
   const metadata = sourceMetadataObject(source.metadata);
   const reviewStatus = String(metadata.reviewStatus || "").toLowerCase();
@@ -93,6 +136,7 @@ export function sourceHasInvalidState(source: LogoSource) {
       metadata.unsafe ||
       metadata.visualRejected ||
       metadata.visuallyRejected ||
+      metadata.invalidForTarget === true ||
       reviewStatus === "rejected" ||
       reviewStatus === "unsafe" ||
       reviewStatus === "error" ||
@@ -102,7 +146,7 @@ export function sourceHasInvalidState(source: LogoSource) {
   );
 }
 
-export function sourceIsReviewedOrAdminApproved(source: LogoSource, logo?: Pick<AdminLogo, "approved_source_id">) {
+export function sourceIsReviewedOrAdminApproved(source: LogoSource, logo?: Partial<Pick<AdminLogo, "approved_source_id">>) {
   if (source.status !== "approved") return false;
   const metadata = sourceMetadataObject(source.metadata);
   if (sourceHasInvalidState(source)) return false;
@@ -125,7 +169,7 @@ function sourceIsPending(source: LogoSource) {
   );
 }
 
-function sourceRank(source: LogoSource, logo?: Pick<AdminLogo, "approved_source_id">) {
+function sourceRank(source: LogoSource, logo?: Partial<Pick<AdminLogo, "approved_source_id">>) {
   const metadata = sourceMetadataObject(source.metadata);
   const superseded = Boolean(metadata.supersededBy || metadata.canonical === false);
   if (sourceIsReviewedOrAdminApproved(source, logo)) return superseded ? 15 : 10;
@@ -137,19 +181,20 @@ function sourceRank(source: LogoSource, logo?: Pick<AdminLogo, "approved_source_
 export function resolveCanonicalProviderState(
   sources: LogoSource[],
   provider: CanonicalProviderKey | string,
-  logo?: Pick<AdminLogo, "approved_source_id">,
+  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name">>,
 ): CanonicalProviderState {
   const providerSources = sources.filter((source) => providerMatches(source.provider, provider));
+  const eligibleProviderSources = providerSources.filter((source) => provider !== "defillama" || isValidDefiLlamaSourceForLogo(source, logo));
   if (!providerSources.length) {
     return { provider, state: "NO", source: null, sources: [], reason: "missing" };
   }
 
-  const realSourceRows = providerSources.filter(sourceHasRealLogoUrl);
+  const realSourceRows = eligibleProviderSources.filter(sourceHasRealLogoUrl);
   if (!realSourceRows.length) {
-    const errorSource = providerSources.find(sourceHasInvalidState) ?? null;
+    const errorSource = eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
     return errorSource
-      ? { provider, state: "ERR", source: errorSource, sources: providerSources, reason: "error" }
-      : { provider, state: "NO", source: null, sources: providerSources, reason: "missing" };
+      ? { provider, state: "ERR", source: errorSource, sources: eligibleProviderSources, reason: "error" }
+      : { provider, state: "NO", source: null, sources: eligibleProviderSources, reason: "missing" };
   }
 
   const sorted = [...realSourceRows].sort((a, b) => {
@@ -160,25 +205,25 @@ export function resolveCanonicalProviderState(
     return String(b.created_at || "").localeCompare(String(a.created_at || ""));
   });
   const source = sorted[0] ?? null;
-  if (!source) return { provider, state: "NO", source: null, sources: providerSources, reason: "missing" };
+  if (!source) return { provider, state: "NO", source: null, sources: eligibleProviderSources, reason: "missing" };
   if (sourceIsReviewedOrAdminApproved(source, logo)) {
-    return { provider, state: "OK", source, sources: providerSources, reason: "reviewed" };
+    return { provider, state: "OK", source, sources: eligibleProviderSources, reason: "reviewed" };
   }
   if (sourceIsPending(source)) {
     return {
       provider,
       state: "REVIEW",
       source,
-      sources: providerSources,
+      sources: eligibleProviderSources,
       reason: source.status === "candidate" ? "candidate" : "pending",
     };
   }
-  return { provider, state: "ERR", source, sources: providerSources, reason: "error" };
+  return { provider, state: "ERR", source, sources: eligibleProviderSources, reason: "error" };
 }
 
 export function resolveCanonicalProviderStates(
   sources: LogoSource[],
-  logo?: Pick<AdminLogo, "approved_source_id">,
+  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name">>,
 ) {
   return {
     coingecko: resolveCanonicalProviderState(sources, "coingecko", logo),
