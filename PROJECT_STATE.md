@@ -428,3 +428,14 @@
 - Brand Settings continue to drive public site name/copy/metadata/share-card footer when saved, with defaults for empty fields and explicit save feedback including Blob upload-disabled status.
 - API Settings now lists provider state, key configured yes/no, last success/error, metrics, next action, exact env vars and docs links for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized sources.
 - Blob status is explicit: missing `BLOB_READ_WRITE_TOKEN` disables uploads only; URL candidates, manual URL save and brand text save continue. SVG upload remains disabled; raster uploads are type/size checked when Blob is configured.
+
+
+## v0.11.16 DefiLlama Truth Validator + Quai Helper Actionability
+
+- Added a single shared DefiLlama validator (`validateDefiLlamaSourceForLogo`) and wired canonical DefiLlama provider truth to it so placeholders/mismatches no longer count as valid coverage.
+- Added Source Tools maintenance action **Validate DefiLlama sources** to invalidate/hide bad persisted DefiLlama rows without deleting history.
+- Missing DefiLlama, Source Present, provider state, and public source eligibility now rely on the same canonical DefiLlama validation path.
+- CoinGecko/CMC helper actionability keeps strong related matches actionable (e.g. Quai -> Quai Network) while unrelated matches (e.g. Pendle for Quai) remain non-actionable.
+- Helper results remain scoped per logo/provider/query; invalid candidate submissions must not claim success.
+- Invalid/historical source rows are hidden by default and remain accessible in history views.
+- Manual QA blockers: /admin/logos/akash, /admin/logos/quai, /admin/logos/aptos, /admin/logos?filter=missing_defillama_source, and public candidate chain verification.
