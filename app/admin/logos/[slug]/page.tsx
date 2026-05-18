@@ -486,10 +486,10 @@ export default async function LogoDetailPage({
       : primarySource.provider === "managed-vault" ||
           primarySource.provider === "vault"
         ? primaryNeedsReview
-          ? "Pending review"
+          ? "Needs review"
           : "Reviewed vault"
         : primaryNeedsReview
-          ? "Pending review"
+          ? "Needs review"
           : "Reviewed"
     : publicPreview
       ? "Generated fallback"
@@ -511,7 +511,7 @@ export default async function LogoDetailPage({
   const coinMarketCapSource = canonicalProviders.coinmarketcap.source;
   const defiLlamaSource = canonicalProviders.defillama.source;
   const activeDefiLlamaSource =
-    canonicalProviders.defillama.state === "OK" || canonicalProviders.defillama.state === "PEND"
+    canonicalProviders.defillama.state === "OK" || canonicalProviders.defillama.state === "REVIEW"
       ? defiLlamaSource
       : null;
   const providerCoverage = {
@@ -531,6 +531,7 @@ export default async function LogoDetailPage({
     status: string;
     action: React.ReactNode;
     helper?: string;
+    needsReview?: boolean;
     secondary?: boolean;
   }> = [
     {
@@ -549,7 +550,12 @@ export default async function LogoDetailPage({
                 : coinGeckoId
                   ? "Missing"
                   : "Missing ID",
-      helper: coinGeckoId ? `ID: ${coinGeckoId}` : "Find and save an exact ID.",
+      helper: coinGeckoId
+        ? coinGeckoSource
+          ? `ID: ${coinGeckoId}`
+          : `ID saved · fetch needed (${coinGeckoId})`
+        : "Find and save an exact ID.",
+      needsReview: providerCoverage.coingecko === "REVIEW",
       action:
         coinGeckoSource?.id === primarySource?.id ? null : (
           <div className="flex flex-wrap gap-2">
@@ -584,7 +590,7 @@ export default async function LogoDetailPage({
           ? "Rejected"
           : coinMarketCapSource?.id === primarySource?.id
             ? primaryNeedsReview
-              ? "Pending review"
+              ? "Needs review"
               : "Primary"
             : coinMarketCapSource
               ? "Backup"
@@ -600,8 +606,11 @@ export default async function LogoDetailPage({
         : coinMarketCapId && !cmcNumeric
           ? "CMC ID must be numeric; use finder."
           : coinMarketCapId
-            ? `Numeric ID: ${coinMarketCapId}`
+            ? coinMarketCapSource
+              ? `Numeric ID: ${coinMarketCapId}`
+              : `ID saved · fetch needed (${coinMarketCapId})`
             : "Find and save a numeric CMC ID.",
+      needsReview: providerCoverage.coinmarketcap === "REVIEW",
       action: (
         <div className="flex flex-wrap gap-2">
           {coinMarketCapSource && coinMarketCapSource.status !== "rejected" ? (
@@ -646,14 +655,21 @@ export default async function LogoDetailPage({
           ? "Rejected"
           : activeDefiLlamaSource?.id === primarySource?.id
             ? primaryNeedsReview
-              ? "Pending review"
+              ? "Needs review"
               : "Primary"
             : activeDefiLlamaSource
-              ? `Backup / ${providerCoverage.defillama}`
+              ? "Backup"
               : providerCoverage.defillama === "ERR"
                 ? "Error"
                 : "Missing",
-      helper: savedDefiLlamaSlug ? `Slug: ${savedDefiLlamaSlug}` : `Default slug: ${logoSlug}`,
+      helper: activeDefiLlamaSource
+        ? savedDefiLlamaSlug
+          ? `Slug: ${savedDefiLlamaSlug}`
+          : `Fetched source saved`
+        : savedDefiLlamaSlug
+          ? `Slug saved · fetch needed (${savedDefiLlamaSlug})`
+          : `Default slug only · fetch needed (${logoSlug})`,
+      needsReview: providerCoverage.defillama === "REVIEW",
       action: (
         <div className="flex flex-wrap gap-2">
           {activeDefiLlamaSource ? (
@@ -685,7 +701,7 @@ export default async function LogoDetailPage({
       status:
         managedVaultSource?.id === primarySource?.id
           ? primaryNeedsReview
-            ? "Pending review"
+            ? "Needs review"
             : "Primary"
           : managedVaultSource
             ? "Backup"
@@ -695,6 +711,7 @@ export default async function LogoDetailPage({
       helper: config.hasBlob
         ? "Durable Blob copy of a selected provider logo."
         : "Set BLOB_READ_WRITE_TOKEN to enable vault copies.",
+      needsReview: providerCoverage.vault === "REVIEW",
       secondary: true,
       action:
         managedVaultSource && managedVaultSource.status !== "rejected" ? (
@@ -963,9 +980,14 @@ export default async function LogoDetailPage({
                     {row.helper}
                   </div>
                 </div>
-                <AdminStatusPill tone={statusTone(row.status)}>
-                  {row.status}
-                </AdminStatusPill>
+                <div className="flex flex-wrap gap-1">
+                  <AdminStatusPill tone={statusTone(row.status)}>
+                    {row.status}
+                  </AdminStatusPill>
+                  {row.needsReview ? (
+                    <AdminStatusPill tone="amber">Needs review</AdminStatusPill>
+                  ) : null}
+                </div>
                 <Img src={sourceImage(row.source)} size={42} />
                 <div className="flex flex-wrap items-center justify-start gap-2 md:justify-end">
                   {row.source?.status === "rejected" ? <RestoreButtons source={row.source} slug={logoSlug} /> : row.action}
@@ -1246,8 +1268,8 @@ export default async function LogoDetailPage({
                   Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={providerCoverage.defillama === "OK" || providerCoverage.defillama === "PEND" ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
-                {providerCoverage.defillama === "OK" || providerCoverage.defillama === "PEND"
+              <AdminStatusPill tone={providerCoverage.defillama === "OK" || providerCoverage.defillama === "REVIEW" ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
+                {providerCoverage.defillama === "OK" || providerCoverage.defillama === "REVIEW"
                   ? "SOURCE PRESENT"
                   : recommendedDefiLlama
                     ? "RECOMMENDED SOURCE"
@@ -1361,15 +1383,19 @@ export default async function LogoDetailPage({
             <h3 className="text-sm font-black text-slate-950">
               Source records
             </h3>
-            <div className="mt-3 grid gap-2 md:grid-cols-2">
-              {sources.map((source) => {
-                const canonicalState =
-                  source.id === canonicalProviders.coingecko.source?.id ||
-                  source.id === canonicalProviders.coinmarketcap.source?.id ||
-                  source.id === canonicalProviders.defillama.source?.id ||
-                  source.id === canonicalProviders.vault.source?.id ||
-                  source.id === canonicalProviders.manual.source?.id;
-                return (
+            {(() => {
+              const canonicalSourceIds = new Set(
+                [
+                  canonicalProviders.coingecko.source?.id,
+                  canonicalProviders.coinmarketcap.source?.id,
+                  canonicalProviders.defillama.source?.id,
+                  canonicalProviders.vault.source?.id,
+                  canonicalProviders.manual.source?.id,
+                ].filter(Boolean),
+              );
+              const visibleSources = sources.filter((source) => canonicalSourceIds.has(source.id));
+              const hiddenSources = sources.filter((source) => !canonicalSourceIds.has(source.id));
+              const SourceRecord = ({ source, hidden = false }: { source: LogoSource; hidden?: boolean }) => (
                 <div
                   key={source.id}
                   className="rounded-xl border border-slate-100 bg-white p-3"
@@ -1384,8 +1410,8 @@ export default async function LogoDetailPage({
                         {sourceStatusLabel(source)}
                       </div>
                     </div>
-                    <AdminStatusPill tone={canonicalState ? "green" : "gray"}>
-                      {canonicalState ? "canonical" : source.status === "rejected" ? "rejected" : "historical"}
+                    <AdminStatusPill tone={hidden ? "gray" : "green"}>
+                      {hidden ? "history" : "canonical"}
                     </AdminStatusPill>
                     <AdminStatusPill tone={statusTone(source.status)}>
                       {source.status}
@@ -1393,14 +1419,34 @@ export default async function LogoDetailPage({
                   </div>
                   <SourceDetails source={source} />
                 </div>
-                );
-              })}
-              {!sources.length ? (
-                <p className="text-xs font-bold text-slate-400">
-                  No source records yet.
-                </p>
-              ) : null}
-            </div>
+              );
+              return (
+                <>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {visibleSources.map((source) => (
+                      <SourceRecord key={source.id} source={source} />
+                    ))}
+                    {!visibleSources.length ? (
+                      <p className="text-xs font-bold text-slate-400">
+                        No canonical source records yet.
+                      </p>
+                    ) : null}
+                  </div>
+                  {hiddenSources.length ? (
+                    <details className="mt-3 rounded-xl border border-slate-100 bg-white p-3 text-xs">
+                      <summary className="cursor-pointer font-black text-slate-600">
+                        Show hidden source history ({hiddenSources.length})
+                      </summary>
+                      <div className="mt-3 grid gap-2 md:grid-cols-2">
+                        {hiddenSources.map((source) => (
+                          <SourceRecord key={source.id} source={source} hidden />
+                        ))}
+                      </div>
+                    </details>
+                  ) : null}
+                </>
+              );
+            })()}
           </section>
           <section className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
             <h3 className="text-sm font-black text-slate-950">

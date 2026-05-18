@@ -230,8 +230,15 @@ export function classifyLogoQa(
     issues.push("auto_approve_skipped");
   if (logo.notes?.includes("metric_scan_missing_coingecko_id"))
     issues.push("metric_scan_missing_coingecko_id");
+  const cgCoverage = providerCoverageStatus(sources, "coingecko", logo);
+  const cmcCoverage = providerCoverageStatus(sources, "coinmarketcap", logo);
+  const defiLlamaCoverage = providerCoverageStatus(sources, "defillama", logo);
+  const vaultCoverage = vaultCoverageStatus(sources, logo);
+
   if (!hasUsableReviewedPublicSource(logo, sources)) issues.push("missing_approved_logo");
-  if (!coinGeckoId) issues.push("missing_coingecko_id");
+  if (cgCoverage === "NO" || cgCoverage === "ERR") issues.push("missing_coingecko_id");
+  if ([cgCoverage, cmcCoverage, defiLlamaCoverage, vaultCoverage].includes("REVIEW"))
+    issues.push("needs_review");
   const coinGeckoError = String(
     logo.last_fetch_provider === "coingecko" ? logo.last_fetch_error || "" : "",
   ).toLowerCase();
@@ -264,10 +271,6 @@ export function classifyLogoQa(
     issues.push("coingecko_auto_approved");
   if (logo.status === "approved" && Boolean(logo.approved_logo_url))
     issues.push("already_approved");
-  const cgCoverage = providerCoverageStatus(sources, "coingecko", logo);
-  const cmcCoverage = providerCoverageStatus(sources, "coinmarketcap", logo);
-  const defiLlamaCoverage = providerCoverageStatus(sources, "defillama", logo);
-  const vaultCoverage = vaultCoverageStatus(sources, logo);
   if (cmcCoverage === "NO" || cmcCoverage === "ERR") issues.push("missing_cmc_id");
   const defiLlamaSources = sources.filter((source) => source.provider === "defillama");
   if (defiLlamaCoverage === "NO" || defiLlamaCoverage === "ERR")
@@ -391,8 +394,8 @@ export function recommendedAction(
     return "Review skipped auto-approval reason";
   if (issues.includes("metric_scan_candidate_added"))
     return "Review metric scan candidate";
-  if (issues.includes("missing_coingecko_id")) return "Add CoinGecko ID";
-  if (issues.includes("missing_cmc_id")) return "Add CoinMarketCap ID";
+  if (issues.includes("missing_coingecko_id")) return logo.coingecko_id ? "Fetch CoinGecko logo" : "Add CoinGecko ID";
+  if (issues.includes("missing_cmc_id")) return getCoinMarketCapId(logo, sources) ? "Fetch CoinMarketCap logo" : "Add CoinMarketCap ID";
   if (issues.includes("missing_defillama_source"))
     return "Resolve and review DefiLlama source";
   if (issues.includes("visual_rejected"))

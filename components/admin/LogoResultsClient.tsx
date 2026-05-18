@@ -49,11 +49,21 @@ function rowMatchesFilter(row: LogoResultRow, filter: string) {
   return row.issues.includes(filter);
 }
 
+function displayPrimaryProvider(provider: string) {
+  if (provider === "coingecko") return "CoinGecko";
+  if (provider === "coinmarketcap") return "CMC";
+  if (provider === "defillama") return "DefiLlama";
+  if (provider === "managed-vault" || provider === "vault") return "Vault";
+  if (provider === "manual" || provider === "upload" || provider === "manual/upload") return "Manual";
+  if (provider === "fallback") return "Fallback";
+  return provider;
+}
+
 function LogoRow({ row }: { row: LogoResultRow }) {
   const preview = safeUrl(row.approvedLogoUrl) || safeUrl(row.fallbackLogoUrl);
   const displayIssue = row.issues.find((issue) => ACTION_ISSUES.has(issue));
-  const provider = row.provider || "fallback";
-  const coverage = row.providerSummary || `CG ${row.coinGeckoId ? "OK" : "missing"} · CMC ${row.coinMarketCapId ? "OK" : "missing"}`;
+  const provider = displayPrimaryProvider(row.provider || "fallback");
+  const coverage = row.providerSummary || "CG NO · CMC NO · DL NO · Vault NO";
   return <Link href={`/admin/logos/${encodeURIComponent(row.slug)}`} className="grid min-h-[50px] gap-2 border-b border-slate-100 px-2 py-1.5 transition hover:bg-slate-50 md:grid-cols-[minmax(190px,1.25fr)_74px_92px_132px_112px] md:items-center">
     <div className="flex min-w-0 items-center gap-2">{preview ? <img src={preview} alt="" className="h-7 w-7 rounded-full border border-slate-200 bg-white object-contain" /> : <div className="h-7 w-7 rounded-full bg-slate-100" />}<div className="min-w-0"><div className="truncate text-sm font-black text-slate-950">{row.name}</div><div className="truncate text-[11px] font-bold text-slate-400">{row.slug}</div></div></div>
     <div className="truncate text-xs font-black text-slate-600">{row.category}</div>
