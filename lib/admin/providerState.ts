@@ -109,6 +109,7 @@ export function sourceHasInvalidState(source: LogoSource) {
       metadata.invalidForTarget === true ||
       metadata.hidden === true ||
       metadata.superseded === true ||
+      Boolean(metadata.invalidReason) ||
       reviewStatus === "rejected" ||
       reviewStatus === "unsafe" ||
       reviewStatus === "error" ||

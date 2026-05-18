@@ -456,3 +456,12 @@
 - Helper results remain scoped per logo/provider/query; invalid candidate submissions must not claim success.
 - Invalid/historical source rows are hidden by default and remain accessible in history views.
 - Manual QA blockers: /admin/logos/akash, /admin/logos/quai, /admin/logos/aptos, /admin/logos?filter=missing_defillama_source, and public candidate chain verification.
+
+
+## DefiLlama invalid-source canonical detachment (v0.11.18 blocker)
+
+- Hidden/invalid/superseded sources (including any `invalidReason`) are never canonical/primary/public candidates across providers.
+- Validate DefiLlama sources now repairs `logos.approved_source_id` and `approved_logo_url`: detach invalid primaries, then reassign by priority (manual/upload → managed vault → CoinGecko → CoinMarketCap → valid DefiLlama), else clear primary and set `needs_review`.
+- Invalid DefiLlama rows are excluded from missing-state clearing, provider Source Present states, and public candidate chain.
+- Source records keep invalid entries only in hidden history and visually override them as hidden/invalid historical rows (not canonical).
+- Manual QA blocker set includes Akash, Glow, Canton, Aptos, Missing DefiLlama filter, and public candidate exclusion checks.

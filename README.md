@@ -461,3 +461,12 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Source Tools → Maintenance includes **Validate DefiLlama sources** to hide/flag stale rows and stamp validation metadata without deleting rows.
 - Missing DefiLlama and SOURCE PRESENT badges ignore invalid/hidden DefiLlama rows.
 - Invalid DefiLlama history remains available only under hidden source history.
+
+
+## DefiLlama invalid-source canonical detachment (v0.11.18 blocker)
+
+- Hidden/invalid/superseded sources (including any `invalidReason`) are never canonical/primary/public candidates across providers.
+- Validate DefiLlama sources now repairs `logos.approved_source_id` and `approved_logo_url`: detach invalid primaries, then reassign by priority (manual/upload → managed vault → CoinGecko → CoinMarketCap → valid DefiLlama), else clear primary and set `needs_review`.
+- Invalid DefiLlama rows are excluded from missing-state clearing, provider Source Present states, and public candidate chain.
+- Source records keep invalid entries only in hidden history and visually override them as hidden/invalid historical rows (not canonical).
+- Manual QA blocker set includes Akash, Glow, Canton, Aptos, Missing DefiLlama filter, and public candidate exclusion checks.
