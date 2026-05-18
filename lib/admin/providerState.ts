@@ -1,5 +1,6 @@
 import "server-only";
 import type { AdminLogo, LogoSource } from "@/lib/admin/logoDb";
+import { validateDefiLlamaSourceForLogo } from "@/lib/admin/defillamaValidator";
 
 export type ProviderCoverageState = "OK" | "REVIEW" | "NO" | "ERR";
 export type CanonicalProviderKey =
@@ -81,67 +82,16 @@ export function providerMatches(sourceProvider: string, provider: string) {
 }
 
 
-function tokenSet(values: Array<string | null | undefined>) {
-  const out = new Set<string>();
-  for (const value of values) {
-    const v = stringValue(value).toLowerCase();
-    if (!v) continue;
-    out.add(v);
-    out.add(v.replace(/\s+/g, "-"));
-    out.add(v.replace(/-/g, " "));
-  }
-  return out;
-}
-
-function splitSlugTokens(value: string) {
-  const clean = stringValue(value).toLowerCase();
-  if (!clean) return [];
-  return clean
-    .split(/[^a-z0-9]+/g)
-    .map((part) => part.trim())
-    .filter(Boolean);
-}
-
-function defillamaSlugFromUrl(url: string) {
-  const clean = stringValue(url).toLowerCase();
-  if (!clean) return "";
-  const match = clean.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);
-  if (match?.[1]) return match[1].trim();
-  const icon = clean.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);
-  return icon?.[1]?.trim() ?? "";
-}
-
-function isDefiLlamaSourceMismatched(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
-  if (source.provider !== "defillama") return false;
-  const meta = sourceMetadataObject(source.metadata);
-  const targetTokens = tokenSet([
-    logo?.slug,
-    logo?.name,
-    String(meta.targetSlug || ""),
-    String(meta.targetName || ""),
-    String(meta.metadataSlug || ""),
-    String(meta.alias || ""),
-    ...(Array.isArray(meta.aliases) ? meta.aliases.map((v) => String(v || "")) : []),
-  ]);
-  if (!targetTokens.size) return false;
-  const candidateTokens = tokenSet([
-    String(meta.defillamaSlug || ""),
-    String(meta.slug || ""),
-    defillamaSlugFromUrl(stringValue(source.source_url)),
-    defillamaSlugFromUrl(stringValue(source.image_url)),
-    String(meta.name || ""),
-  ]);
-  for (const token of candidateTokens) {
-    if (targetTokens.has(token)) return false;
-    const pieces = splitSlugTokens(token);
-    if (pieces.some((piece) => targetTokens.has(piece))) return false;
-  }
-  return true;
-}
 
 function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
-  return !isDefiLlamaSourceMismatched(source, logo);
+  return validateDefiLlamaSourceForLogo({
+    logoName: logo?.name,
+    logoSlug: logo?.slug,
+    source,
+    knownAliases: [],
+  }).valid;
 }
+
 export function sourceHasInvalidState(source: LogoSource) {
   const metadata = sourceMetadataObject(source.metadata);
   const reviewStatus = String(metadata.reviewStatus || "").toLowerCase();
@@ -211,10 +161,9 @@ export function resolveCanonicalProviderState(
     return { provider, state: "NO", source: null, sources: [], reason: "missing" };
   }
 
-  const mismatchedDefiLlama = provider === "defillama" ? providerSources.filter((source) => isDefiLlamaSourceMismatched(source, logo)) : [];
   const realSourceRows = eligibleProviderSources.filter((source) => sourceHasRealLogoUrl(source) && !sourceHasInvalidState(source));
   if (!realSourceRows.length) {
-    const errorSource = mismatchedDefiLlama[0] ?? eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
+    const errorSource = eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
     return errorSource
       ? { provider, state: "ERR", source: errorSource, sources: eligibleProviderSources, reason: "error" }
       : { provider, state: "NO", source: null, sources: eligibleProviderSources, reason: "missing" };

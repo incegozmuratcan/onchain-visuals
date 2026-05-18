@@ -9,6 +9,7 @@ import {
   applySafeCoinGeckoCandidatesAction,
   bulkRefreshCoinGeckoLogosAction,
   bulkRefreshCoinMarketCapLogosAction,
+  validateDefiLlamaSourcesAction,
   createLogoAction,
   discoverLogoSourcesBulkAction,
   importLegacyLocalLogosToVaultAction,
@@ -550,6 +551,11 @@ function SourceTools({
                 className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600 disabled:opacity-50"
               >
                 Import legacy local logos to Vault
+              </button>
+            </form>
+            <form action={validateDefiLlamaSourcesAction}>
+              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
+                Validate DefiLlama sources
               </button>
             </form>
           </div>

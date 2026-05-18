@@ -437,3 +437,11 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Adds metric-level logo requirements so new active metrics cannot ship without logo planning.
 - Strengthens `npm run check:logos` as a required PR gate.
 - Expands `/logo-audit` as internal visual QA for card-quality logo previews.
+
+
+### DefiLlama truth + maintenance
+
+- DefiLlama coverage uses one shared validator (`validateDefiLlamaSourceForLogo`) for canonical state, missing filters, provider rows, source-present badges and public-candidate eligibility.
+- Added Source Tools maintenance action **Validate DefiLlama sources** to mark bad persisted DefiLlama rows as invalid/hidden in metadata (non-destructive).
+- Invalid/placeholder/mismatched DefiLlama rows do not clear Missing DefiLlama and are excluded from public candidates.
+- Quai helper matching keeps `Quai Network` actionable while unrelated candidates like Pendle remain details-only/non-actionable.
