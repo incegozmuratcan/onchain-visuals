@@ -938,6 +938,11 @@ export default async function LogoDetailPage({
                   ? sourceStatusLabel(primarySource)
                   : "Add or fetch a source, then mark it reviewed."}
               </p>
+              {!approvedSourceValid && logo.approved_source_id ? (
+                <p className="mt-1 text-xs font-black text-amber-700">
+                  Old selected source is invalid.
+                </p>
+              ) : null}
               <div className="mt-3 flex flex-wrap gap-2">
                 <form action={fetchAllLogoSourcesAction}>
                   {hiddenLogoFields}
@@ -1413,8 +1418,19 @@ export default async function LogoDetailPage({
                   canonicalProviders.manual.source?.id,
                 ].filter(Boolean),
               );
-              const visibleSources = sources.filter((source) => canonicalSourceIds.has(source.id));
-              const hiddenSources = sources.filter((source) => !canonicalSourceIds.has(source.id));
+              const isHiddenHistorySource = (source: LogoSource) => {
+                const metadata = metadataObject(source.metadata);
+                return (
+                  sourceHasInvalidState(source) ||
+                  metadata.hidden === true ||
+                  metadata.invalidForTarget === true ||
+                  Boolean(metadata.invalidReason) ||
+                  metadata.defillamaV2 === "invalid" ||
+                  metadata.superseded === true
+                );
+              };
+              const visibleSources = sources.filter((source) => canonicalSourceIds.has(source.id) && !isHiddenHistorySource(source));
+              const hiddenSources = sources.filter((source) => !visibleSources.some((visible) => visible.id === source.id));
               const SourceRecord = ({ source, hidden = false }: { source: LogoSource; hidden?: boolean }) => (
                 <div
                   key={source.id}
@@ -1427,17 +1443,28 @@ export default async function LogoDetailPage({
                         {providerName(source.provider)}
                       </div>
                       <div className="truncate text-xs font-bold text-slate-500">
-                        {hidden && sourceHasInvalidState(source) ? "Invalid historical" : sourceStatusLabel(source)}
+                        {hidden && sourceHasInvalidState(source) ? "Hidden invalid historical" : sourceStatusLabel(source)}
                       </div>
                     </div>
-                    <AdminStatusPill tone={hidden ? "gray" : "green"}>
-                      {hidden ? "Hidden" : "canonical"}
-                    </AdminStatusPill>
-                    <AdminStatusPill tone={statusTone(source.status)}>
-                      {hidden && sourceHasInvalidState(source) ? "Hidden invalid" : source.status}
-                    </AdminStatusPill>
+                    {hidden && sourceHasInvalidState(source) ? (
+                      <>
+                        <AdminStatusPill tone="gray">Hidden</AdminStatusPill>
+                        <AdminStatusPill tone="red">Invalid</AdminStatusPill>
+                        <AdminStatusPill tone="gray">Historical</AdminStatusPill>
+                        <AdminStatusPill tone="amber">Not active</AdminStatusPill>
+                      </>
+                    ) : (
+                      <>
+                        <AdminStatusPill tone={hidden ? "gray" : "green"}>
+                          {hidden ? "Hidden" : "canonical"}
+                        </AdminStatusPill>
+                        <AdminStatusPill tone={statusTone(source.status)}>
+                          {source.status}
+                        </AdminStatusPill>
+                      </>
+                    )}
                     {hidden && metadataObject(source.metadata).invalidForTarget ? (
-                      <AdminStatusPill tone="red">Invalid</AdminStatusPill>
+                      <AdminStatusPill tone="red">Target mismatch</AdminStatusPill>
                     ) : null}
                     {hidden && metadataObject(source.metadata).invalidReason === "placeholder_image" ? (
                       <AdminStatusPill tone="red">Placeholder image</AdminStatusPill>
