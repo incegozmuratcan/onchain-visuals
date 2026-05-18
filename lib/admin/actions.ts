@@ -363,6 +363,7 @@ export async function addDefiLlamaAction(formData: FormData) {
         fetchedAt: new Date().toISOString(),
         reviewStatus,
         sourceOrigin: "defillama-helper",
+        canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
       },
       status: "candidate",
@@ -407,9 +408,7 @@ export async function addDefiLlamaAction(formData: FormData) {
     redirectLogoNotice(
       logo.slug,
       "success",
-      shouldSelect
-        ? "DefiLlama source fetched and selected pending review."
-        : "DefiLlama source added as backup pending review.",
+      "DefiLlama source saved. Review pending.",
     );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
@@ -1121,6 +1120,7 @@ async function discoverLogoSources(
           fetchedAt: new Date().toISOString(),
           reviewStatus: "selected_needs_review",
           sourceOrigin: "defillama-helper",
+          canonicalCandidate: true,
           resolverDebug: recommended.debug,
         },
         status: "candidate",

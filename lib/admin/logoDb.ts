@@ -2,6 +2,7 @@ import "server-only";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
 import { getChainIdentity, getChainLogo } from "@/lib/chainLogos";
 import { slugifyLogoKey, logoManifestBySlug } from "@/lib/logos/logoRegistry";
+import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 
 export type AdminLogo = {
   id: string;
@@ -385,16 +386,21 @@ export function sourceIsPublicCandidate(source: LogoSource, logo: Pick<AdminLogo
 
 function orderedPublicSourceUrls(logo: Pick<AdminLogo, "approved_source_id">, sources: LogoSource[]) {
   const selected = sources.find((source) => source.id === logo.approved_source_id);
-  const eligibleSources = sources.filter((source) => sourceIsPublicCandidate(source, logo));
-  const byProvider = (providers: string[]) =>
-    eligibleSources.find((source) => providers.includes(source.provider) && source.id !== selected?.id) ?? null;
   const selectedPrimary =
     selected && sourceIsPublicCandidate(selected, logo) ? selected : null;
-  const vaultBackup = byProvider(["managed-vault", "vault"]);
-  const providerBackups = ["coingecko", "coinmarketcap", "defillama"].map((provider) =>
-    byProvider([provider]),
-  );
-  const ordered = [selectedPrimary, vaultBackup, ...providerBackups];
+  const canonicalSource = (provider: string) => {
+    const state = resolveCanonicalProviderState(sources, provider, logo);
+    return state.state === "OK" && state.source && state.source.id !== selectedPrimary?.id && sourceIsPublicCandidate(state.source, logo)
+      ? state.source
+      : null;
+  };
+  const ordered = [
+    selectedPrimary,
+    canonicalSource("managed-vault"),
+    canonicalSource("coingecko"),
+    canonicalSource("coinmarketcap"),
+    canonicalSource("defillama"),
+  ];
   return uniqueSlugs(ordered.map((source) => (source ? sourcePublicUrl(source) || "" : "")));
 }
 
