@@ -103,7 +103,8 @@ export function scoreProviderCandidate(input: {
   }
   score = Math.max(0, Math.min(100, score));
   const hasStrongReason = reasons.some((reason) => ["exact name", "exact slug", "alias"].includes(reason));
-  const symbolOnly = reasons.includes("symbol only") && !hasStrongReason;
-  const confidence: ConfidenceLabel = hasStrongReason && !symbolOnly && score >= 78 ? "high" : score >= 45 ? "medium" : "low";
+  const hasNameSlugOverlap = reasons.some((reason) => ["exact name", "exact slug", "alias", "name match", "slug match"].includes(reason));
+  const symbolOnly = reasons.includes("symbol only") && !hasNameSlugOverlap;
+  const confidence: ConfidenceLabel = hasStrongReason && hasNameSlugOverlap && !symbolOnly && score >= 78 ? "high" : hasNameSlugOverlap && score >= 45 ? "medium" : "low";
   return { score, confidence, reasons };
 }
