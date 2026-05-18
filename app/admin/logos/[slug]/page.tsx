@@ -514,6 +514,7 @@ export default async function LogoDetailPage({
     canonicalProviders.defillama.state === "OK" || canonicalProviders.defillama.state === "REVIEW"
       ? defiLlamaSource
       : null;
+  const hasReliableDefiLlamaSource = Boolean(activeDefiLlamaSource);
   const providerCoverage = {
     coingecko: providerCoverageStatus(sources, "coingecko", logo),
     coinmarketcap: providerCoverageStatus(sources, "coinmarketcap", logo),
@@ -657,38 +658,38 @@ export default async function LogoDetailPage({
             ? primaryNeedsReview
               ? "Needs review"
               : "Primary"
-            : activeDefiLlamaSource
+            : hasReliableDefiLlamaSource
               ? "Backup"
               : providerCoverage.defillama === "ERR"
                 ? "Error"
                 : "Missing",
-      helper: activeDefiLlamaSource
+      helper: hasReliableDefiLlamaSource
         ? savedDefiLlamaSlug
           ? `Slug: ${savedDefiLlamaSlug}`
           : `Fetched source saved`
         : savedDefiLlamaSlug
-          ? `Slug saved · fetch needed (${savedDefiLlamaSlug})`
-          : `Default slug only · fetch needed (${logoSlug})`,
+          ? `No reliable source · slug saved (${savedDefiLlamaSlug})`
+          : `No reliable source found`,
       needsReview: providerCoverage.defillama === "REVIEW",
       action: (
         <div className="flex flex-wrap gap-2">
-          {activeDefiLlamaSource ? (
+          {hasReliableDefiLlamaSource ? (
             <ApproveButton
-              source={activeDefiLlamaSource}
+              source={activeDefiLlamaSource!}
               slug={logoSlug}
               label={
-                activeDefiLlamaSource.id === primarySource?.id
+                activeDefiLlamaSource!.id === primarySource?.id
                   ? "Mark reviewed"
                   : "Use as primary"
               }
-              dark={activeDefiLlamaSource.id !== primarySource?.id}
+              dark={activeDefiLlamaSource!.id !== primarySource?.id}
             />
           ) : null}
           <form action={addDefiLlamaAction}>
             {hiddenLogoFields}
             <input type="hidden" name="providerSlug" value={savedDefiLlamaSlug || logoSlug} />
             <SmallButton>
-              {activeDefiLlamaSource ? "Fetch again" : "Fetch"}
+              {hasReliableDefiLlamaSource ? "Fetch again" : "Fetch"}
             </SmallButton>
           </form>
         </div>
@@ -993,6 +994,7 @@ export default async function LogoDetailPage({
                   {row.source?.status === "rejected" ? <RestoreButtons source={row.source} slug={logoSlug} /> : row.action}
                   {row.source &&
                   row.source.status !== "rejected" &&
+                  (row.key !== "defillama" || hasReliableDefiLlamaSource) &&
                   !["managed-vault", "manual"].includes(row.key) ? (
                     <CopyVaultButton
                       source={row.source}
@@ -1268,8 +1270,8 @@ export default async function LogoDetailPage({
                   Source resolver
                 </h3>
               </div>
-              <AdminStatusPill tone={providerCoverage.defillama === "OK" || providerCoverage.defillama === "REVIEW" ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
-                {providerCoverage.defillama === "OK" || providerCoverage.defillama === "REVIEW"
+              <AdminStatusPill tone={hasReliableDefiLlamaSource ? "gray" : recommendedDefiLlama ? "green" : otherDefiLlamaMatches.length ? "amber" : "amber"}>
+                {hasReliableDefiLlamaSource
                   ? "SOURCE PRESENT"
                   : recommendedDefiLlama
                     ? "RECOMMENDED SOURCE"
@@ -1552,8 +1554,9 @@ function isActionableMediumMatch(targetName: string, targetSlug: string, candida
   if (!candName && !candSlug) return false;
   const hasCore = Array.from(base).some((token) => token && (candName.includes(token) || candSlug.includes(token) || candCompact.includes(token)));
   if (!hasCore) return false;
-  const unrelated = ["dao", "iou", "wrapped", "bridged", "leveraged", "pendle"];
+  const safeExtensions = ["network", "chain", "protocol", "labs", "finance", "token", "dao", "foundation"];
+  const hasSafeExtension = safeExtensions.some((term) => candName.includes(term) || candSlug.includes(term));
+  const unrelated = ["iou", "wrapped", "bridged", "leveraged", "pendle"];
   if (unrelated.some((t) => candName.includes(t) || candSlug.includes(t))) return false;
-  return true;
+  return hasSafeExtension || hasCore;
 }
-

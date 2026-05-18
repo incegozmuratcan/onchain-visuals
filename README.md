@@ -30,6 +30,15 @@ learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data te
 - Public card candidates remain selected reviewed primary → reviewed Managed Vault → reviewed CoinGecko/CoinMarketCap/DefiLlama → generated fallback. `NO`, `REVIEW`, `ERR`, helper previews, provider IDs/slugs, generated placeholders and non-canonical duplicate candidates are excluded. Advanced source records show canonical/current rows by default and hide historical duplicate rows behind “Show hidden source history.” No schema changes were made; Admin DB Setup is not required.
 
 
+
+## v0.11.15 Logo Manager Truth Hard-Fix
+
+- DefiLlama canonical state is now strict-source truth: a saved row only counts when it is persisted, non-rejected, non-hidden/non-superseded, target-matching, and backed by a real non-placeholder image URL/blob URL. Slug-only/default-slug/helper-preview states are explicitly treated as missing.
+- DefiLlama placeholder/stale/mismatched rows are blocked from canonical provider state, Source Present badges, primary/backup actions, Missing DefiLlama resolution, and public candidate coverage. Invalid historical rows remain as history only and do not drive provider status.
+- DefiLlama provider helper text now avoids false success labels for invalid states; when no reliable source is canonical it shows no-reliable-source language rather than fetched/present messaging.
+- CoinGecko/CMC medium-confidence helper actions now allow strong related extensions (for example `Quai` → `Quai Network`) while still blocking unrelated/derivative matches like Pendle for Quai.
+- Public candidate eligibility and Logo Manager truth semantics remain canonical-source-only across providers, with invalid DefiLlama rows excluded from candidate ordering and coverage counts.
+
 ## v0.11.14 Logo Manager Reliability Finalization
 
 - DefiLlama canonical coverage now treats target-mismatched rows as canonical `ERR` (not coverage), including stale cross-logo rows, and excludes placeholder/question-mark/unknown-logo style URLs from real source coverage.

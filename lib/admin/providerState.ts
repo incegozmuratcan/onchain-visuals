@@ -93,6 +93,15 @@ function tokenSet(values: Array<string | null | undefined>) {
   return out;
 }
 
+function splitSlugTokens(value: string) {
+  const clean = stringValue(value).toLowerCase();
+  if (!clean) return [];
+  return clean
+    .split(/[^a-z0-9]+/g)
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
 function defillamaSlugFromUrl(url: string) {
   const clean = stringValue(url).toLowerCase();
   if (!clean) return "";
@@ -109,6 +118,10 @@ function isDefiLlamaSourceMismatched(source: LogoSource, logo?: Partial<Pick<Adm
     logo?.slug,
     logo?.name,
     String(meta.targetSlug || ""),
+    String(meta.targetName || ""),
+    String(meta.metadataSlug || ""),
+    String(meta.alias || ""),
+    ...(Array.isArray(meta.aliases) ? meta.aliases.map((v) => String(v || "")) : []),
   ]);
   if (!targetTokens.size) return false;
   const candidateTokens = tokenSet([
@@ -120,6 +133,8 @@ function isDefiLlamaSourceMismatched(source: LogoSource, logo?: Partial<Pick<Adm
   ]);
   for (const token of candidateTokens) {
     if (targetTokens.has(token)) return false;
+    const pieces = splitSlugTokens(token);
+    if (pieces.some((piece) => targetTokens.has(piece))) return false;
   }
   return true;
 }
@@ -142,6 +157,8 @@ export function sourceHasInvalidState(source: LogoSource) {
       metadata.visualRejected ||
       metadata.visuallyRejected ||
       metadata.invalidForTarget === true ||
+      metadata.hidden === true ||
+      metadata.superseded === true ||
       reviewStatus === "rejected" ||
       reviewStatus === "unsafe" ||
       reviewStatus === "error" ||
@@ -195,7 +212,7 @@ export function resolveCanonicalProviderState(
   }
 
   const mismatchedDefiLlama = provider === "defillama" ? providerSources.filter((source) => isDefiLlamaSourceMismatched(source, logo)) : [];
-  const realSourceRows = eligibleProviderSources.filter(sourceHasRealLogoUrl);
+  const realSourceRows = eligibleProviderSources.filter((source) => sourceHasRealLogoUrl(source) && !sourceHasInvalidState(source));
   if (!realSourceRows.length) {
     const errorSource = mismatchedDefiLlama[0] ?? eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
     return errorSource
