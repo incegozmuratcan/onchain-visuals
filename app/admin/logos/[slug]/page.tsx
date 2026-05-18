@@ -1148,7 +1148,7 @@ export default async function LogoDetailPage({
           {cgFinderResult.candidates.length ? (
             <div className="mt-3 grid gap-2">
               {cgFinderResult.candidates.slice(0, 4).map((candidate) => {
-                const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && (candidate.name.toLowerCase().includes(logoSlug.toLowerCase()) || candidate.id.toLowerCase().includes(logoSlug.toLowerCase()) || logoName.toLowerCase().includes(candidate.name.toLowerCase())));
+                const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && isActionableMediumMatch(logoName, logoSlug, candidate.name, candidate.id));
                 const row = (
                   <>
                     <Img src={candidate.thumb || candidate.large} size={30} />
@@ -1224,7 +1224,7 @@ export default async function LogoDetailPage({
             {cmcFinderResult.candidates.length ? (
               <div className="mt-3 grid gap-2">
                 {cmcFinderResult.candidates.slice(0, 5).map((candidate) => {
-                  const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && (candidate.name.toLowerCase().includes(logoSlug.toLowerCase()) || candidate.slug.toLowerCase().includes(logoSlug.toLowerCase()) || logoName.toLowerCase().includes(candidate.name.toLowerCase())));
+                  const canUse = (candidate.recommended && candidate.confidence === "high") || (candidate.confidence === "medium" && isActionableMediumMatch(logoName, logoSlug, candidate.name, candidate.slug));
                   const row = (
                     <>
                       <Img src={candidate.logo} size={30} />
@@ -1541,3 +1541,19 @@ export default async function LogoDetailPage({
     </AdminShell>
   );
 }
+
+function isActionableMediumMatch(targetName: string, targetSlug: string, candidateName: string, candidateSlug: string) {
+  const normalize = (v: string) => v.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const compact = (v: string) => normalize(v).replace(/\s+/g, "");
+  const base = new Set([normalize(targetName), normalize(targetSlug), compact(targetName), compact(targetSlug)]);
+  const candName = normalize(candidateName);
+  const candSlug = normalize(candidateSlug);
+  const candCompact = compact(candidateName + " " + candidateSlug);
+  if (!candName && !candSlug) return false;
+  const hasCore = Array.from(base).some((token) => token && (candName.includes(token) || candSlug.includes(token) || candCompact.includes(token)));
+  if (!hasCore) return false;
+  const unrelated = ["dao", "iou", "wrapped", "bridged", "leveraged", "pendle"];
+  if (unrelated.some((t) => candName.includes(t) || candSlug.includes(t))) return false;
+  return true;
+}
+

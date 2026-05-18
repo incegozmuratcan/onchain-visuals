@@ -49,6 +49,7 @@ export function sourceHasRealLogoUrl(source: LogoSource) {
   if (combined.includes("/api/chain-logo/")) return false;
   if (combined.includes("generated fallback") || combined.includes("generated-fallback")) return false;
   if (combined.includes("placeholder") || combined.includes("empty icon") || combined.includes("generic icon")) return false;
+  if (combined.includes("question-mark") || combined.includes("question_mark") || combined.includes("unknown-logo")) return false;
   if (combined.includes("fallback logo") || combined.includes("fallback-logo")) return false;
   return true;
 }
@@ -101,15 +102,15 @@ function defillamaSlugFromUrl(url: string) {
   return icon?.[1]?.trim() ?? "";
 }
 
-function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
-  if (source.provider !== "defillama") return true;
+function isDefiLlamaSourceMismatched(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
+  if (source.provider !== "defillama") return false;
   const meta = sourceMetadataObject(source.metadata);
   const targetTokens = tokenSet([
     logo?.slug,
     logo?.name,
     String(meta.targetSlug || ""),
   ]);
-  if (!targetTokens.size) return true;
+  if (!targetTokens.size) return false;
   const candidateTokens = tokenSet([
     String(meta.defillamaSlug || ""),
     String(meta.slug || ""),
@@ -118,9 +119,13 @@ function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<A
     String(meta.name || ""),
   ]);
   for (const token of candidateTokens) {
-    if (targetTokens.has(token)) return true;
+    if (targetTokens.has(token)) return false;
   }
-  return false;
+  return true;
+}
+
+function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
+  return !isDefiLlamaSourceMismatched(source, logo);
 }
 export function sourceHasInvalidState(source: LogoSource) {
   const metadata = sourceMetadataObject(source.metadata);
@@ -189,9 +194,10 @@ export function resolveCanonicalProviderState(
     return { provider, state: "NO", source: null, sources: [], reason: "missing" };
   }
 
+  const mismatchedDefiLlama = provider === "defillama" ? providerSources.filter((source) => isDefiLlamaSourceMismatched(source, logo)) : [];
   const realSourceRows = eligibleProviderSources.filter(sourceHasRealLogoUrl);
   if (!realSourceRows.length) {
-    const errorSource = eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
+    const errorSource = mismatchedDefiLlama[0] ?? eligibleProviderSources.find(sourceHasInvalidState) ?? providerSources.find(sourceHasInvalidState) ?? null;
     return errorSource
       ? { provider, state: "ERR", source: errorSource, sources: eligibleProviderSources, reason: "error" }
       : { provider, state: "NO", source: null, sources: eligibleProviderSources, reason: "missing" };
