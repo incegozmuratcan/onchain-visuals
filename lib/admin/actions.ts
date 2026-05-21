@@ -242,21 +242,36 @@ function parseSettingJson(value: unknown) {
 }
 
 
-export async function hardResetDefiLlamaProviderAction() {
-  await requireAdmin();
+type DefiLlamaHardResetSummary = {
+  defillamaRowsDeleted: number;
+  logosAffected: number;
+  primariesRepaired: number;
+  primariesCleared: number;
+  fetchStatesCleared: number;
+  savedSlugsCleared: number;
+  summariesCleared: number;
+  errors: number;
+};
+
+function toSafeErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) return error.message.slice(0, 200);
+  return "unknown error";
+}
+
+function hardResetDefiLlamaSummaryMessage(summary: DefiLlamaHardResetSummary) {
+  return `Hard reset DefiLlama provider complete: defillamaRowsDeleted ${summary.defillamaRowsDeleted} · logosAffected ${summary.logosAffected} · primariesRepaired ${summary.primariesRepaired} · primariesCleared ${summary.primariesCleared} · fetchStatesCleared ${summary.fetchStatesCleared} · savedSlugsCleared ${summary.savedSlugsCleared} · summariesCleared ${summary.summariesCleared} · errors ${summary.errors}`;
+}
+
+async function hardResetDefiLlamaProviderInternal(): Promise<DefiLlamaHardResetSummary> {
+  const summary: DefiLlamaHardResetSummary = { defillamaRowsDeleted: 0, logosAffected: 0, primariesRepaired: 0, primariesCleared: 0, fetchStatesCleared: 0, savedSlugsCleared: 0, summariesCleared: 0, errors: 0 };
   const logos = (await listLogos()).rows;
   const logosById = new Map(logos.map((logo) => [logo.id, logo]));
   const allSources = (await getAllLogoSources()).rows;
   const defillamaSources = allSources.filter((source) => source.provider === "defillama");
   const defillamaSourceIds = new Set(defillamaSources.map((source) => source.id));
   const affectedLogoIds = Array.from(new Set(defillamaSources.map((source) => source.logo_id)));
-
-  let primariesRepaired = 0;
-  let primariesCleared = 0;
-  let fetchStatesCleared = 0;
-  let savedSlugsCleared = 0;
-  let summariesCleared = 0;
-  let errors = 0;
+  summary.defillamaRowsDeleted = defillamaSources.length;
+  summary.logosAffected = affectedLogoIds.length;
 
   for (const logoId of affectedLogoIds) {
     const logo = logosById.get(logoId);
@@ -266,35 +281,36 @@ export async function hardResetDefiLlamaProviderAction() {
       const replacement = chooseReplacementPrimary(logo, nonDefiLlamaSources);
       if (replacement) {
         await query(`UPDATE logos SET approved_source_id = $2, approved_logo_url = COALESCE($3, $4), status = 'approved' WHERE id = $1`, [logo.id, replacement.id, replacement.blob_url, replacement.image_url]);
-        primariesRepaired += 1;
+        summary.primariesRepaired += 1;
       } else {
         await query(`UPDATE logos SET approved_source_id = NULL, approved_logo_url = NULL, status = 'needs_review' WHERE id = $1`, [logo.id]);
-        primariesCleared += 1;
+        summary.primariesCleared += 1;
       }
     } catch {
-      errors += 1;
+      summary.errors += 1;
     }
   }
+
   if (defillamaSources.length) {
     await query(`DELETE FROM logo_sources WHERE provider = 'defillama'`);
   }
   const fetchReset = await query(`UPDATE logos SET last_fetch_provider = NULL, last_fetch_error = NULL, last_fetch_at = NULL WHERE last_fetch_provider = 'defillama'`);
-  fetchStatesCleared = fetchReset.rowCount ?? 0;
+  summary.fetchStatesCleared = fetchReset.rowCount ?? 0;
 
-  const settings = (await query(`SELECT setting_key, setting_value FROM admin_settings WHERE setting_key LIKE 'logo_provider_ids:%' OR setting_key IN ('last_logo_source_discovery_summary', 'last_defillama_discovery_summary', 'last_defillama_source_tools_summary')`)).rows;
+  const settings = (await query<{ setting_key: string; setting_value: string }>(`SELECT key AS setting_key, value AS setting_value FROM admin_settings WHERE key LIKE 'logo_provider_ids:%' OR key IN ('last_logo_source_discovery_summary', 'last_defillama_discovery_summary', 'last_defillama_source_tools_summary')`)).rows;
   for (const row of settings) {
     if (row.setting_key.startsWith("logo_provider_ids:")) {
       const json = parseSettingJson(row.setting_value) as Record<string, unknown>;
       if (!Object.prototype.hasOwnProperty.call(json, "defillamaSlug")) continue;
       delete json.defillamaSlug;
       await setAdminSetting(row.setting_key, JSON.stringify(json));
-      savedSlugsCleared += 1;
+      summary.savedSlugsCleared += 1;
       continue;
     }
     const text = String(row.setting_value || "").toLowerCase();
     if (text.includes("defillama")) {
       await setAdminSetting(row.setting_key, "");
-      summariesCleared += 1;
+      summary.summariesCleared += 1;
     }
   }
 
@@ -303,16 +319,10 @@ export async function hardResetDefiLlamaProviderAction() {
     const logo = logosById.get(logoId);
     if (logo) revalidatePath(`/admin/logos/${logo.slug}`);
   }
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Hard reset DefiLlama provider complete: defillamaRowsDeleted ${defillamaSources.length} · logosAffected ${affectedLogoIds.length} · primariesRepaired ${primariesRepaired} · primariesCleared ${primariesCleared} · fetchStatesCleared ${fetchStatesCleared} · savedSlugsCleared ${savedSlugsCleared} · summariesCleared ${summariesCleared} · errors ${errors}`);
+  return summary;
 }
 
-export async function hardResetAndRediscoverDefiLlamaV3Action() {
-  await hardResetDefiLlamaProviderAction();
-  await discoverDefiLlamaV3SourcesAction();
-}
-
-export async function discoverDefiLlamaV3SourcesAction() {
-  await requireAdmin();
+async function discoverDefiLlamaV3SourcesInternal() {
   const logos = (await listLogos()).rows;
   const allSources = (await getAllLogoSources()).rows;
   const byLogo = new Map<string, LogoSource[]>();
@@ -367,9 +377,45 @@ export async function discoverDefiLlamaV3SourcesAction() {
     }
   }
   await setAdminSetting("last_defillama_discovery_summary", JSON.stringify(summary));
-  revalidatePath("/admin/logos");
-  adminNotice("/admin/logos", summary.errors ? "warning" : "success", `Discover DefiLlama v3 complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
+  return summary;
 }
+
+export async function hardResetDefiLlamaProviderAction() {
+  await requireAdmin();
+  try {
+    const summary = await hardResetDefiLlamaProviderInternal();
+    adminNotice('/admin/logos', summary.errors ? 'warning' : 'success', hardResetDefiLlamaSummaryMessage(summary));
+  } catch (error) {
+    console.error("Hard reset DefiLlama provider failed", { message: toSafeErrorMessage(error) });
+    adminNotice('/admin/logos', 'error', `Hard reset DefiLlama failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
+export async function hardResetAndRediscoverDefiLlamaV3Action() {
+  await requireAdmin();
+  try {
+    const reset = await hardResetDefiLlamaProviderInternal();
+    const discover = await discoverDefiLlamaV3SourcesInternal();
+    const level = reset.errors || discover.errors ? 'warning' : 'success';
+    adminNotice('/admin/logos', level, `${hardResetDefiLlamaSummaryMessage(reset)} · discoverChecked ${discover.checked} · discoverFound ${discover.found} · discoverSaved ${discover.saved} · discoverNoReliable ${discover.noReliable} · discoverErrors ${discover.errors}`);
+  } catch (error) {
+    console.error("Hard reset + rediscover DefiLlama v3 failed", { message: toSafeErrorMessage(error) });
+    adminNotice('/admin/logos', 'error', `Hard reset + rediscover DefiLlama failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
+export async function discoverDefiLlamaV3SourcesAction() {
+  await requireAdmin();
+  try {
+    const summary = await discoverDefiLlamaV3SourcesInternal();
+    revalidatePath("/admin/logos");
+    adminNotice("/admin/logos", summary.errors ? "warning" : "success", `Discover DefiLlama v3 complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
+  } catch (error) {
+    console.error("Discover DefiLlama v3 failed", { message: toSafeErrorMessage(error) });
+    adminNotice("/admin/logos", "error", `Discover DefiLlama v3 failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
   if (!diagnostic.hasDatabaseConfig)
