@@ -1425,7 +1425,7 @@ export default async function LogoDetailPage({
                   metadata.hidden === true ||
                   metadata.invalidForTarget === true ||
                   Boolean(metadata.invalidReason) ||
-                  metadata.defillamaV2 === "invalid" ||
+                  (metadata.defillamaV2 === "invalid" || metadata.defillamaV3 === "invalid") ||
                   metadata.superseded === true
                 );
               };

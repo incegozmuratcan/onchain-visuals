@@ -1,33 +1,33 @@
 # learnDeFi
 
-## v0.11.20 DefiLlama v2 Deterministic Reliability (Blocker)
+## v0.11.20 DefiLlama v3 Deterministic Reliability (Blocker)
 
-- Added deterministic verification script `npm run verify:defillama` (`scripts/verify-defillama-v2.mjs`) covering BNB/bsc alias validity, Akash invalid guessed protocol rejection, Pendle-for-Akash target mismatch rejection, Aptos chain mirror validity, Geodnet resolver-confirmed protocol-index validity, and invalid-vs-valid canonical prerequisites.
-- DefiLlama alias family now treats BNB, BNB Chain, BSC, Binance Smart Chain and BinanceCoin as the same target family for v2 validation/canonical resolution paths.
-- DefiLlama Use + Fetch now enforces v2 validation metadata normalization, supersedes old invalid DefiLlama rows, and fails with an explicit error if canonical DefiLlama state remains `ERR`/`NO` after save.
-- Reset DefiLlama sources v2 and canonical source priority continue to ensure invalid historical rows cannot block newer valid DefiLlama rows.
+- Added deterministic verification script `npm run verify:defillama` (`scripts/verify-defillama-v3.mjs`) covering BNB/bsc alias validity, Akash invalid guessed protocol rejection, Pendle-for-Akash target mismatch rejection, Aptos chain mirror validity, Geodnet resolver-confirmed protocol-index validity, and invalid-vs-valid canonical prerequisites.
+- DefiLlama alias family now treats BNB, BNB Chain, BSC, Binance Smart Chain and BinanceCoin as the same target family for v3 validation/canonical resolution paths.
+- DefiLlama Use + Fetch now enforces v3 validation metadata normalization, supersedes old invalid DefiLlama rows, and fails with an explicit error if canonical DefiLlama state remains `ERR`/`NO` after save.
+- Reset DefiLlama sources v3 and canonical source priority continue to ensure invalid historical rows cannot block newer valid DefiLlama rows.
 
 Make DeFi data share-ready.
 
 learnDeFi creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
 
-## v0.11.19 DefiLlama v2 Reset + Rediscovery (Blocker)
+## v0.11.19 DefiLlama v3 Reset + Rediscovery (Blocker)
 
 - Added strict `classifyDefiLlamaSourceV2(logo, source)` classification semantics for persisted DefiLlama rows: `chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`, `invalid`.
 - Old guessed protocol rows are not trusted as coverage, backup, review or active source state unless resolver/index validation confirms a real non-placeholder match.
-- Source Tools maintenance action is now **Reset DefiLlama sources v2** with explicit invalidation + primary repair summary counters.
-- DefiLlama fetch/discovery persistence is v2-strict: only v2-valid candidates are saved; guessed/placeholder/unreliable rows are rejected.
-- Missing DefiLlama now means no persisted v2-valid DefiLlama source exists for the logo.
-- Post-deploy runbook: run **Reset DefiLlama sources v2** first, then run discovery to repopulate valid DefiLlama review candidates.
+- Source Tools maintenance action is now **Reset DefiLlama sources v3** with explicit invalidation + primary repair summary counters.
+- DefiLlama fetch/discovery persistence is v3-strict: only v3-valid candidates are saved; guessed/placeholder/unreliable rows are rejected.
+- Missing DefiLlama now means no persisted v3-valid DefiLlama source exists for the logo.
+- Post-deploy runbook: run **Reset DefiLlama sources v3** first, then run discovery to repopulate valid DefiLlama review candidates.
 
-## v0.11.18 DefiLlama v2 Strict Source System (Blocker)
+## v0.11.18 DefiLlama v3 Strict Source System (Blocker)
 
 - Old guessed DefiLlama protocol auto-source discovery is disabled for persistence: `https://defillama.com/protocol/{slug}` + `https://icons.llama.fi/{slug}.jpg` is never trusted as a saved source unless resolver/index validation passes.
-- DefiLlama validation now classifies persisted rows with `defillamaV2`: `chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`, or `invalid`.
+- DefiLlama validation now classifies persisted rows with `defillamaV3`: `chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`, or `invalid`.
 - `icons.llama.fi/{slug}.jpg` protocol-style URLs are not trusted by default and are invalidated when resolver confirmation is missing or image appears placeholder/generic.
 - Valid mirrored chain assets remain accepted (for example `/logos/chains/*` mirrored from `https://icons.llama.fi/chains/rsz_{slug}.jpg`).
 - Source Tools maintenance **Validate DefiLlama sources** performs repair: invalid rows are hidden/invalidated, and invalid DefiLlama primaries are detached/reassigned/cleared. Run this once after deploy.
-- Missing DefiLlama and public logo candidate eligibility now accept only DefiLlama v2-valid rows.
+- Missing DefiLlama and public logo candidate eligibility now accept only DefiLlama v3-valid rows.
 
 ## v0.11.17 DefiLlama Placeholder Invalidation (Akash Fix)
 

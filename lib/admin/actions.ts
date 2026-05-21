@@ -51,7 +51,7 @@ import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
-import { classifyDefiLlamaSourceV2, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
+import { classifyDefiLlamaSourceV3, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
 import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 import {
   deleteAdminApiSecret,
@@ -233,7 +233,7 @@ function chooseReplacementPrimary(logo: AdminLogo, sources: LogoSource[]) {
 }
 
 
-export async function validateDefiLlamaSourcesAction() {
+export async function resetDefiLlamaSourcesV3Action() {
   await requireAdmin();
   const logos = (await listLogos()).rows;
   const allSources = (await getAllLogoSources()).rows;
@@ -260,7 +260,7 @@ export async function validateDefiLlamaSourcesAction() {
         if (result.reason === "old_guessed_protocol_source") invalidGuessedProtocolRows++;
         if (result.isMismatched) mismatches++;
         const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
-        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV2: "invalid", superseded: false };
+        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV3: "invalid", superseded: false };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
         if (logo.approved_source_id === source.id) {
           detachedPrimary++;
@@ -280,7 +280,7 @@ export async function validateDefiLlamaSourcesAction() {
         else if (result.sourceType === "chain-icon") validChainIcons++;
         else if (result.sourceType === "protocol-index") validProtocols++;
         else if (result.sourceType === "manual-reviewed") validManualReviewed++;
-        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV2: result.sourceType, hidden:false, invalidForTarget:false, invalidReason:null };
+        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV3: result.sourceType, hidden:false, invalidForTarget:false, invalidReason:null };
         await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
       }
     } catch { errors++; }
@@ -291,7 +291,7 @@ export async function validateDefiLlamaSourcesAction() {
     return state.state !== "OK" && state.state !== "REVIEW";
   }).length;
   revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Reset DefiLlama sources v2 complete: checked logos ${logos.length} · checked DefiLlama rows ${sources.length} · valid chain mirrors ${validChainMirrors}, valid chain icons ${validChainIcons}, valid protocols ${validProtocols}, valid manual reviewed ${validManualReviewed} (${valid} total) · invalidated guessed protocol rows ${invalidGuessedProtocolRows}, invalidated placeholders ${placeholders}, invalidated target mismatches ${mismatches}, invalidated resolver no reliable ${noReliable} (${invalidated} total) · detached primaries ${detachedPrimary}, reassigned primaries ${reassignedPrimary}, cleared primaries ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Reset DefiLlama provider v3 complete: checked logos ${logos.length} · checked DefiLlama rows ${sources.length} · valid chain mirrors ${validChainMirrors}, valid chain icons ${validChainIcons}, valid protocols ${validProtocols}, valid manual reviewed ${validManualReviewed} (${valid} total) · invalidated guessed protocol rows ${invalidGuessedProtocolRows}, invalidated placeholders ${placeholders}, invalidated target mismatches ${mismatches}, invalidated resolver no reliable ${noReliable} (${invalidated} total) · detached primaries ${detachedPrimary}, reassigned primaries ${reassignedPrimary}, cleared primaries ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
@@ -394,7 +394,7 @@ export async function addDefiLlamaAction(formData: FormData) {
         found.error || "No reliable DefiLlama source found.",
       );
     }
-    const classified = classifyDefiLlamaSourceV2({
+    const classified = classifyDefiLlamaSourceV3({
       logoName: logo.name,
       logoSlug: logo.slug,
       logoCategory: logo.category,
@@ -459,10 +459,10 @@ export async function addDefiLlamaAction(formData: FormData) {
         score: candidate.score,
         fetchedAt: new Date().toISOString(),
         reviewStatus,
-        sourceOrigin: "defillama-helper",
+        sourceOrigin: "defillama-v3-discovery",
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
-        defillamaV2: classified.sourceType,
+        defillamaV3: classified.sourceType,
       },
       status: "candidate",
       reviveRejected: false,
@@ -511,7 +511,7 @@ export async function addDefiLlamaAction(formData: FormData) {
               'validatedForTarget', true,
               'validatedAt', now()::text,
               'reviewStatus', coalesce((coalesce(metadata,'{}'::jsonb)->>'reviewStatus'), 'needs_review'),
-              'defillamaV2', $3
+              'defillamaV3', $3
             )
           )
         where id = $1 and logo_id = $2`,
@@ -520,7 +520,7 @@ export async function addDefiLlamaAction(formData: FormData) {
 
     const postSaveSources = (await getLogoSources(logo.id)).rows;
     for (const stale of postSaveSources.filter((s) => s.provider === "defillama" && s.id !== created.id)) {
-      const staleCheck = classifyDefiLlamaSourceV2({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: stale });
+      const staleCheck = classifyDefiLlamaSourceV3({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: stale });
       if (!staleCheck.valid) {
         await query(
           `update logo_sources
@@ -550,7 +550,7 @@ export async function addDefiLlamaAction(formData: FormData) {
     redirectLogoNotice(
       logo.slug,
       "success",
-      "DefiLlama source saved. Needs review.",
+      "DefiLlama v3 source saved. Needs review.",
     );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
@@ -1261,7 +1261,7 @@ async function discoverLogoSources(
           score: recommended.score,
           fetchedAt: new Date().toISOString(),
           reviewStatus: "selected_needs_review",
-          sourceOrigin: "defillama-helper",
+          sourceOrigin: "defillama-v3-discovery",
           canonicalCandidate: true,
           resolverDebug: recommended.debug,
         },
