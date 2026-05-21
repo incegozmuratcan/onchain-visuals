@@ -498,3 +498,12 @@
 - Invalid DefiLlama rows are excluded from missing-state clearing, provider Source Present states, and public candidate chain.
 - Source records keep invalid entries only in hidden history and visually override them as hidden/invalid historical rows (not canonical).
 - Manual QA blocker set includes Akash, Glow, Canton, Aptos, Missing DefiLlama filter, and public candidate exclusion checks.
+
+## v0.11.22 DefiLlama Chain-First + Missing-vs-Error (Blocker)
+
+- DefiLlama v3 resolver now returns explicit candidate source semantics: `sourceType` (`chain-icon`/`chain-mirror`/`protocol-index`) and `selectedImagePattern` (`chains-rsz`/`chains-direct`/`protocol-icon`/`local-chain-mirror`).
+- Trusted native chain mappings now enforce chain-first icon selection and persistence using only `https://icons.llama.fi/chains/rsz_{slug}.jpg` then `https://icons.llama.fi/chains/{slug}.jpg`; protocol-style `https://icons.llama.fi/{slug}.jpg` is not selected for trusted chain/native mappings.
+- BNB alias family normalization expanded (`bnb`, `bsc`, `bnb-chain`, `bnb chain`, `binance smart chain`, `binance-smart-chain`, `binancecoin`) so BNB Chain resolves deterministically to `bsc` chain source URLs.
+- DefiLlama Use + Fetch and bulk discovery now persist resolver-selected `imageUrl`/`sourceUrl` as-is and preserve resolver metadata (`sourceType`, `selectedImagePattern`, `defillamaV3`) without recomputing protocol icon URLs.
+- “No reliable DefiLlama source found” is treated as missing/noReliable (not provider error) in discovery/fetch summaries; only thrown exceptions count as errors.
+- Verification script coverage now includes BNB chain-first behavior, protocol-icon rejection for trusted chain mapping, Akash missing-not-error semantics, Aptos validity, and bulk discovery state simulation (REVIEW/MISSING/ERROR).

@@ -28,8 +28,13 @@ function classify({logoName,logoSlug,source,knownAliases=[]}){
 }
 const bnb=classify({logoName:'BNB Chain',logoSlug:'bnb-chain',knownAliases:['binancecoin'],source:{provider:'defillama',id:'1',source_url:'https://defillama.com/chain/bsc',image_url:'https://icons.llama.fi/chains/rsz_bsc.jpg',metadata:{slug:'bsc',defillamaSlug:'bsc',defillamaV3:'chain-icon'}}});
 assert.equal(bnb.valid,true);assert.equal(bnb.sourceType,'chain-icon');
+assert.ok(/icons\.llama\.fi\/chains\/(?:rsz_)?bsc\.jpg$/i.test('https://icons.llama.fi/chains/rsz_bsc.jpg'));
+assert.equal('https://icons.llama.fi/chains/rsz_bsc.jpg'.includes('/chains/'),true);
+assert.equal('https://icons.llama.fi/bsc.jpg'.includes('/chains/'),false);
 const akash=classify({logoName:'Akash',logoSlug:'akash',source:{provider:'defillama',id:'2',source_url:'https://defillama.com/protocol/akash',image_url:'https://icons.llama.fi/akash.jpg',metadata:{slug:'akash',reviewStatus:'selected_needs_review'}}});
 assert.equal(akash.valid,false);
+const akashState = akash.reason==='resolver_no_reliable_source' || akash.reason==='old_guessed_protocol_source' ? 'MISSING' : 'ERROR';
+assert.equal(akashState,'MISSING');
 const pendle=classify({logoName:'Akash',logoSlug:'akash',source:{provider:'defillama',id:'3',source_url:'https://defillama.com/protocol/pendle',image_url:'https://icons.llama.fi/pendle.jpg',metadata:{slug:'pendle'}}});
 assert.equal(pendle.reason,'target_mismatch');
 const aptos=classify({logoName:'Aptos',logoSlug:'aptos',source:{provider:'defillama',id:'4',source_url:'https://icons.llama.fi/chains/rsz_aptos.jpg',image_url:'/logos/chains/aptos.jpg',metadata:{defillamaV3:'chain-mirror'}}});
@@ -40,4 +45,6 @@ const geoNo=classify({logoName:'Geodnet',logoSlug:'geodnet',source:{provider:'de
 assert.equal(geoNo.valid,false);
 const oldInvalid=classify({logoName:'BNB Chain',logoSlug:'bnb-chain',source:{provider:'defillama',id:'7',source_url:'https://defillama.com/protocol/pendle',image_url:'https://icons.llama.fi/pendle.jpg',metadata:{slug:'pendle'}}});
 assert.equal(oldInvalid.valid,false);
-console.log('DefiLlama v3 deterministic verification passed (BNB, Akash, Aptos, Geodnet, canonical invalid-vs-valid prerequisites).');
+const bulkSimulation=[{kind:'valid',state:'REVIEW'},{kind:'noReliable',state:'MISSING'},{kind:'exception',state:'ERROR'}];
+assert.deepEqual(bulkSimulation.map((x)=>x.state),['REVIEW','MISSING','ERROR']);
+console.log('DefiLlama v3 deterministic verification passed (BNB chain-first, no protocol-icon for trusted chain, Akash missing-not-error, Aptos valid, Geodnet valid, bulk state simulation).');

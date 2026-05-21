@@ -336,7 +336,7 @@ async function discoverDefiLlamaV3SourcesInternal() {
       const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high");
       if (!candidate) {
         summary.noReliable += 1;
-        summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: found.error ? "resolver error" : "no index match" });
+        summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: found.error ? found.error : "no reliable source" });
         continue;
       }
       summary.found += 1;
@@ -358,6 +358,8 @@ async function discoverDefiLlamaV3SourcesInternal() {
             sourceOrigin: "defillama-v3-discovery",
             resolver: true,
             resolverConfidence: candidate.confidence,
+            sourceType: candidate.sourceType,
+            selectedImagePattern: candidate.selectedImagePattern,
           },
           rejection_reason: null,
           created_at: new Date().toISOString(),
@@ -368,7 +370,7 @@ async function discoverDefiLlamaV3SourcesInternal() {
         summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: classified.reason });
         continue;
       }
-      await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], fetchedAt: new Date().toISOString(), reviewStatus: "needs_review", sourceOrigin: "defillama-v3-discovery", validatedForTarget: true, defillamaV3: classified.sourceType } });
+      await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], fetchedAt: new Date().toISOString(), reviewStatus: "needs_review", sourceOrigin: "defillama-v3-discovery", validatedForTarget: true, defillamaV3: classified.sourceType, sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern } });
       summary.saved += 1;
       summary.workingExamples.push({ slug: logo.slug, name: logo.name, sourceType: classified.sourceType, sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrl });
     } catch {
@@ -509,12 +511,12 @@ export async function addDefiLlamaAction(formData: FormData) {
       await updateLogoFetchState(
         logo.slug,
         "defillama",
-        found.error || "No reliable DefiLlama source found.",
+        "No reliable DefiLlama source found.",
       );
       redirectLogoNotice(
         logo.slug,
         "warning",
-        found.error || "No reliable DefiLlama source found.",
+        "No reliable DefiLlama source found.",
       );
     }
     const classified = classifyDefiLlamaSourceV3({
@@ -583,6 +585,8 @@ export async function addDefiLlamaAction(formData: FormData) {
         fetchedAt: new Date().toISOString(),
         reviewStatus,
         sourceOrigin: "defillama-v3-discovery",
+        sourceType: candidate.sourceType,
+        selectedImagePattern: candidate.selectedImagePattern,
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
         defillamaV3: classified.sourceType,
@@ -657,8 +661,8 @@ export async function addDefiLlamaAction(formData: FormData) {
 
     const canonical = resolveCanonicalProviderState((await getLogoSources(logo.id)).rows, "defillama", logo);
     if (canonical.state === "ERR" || canonical.state === "NO") {
-      await updateLogoFetchState(logo.slug, "defillama", "DefiLlama source saved but canonical state did not update.");
-      redirectLogoNotice(logo.slug, "error", "DefiLlama source saved but canonical state did not update.");
+      await updateLogoFetchState(logo.slug, "defillama", "DefiLlama source saved but canonical state did not update (state mismatch).");
+      redirectLogoNotice(logo.slug, "error", `DefiLlama source saved but canonical state did not update. sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} reason=${classified.reason}`);
     }
 
     await updateLogoFetchState(logo.slug, "defillama", null);
@@ -1364,7 +1368,7 @@ async function discoverLogoSources(
       await updateLogoFetchState(
         logo.slug,
         "defillama",
-        found.error || "No reliable DefiLlama source found.",
+        "No reliable DefiLlama source found.",
       );
       summary.push(found.error ? `DefiLlama: failed (${found.error})` : "DefiLlama: no source found");
     } else {
@@ -1385,6 +1389,8 @@ async function discoverLogoSources(
           fetchedAt: new Date().toISOString(),
           reviewStatus: "selected_needs_review",
           sourceOrigin: "defillama-v3-discovery",
+        sourceType: recommended.sourceType,
+          selectedImagePattern: recommended.selectedImagePattern,
           canonicalCandidate: true,
           resolverDebug: recommended.debug,
         },
