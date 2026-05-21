@@ -1,3 +1,11 @@
+## v0.11.22 DefiLlama Chain-First + Missing-vs-Error (Blocker)
+
+- DefiLlama v3 trusted chain/native mappings are chain-first only: resolver prioritizes `https://icons.llama.fi/chains/rsz_{slug}.jpg` then `https://icons.llama.fi/chains/{slug}.jpg` and does not select protocol icon URLs for trusted chain mappings.
+- Resolver candidates now expose deterministic selection metadata: `sourceType` (`chain-icon`/`chain-mirror`/`protocol-index`) and `selectedImagePattern` (`chains-rsz`/`chains-direct`/`protocol-icon`/`local-chain-mirror`).
+- BNB alias family expanded to include `bnb`, `bsc`, `bnb-chain`, `bnb chain`, `binance smart chain`, `binance-smart-chain`, `binancecoin`, ensuring BNB Chain maps to DefiLlama chain slug `bsc`.
+- DefiLlama Use + Fetch and bulk discovery now persist resolver-selected source/image URLs as-is and keep resolver metadata in `metadata.defillamaV3`, `sourceType`, and `selectedImagePattern`.
+- `No reliable DefiLlama source found` is treated as Missing/noReliable state (not Error) in fetch/discovery summary semantics; only actual exceptions are counted as errors.
+
 # learnDeFi
 
 ## v0.11.21 DefiLlama Hard Reset + Clean v3 Rediscovery (Blocker)

@@ -16,6 +16,9 @@ export type DefiLlamaDebugAttempt = {
   reason: string;
 };
 
+export type DefiLlamaSourceType = "chain-icon" | "chain-mirror" | "protocol-index";
+export type DefiLlamaImagePattern = "chains-rsz" | "chains-direct" | "protocol-icon" | "local-chain-mirror";
+
 export type DefiLlamaCandidate = {
   id: string;
   name: string;
@@ -27,6 +30,8 @@ export type DefiLlamaCandidate = {
   score: number;
   recommended: boolean;
   reasons?: string[];
+  sourceType: DefiLlamaSourceType;
+  selectedImagePattern: DefiLlamaImagePattern;
   debug?: {
     selectedReason: string;
     aliasesTried: string[];
@@ -68,7 +73,7 @@ const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases
   { name: "Arbitrum", slug: "arbitrum", aliases: ["arbitrum", "arb", "arbitrum one", "arbitrum-one"] },
   { name: "Avalanche", slug: "avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"] },
   { name: "Solana", slug: "solana", aliases: ["solana", "sol"] },
-  { name: "BNB Chain", slug: "bsc", aliases: ["bnb", "bnb-chain", "bnb chain", "bsc", "binance smart chain"] },
+  { name: "BNB Chain", slug: "bsc", aliases: ["bnb", "bnb-chain", "bnb chain", "bsc", "binance smart chain", "binance-smart-chain", "binancecoin"] },
   { name: "Optimism", slug: "optimism", aliases: ["optimism", "op", "op mainnet", "op-mainnet"] },
   { name: "Base", slug: "base", aliases: ["base", "base chain"] },
   { name: "zkSync Era", slug: "zksync era", aliases: ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era"] },
@@ -78,7 +83,7 @@ const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases
 
 const KNOWN_ALIAS_GROUPS = [
   ...TRUSTED_NATIVE_CHAIN_MAPPINGS.map((mapping) => mapping.aliases),
-  ["bsc", "bnb-chain", "bnb chain", "binance smart chain", "bnb", "binance"],
+  ["bsc", "bnb-chain", "bnb chain", "binance smart chain", "binance-smart-chain", "bnb", "binance", "binancecoin"],
   ["op mainnet", "op-mainnet", "optimism", "optimism mainnet", "op"],
   ["matic", "polygon", "polygon pos", "polygon-pos", "pol"],
   ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era", "zk-sync-era"],
@@ -264,17 +269,29 @@ async function hasImage(url: string): Promise<{ ok: boolean; attempts: DefiLlama
 }
 
 async function resolveImageUrl(row: IndexRow) {
+  const isTrustedChain = row.category === "chain" && Boolean(row.trusted);
+  const chainSlugs = imageSlugCandidates(row);
+  const chainFirstUrls = chainSlugs.flatMap((slug) => [resizedChainIconUrl(slug), chainIconUrl(slug)]);
+  const protocolUrls = imageSlugCandidates(row).map(protocolIconUrl);
   const urls = unique([
-    ...(row.imageUrls ?? []),
-    ...(row.category === "chain" ? imageSlugCandidates(row).flatMap((slug) => [resizedChainIconUrl(slug), chainIconUrl(slug), protocolIconUrl(slug)]) : imageSlugCandidates(row).map(protocolIconUrl)),
+    ...(isTrustedChain ? [] : (row.imageUrls ?? [])),
+    ...(row.category === "chain" ? (isTrustedChain ? chainFirstUrls : chainFirstUrls.concat(protocolUrls)) : protocolUrls),
+    ...((!isTrustedChain ? (row.imageUrls ?? []) : []).filter((url) => /^https:\/\//.test(url) && !/icons\.llama\.fi\/(?!chains\/)[^?#]+/i.test(url))),
   ]).filter((url) => /^https:\/\//.test(url));
   const attempts: DefiLlamaDebugAttempt[] = [];
   for (const url of urls) {
     const result = await hasImage(url);
     attempts.push(...result.attempts);
-    if (result.ok) return { imageUrl: url, urls, attempts };
+    if (!result.ok) continue;
+    const selectedImagePattern: DefiLlamaImagePattern = /icons\.llama\.fi\/chains\/rsz_/i.test(url)
+      ? "chains-rsz"
+      : /icons\.llama\.fi\/chains\//i.test(url)
+        ? "chains-direct"
+        : "protocol-icon";
+    const sourceType: DefiLlamaSourceType = row.category === "chain" ? "chain-icon" : "protocol-index";
+    return { imageUrl: url, urls, attempts, sourceType, selectedImagePattern };
   }
-  return { imageUrl: null, urls, attempts };
+  return { imageUrl: null, urls, attempts, sourceType: row.category === "chain" ? "chain-icon" : "protocol-index", selectedImagePattern: row.category === "chain" ? "chains-rsz" : "protocol-icon" };
 }
 
 function isStablecoinCategory(category?: string | null) {
@@ -356,7 +373,7 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
       debug.urlPatternsTried.push(...resolved.urls);
       debug.attempts.push(...resolved.attempts);
       if (!resolved.imageUrl) continue;
-      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl: resolved.imageUrl, confidence, score, recommended: false, reasons: strict.reasons, debug: { selectedReason: strict.reasons.join(", "), aliasesTried: aliasContext, urlPatternsTried: resolved.urls, attempts: resolved.attempts } });
+      candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl: resolved.imageUrl, confidence, score, recommended: false, sourceType: resolved.sourceType, selectedImagePattern: resolved.selectedImagePattern, reasons: strict.reasons, debug: { selectedReason: strict.reasons.join(", "), aliasesTried: aliasContext, urlPatternsTried: resolved.urls, attempts: resolved.attempts } });
     }
     const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity", "stablecoin_only_category"].includes(reason)));
     if (recommended) {
