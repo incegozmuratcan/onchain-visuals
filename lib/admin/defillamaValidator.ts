@@ -42,7 +42,7 @@ function slugFromUrl(value: string) {
   return m2?.[1] ? slugText(m2[1]) : "";
 }
 
-export function classifyDefiLlamaSourceV2(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): DefiLlamaValidationResult {
+export function classifyDefiLlamaSourceV3(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): DefiLlamaValidationResult {
   const source = input.source;
   if (!source || source.provider !== "defillama" || !source.id) return { valid:false, reason:"No persisted DefiLlama source row.", sourceType:"invalid" };
   const meta = sourceMetadataObject(source.metadata);
@@ -70,7 +70,7 @@ export function classifyDefiLlamaSourceV2(input: { logoName?: string; logoSlug?:
   if (chainIcon) return { valid:true, reason:"valid_chain_icon", sourceType:"chain-icon", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
   const resolverConfirmed =
     meta.resolver === true ||
-    String(meta.sourceOrigin || "").toLowerCase() === "defillama-helper" ||
+    String(meta.sourceOrigin || "").toLowerCase() === "defillama-v3-discovery" || String(meta.sourceOrigin || "").toLowerCase() === "defillama-helper" ||
     String(meta.resolverConfidence || "").toLowerCase() === "high" ||
     meta.indexConfirmed === true ||
     meta.protocolIndexConfirmed === true;
@@ -82,11 +82,11 @@ export function classifyDefiLlamaSourceV2(input: { logoName?: string; logoSlug?:
 }
 
 export function validateDefiLlamaSourceForLogo(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): DefiLlamaValidationResult {
-  return classifyDefiLlamaSourceV2(input);
+  return classifyDefiLlamaSourceV3(input);
 }
 
 export async function validateDefiLlamaSourceForLogoWithResolver(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): Promise<DefiLlamaValidationResult> {
-  const base = classifyDefiLlamaSourceV2(input);
+  const base = classifyDefiLlamaSourceV3(input);
   if (!base.valid) return base;
   const source = input.source!;
   const meta = sourceMetadataObject(source.metadata);
