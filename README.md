@@ -1,5 +1,13 @@
 # learnDeFi
 
+## v0.11.21 DefiLlama Hard Reset + Clean v3 Rediscovery (Blocker)
+
+- Added destructive maintenance action **Hard reset DefiLlama provider** that hard-deletes all `logo_sources` rows where `provider = defillama`, repairs/clears affected primaries, clears stale DefiLlama fetch state, removes saved `defillamaSlug` from `logo_provider_ids:*` admin settings, and clears stale DefiLlama discovery summaries.
+- Added maintenance actions **Discover DefiLlama v3 sources** and **Hard reset + rediscover DefiLlama v3**.
+- DefiLlama rediscovery persists only v3-valid candidates (`chain-mirror`, `chain-icon`, `protocol-index`, `manual-reviewed`) and does not save guessed protocol, placeholder, no-reliable, or error rows.
+- Old DefiLlama rows are deleted (not hidden), so Advanced/hidden history no longer retains stale DefiLlama source records after hard reset.
+- Post-deploy workflow: run **Hard reset + rediscover DefiLlama v3**, then QA Akash, BNB, Aptos, Glow, Canton, Missing DefiLlama filter, source records, and public candidates.
+
 ## v0.11.20 DefiLlama v3 Deterministic Reliability (Blocker)
 
 - Added deterministic verification script `npm run verify:defillama` (`scripts/verify-defillama-v3.mjs`) covering BNB/bsc alias validity, Akash invalid guessed protocol rejection, Pendle-for-Akash target mismatch rejection, Aptos chain mirror validity, Geodnet resolver-confirmed protocol-index validity, and invalid-vs-valid canonical prerequisites.

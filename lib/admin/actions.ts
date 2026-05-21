@@ -232,66 +232,143 @@ function chooseReplacementPrimary(logo: AdminLogo, sources: LogoSource[]) {
   return pick("manual") ?? pick("managed-vault") ?? pick("coingecko") ?? pick("coinmarketcap") ?? pick("defillama");
 }
 
+function parseSettingJson(value: unknown) {
+  try {
+    if (typeof value === "string") return JSON.parse(value || "{}");
+    return value && typeof value === "object" ? value : {};
+  } catch {
+    return {};
+  }
+}
 
-export async function resetDefiLlamaSourcesV3Action() {
+
+export async function hardResetDefiLlamaProviderAction() {
+  await requireAdmin();
+  const logos = (await listLogos()).rows;
+  const logosById = new Map(logos.map((logo) => [logo.id, logo]));
+  const allSources = (await getAllLogoSources()).rows;
+  const defillamaSources = allSources.filter((source) => source.provider === "defillama");
+  const defillamaSourceIds = new Set(defillamaSources.map((source) => source.id));
+  const affectedLogoIds = Array.from(new Set(defillamaSources.map((source) => source.logo_id)));
+
+  let primariesRepaired = 0;
+  let primariesCleared = 0;
+  let fetchStatesCleared = 0;
+  let savedSlugsCleared = 0;
+  let summariesCleared = 0;
+  let errors = 0;
+
+  for (const logoId of affectedLogoIds) {
+    const logo = logosById.get(logoId);
+    if (!logo || !logo.approved_source_id || !defillamaSourceIds.has(logo.approved_source_id)) continue;
+    try {
+      const nonDefiLlamaSources = allSources.filter((source) => source.logo_id === logoId && source.provider !== "defillama");
+      const replacement = chooseReplacementPrimary(logo, nonDefiLlamaSources);
+      if (replacement) {
+        await query(`UPDATE logos SET approved_source_id = $2, approved_logo_url = COALESCE($3, $4), status = 'approved' WHERE id = $1`, [logo.id, replacement.id, replacement.blob_url, replacement.image_url]);
+        primariesRepaired += 1;
+      } else {
+        await query(`UPDATE logos SET approved_source_id = NULL, approved_logo_url = NULL, status = 'needs_review' WHERE id = $1`, [logo.id]);
+        primariesCleared += 1;
+      }
+    } catch {
+      errors += 1;
+    }
+  }
+  if (defillamaSources.length) {
+    await query(`DELETE FROM logo_sources WHERE provider = 'defillama'`);
+  }
+  const fetchReset = await query(`UPDATE logos SET last_fetch_provider = NULL, last_fetch_error = NULL, last_fetch_at = NULL WHERE last_fetch_provider = 'defillama'`);
+  fetchStatesCleared = fetchReset.rowCount ?? 0;
+
+  const settings = (await query(`SELECT setting_key, setting_value FROM admin_settings WHERE setting_key LIKE 'logo_provider_ids:%' OR setting_key IN ('last_logo_source_discovery_summary', 'last_defillama_discovery_summary', 'last_defillama_source_tools_summary')`)).rows;
+  for (const row of settings) {
+    if (row.setting_key.startsWith("logo_provider_ids:")) {
+      const json = parseSettingJson(row.setting_value) as Record<string, unknown>;
+      if (!Object.prototype.hasOwnProperty.call(json, "defillamaSlug")) continue;
+      delete json.defillamaSlug;
+      await setAdminSetting(row.setting_key, JSON.stringify(json));
+      savedSlugsCleared += 1;
+      continue;
+    }
+    const text = String(row.setting_value || "").toLowerCase();
+    if (text.includes("defillama")) {
+      await setAdminSetting(row.setting_key, "");
+      summariesCleared += 1;
+    }
+  }
+
+  revalidatePath('/admin/logos');
+  for (const logoId of affectedLogoIds) {
+    const logo = logosById.get(logoId);
+    if (logo) revalidatePath(`/admin/logos/${logo.slug}`);
+  }
+  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Hard reset DefiLlama provider complete: defillamaRowsDeleted ${defillamaSources.length} · logosAffected ${affectedLogoIds.length} · primariesRepaired ${primariesRepaired} · primariesCleared ${primariesCleared} · fetchStatesCleared ${fetchStatesCleared} · savedSlugsCleared ${savedSlugsCleared} · summariesCleared ${summariesCleared} · errors ${errors}`);
+}
+
+export async function hardResetAndRediscoverDefiLlamaV3Action() {
+  await hardResetDefiLlamaProviderAction();
+  await discoverDefiLlamaV3SourcesAction();
+}
+
+export async function discoverDefiLlamaV3SourcesAction() {
   await requireAdmin();
   const logos = (await listLogos()).rows;
   const allSources = (await getAllLogoSources()).rows;
-  const sources = allSources.filter((s) => s.provider === "defillama");
-  const byLogo = new Map(logos.map((l) => [l.id, l]));
-  const byLogoSources = new Map<string, LogoSource[]>();
-  for (const row of allSources) {
-    const list = byLogoSources.get(row.logo_id) ?? [];
-    list.push(row);
-    byLogoSources.set(row.logo_id, list);
-  }
-  let valid=0, invalidated=0, noReliable=0, mismatches=0, placeholders=0, errors=0, detachedPrimary=0, reassignedPrimary=0, clearedPrimary=0, missingAfterRepair=0;
-  let validChainMirrors = 0, validChainIcons = 0, validProtocols = 0, validManualReviewed = 0, invalidGuessedProtocolRows = 0;
-  for (const source of sources) {
-    const logo = byLogo.get(source.logo_id);
-    if (!logo) continue;
+  const byLogo = new Map<string, LogoSource[]>();
+  for (const source of allSources) byLogo.set(source.logo_id, [...(byLogo.get(source.logo_id) ?? []), source]);
+  const target = logos.filter((logo) => !resolveCanonicalProviderState(byLogo.get(logo.id) ?? [], "defillama", logo).source);
+  const summary = { checked: 0, found: 0, saved: 0, noReliable: 0, errors: 0, workingExamples: [] as any[], failedExamples: [] as any[] };
+  for (const logo of target) {
+    summary.checked += 1;
     try {
-      const result = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source });
-      const meta = typeof source.metadata === "string" ? JSON.parse(source.metadata || "{}") : (source.metadata || {});
-      if (!result.valid) {
-        invalidated++;
-        if (result.reason === "resolver_no_reliable_source") noReliable++;
-        if (result.reason === "placeholder_image") placeholders++;
-        if (result.reason === "old_guessed_protocol_source") invalidGuessedProtocolRows++;
-        if (result.isMismatched) mismatches++;
-        const invalidReason = result.isMismatched ? "target_mismatch" : result.reason === "resolver_no_reliable_source" ? "resolver_no_reliable_source" : result.reason === "placeholder_image" ? "placeholder_image" : "placeholder_or_unverified";
-        const nextMeta = { ...meta, invalidForTarget:true, invalidReason, hidden:true, invalidatedAt:new Date().toISOString(), targetSlug:logo.slug, defillamaV3: "invalid", superseded: false };
-        await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
-        if (logo.approved_source_id === source.id) {
-          detachedPrimary++;
-          const freshSources = (await getLogoSources(logo.id)).rows;
-          const replacement = chooseReplacementPrimary(logo, freshSources);
-          if (replacement) {
-            await query(`UPDATE logos SET approved_source_id = $2, approved_logo_url = COALESCE($3, $4), status = 'approved' WHERE id = $1`, [logo.id, replacement.id, replacement.blob_url, replacement.image_url]);
-            reassignedPrimary++;
-          } else {
-            await query(`UPDATE logos SET approved_source_id = NULL, approved_logo_url = NULL, status = 'needs_review' WHERE id = $1`, [logo.id]);
-            clearedPrimary++;
-          }
-        }
-      } else {
-        valid++;
-        if (result.sourceType === "chain-mirror") validChainMirrors++;
-        else if (result.sourceType === "chain-icon") validChainIcons++;
-        else if (result.sourceType === "protocol-index") validProtocols++;
-        else if (result.sourceType === "manual-reviewed") validManualReviewed++;
-        const nextMeta = { ...meta, validatedForTarget:true, validatedAt:new Date().toISOString(), defillamaV3: result.sourceType, hidden:false, invalidForTarget:false, invalidReason:null };
-        await query(`UPDATE logo_sources SET metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb WHERE id = $1`, [source.id, JSON.stringify(nextMeta)]);
+      const found = await searchDefiLlamaSources(logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category });
+      const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high");
+      if (!candidate) {
+        summary.noReliable += 1;
+        summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: found.error ? "resolver error" : "no index match" });
+        continue;
       }
-    } catch { errors++; }
+      summary.found += 1;
+      const classified = await validateDefiLlamaSourceForLogoWithResolver({
+        logoName: logo.name,
+        logoSlug: logo.slug,
+        logoCategory: logo.category,
+        source: {
+          provider: "defillama",
+          id: "preview",
+          logo_id: logo.id,
+          source_url: candidate.sourceUrl,
+          image_url: candidate.imageUrl,
+          blob_url: null,
+          status: "candidate",
+          metadata: {
+            slug: candidate.slug,
+            defillamaSlug: candidate.slug,
+            sourceOrigin: "defillama-v3-discovery",
+            resolver: true,
+            resolverConfidence: candidate.confidence,
+          },
+          rejection_reason: null,
+          created_at: new Date().toISOString(),
+        },
+      });
+      if (!classified.valid) {
+        summary.noReliable += 1;
+        summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: classified.reason });
+        continue;
+      }
+      await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], fetchedAt: new Date().toISOString(), reviewStatus: "needs_review", sourceOrigin: "defillama-v3-discovery", validatedForTarget: true, defillamaV3: classified.sourceType } });
+      summary.saved += 1;
+      summary.workingExamples.push({ slug: logo.slug, name: logo.name, sourceType: classified.sourceType, sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrl });
+    } catch {
+      summary.errors += 1;
+      summary.failedExamples.push({ slug: logo.slug, name: logo.name, reason: "resolver error" });
+    }
   }
-  missingAfterRepair = logos.filter((logo) => {
-    const rows = byLogoSources.get(logo.id) ?? [];
-    const state = resolveCanonicalProviderState(rows, "defillama", logo);
-    return state.state !== "OK" && state.state !== "REVIEW";
-  }).length;
-  revalidatePath('/admin/logos');
-  adminNotice('/admin/logos', errors ? 'warning' : 'success', `Reset DefiLlama provider v3 complete: checked logos ${logos.length} · checked DefiLlama rows ${sources.length} · valid chain mirrors ${validChainMirrors}, valid chain icons ${validChainIcons}, valid protocols ${validProtocols}, valid manual reviewed ${validManualReviewed} (${valid} total) · invalidated guessed protocol rows ${invalidGuessedProtocolRows}, invalidated placeholders ${placeholders}, invalidated target mismatches ${mismatches}, invalidated resolver no reliable ${noReliable} (${invalidated} total) · detached primaries ${detachedPrimary}, reassigned primaries ${reassignedPrimary}, cleared primaries ${clearedPrimary} · missing after repair ${missingAfterRepair} · errors ${errors}`);
+  await setAdminSetting("last_defillama_discovery_summary", JSON.stringify(summary));
+  revalidatePath("/admin/logos");
+  adminNotice("/admin/logos", summary.errors ? "warning" : "success", `Discover DefiLlama v3 complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
 }
 export async function setupAdminAction(formData: FormData) {
   const diagnostic = await getAdminConfigDiagnostic();
