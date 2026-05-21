@@ -9,7 +9,9 @@ import {
   applySafeCoinGeckoCandidatesAction,
   bulkRefreshCoinGeckoLogosAction,
   bulkRefreshCoinMarketCapLogosAction,
-  resetDefiLlamaSourcesV3Action,
+  discoverDefiLlamaV3SourcesAction,
+  hardResetAndRediscoverDefiLlamaV3Action,
+  hardResetDefiLlamaProviderAction,
   createLogoAction,
   discoverLogoSourcesBulkAction,
   importLegacyLocalLogosToVaultAction,
@@ -553,9 +555,21 @@ function SourceTools({
                 Import legacy local logos to Vault
               </button>
             </form>
-            <form action={resetDefiLlamaSourcesV3Action}>
+            <form action={discoverDefiLlamaV3SourcesAction}>
               <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
-                Reset DefiLlama provider v3
+                Discover DefiLlama v3 sources
+              </button>
+            </form>
+            <form action={hardResetDefiLlamaProviderAction} className="col-span-2 sm:col-span-3 lg:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-2">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-rose-700">Hard reset DefiLlama provider</p>
+              <p className="mb-1 text-[11px] text-rose-700">Deletes all old DefiLlama source rows and rebuilds from v3 discovery.</p>
+              <button className="w-full rounded-full border border-rose-300 bg-rose-600 px-3 py-1.5 font-black text-white">
+                Hard reset DefiLlama provider
+              </button>
+            </form>
+            <form action={hardResetAndRediscoverDefiLlamaV3Action} className="col-span-2 sm:col-span-3 lg:col-span-2">
+              <button className="w-full rounded-full border border-rose-300 bg-rose-700 px-3 py-1.5 font-black text-white">
+                Hard reset + rediscover DefiLlama v3
               </button>
             </form>
           </div>
