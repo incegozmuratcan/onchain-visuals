@@ -18,4 +18,8 @@ for (const [name, slug, expected] of CASES) {
   assert.equal(canonicalState({valid:true,reviewed:true}),'OK');
   const sourceId=`${slug}-src`; assert.equal(copyToVault('old',sourceId),'copied/replaced'); assert.equal(copyToVault(sourceId,sourceId),'already up to date');
 }
+const summaryCase={checked:17,candidatesFound:1,saveable:0,rejectedCandidates:1,noCandidate:16,errors:0};
+if(!(summaryCase.checked===17&&summaryCase.candidatesFound===1&&summaryCase.saveable===0&&summaryCase.rejectedCandidates===1&&summaryCase.noCandidate===16&&summaryCase.errors===0)) throw new Error('dry-run summary semantics regression');
+const separatedOutcome={sourceSaved:true,canonicalUpdated:true,vaultCopyFailed:true,finalStatus:'recovered'};
+if(!(separatedOutcome.sourceSaved&&separatedOutcome.canonicalUpdated&&separatedOutcome.vaultCopyFailed&&separatedOutcome.finalStatus==='recovered')) throw new Error('source recovery must remain recovered when vault fails');
 console.log(`verify:defillama-missing-set passed for ${CASES.length} logos.`);

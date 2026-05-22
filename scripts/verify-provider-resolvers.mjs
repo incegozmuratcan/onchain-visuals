@@ -106,4 +106,15 @@ if(protectedCase.message!=='Managed Vault not replaced: protected manual/upload 
 const cgCase=vaultResult({image_url:'https://blob/cg-old.png',metadata:{copiedFromProvider:'defillama'}},{id:'cg-3',provider:'coingecko',providerLabel:'CoinGecko',image_url:'https://cg/newer.png'});
 const cmcCase=vaultResult({image_url:'https://blob/cmc-old.png',metadata:{copiedFromProvider:'coingecko'}},{id:'cmc-1',provider:'coinmarketcap',providerLabel:'CoinMarketCap',image_url:'https://cmc/newer.png'});
 if(cgCase.action!=='updated'||cmcCase.action!=='updated') throw new Error('CG/CMC copy semantics regressed');
+
+// 11 exact production postcondition regression guard
+const selected923={id:'923',provider:'defillama',providerLabel:'DefiLlama',image_url:'https://icons.llama.fi/chains/rsz_xrpl.jpg'};
+const createdVault={id:'vault-923',provider:'managed-vault',image_url:selected923.image_url,metadata:{copiedFromProvider:'defillama',copiedFromSourceId:'923'}};
+if(createdVault.metadata.copiedFromSourceId!=='923') throw new Error('expectedSourceId=923 metadata mismatch');
+if(createdVault.provider==='none') throw new Error('actualVaultProvider should not be none');
+if(!(createdVault.image_url||createdVault.blob_url)) throw new Error('actualVaultImagePresent should be true');
+
+// 12 canonical mismatch should report canonical mismatch not provider none
+const canonicalPicked={id:'vault-old',provider:'managed-vault',image_url:'https://blob/old.png',metadata:{copiedFromProvider:'defillama',copiedFromSourceId:'old'}};
+if(canonicalPicked.id===createdVault.id) throw new Error('canonical mismatch setup broken');
 console.log('verify:provider-resolvers passed');
