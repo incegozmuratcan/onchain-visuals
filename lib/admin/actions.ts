@@ -388,6 +388,7 @@ export async function hardResetDefiLlamaProviderAction() {
     const summary = await hardResetDefiLlamaProviderInternal();
     adminNotice('/admin/logos', summary.errors ? 'warning' : 'success', hardResetDefiLlamaSummaryMessage(summary));
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     console.error("Hard reset DefiLlama provider failed", { message: toSafeErrorMessage(error) });
     adminNotice('/admin/logos', 'error', `Hard reset DefiLlama failed: ${toSafeErrorMessage(error)}`);
   }
@@ -398,9 +399,11 @@ export async function hardResetAndRediscoverDefiLlamaV3Action() {
   try {
     const reset = await hardResetDefiLlamaProviderInternal();
     const discover = await discoverDefiLlamaV3SourcesInternal();
+    revalidatePath("/admin/logos");
     const level = reset.errors || discover.errors ? 'warning' : 'success';
     adminNotice('/admin/logos', level, `${hardResetDefiLlamaSummaryMessage(reset)} · discoverChecked ${discover.checked} · discoverFound ${discover.found} · discoverSaved ${discover.saved} · discoverNoReliable ${discover.noReliable} · discoverErrors ${discover.errors}`);
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     console.error("Hard reset + rediscover DefiLlama v3 failed", { message: toSafeErrorMessage(error) });
     adminNotice('/admin/logos', 'error', `Hard reset + rediscover DefiLlama failed: ${toSafeErrorMessage(error)}`);
   }
@@ -413,6 +416,7 @@ export async function discoverDefiLlamaV3SourcesAction() {
     revalidatePath("/admin/logos");
     adminNotice("/admin/logos", summary.errors ? "warning" : "success", `Discover DefiLlama v3 complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
   } catch (error) {
+    if (isNextRedirect(error)) throw error;
     console.error("Discover DefiLlama v3 failed", { message: toSafeErrorMessage(error) });
     adminNotice("/admin/logos", "error", `Discover DefiLlama v3 failed: ${toSafeErrorMessage(error)}`);
   }
