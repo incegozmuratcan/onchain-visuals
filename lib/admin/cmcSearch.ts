@@ -133,11 +133,20 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
       `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?listing_status=active&sort=cmc_rank&limit=500`,
     ]);
     const rows: any[] = [];
+    const attemptFailures: string[] = [];
+    let hadAnySuccess = false;
     for (const url of urls) {
       const response = await fetch(url, { headers, next: { revalidate: 0 } });
-      if (!response.ok) throw new Error(`CoinMarketCap ID search failed (${response.status}).`);
+      if (!response.ok) {
+        attemptFailures.push(`${url.includes("symbol=") ? "symbol" : url.includes("slug=") ? "slug" : "list"}:${response.status}`);
+        continue;
+      }
+      hadAnySuccess = true;
       const json = await response.json();
       rows.push(...(Array.isArray(json.data) ? json.data : []));
+    }
+    if (!hadAnySuccess) {
+      throw new Error(`CoinMarketCap search failed (${attemptFailures.join(", ") || "no successful queries"}).`);
     }
     const uniqueRaw = Array.from(new Map(rows.map((row) => [String(row.id), row])).values());
     const scored = uniqueRaw
@@ -166,6 +175,7 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
         logos = new Map(Object.entries(json.data ?? {}).map(([id, value]: [string, any]) => [id, clean(value?.logo)]));
       }
     }
+    const noReliable = scored.length === 0;
     return {
       candidates: scored.map(({ row, score, confidence }, index) => ({
         id: String(row.id),
@@ -177,7 +187,7 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
         score,
         recommended: index === 0 && confidence === "high" && score >= 78,
       })),
-      error: null,
+      error: noReliable ? `No reliable CMC match. tried: ${symbols.slice(0, 3).join(", ") || "-"}, ${slugTokens.slice(0, 3).join(", ") || "-"}` : null,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "CoinMarketCap ID search failed.";
