@@ -18,7 +18,7 @@ const GROUPS: string[][] = [
   ["ethereum","eth"],["bitcoin","btc"],["bnb chain","bnb","bsc","binancecoin","binance smart chain"],
   ["optimism","op mainnet","op"],["polygon","matic","pol"],["arbitrum","arb"],["avalanche","avax"],["solana","sol"],
   ["cosmos","atom"],["stellar","xlm"],["hedera","hbar","hedera-hashgraph"],["filecoin","fil"],["near","near-protocol"],
-  ["render network","render","render-network","rndr"],["pocket network","pocket-network","pokt"],["xrp ledger","xrp","ripple"],
+  ["render network","render","render-network","render-network-token","rndr"],["pocket network","pocket-network","pokt"],["xrp ledger","xrp","ripple"],
   ["monad","mon"],
   ["rootstock","rsk","rbtc"],["ton","toncoin","the-open-network"],["livepeer","lpt"],["hivemapper","honey"],
   ["nosana","nos"],["bsv blockchain","bitcoin-sv","bsv"],["quai","quai-network"],

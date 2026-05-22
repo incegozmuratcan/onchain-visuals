@@ -5,6 +5,10 @@
 - BNB alias family expanded to include `bnb`, `bsc`, `bnb-chain`, `bnb chain`, `binance smart chain`, `binance-smart-chain`, `binancecoin`, ensuring BNB Chain maps to DefiLlama chain slug `bsc`.
 - DefiLlama Use + Fetch and bulk discovery now persist resolver-selected source/image URLs as-is and keep resolver metadata in `metadata.defillamaV3`, `sourceType`, and `selectedImagePattern`.
 - `No reliable DefiLlama source found` is treated as Missing/noReliable state (not Error) in fetch/discovery summary semantics; only actual exceptions are counted as errors.
+- Managed Vault copy behavior is now create/update/no-op: create when missing, `already up to date` when same source/image is already vaulted, and replace/update when a different safe provider source is selected.
+- Vault copy metadata now includes replacement provenance (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) in addition to `copiedFromProvider`, `copiedFromSourceId`, `copiedFromUrl`, and `copiedAt`.
+- Existing vault rows copied from manual/upload are protected from overwrite by provider copy actions and return a clear replace-blocked message.
+- Render alias family now includes `render`, `render-network`, `render network`, `render-network-token`, and `rndr` for DefiLlama resolver matching and alias sibling reuse/backfill between Render and Render Network.
 
 # learnDeFi
 
