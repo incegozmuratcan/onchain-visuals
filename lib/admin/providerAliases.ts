@@ -1,0 +1,63 @@
+import { normalizeProviderText, slugText } from "@/lib/admin/providerScoring";
+
+type AliasInput = {
+  name?: string | null;
+  slug?: string | null;
+  category?: string | null;
+  coinGeckoId?: string | null;
+  coinGeckoSymbol?: string | null;
+  coinGeckoName?: string | null;
+  cmcSymbol?: string | null;
+  cmcName?: string | null;
+  defillamaSlug?: string | null;
+  knownAliases?: string[];
+};
+
+const GENERIC_SUFFIXES = ["network","chain","protocol","mainnet","token","dao","finance","labs","foundation","blockchain"];
+const GROUPS: string[][] = [
+  ["ethereum","eth"],["bitcoin","btc"],["bnb chain","bnb","bsc","binancecoin","binance smart chain"],
+  ["optimism","op mainnet","op"],["polygon","matic","pol"],["arbitrum","arb"],["avalanche","avax"],["solana","sol"],
+  ["cosmos","atom"],["stellar","xlm"],["hedera","hbar","hedera-hashgraph"],["filecoin","fil"],["near","near-protocol"],
+  ["render network","render","render-network","rndr"],["pocket network","pocket-network","pokt"],["xrp ledger","xrp","ripple"],
+  ["rootstock","rsk","rbtc"],["ton","toncoin","the-open-network"],["livepeer","lpt"],["hivemapper","honey"],
+  ["nosana","nos"],["bsv blockchain","bitcoin-sv","bsv"],["quai","quai-network"],
+];
+
+const lookup = new Map<string, Set<string>>();
+for (const g of GROUPS) {
+  const n = g.flatMap((v)=>[normalizeProviderText(v), slugText(v)]).filter(Boolean);
+  for (const v of n) lookup.set(v, new Set(n));
+}
+
+const uniq = (v: string[]) => [...new Set(v.filter(Boolean))];
+
+export function buildProviderAliasSet(input: AliasInput) {
+  const seed = uniq([
+    input.name || "", input.slug || "", input.coinGeckoId || "", input.coinGeckoSymbol || "", input.coinGeckoName || "",
+    input.cmcSymbol || "", input.cmcName || "", input.defillamaSlug || "", ...(input.knownAliases ?? []),
+  ]);
+  const aliases = new Set<string>();
+  for (const s of seed) {
+    const n = normalizeProviderText(s);
+    const sl = slugText(s);
+    [n, sl].filter(Boolean).forEach((t)=>aliases.add(t));
+    lookup.get(n)?.forEach((a)=>aliases.add(a));
+    lookup.get(sl)?.forEach((a)=>aliases.add(a));
+    for (const suffix of GENERIC_SUFFIXES) {
+      if (n.endsWith(` ${suffix}`)) aliases.add(n.slice(0, -(suffix.length + 1)).trim());
+      if (sl.endsWith(`-${suffix}`)) aliases.add(sl.slice(0, -(suffix.length + 1)).trim());
+    }
+  }
+  const all = uniq([...aliases]);
+  const symbols = all.filter((a)=>/^[a-z0-9]{2,8}$/.test(a) && !a.includes("-"));
+  return {
+    aliases: all,
+    normalizedAliases: all,
+    searchQueries: uniq([...(input.name ? [input.name] : []), ...(input.slug ? [input.slug] : []), ...all]),
+    providerVariants: {
+      defillama: uniq(all.map((a)=>a.replace(/\s+/g,"-")).concat(all)),
+      cmcSymbols: uniq(symbols.map((s)=>s.toUpperCase())),
+      cmcSlugs: uniq(all.map((a)=>slugText(a))),
+    },
+  };
+}

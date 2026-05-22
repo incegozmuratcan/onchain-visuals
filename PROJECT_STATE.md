@@ -507,3 +507,10 @@
 - DefiLlama Use + Fetch and bulk discovery now persist resolver-selected `imageUrl`/`sourceUrl` as-is and preserve resolver metadata (`sourceType`, `selectedImagePattern`, `defillamaV3`) without recomputing protocol icon URLs.
 - “No reliable DefiLlama source found” is treated as missing/noReliable (not provider error) in discovery/fetch summaries; only thrown exceptions count as errors.
 - Verification script coverage now includes BNB chain-first behavior, protocol-icon rejection for trusted chain mapping, Akash missing-not-error semantics, Aptos validity, and bulk discovery state simulation (REVIEW/MISSING/ERROR).
+
+## v0.11.23 Provider Missing Diagnostics + Alias Resolver (Blocker)
+
+- Added shared provider alias expansion (`buildProviderAliasSet`) used by DefiLlama and CMC helper search paths to improve deterministic alias/query coverage for chain/project naming variants.
+- Added provider diagnostics foundations for missing-vs-found analysis and actionable alias/rejection reasoning in resolver debug output.
+- Added deterministic alias verification script `npm run verify:provider-resolvers` for BNB, OP Mainnet, XRP Ledger, Render Network, Quai, Cosmos, Hedera, Filecoin, and Rootstock alias families.
+- No DB schema changes.

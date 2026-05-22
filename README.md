@@ -511,3 +511,9 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Invalid DefiLlama rows are excluded from missing-state clearing, provider Source Present states, and public candidate chain.
 - Source records keep invalid entries only in hidden history and visually override them as hidden/invalid historical rows (not canonical).
 - Manual QA blocker set includes Akash, Glow, Canton, Aptos, Missing DefiLlama filter, and public candidate exclusion checks.
+
+### Provider missing diagnostics + alias expansion
+
+- Shared alias expansion now powers DefiLlama and CoinMarketCap helper lookups with normalized aliases, symbol variants, and suffix-trimmed queries.
+- Run `npm run verify:provider-resolvers` to validate critical alias families (BNB, OP Mainnet, XRP Ledger, Render Network, Quai, Cosmos, Hedera, Filecoin, Rootstock).
+- Resolver behavior remains safe: no guessed DefiLlama protocol persistence, no placeholder auto-save, and no low-confidence auto-approval.
