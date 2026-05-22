@@ -1754,6 +1754,16 @@ async function optimizeLogoBuffer(buffer: Buffer, mimeType: string, maxDimension
 }
 
 async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: { autoVault?: boolean; reason?: string } = {}) {
+  const providerLabel =
+    source.provider === "coingecko"
+      ? "CoinGecko"
+      : source.provider === "coinmarketcap"
+        ? "CoinMarketCap"
+        : source.provider === "defillama"
+          ? "DefiLlama"
+          : source.provider === "manual" || source.provider === "upload"
+            ? "Manual/Upload"
+            : "Selected source";
   if (!process.env.BLOB_READ_WRITE_TOKEN)
     return "Managed Vault: Blob token missing";
   if (source.status === "rejected")
@@ -1772,21 +1782,29 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
     (row) => ["managed-vault", "vault"].includes(row.provider) && row.status !== "rejected",
   );
   const existingVaultMeta = existingVault ? sourceMetadata(existingVault) : {};
+  const meta = sourceMetadata(source);
   const sourceImageUrl = source.blob_url || source.image_url;
+  const sourceHash = String(meta.sourceSha || meta.imageHash || "").trim();
+  const vaultHash = String(existingVaultMeta.sourceSha || existingVaultMeta.imageHash || "").trim();
   const sameAsExistingVault = Boolean(
     existingVault &&
       (existingVaultMeta.copiedFromSourceId === source.id ||
-        existingVaultMeta.copiedFromUrl === sourceImageUrl ||
-        existingVault.image_url === sourceImageUrl),
+        (Boolean(source.image_url) && existingVaultMeta.copiedFromUrl === source.image_url) ||
+        (Boolean(source.blob_url) && existingVaultMeta.copiedFromUrl === source.blob_url) ||
+        (existingVaultMeta.copiedFromProvider === source.provider &&
+          sourceHash &&
+          vaultHash &&
+          sourceHash === vaultHash) ||
+        existingVault.image_url === sourceImageUrl ||
+        existingVault.blob_url === sourceImageUrl),
   );
   if (sameAsExistingVault) return "Managed Vault: already up to date";
   if (existingVault) {
     const copiedFromProvider = String(existingVaultMeta.copiedFromProvider || "").trim();
     if (copiedFromProvider === "manual" || copiedFromProvider === "upload") {
-      return "Managed Vault: replace blocked (existing vault was copied from manual/upload source)";
+      return "Managed Vault not replaced: protected manual/upload source";
     }
   }
-  const meta = sourceMetadata(source);
   if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
   const imageUrl = sourceImageUrl;
@@ -1846,8 +1864,8 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       reason: options.reason || (options.autoVault ? "trusted-primary" : "bulk-backup"),
     },
   });
-  if (existingVault && !sameAsExistingVault) return "Managed Vault: updated from selected source";
-  return "Managed Vault: copy created";
+  if (existingVault && !sameAsExistingVault) return `Managed Vault: updated from ${providerLabel}`;
+  return `Managed Vault: copied from ${providerLabel}`;
 }
 
 async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reason: "trusted-primary" | "reviewed-primary" | "bulk-backup" = "trusted-primary") {
@@ -2150,7 +2168,7 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
         counts.defillamaFetched += 1;
       if (text.includes("DefiLlama: no source found")) counts.defillamaNoReliable += 1;
       if (text.includes("DefiLlama: failed")) counts.defillamaErrors += 1;
-      if (text.includes("Managed Vault: copy created") || text.includes("Managed Vault: updated from selected source")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Managed Vault: copied from ") || text.includes("Managed Vault: updated from ")) counts.vaultCopiesCreated += 1;
       if (text.includes("Managed Vault: no approved primary")) counts.vaultMissing += 1;
       if (text.includes("Managed Vault: already up to date")) counts.vaultAlready += 1;
       if (text.includes("Primary:")) counts.primarySelected += 1;
