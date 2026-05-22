@@ -1874,10 +1874,44 @@ async function replaceManagedVaultFromSource(logo: AdminLogo, source: LogoSource
       reviewStatus: reviewedCopy ? "reviewed" : "candidate",
       autoVault: Boolean(options.autoVault),
       reason: options.reason || (options.autoVault ? "trusted-primary" : "bulk-backup"),
+      forceReplaced: options.reason === "explicit-defillama-copy-to-vault" || source.provider === "defillama",
+      replaceReason: options.reason || null,
     },
   });
   if (existingVault && !sameAsExistingVault) return `Managed Vault: replaced from ${providerLabel}`;
   return `Managed Vault: copied from ${providerLabel}`;
+}
+
+function isProtectedVaultRow(source: LogoSource) {
+  if (!["managed-vault", "vault"].includes(source.provider) || source.status === "rejected") return false;
+  const meta = sourceMetadata(source);
+  const copiedFromProvider = String(meta.copiedFromProvider || "").trim().toLowerCase();
+  return copiedFromProvider === "manual" || copiedFromProvider === "upload" || meta.protectedAdminUpload === true;
+}
+
+function isStrictDefiLlamaVaultMatch(vault: LogoSource | null, selectedSource: LogoSource) {
+  if (!vault || !["managed-vault", "vault"].includes(vault.provider) || vault.status === "rejected") return false;
+  const meta = sourceMetadata(vault);
+  const expectedUrl = selectedSource.blob_url || selectedSource.image_url;
+  return meta.copiedFromProvider === "defillama" && meta.copiedFromSourceId === selectedSource.id && Boolean(expectedUrl) && (vault.blob_url === expectedUrl || vault.image_url === expectedUrl || meta.copiedFromUrl === expectedUrl);
+}
+
+async function forceReplaceManagedVaultFromDefiLlama(logo: AdminLogo, selectedSource: LogoSource, options: { autoVault?: boolean; reason?: string } = {}) {
+  const existing = (await getLogoSources(logo.id)).rows;
+  const existingVaultRows = existing.filter((row) => ["managed-vault", "vault"].includes(row.provider) && row.status !== "rejected");
+  const activeVault = resolveCanonicalProviderState(existing, "managed-vault", logo).source ?? existingVaultRows[0] ?? null;
+  if (isStrictDefiLlamaVaultMatch(activeVault, selectedSource)) return "Managed Vault: already up to date";
+  if (existingVaultRows.some((row) => isProtectedVaultRow(row))) return "Managed Vault not replaced: protected manual/upload source";
+  if (existingVaultRows.length) await query(`DELETE FROM logo_sources WHERE logo_id = $1 AND provider IN ('managed-vault', 'vault')`, [logo.id]);
+  await replaceManagedVaultFromSource(logo, selectedSource, { autoVault: options.autoVault, reason: options.reason || "explicit-defillama-copy-to-vault" });
+  const reloaded = (await getLogoSources(logo.id)).rows;
+  const vault = resolveCanonicalProviderState(reloaded, "managed-vault", logo).source ?? reloaded.find((row) => ["managed-vault", "vault"].includes(row.provider) && row.status !== "rejected") ?? null;
+  const vaultMeta = vault ? sourceMetadata(vault) : {};
+  const imagePresent = Boolean(vault?.blob_url || vault?.image_url);
+  if (!vault || !["managed-vault", "vault"].includes(vault.provider) || vaultMeta.copiedFromProvider !== "defillama" || vaultMeta.copiedFromSourceId !== selectedSource.id || !imagePresent) {
+    throw new Error(`Managed Vault replace failed: postcondition mismatch (expectedSourceId=${selectedSource.id}, actualCopiedFromSourceId=${String(vaultMeta.copiedFromSourceId || "") || "none"}, actualVaultProvider=${vault?.provider || "none"}, actualVaultImagePresent=${imagePresent ? "true" : "false"})`);
+  }
+  return "Managed Vault: replaced from DefiLlama";
 }
 
 async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reason: "trusted-primary" | "reviewed-primary" | "bulk-backup" = "trusted-primary") {
@@ -1885,6 +1919,16 @@ async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reaso
   const meta = sourceMetadata(source);
   if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
+  if (source.provider === "defillama") {
+    const validation = await validateDefiLlamaSourceForLogoWithResolver({
+      logoName: logo.name,
+      logoSlug: logo.slug,
+      logoCategory: logo.category,
+      source,
+    });
+    if (!validation.valid) return `Managed Vault: skipped invalid DefiLlama source (${validation.reason || "unverified"})`;
+    return forceReplaceManagedVaultFromDefiLlama(logo, source, { autoVault: true, reason });
+  }
   return replaceManagedVaultFromSource(logo, source, { autoVault: true, reason });
 }
 
@@ -1893,12 +1937,7 @@ export async function copySourceToVaultAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const sourceId = String(formData.get("sourceId") || "").trim();
   try {
-    if (!sourceId)
-      redirectLogoNotice(
-        logo.slug,
-        "warning",
-        "Choose a source to copy to Managed Vault.",
-      );
+    if (!sourceId) redirectLogoNotice(logo.slug, "warning", "Copy to Vault failed: source id missing");
     const source = await getLogoSource(sourceId);
     if (!source || source.logo_id !== logo.id)
       redirectLogoNotice(
@@ -1906,7 +1945,10 @@ export async function copySourceToVaultAction(formData: FormData) {
         "error",
         "Source was not found for this logo.",
       );
-    const message = await replaceManagedVaultFromSource(logo, source);
+    const message =
+      source.provider === "defillama"
+        ? await forceReplaceManagedVaultFromDefiLlama(logo, source, { autoVault: false, reason: "explicit-defillama-copy-to-vault" })
+        : await replaceManagedVaultFromSource(logo, source);
     revalidatePath(`/admin/logos/${logo.slug}`);
     revalidatePath("/admin/logos");
     redirectLogoNotice(

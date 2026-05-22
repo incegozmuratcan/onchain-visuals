@@ -20,6 +20,15 @@
 
 # learnDeFi
 
+
+## v0.11.26 DefiLlama Vault Force-Replace Postcondition (Blocker)
+
+- DefiLlama `Copy to Vault` is now hard-replace semantics driven by the exact clicked `sourceId`; missing `sourceId` is rejected with `Copy to Vault failed: source id missing`.
+- DefiLlama copy no longer uses generic soft no-op inference. Non-protected `managed-vault`/`vault` rows are removed before creating the new managed-vault copy from the clicked DefiLlama row.
+- `Managed Vault: already up to date` for DefiLlama is now allowed only when canonical vault metadata strictly matches `copiedFromProvider=defillama` and `copiedFromSourceId=<clickedSourceId>` and image/blob identity.
+- After DefiLlama replace, postcondition verification reloads DB state and fails explicitly with `Managed Vault replace failed: postcondition mismatch` debug fields when canonical vault state is not exact.
+- DefiLlama auto-copy flows (`reviewed-primary`/`trusted-primary`) now use the same force-replace helper and preserve manual/upload protected vault rows.
+
 ## v0.11.21 DefiLlama Hard Reset + Clean v3 Rediscovery (Blocker)
 
 - Added destructive maintenance action **Hard reset DefiLlama provider** that hard-deletes all `logo_sources` rows where `provider = defillama`, repairs/clears affected primaries, clears stale DefiLlama fetch state, removes saved `defillamaSlug` from `logo_provider_ids:*` admin settings, and clears stale DefiLlama discovery summaries.
