@@ -1,6 +1,8 @@
 import "server-only";
 import type { AdminLogo, LogoSource } from "@/lib/admin/logoDb";
 import { validateDefiLlamaSourceForLogo } from "@/lib/admin/defillamaValidator";
+import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
+import { slugText } from "@/lib/admin/providerScoring";
 
 export type ProviderCoverageState = "OK" | "REVIEW" | "NO" | "ERR";
 export type CanonicalProviderKey =
@@ -83,12 +85,64 @@ export function providerMatches(sourceProvider: string, provider: string) {
 
 
 
-function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
+function slugFromUrl(value: unknown) {
+  const raw = stringValue(value).toLowerCase();
+  if (!raw) return "";
+  const m1 = raw.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);
+  if (m1?.[1]) return slugText(m1[1]);
+  const m2 = raw.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);
+  if (m2?.[1]) return slugText(m2[1]);
+  return "";
+}
+
+function extractResolverDebugAliases(metadata: Record<string, unknown>) {
+  const debug = metadata.resolverDebug;
+  if (!debug || typeof debug !== "object" || Array.isArray(debug)) return [] as string[];
+  const d = debug as Record<string, unknown>;
+  const arrays = [d.aliases, d.targetAliases, d.sourceAliases, d.aliasesTried];
+  return arrays.flatMap((v) => (Array.isArray(v) ? v.map((x) => stringValue(x)) : []));
+}
+
+function buildDefiLlamaCanonicalAliases(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name" | "coinmarketcap_id" | "coingecko_id"> & Record<string, unknown>>) {
+  const metadata = sourceMetadataObject(source.metadata);
+  const knownAliases = [
+    stringValue(logo?.slug),
+    stringValue(logo?.name),
+    stringValue((logo as Record<string, unknown> | undefined)?.symbol),
+    stringValue((logo as Record<string, unknown> | undefined)?.coinGeckoId),
+    stringValue((logo as Record<string, unknown> | undefined)?.coinmarketcapId),
+    stringValue((logo as Record<string, unknown> | undefined)?.coingecko_id),
+    stringValue((logo as Record<string, unknown> | undefined)?.coinmarketcap_id),
+    stringValue(metadata.slug),
+    stringValue(metadata.defillamaSlug),
+    stringValue(metadata.savedProviderSlug),
+    stringValue(metadata.coinGeckoId),
+    stringValue(metadata.coinmarketcapId),
+    stringValue(metadata.coinGeckoSymbol),
+    stringValue(metadata.cmcSymbol),
+    slugFromUrl(source.source_url),
+    slugFromUrl(source.image_url),
+    slugFromUrl(source.blob_url),
+    ...extractResolverDebugAliases(metadata),
+  ].filter(Boolean);
+  const expanded = buildProviderAliasSet({
+    name: stringValue(logo?.name),
+    slug: stringValue(logo?.slug),
+    coinGeckoId: stringValue((logo as Record<string, unknown> | undefined)?.coingecko_id || metadata.coinGeckoId),
+    cmcSymbol: stringValue((logo as Record<string, unknown> | undefined)?.symbol || metadata.cmcSymbol),
+    defillamaSlug: stringValue(metadata.defillamaSlug || metadata.slug),
+    knownAliases,
+  });
+  return Array.from(new Set([...knownAliases, ...expanded.aliases]));
+}
+
+export function isValidDefiLlamaSourceForLogo(source: LogoSource, logo?: Partial<Pick<AdminLogo, "slug" | "name">>) {
+  const knownAliases = buildDefiLlamaCanonicalAliases(source, logo as Partial<Pick<AdminLogo, "slug" | "name"> & Record<string, unknown>> | undefined);
   return validateDefiLlamaSourceForLogo({
     logoName: logo?.name,
     logoSlug: logo?.slug,
     source,
-    knownAliases: [],
+    knownAliases,
   }).valid;
 }
 
@@ -154,7 +208,7 @@ function sourceRank(source: LogoSource, logo?: Partial<Pick<AdminLogo, "approved
 export function resolveCanonicalProviderState(
   sources: LogoSource[],
   provider: CanonicalProviderKey | string,
-  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name">>,
+  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name" | "coingecko_id" | "coinmarketcap_id"> & Record<string, unknown>>,
 ): CanonicalProviderState {
   const providerSources = sources.filter((source) => providerMatches(source.provider, provider));
   const eligibleProviderSources = providerSources.filter((source) => provider !== "defillama" || isValidDefiLlamaSourceForLogo(source, logo));
@@ -196,7 +250,7 @@ export function resolveCanonicalProviderState(
 
 export function resolveCanonicalProviderStates(
   sources: LogoSource[],
-  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name">>,
+  logo?: Partial<Pick<AdminLogo, "approved_source_id" | "slug" | "name" | "coingecko_id" | "coinmarketcap_id"> & Record<string, unknown>>,
 ) {
   return {
     coingecko: resolveCanonicalProviderState(sources, "coingecko", logo),

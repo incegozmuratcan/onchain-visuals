@@ -708,10 +708,24 @@ export async function addDefiLlamaAction(formData: FormData) {
       }
     }
 
-    const canonical = resolveCanonicalProviderState((await getLogoSources(logo.id)).rows, "defillama", logo);
+    const freshSources = (await getLogoSources(logo.id)).rows;
+    const canonical = resolveCanonicalProviderState(freshSources, "defillama", logo);
     if (canonical.state === "ERR" || canonical.state === "NO") {
+      const debugRows = freshSources
+        .filter((row) => row.provider === "defillama")
+        .map((row) => ({
+          id: row.id,
+          status: row.status,
+          sourceUrl: row.source_url,
+          imageUrl: row.image_url,
+          metadata: sourceMetadata(row),
+        }));
       await updateLogoFetchState(logo.slug, "defillama", "DefiLlama source saved but canonical state did not update (state mismatch).");
-      redirectLogoNotice(logo.slug, "error", `DefiLlama source saved but canonical state did not update. sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} reason=${classified.reason}`);
+      redirectLogoNotice(
+        logo.slug,
+        "error",
+        `DefiLlama source saved but canonical state did not update. sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} reason=${classified.reason} state=${canonical.state} sourceId=${created.id} debug=${JSON.stringify(debugRows)}`,
+      );
     }
 
     await updateLogoFetchState(logo.slug, "defillama", null);

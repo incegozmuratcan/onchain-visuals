@@ -1,3 +1,10 @@
+## v0.11.29 DefiLlama canonical XRP alias parity hotfix
+
+- Canonical DefiLlama provider-state validation now builds known aliases from both target logo fields and persisted source metadata/URLs (including resolver debug aliases), then expands through shared alias families before validating rows.
+- XRP Ledger alias family is explicitly canonicalized for provider-state parity: `xrp-ledger`, `xrp ledger`, `xrp`, `xrpl`, `ripple`, `ripple-network`, `xrpl-mainnet`.
+- Canonical validation now accepts the production-safe XRP pairing `sourceUrl=https://defillama.com/chain/xrp` + `imageUrl=https://icons.llama.fi/chains/rsz_xrpl.jpg` for target `XRP Ledger / xrp-ledger`.
+- Use + Fetch post-save canonical check now uses fresh rows and emits structured DefiLlama debug context on mismatch; expected behavior is REVIEW/OK parity with add-action validation.
+
 ## v0.11.28 XRP Ledger DefiLlama resolver blocker fix
 
 - Added explicit XRP Ledger alias family normalization across provider alias expansion and DefiLlama resolver chain matching: `xrp`, `xrpl`, `xrp-ledger`, `xrp ledger`, `ripple`, `ripple-network`, `xrpl-mainnet`, plus CoinGecko/CMC-provider-id-driven expansion paths.
