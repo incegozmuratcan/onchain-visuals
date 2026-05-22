@@ -1428,7 +1428,7 @@ async function discoverLogoSources(
     const primary =
       after.find((source) => source.id === logo.approved_source_id) ??
       after.find((source) => source.status === "approved");
-    if (primary) summary.push(await copySourceToVault(logo, primary));
+    if (primary) summary.push(await replaceManagedVaultFromSource(logo, primary));
   }
   return summary;
 }
@@ -1753,7 +1753,7 @@ async function optimizeLogoBuffer(buffer: Buffer, mimeType: string, maxDimension
   return { buffer, mimeType, width: dimensions?.width ?? null, height: dimensions?.height ?? null, optimized: true, maxDimension };
 }
 
-async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: { autoVault?: boolean; reason?: string } = {}) {
+async function replaceManagedVaultFromSource(logo: AdminLogo, source: LogoSource, options: { autoVault?: boolean; reason?: string } = {}) {
   const providerLabel =
     source.provider === "coingecko"
       ? "CoinGecko"
@@ -1786,17 +1786,27 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
   const sourceImageUrl = source.blob_url || source.image_url;
   const sourceHash = String(meta.sourceSha || meta.imageHash || "").trim();
   const vaultHash = String(existingVaultMeta.sourceSha || existingVaultMeta.imageHash || "").trim();
-  const sameAsExistingVault = Boolean(
-    existingVault &&
+  const sameDefiLlamaSource = Boolean(
+    source.provider === "defillama" &&
+      existingVault &&
       (existingVaultMeta.copiedFromSourceId === source.id ||
-        (Boolean(source.image_url) && existingVaultMeta.copiedFromUrl === source.image_url) ||
-        (Boolean(source.blob_url) && existingVaultMeta.copiedFromUrl === source.blob_url) ||
-        (existingVaultMeta.copiedFromProvider === source.provider &&
-          sourceHash &&
-          vaultHash &&
-          sourceHash === vaultHash) ||
-        existingVault.image_url === sourceImageUrl ||
-        existingVault.blob_url === sourceImageUrl),
+        (existingVaultMeta.copiedFromProvider === "defillama" &&
+          ((Boolean(source.image_url) && existingVaultMeta.copiedFromUrl === source.image_url) ||
+            (Boolean(source.blob_url) && existingVaultMeta.copiedFromUrl === source.blob_url)))),
+  );
+  const sameAsExistingVault = Boolean(
+    source.provider === "defillama"
+      ? sameDefiLlamaSource
+      : existingVault &&
+          (existingVaultMeta.copiedFromSourceId === source.id ||
+            (Boolean(source.image_url) && existingVaultMeta.copiedFromUrl === source.image_url) ||
+            (Boolean(source.blob_url) && existingVaultMeta.copiedFromUrl === source.blob_url) ||
+            (existingVaultMeta.copiedFromProvider === source.provider &&
+              sourceHash &&
+              vaultHash &&
+              sourceHash === vaultHash) ||
+            existingVault.image_url === sourceImageUrl ||
+            existingVault.blob_url === sourceImageUrl),
   );
   if (sameAsExistingVault) return "Managed Vault: already up to date";
   if (existingVault) {
@@ -1849,10 +1859,12 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       copiedFromProvider: source.provider,
       copiedFromSourceId: source.id,
       copiedFromUrl: imageUrl,
+      copiedFromSourceUrl: source.source_url || null,
       copiedAt,
       vaultUpdatedFromExisting: Boolean(existingVault && !sameAsExistingVault),
       previousVaultSourceId: existingVault?.id || null,
       previousVaultImageUrl: existingVault?.image_url || null,
+      previousVaultBlobUrl: existingVault?.blob_url || null,
       fileSize: optimized.buffer.length,
       mimeType: optimized.mimeType,
       width: optimized.width,
@@ -1864,7 +1876,7 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       reason: options.reason || (options.autoVault ? "trusted-primary" : "bulk-backup"),
     },
   });
-  if (existingVault && !sameAsExistingVault) return `Managed Vault: updated from ${providerLabel}`;
+  if (existingVault && !sameAsExistingVault) return `Managed Vault: replaced from ${providerLabel}`;
   return `Managed Vault: copied from ${providerLabel}`;
 }
 
@@ -1873,7 +1885,7 @@ async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reaso
   const meta = sourceMetadata(source);
   if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
-  return copySourceToVault(logo, source, { autoVault: true, reason });
+  return replaceManagedVaultFromSource(logo, source, { autoVault: true, reason });
 }
 
 export async function copySourceToVaultAction(formData: FormData) {
@@ -1894,7 +1906,7 @@ export async function copySourceToVaultAction(formData: FormData) {
         "error",
         "Source was not found for this logo.",
       );
-    const message = await copySourceToVault(logo, source);
+    const message = await replaceManagedVaultFromSource(logo, source);
     revalidatePath(`/admin/logos/${logo.slug}`);
     revalidatePath("/admin/logos");
     redirectLogoNotice(
@@ -2155,7 +2167,7 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
           counts.skippedMissingSource += 1;
           summary.push("Managed Vault: no approved primary to copy");
         } else {
-          summary.push(await copySourceToVault(logo, primary));
+          summary.push(await replaceManagedVaultFromSource(logo, primary));
         }
       }
       const text = summary.join(" | ");
@@ -2168,7 +2180,7 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
         counts.defillamaFetched += 1;
       if (text.includes("DefiLlama: no source found")) counts.defillamaNoReliable += 1;
       if (text.includes("DefiLlama: failed")) counts.defillamaErrors += 1;
-      if (text.includes("Managed Vault: copied from ") || text.includes("Managed Vault: updated from ")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Managed Vault: copied from ") || text.includes("Managed Vault: replaced from ")) counts.vaultCopiesCreated += 1;
       if (text.includes("Managed Vault: no approved primary")) counts.vaultMissing += 1;
       if (text.includes("Managed Vault: already up to date")) counts.vaultAlready += 1;
       if (text.includes("Primary:")) counts.primarySelected += 1;

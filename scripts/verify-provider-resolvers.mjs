@@ -52,23 +52,36 @@ if((!state.found && !state.error)!==true) throw new Error('Missing state semanti
 // 10 vault copy semantics
 const vaultResult=(vault,selected)=>{
   const vm=vault?.metadata||{};
-  const same=Boolean(vault && (
+  const sameDefiLlama = selected.provider==='defillama' && (
     vm.copiedFromSourceId===selected.id ||
-    (selected.image_url && vm.copiedFromUrl===selected.image_url) ||
-    (selected.blob_url && vm.copiedFromUrl===selected.blob_url) ||
-    (vm.copiedFromProvider===selected.provider && vm.sourceSha && selected.sourceSha && vm.sourceSha===selected.sourceSha) ||
-    vault.image_url===(selected.blob_url||selected.image_url) ||
-    vault.blob_url===(selected.blob_url||selected.image_url)
+    (vm.copiedFromProvider==='defillama' && (
+      (selected.image_url && vm.copiedFromUrl===selected.image_url) ||
+      (selected.blob_url && vm.copiedFromUrl===selected.blob_url)
+    ))
+  );
+  const same=Boolean(vault && (
+    selected.provider==='defillama'
+      ? sameDefiLlama
+      : (
+        vm.copiedFromSourceId===selected.id ||
+        (selected.image_url && vm.copiedFromUrl===selected.image_url) ||
+        (selected.blob_url && vm.copiedFromUrl===selected.blob_url) ||
+        (vm.copiedFromProvider===selected.provider && vm.sourceSha && selected.sourceSha && vm.sourceSha===selected.sourceSha) ||
+        vault.image_url===(selected.blob_url||selected.image_url) ||
+        vault.blob_url===(selected.blob_url||selected.image_url)
+      )
   ));
   if (same) return {message:'Managed Vault: already up to date',action:'noop',metadata:vm};
   if (['manual','upload'].includes(String(vm.copiedFromProvider||''))) return {message:'Managed Vault not replaced: protected manual/upload source',action:'blocked',metadata:vm};
-  return {message:`Managed Vault: updated from ${selected.providerLabel}`,action:'updated',metadata:{...vm,copiedFromProvider:selected.provider,copiedFromSourceId:selected.id}};
+  return {message:`Managed Vault: replaced from ${selected.providerLabel}`,action:'updated',metadata:{...vm,copiedFromProvider:selected.provider,copiedFromSourceId:selected.id}};
 };
 const sameCase=vaultResult({image_url:'https://blob/v1.png',metadata:{copiedFromSourceId:'src-1'}},{id:'src-1',provider:'defillama',providerLabel:'DefiLlama',image_url:'https://a.png'});
 if(sameCase.message!=='Managed Vault: already up to date') throw new Error('Vault same-source should noop');
 const diffCase=vaultResult({image_url:'https://blob/old.png',metadata:{copiedFromProvider:'coingecko',copiedFromSourceId:'cg-1'}},{id:'dl-1',provider:'defillama',providerLabel:'DefiLlama',image_url:'https://icons.llama.fi/chains/rsz_rootstock.jpg'});
 if(diffCase.action!=='updated'||diffCase.metadata.copiedFromProvider!=='defillama'||diffCase.metadata.copiedFromSourceId!=='dl-1') throw new Error('Vault differing source should update metadata');
 if(diffCase.message==='Managed Vault: already up to date') throw new Error('Rootstock diff source must not noop');
+const missingSourceIdCase=vaultResult({image_url:'https://icons.llama.fi/chains/rsz_rootstock.jpg',metadata:{copiedFromProvider:'defillama'}},{id:'dl-2',provider:'defillama',providerLabel:'DefiLlama',image_url:'https://icons.llama.fi/chains/rsz_rootstock.jpg'});
+if(missingSourceIdCase.message==='Managed Vault: already up to date') throw new Error('Missing copiedFromSourceId must replace for DefiLlama');
 const protectedCase=vaultResult({image_url:'https://blob/manual.png',metadata:{copiedFromProvider:'manual'}},{id:'cg-2',provider:'coingecko',providerLabel:'CoinGecko',image_url:'https://cg/new.png'});
 if(protectedCase.message!=='Managed Vault not replaced: protected manual/upload source') throw new Error('Protected vault overwrite should be blocked');
 const cgCase=vaultResult({image_url:'https://blob/cg-old.png',metadata:{copiedFromProvider:'defillama'}},{id:'cg-3',provider:'coingecko',providerLabel:'CoinGecko',image_url:'https://cg/newer.png'});

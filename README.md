@@ -3,8 +3,8 @@
 - Managed Vault Copy to Vault now treats `already up to date` as true only when the active vault row strongly matches the selected source identity (copiedFrom source id/url, provider+hash, or same copied blob/image URL), not merely because a vault row exists.
 - Copy to Vault now updates existing non-protected managed-vault rows in place from the selected provider source and records replacement provenance metadata (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) plus refreshed copied-from fields.
 - Managed Vault rows copied from manual/upload remain protected from overwrite; action message is now explicit: `Managed Vault not replaced: protected manual/upload source`.
-- Copy result messages are provider-accurate and deterministic: `Managed Vault: copied from <Provider>`, `Managed Vault: updated from <Provider>`, or `Managed Vault: already up to date`.
-- DefiLlama Copy to Vault now follows the same create/update/no-op semantics as CoinGecko/CoinMarketCap without resolver/schema/seed/auth changes.
+- Copy result messages are provider-accurate and deterministic: `Managed Vault: copied from <Provider>`, `Managed Vault: replaced from <Provider>`, `Managed Vault: already up to date`, or `Managed Vault not replaced: protected manual/upload source`.
+- DefiLlama Copy to Vault now follows the same create/replace/no-op semantics as CoinGecko/CoinMarketCap without resolver/schema/seed/auth changes.
 
 ## v0.11.22 DefiLlama Chain-First + Missing-vs-Error (Blocker)
 
@@ -13,7 +13,7 @@
 - BNB alias family expanded to include `bnb`, `bsc`, `bnb-chain`, `bnb chain`, `binance smart chain`, `binance-smart-chain`, `binancecoin`, ensuring BNB Chain maps to DefiLlama chain slug `bsc`.
 - DefiLlama Use + Fetch and bulk discovery now persist resolver-selected source/image URLs as-is and keep resolver metadata in `metadata.defillamaV3`, `sourceType`, and `selectedImagePattern`.
 - `No reliable DefiLlama source found` is treated as Missing/noReliable state (not Error) in fetch/discovery summary semantics; only actual exceptions are counted as errors.
-- Managed Vault copy behavior is now create/update/no-op: create when missing, `already up to date` when same source/image is already vaulted, and replace/update when a different safe provider source is selected.
+- Managed Vault copy behavior is now create/replace/no-op: create when missing, `already up to date` when same source/image is already vaulted, and replace/update when a different safe provider source is selected.
 - Vault copy metadata now includes replacement provenance (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) in addition to `copiedFromProvider`, `copiedFromSourceId`, `copiedFromUrl`, and `copiedAt`.
 - Existing vault rows copied from manual/upload are protected from overwrite by provider copy actions and return a clear replace-blocked message.
 - Render alias family now includes `render`, `render-network`, `render network`, `render-network-token`, and `rndr` for DefiLlama resolver matching and alias sibling reuse/backfill between Render and Render Network.
