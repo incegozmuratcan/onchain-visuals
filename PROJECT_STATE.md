@@ -1,3 +1,10 @@
+## v0.11.31 Live Missing DefiLlama recovery trace + dry-run blocker fix
+
+- Added **Dry run missing DefiLlama recovery** Source Tools action: resolves current canonical missing DefiLlama targets using live resolver/index logic, records per-logo candidate diagnostics, and does not write source rows.
+- `Recover missing DefiLlama logos` now uses the same per-logo trace pipeline as dry-run and stores richer diagnostics in `admin_settings.last_defillama_discovery_summary` (query used, aliases tried, index matches, raw returned candidates, selected candidate, validation outcome, DB save outcome, canonical post-save state, vault copy outcome, and final status).
+- Recovery now separates source save/canonical update from vault copy: DefiLlama source persistence + canonical REVIEW/OK checks happen first; vault copy failures are tracked as `vaultCopyFailed` and no longer erase source recovery success.
+- Target selection now includes canonical DefiLlama `NO` plus `ERR` rows whose reason indicates no-reliable-source semantics, so Missing DefiLlama recovery is not skipped due to non-DefiLlama provider presence.
+
 ## v0.11.30 Missing DefiLlama recovery + vault verification blocker
 
 - Recovery action **Recover missing DefiLlama logos** now processes canonical `DL NO` rows only and records per-logo diagnostics including aliases tried, chain/protocol candidates considered, URL/image attempts, selected candidate, save state, canonical post-save state, and vault copy result.

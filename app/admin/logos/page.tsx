@@ -10,6 +10,7 @@ import {
   bulkRefreshCoinGeckoLogosAction,
   bulkRefreshCoinMarketCapLogosAction,
   discoverDefiLlamaV3SourcesAction,
+  dryRunRecoverMissingDefiLlamaLogosAction,
   recoverMissingDefiLlamaLogosAction,
   hardResetAndRediscoverDefiLlamaV3Action,
   hardResetDefiLlamaProviderAction,
@@ -570,6 +571,11 @@ function SourceTools({
             <form action={recoverMissingDefiLlamaLogosAction}>
               <button className="w-full rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 font-black text-sky-700">
                 Recover missing DefiLlama logos
+              </button>
+            </form>
+            <form action={dryRunRecoverMissingDefiLlamaLogosAction}>
+              <button className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-black text-indigo-700">
+                Dry run missing DefiLlama recovery
               </button>
             </form>
             <form action={hardResetDefiLlamaProviderAction} className="col-span-2 sm:col-span-3 lg:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-2">
