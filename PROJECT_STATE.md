@@ -521,3 +521,11 @@
 - Added bulk maintenance action Backfill alias-equivalent sources.
 - CoinMarketCap numeric ID fetch is direct and independent from name/slug search once ID exists.
 - Duplicate logo rows are not auto-merged; reused sources stay review-gated unless trusted CoinGecko auto-approve safety allows otherwise.
+
+## v0.11.24 Provider Resolver Reliability (Blocker)
+
+- DefiLlama-to-Managed-Vault copy now enforces DefiLlama v3 validation before copy, preventing invalid/missing/error DefiLlama rows from being copied while preserving CG/CMC parity and existing primary selection behavior.
+- CoinMarketCap helper search now tolerates per-query 400/HTTP failures: failed alias attempts are recorded and skipped while remaining alias/symbol/slug queries continue, and only all-attempt failure returns a terminal CMC search error.
+- CMC helper now returns a non-fatal "No reliable CMC match" result when API queries succeed but no confident candidate exists.
+- Alias expansion now includes Monad ↔ MON, improving CMC uppercase short-symbol fallback attempts and DefiLlama/CMC alias parity.
+- Deterministic provider resolver verification script now covers Render/Render Network alias family, Monad MON alias fallback, CMC direct-ID path state, and Rootstock DefiLlama-to-Vault copy preconditions.

@@ -524,3 +524,10 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - CoinMarketCap fetch now remains direct-by-numeric-ID path; saved numeric IDs are treated as `ID saved · fetch needed` until source row exists.
 - Added maintenance action `Backfill alias-equivalent sources` to copy safe reusable provider rows in bulk.
 - Duplicate local logo records are diagnosed for source reuse only; no destructive merge.
+
+### v0.11.24 Provider resolver reliability (blocker)
+
+- DefiLlama source copy-to-vault now applies DefiLlama v3 target validation before vault copy to keep DefiLlama parity with CG/CMC while blocking invalid placeholders/mismatches.
+- CMC helper search now continues after individual 400/query failures and only fails when every query attempt fails; successful-but-empty runs report "No reliable CMC match".
+- Alias expansion now includes Monad ↔ MON for short-symbol CMC fallback.
+- `npm run verify:provider-resolvers` expanded deterministic checks for Render aliases, Monad MON uppercase attempts, CMC direct-ID state, and Rootstock DefiLlama copy preconditions.

@@ -1758,6 +1758,15 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
     return "Managed Vault: Blob token missing";
   if (source.status === "rejected")
     return "Managed Vault: skipped rejected source";
+  if (source.provider === "defillama") {
+    const validation = await validateDefiLlamaSourceForLogoWithResolver({
+      logoName: logo.name,
+      logoSlug: logo.slug,
+      logoCategory: logo.category,
+      source,
+    });
+    if (!validation.valid) return `Managed Vault: skipped invalid DefiLlama source (${validation.reason || "unverified"})`;
+  }
   const existing = (await getLogoSources(logo.id)).rows;
   if (
     existing.some(
