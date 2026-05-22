@@ -517,3 +517,10 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Shared alias expansion now powers DefiLlama and CoinMarketCap helper lookups with normalized aliases, symbol variants, and suffix-trimmed queries.
 - Run `npm run verify:provider-resolvers` to validate critical alias families (BNB, OP Mainnet, XRP Ledger, Render Network, Quai, Cosmos, Hedera, Filecoin, Rootstock).
 - Resolver behavior remains safe: no guessed DefiLlama protocol persistence, no placeholder auto-save, and no low-confidence auto-approval.
+
+## v0.11.22 Alias Source Reuse + Direct CMC ID Fetch
+
+- Added alias/sibling provider source reuse flow that copies safe CoinGecko/CoinMarketCap/DefiLlama/Managed Vault rows from alias-equivalent logo records into the current logo as review candidates (`sourceOrigin: alias-sibling-reuse`) without merging rows.
+- CoinMarketCap fetch now remains direct-by-numeric-ID path; saved numeric IDs are treated as `ID saved · fetch needed` until source row exists.
+- Added maintenance action `Backfill alias-equivalent sources` to copy safe reusable provider rows in bulk.
+- Duplicate local logo records are diagnosed for source reuse only; no destructive merge.

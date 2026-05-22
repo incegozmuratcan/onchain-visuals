@@ -514,3 +514,10 @@
 - Added provider diagnostics foundations for missing-vs-found analysis and actionable alias/rejection reasoning in resolver debug output.
 - Added deterministic alias verification script `npm run verify:provider-resolvers` for BNB, OP Mainnet, XRP Ledger, Render Network, Quai, Cosmos, Hedera, Filecoin, and Rootstock alias families.
 - No DB schema changes.
+
+## v0.11.22 Alias Source Reuse + Direct CMC ID Fetch
+
+- Added alias/sibling source reuse helper to safely copy valid provider sources across alias-equivalent local logos as review candidates.
+- Added bulk maintenance action Backfill alias-equivalent sources.
+- CoinMarketCap numeric ID fetch is direct and independent from name/slug search once ID exists.
+- Duplicate logo rows are not auto-merged; reused sources stay review-gated unless trusted CoinGecko auto-approve safety allows otherwise.

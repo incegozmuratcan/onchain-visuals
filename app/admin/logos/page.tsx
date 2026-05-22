@@ -14,6 +14,7 @@ import {
   hardResetDefiLlamaProviderAction,
   createLogoAction,
   discoverLogoSourcesBulkAction,
+  backfillAliasEquivalentSourcesAction,
   importLegacyLocalLogosToVaultAction,
   scanMetricLogosAction,
 } from "@/lib/admin/actions";
@@ -509,6 +510,11 @@ function SourceTools({
               <input type="hidden" name="mode" value="smart" />
               <button className="w-full rounded-full bg-slate-950 px-3 py-1.5 font-black text-white shadow-sm">
                 Complete logo coverage
+              </button>
+            </form>
+            <form action={backfillAliasEquivalentSourcesAction}>
+              <button className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-semibold text-slate-700 hover:border-slate-300">
+                Backfill alias-equivalent sources
               </button>
             </form>
             <form action={bulkRefreshCoinGeckoLogosAction}>

@@ -49,6 +49,7 @@ import { runMetricLogoDiscovery } from "@/lib/admin/metricLogoScanner";
 import { searchCoinMarketCapIds } from "@/lib/admin/cmcSearch";
 import { searchCoinGeckoIds } from "@/lib/admin/coingeckoSearch";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
+import { findAliasSiblingLogoSources, resolveAliasReuseStatus } from "@/lib/admin/aliasSourceReuse";
 import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
 import { classifyDefiLlamaSourceV3, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
@@ -1414,6 +1415,10 @@ async function discoverLogoSources(
       `DefiLlama: failed (${expectedActionMessage(error, "DefiLlama fetch failed.")})`,
     );
   }
+  const allLogos = (await listLogos()).rows;
+  const allSources = (await getAllLogoSources()).rows;
+  const aliasCopied = await copyAliasSiblingSourcesToLogo(logo, allLogos, allSources);
+  if (aliasCopied.length) summary.push(`Alias reuse: ${aliasCopied.join(", ")}`);
 
   const after = (await getAllLogoSources()).rows.filter(
     (row) => row.logo_id === logo.id,
@@ -1473,6 +1478,40 @@ async function fetchCoinMarketCapLogoSource(cmcId: string) {
       logo: imageUrl,
     },
   };
+}
+
+async function copyAliasSiblingSourcesToLogo(logo: AdminLogo, allLogos: AdminLogo[], allSources: LogoSource[]) {
+  const existing = allSources.filter((row) => row.logo_id === logo.id);
+  const reuse = findAliasSiblingLogoSources(logo, allLogos, allSources);
+  const copied: string[] = [];
+  for (const candidate of reuse) {
+    const duplicate = existing.some((row) =>
+      row.provider === candidate.source.provider &&
+      row.image_url === candidate.source.image_url &&
+      (row.source_url || "") === (candidate.source.source_url || "")
+    );
+    if (duplicate) continue;
+    const status = resolveAliasReuseStatus(logo, existing, candidate.source);
+    const created = await upsertLogoSource({
+      logoId: logo.id,
+      provider: candidate.source.provider,
+      imageUrl: candidate.source.image_url,
+      sourceUrl: candidate.source.source_url,
+      metadata: {
+        ...(typeof candidate.source.metadata === "string" ? {} : candidate.source.metadata),
+        sourceOrigin: "alias-sibling-reuse",
+        copiedFromLogoSlug: candidate.sibling.slug,
+        copiedFromSourceId: candidate.source.id,
+        aliasReason: candidate.aliasReason,
+        reviewStatus: "needs_review",
+      },
+      status,
+      reviveRejected: false,
+    });
+    existing.push(created);
+    copied.push(`${candidate.source.provider}:${candidate.sibling.slug}`);
+  }
+  return copied;
 }
 
 export async function addCoinMarketCapAction(formData: FormData) {
@@ -2140,6 +2179,32 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
   redirect(
     `/admin/logos?notice=success&message=${encodeURIComponent(mode === "vault" ? `Vault backup complete: ${counts.checked} checked, ${counts.vaultCopiesCreated} copied, ${counts.skippedAlreadyVaulted} already vaulted, ${counts.skippedMissingSource} missing source, ${counts.errors} errors` : `Discovery ${mode} complete: ${counts.checked} checked, ${counts.primarySelected} primary selected, ${counts.needsReview} need review, ${counts.errors} errors`)}`,
   );
+}
+
+export async function backfillAliasEquivalentSourcesAction() {
+  await requireAdmin();
+  const logos = (await listLogos()).rows;
+  let checked = 0;
+  let aliasGroupsFound = 0;
+  let sourcesCopied = 0;
+  let skippedNoReliableAlias = 0;
+  const examples: string[] = [];
+  for (const logo of logos) {
+    checked += 1;
+    const allSources = (await getAllLogoSources()).rows;
+    const copied = await copyAliasSiblingSourcesToLogo(logo, logos, allSources);
+    if (!copied.length) {
+      skippedNoReliableAlias += 1;
+      continue;
+    }
+    aliasGroupsFound += 1;
+    sourcesCopied += copied.length;
+    examples.push(`${logo.slug} <- ${copied.join(", ")}`);
+  }
+  await setAdminSetting("last_alias_source_backfill_summary", JSON.stringify({ timestamp: new Date().toISOString(), checked, aliasGroupsFound, sourcesCopied, skippedNoReliableAlias, skippedUnsafeRejected: 0, errors: 0, examples: examples.slice(0, 8) }));
+  revalidatePath("/admin");
+  revalidatePath("/admin/logos");
+  redirect(`/admin/logos?notice=success&message=${encodeURIComponent(`Alias backfill complete: ${checked} checked, ${sourcesCopied} copied`)}`);
 }
 
 export async function saveFallbackAction(formData: FormData) {
