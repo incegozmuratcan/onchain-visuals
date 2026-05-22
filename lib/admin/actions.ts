@@ -642,7 +642,7 @@ export async function addDefiLlamaAction(formData: FormData) {
               'validatedForTarget', true,
               'validatedAt', now()::text,
               'reviewStatus', coalesce((coalesce(metadata,'{}'::jsonb)->>'reviewStatus'), 'needs_review'),
-              'defillamaV3', $3
+              'defillamaV3', $3::text
             )
           )
         where id = $1 and logo_id = $2`,
@@ -656,7 +656,7 @@ export async function addDefiLlamaAction(formData: FormData) {
         await query(
           `update logo_sources
              set metadata = coalesce(metadata, '{}'::jsonb) ||
-               jsonb_build_object('hidden', true, 'superseded', true, 'supersededBy', $2)
+               jsonb_build_object('hidden', true, 'superseded', true, 'supersededBy', $2::text)
            where id = $1`,
           [stale.id, created.id],
         );
@@ -685,7 +685,7 @@ export async function addDefiLlamaAction(formData: FormData) {
     );
   } catch (error) {
     if (isNextRedirect(error)) throw error;
-    const message = expectedActionMessage(error, "DefiLlama fetch failed.");
+    const message = expectedActionMessage(error, "DefiLlama source save failed.");
     await updateLogoFetchState(logo.slug, "defillama", message);
     redirectLogoNotice(logo.slug, "error", message);
   }
