@@ -6,6 +6,7 @@ import {
   slugText,
   type ConfidenceLabel,
 } from "@/lib/admin/providerScoring";
+import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
 
 export type DefiLlamaDebugAttempt = {
   url: string;
@@ -346,7 +347,8 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
   try {
     const rows = await defillamaIndex();
     const expectedCategory = expectedDefiLlamaCategory(context.category);
-    const aliasContext = unique([...(context.aliases ?? []), ...expandKnownAliases(q, context.targetName, context.targetSlug)]);
+    const shared = buildProviderAliasSet({ name: context.targetName, slug: context.targetSlug, category: context.category, knownAliases: context.aliases });
+    const aliasContext = unique([...(context.aliases ?? []), ...shared.aliases, ...expandKnownAliases(q, context.targetName, context.targetSlug, ...shared.aliases)]);
     const debug: DefiLlamaSearchDebug = { ...emptyDebug, aliasesTried: aliasContext, expectedCategory, notices: [] };
     if (context.category && !expectedCategory && normalizeProviderText(context.category).includes("asset")) debug.notices.push("Asset category allowed chain/native-token matches.");
     const scored = rows

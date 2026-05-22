@@ -1,6 +1,7 @@
 import "server-only";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 import { normalizeProviderText, scoreProviderCandidate, slugText, type ConfidenceLabel } from "@/lib/admin/providerScoring";
+import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
 
 export type CoinMarketCapCandidate = {
   id: string;
@@ -122,7 +123,8 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
   if (!q) return { candidates: [], error: null };
   try {
     const headers = await cmcHeaders();
-    const aliasTokens = unique([...expandCmcAliases(q, context.targetName, context.targetSlug, ...(context.aliases ?? [])), ...(context.aliases ?? [])]);
+    const shared = buildProviderAliasSet({ name: context.targetName, slug: context.targetSlug, knownAliases: context.aliases });
+    const aliasTokens = unique([...expandCmcAliases(q, context.targetName, context.targetSlug, ...(context.aliases ?? []), ...shared.aliases), ...(context.aliases ?? []), ...shared.aliases]);
     const slugTokens = unique([slugText(q), ...aliasTokens.map(slugText)]).slice(0, 10);
     const symbols = unique([q.replace(/[^a-z0-9]/gi, "").toUpperCase(), ...symbolTokens(aliasTokens).map((token) => token.toUpperCase())]).slice(0, 10);
     const urls = unique([
