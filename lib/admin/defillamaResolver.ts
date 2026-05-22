@@ -88,7 +88,7 @@ const KNOWN_ALIAS_GROUPS = [
   ["op mainnet", "op-mainnet", "optimism", "optimism mainnet", "op"],
   ["matic", "polygon", "polygon pos", "polygon-pos", "pol"],
   ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era", "zk-sync-era"],
-  ["render", "render-network", "rndr"],
+  ["render", "render-network", "render network", "render-network-token", "rndr"],
   ["plasma", "xpl"],
   ["sui", "sui-network"],
   ["apt", "aptos", "aptos-network"],

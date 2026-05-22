@@ -1,5 +1,12 @@
 # Vision
 
+## v0.11.22 Vault Replace Semantics + Render Alias Recovery (Blocker)
+
+- Managed Vault copy now behaves as create/update/no-op: create when missing, `already up to date` when source/image is unchanged, and update/replace when the selected provider source differs.
+- Vault copy metadata now records replacement provenance (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) alongside copied-from provider/source/url/timestamp fields.
+- Vault rows copied from manual/upload are not overwritten by provider copy operations; action response now clearly reports replacement is blocked for safety.
+- Render alias handling now explicitly includes `render`, `render-network`, `render network`, `render-network-token`, and `rndr`, improving DefiLlama discovery and alias sibling reuse/backfill coverage between Render and Render Network.
+
 ## v0.11.21 DefiLlama Hard Reset + Clean v3 Rediscovery (Blocker)
 
 - Added destructive maintenance action **Hard reset DefiLlama provider** that hard-deletes all `logo_sources` rows where `provider = defillama`, repairs/clears affected primaries, clears stale DefiLlama fetch state, removes saved `defillamaSlug` from `logo_provider_ids:*` admin settings, and clears stale DefiLlama discovery summaries.

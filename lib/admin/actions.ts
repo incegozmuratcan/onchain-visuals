@@ -1768,21 +1768,28 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
     if (!validation.valid) return `Managed Vault: skipped invalid DefiLlama source (${validation.reason || "unverified"})`;
   }
   const existing = (await getLogoSources(logo.id)).rows;
-  if (
-    existing.some(
-      (row) =>
-        ["managed-vault", "vault"].includes(row.provider) &&
-        row.status !== "rejected" &&
-        (sourceMetadata(row).copiedFromSourceId === source.id ||
-          sourceMetadata(row).copiedFromUrl ===
-            (source.blob_url || source.image_url)),
-    )
-  )
-    return "Managed Vault: already available";
+  const existingVault = existing.find(
+    (row) => ["managed-vault", "vault"].includes(row.provider) && row.status !== "rejected",
+  );
+  const existingVaultMeta = existingVault ? sourceMetadata(existingVault) : {};
+  const sourceImageUrl = source.blob_url || source.image_url;
+  const sameAsExistingVault = Boolean(
+    existingVault &&
+      (existingVaultMeta.copiedFromSourceId === source.id ||
+        existingVaultMeta.copiedFromUrl === sourceImageUrl ||
+        existingVault.image_url === sourceImageUrl),
+  );
+  if (sameAsExistingVault) return "Managed Vault: already up to date";
+  if (existingVault) {
+    const copiedFromProvider = String(existingVaultMeta.copiedFromProvider || "").trim();
+    if (copiedFromProvider === "manual" || copiedFromProvider === "upload") {
+      return "Managed Vault: replace blocked (existing vault was copied from manual/upload source)";
+    }
+  }
   const meta = sourceMetadata(source);
   if (meta.visuallyRejected || meta.visualRejected || meta.unsafe || meta.visualStatus === "visual_rejected")
     return "Managed Vault: skipped visual rejected source";
-  const imageUrl = source.blob_url || source.image_url;
+  const imageUrl = sourceImageUrl;
   if (!/^https:\/\//.test(imageUrl))
     return "Managed Vault: source is not an HTTPS provider image";
   const response = await fetch(imageUrl, {
@@ -1825,6 +1832,9 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       copiedFromSourceId: source.id,
       copiedFromUrl: imageUrl,
       copiedAt,
+      vaultUpdatedFromExisting: Boolean(existingVault && !sameAsExistingVault),
+      previousVaultSourceId: existingVault?.id || null,
+      previousVaultImageUrl: existingVault?.image_url || null,
       fileSize: optimized.buffer.length,
       mimeType: optimized.mimeType,
       width: optimized.width,
@@ -1836,6 +1846,7 @@ async function copySourceToVault(logo: AdminLogo, source: LogoSource, options: {
       reason: options.reason || (options.autoVault ? "trusted-primary" : "bulk-backup"),
     },
   });
+  if (existingVault && !sameAsExistingVault) return "Managed Vault: updated from selected source";
   return "Managed Vault: copy created";
 }
 
@@ -2125,15 +2136,6 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
         if (!primary) {
           counts.skippedMissingSource += 1;
           summary.push("Managed Vault: no approved primary to copy");
-        } else if (
-          sources.some(
-            (source) =>
-              ["managed-vault", "vault"].includes(source.provider) &&
-              source.status !== "rejected",
-          )
-        ) {
-          counts.skippedAlreadyVaulted += 1;
-          summary.push("Managed Vault: already available");
         } else {
           summary.push(await copySourceToVault(logo, primary));
         }
@@ -2148,9 +2150,9 @@ export async function discoverLogoSourcesBulkAction(formData: FormData) {
         counts.defillamaFetched += 1;
       if (text.includes("DefiLlama: no source found")) counts.defillamaNoReliable += 1;
       if (text.includes("DefiLlama: failed")) counts.defillamaErrors += 1;
-      if (text.includes("Managed Vault: copy created")) counts.vaultCopiesCreated += 1;
+      if (text.includes("Managed Vault: copy created") || text.includes("Managed Vault: updated from selected source")) counts.vaultCopiesCreated += 1;
       if (text.includes("Managed Vault: no approved primary")) counts.vaultMissing += 1;
-      if (text.includes("Managed Vault: already available")) counts.vaultAlready += 1;
+      if (text.includes("Managed Vault: already up to date")) counts.vaultAlready += 1;
       if (text.includes("Primary:")) counts.primarySelected += 1;
       if (text.includes("needs review")) counts.needsReview += 1;
       if (text.includes("missing ID") || text.includes("needs ID"))

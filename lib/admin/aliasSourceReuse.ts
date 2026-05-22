@@ -37,8 +37,11 @@ export function findAliasSiblingLogoSources(targetLogo: AdminLogo, allLogos: Adm
     const siblingTokens = [sibling.slug, sibling.name, sibling.coingecko_id || "", sibling.coinmarketcap_id || ""].flatMap((v) => [str(v), sluggy(v)]).filter(Boolean);
     const reason = siblingTokens.find((t) => aliasTokens.has(t));
     if (!reason) continue;
+    const isRenderPair =
+      new Set([targetLogo.slug, sibling.slug]).has("render") &&
+      new Set([targetLogo.slug, sibling.slug]).has("render-network");
     for (const src of sourceByLogo.get(sibling.id) ?? []) {
-      if (isReusableSource(src)) out.push({ source: src, sibling, aliasReason: `matched:${reason}` });
+      if (isReusableSource(src)) out.push({ source: src, sibling, aliasReason: isRenderPair ? "render/render-network alias" : `matched:${reason}` });
     }
   }
   const seen = new Set<string>();
