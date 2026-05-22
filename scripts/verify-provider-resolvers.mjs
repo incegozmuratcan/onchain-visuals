@@ -2,7 +2,7 @@ const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-
 const unique=a=>[...new Set(a.filter(Boolean))];
 
 function aliasSet(name){
-  const groups=[['render network','render','render-network','rndr','render'],['monad','mon','MON'],['rootstock','rsk','rbtc'],['akash','akash-network','akash network','akash.io','akt'],['pocket','pocket-network','pokt']];
+  const groups=[['render network','render','render-network','rndr','render'],['monad','mon','MON'],['rootstock','rsk','rbtc'],['akash','akash-network','akash network','akash.io','akt'],['pocket','pocket-network','pokt'],['xrp ledger','xrp','xrpl','ripple','ripple-network','xrp-ledger','xrpl-mainnet']];
   const n=norm(name).replace(/-/g,' '); const out=new Set([norm(name),n.replace(/ /g,'-')]);
   for(const g of groups){const gn=g.map(v=>norm(v).replace(/-/g,' ')); if(gn.includes(n)){g.forEach(v=>out.add(norm(v)));}}
   const symbols=[...out].filter(v=>/^[a-z0-9]{2,8}$/.test(v)&&!v.includes('-')).map(v=>v.toUpperCase());
@@ -18,6 +18,10 @@ if(!render.cmcSymbols.includes('RNDR')||!render.cmcSymbols.includes('RENDER')) t
 // 1b Akash alias set
 const akash=aliasSet('Akash');
 ['akash','akash-network','akash-io','akt'].forEach(v=>{if(!akash.aliases.includes(v)) throw new Error(`Akash alias missing ${v}`)});
+
+// 1c XRP alias set
+const xrp=aliasSet('XRP Ledger');
+['xrp','xrpl','ripple','ripple-network','xrp-ledger'].forEach(v=>{if(!xrp.aliases.includes(v)) throw new Error(`XRP alias missing ${v}`)});
 
 // 2 sibling detection
 const src=[{logo:'render',provider:'defillama',image:'https://icons.llama.fi/render.jpg',status:'approved'}];

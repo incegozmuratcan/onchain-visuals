@@ -75,6 +75,7 @@ const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases
   { name: "Avalanche", slug: "avalanche", aliases: ["avalanche", "avax", "avalanche c-chain", "avalanche c chain"] },
   { name: "Solana", slug: "solana", aliases: ["solana", "sol"] },
   { name: "BNB Chain", slug: "bsc", aliases: ["bnb", "bnb-chain", "bnb chain", "bsc", "binance smart chain", "binance-smart-chain", "binancecoin"] },
+  { name: "XRP Ledger", slug: "xrp", aliases: ["xrp", "xrpl", "xrp-ledger", "xrp ledger", "ripple", "ripple-network", "xrpl-mainnet"] },
   { name: "Optimism", slug: "optimism", aliases: ["optimism", "op", "op mainnet", "op-mainnet"] },
   { name: "Base", slug: "base", aliases: ["base", "base chain"] },
   { name: "zkSync Era", slug: "zksync era", aliases: ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era"] },
@@ -94,6 +95,7 @@ const KNOWN_ALIAS_GROUPS = [
   ["apt", "aptos", "aptos-network"],
   ["near"],
   ["fil", "filecoin", "filecoin-chain"],
+  ["xrp", "xrpl", "xrp-ledger", "xrp ledger", "ripple", "ripple-network", "xrpl-mainnet"],
 ];
 
 const aliasLookup = new Map<string, Set<string>>();
