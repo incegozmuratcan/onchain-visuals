@@ -1,3 +1,10 @@
+## v0.11.27 Missing DefiLlama Recovery + Alias Diagnostics (Blocker)
+
+- Added Source Tools maintenance action **Recover missing DefiLlama logos** to scan canonical `DL NO` rows, run v3 resolver/index matching, and save only validated review candidates (`sourceOrigin = missing-defillama-recovery`, `defillamaV3`, `validatedForTarget`, `reviewStatus = needs_review`).
+- DefiLlama/provider alias expansion now includes Akash/AKT and additional missing families (Render, Pocket, Livepeer, Hivemapper, Nosana, OP Mainnet, XRP Ledger, Rootstock, TON, Hedera, Filecoin, Cosmos, Stellar, Quai, Monad, DoubleZero, BNB Chain variants).
+- Missing recovery now stores per-logo diagnostics (aliases tried, matches, selected/rejected, image URL attempts, final status) in the discovery summary instead of generic no-reliable-only output.
+- Guessed protocol/icon rows without index-backed validation remain blocked from save paths.
+
 ## v0.11.25 Managed Vault copy source-identity hotfix (Blocker)
 
 - Managed Vault Copy to Vault now treats `already up to date` as true only when the active vault row strongly matches the selected source identity (copiedFrom source id/url, provider+hash, or same copied blob/image URL), not merely because a vault row exists.

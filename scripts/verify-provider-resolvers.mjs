@@ -2,7 +2,7 @@ const norm=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-
 const unique=a=>[...new Set(a.filter(Boolean))];
 
 function aliasSet(name){
-  const groups=[['render network','render','render-network','rndr'],['monad','mon'],['rootstock','rsk','rbtc']];
+  const groups=[['render network','render','render-network','rndr','render'],['monad','mon','MON'],['rootstock','rsk','rbtc'],['akash','akash-network','akash network','akash.io','akt'],['pocket','pocket-network','pokt']];
   const n=norm(name).replace(/-/g,' '); const out=new Set([norm(name),n.replace(/ /g,'-')]);
   for(const g of groups){const gn=g.map(v=>norm(v).replace(/-/g,' ')); if(gn.includes(n)){g.forEach(v=>out.add(norm(v)));}}
   const symbols=[...out].filter(v=>/^[a-z0-9]{2,8}$/.test(v)&&!v.includes('-')).map(v=>v.toUpperCase());
@@ -14,6 +14,11 @@ const render=aliasSet('Render Network');
 ['render','render-network','rndr'].forEach(v=>{if(!render.aliases.includes(v)) throw new Error(`Render alias missing ${v}`)});
 if(!render.cmcSymbols.includes('RNDR')||!render.cmcSymbols.includes('RENDER')) throw new Error('Render uppercase symbols missing');
 
+
+// 1b Akash alias set
+const akash=aliasSet('Akash');
+['akash','akash-network','akash-io','akt'].forEach(v=>{if(!akash.aliases.includes(v)) throw new Error(`Akash alias missing ${v}`)});
+
 // 2 sibling detection
 const src=[{logo:'render',provider:'defillama',image:'https://icons.llama.fi/render.jpg',status:'approved'}];
 const missing={logo:'render-network'};
@@ -22,6 +27,16 @@ if(!src.some(s=>s.logo==='render'&&s.provider==='defillama'&&missing.logo==='ren
 // 3 defillama protocol recovery by slug alias
 const index=[{slug:'render',logo:'https://icons.llama.fi/render.jpg'},{slug:'render-network',logo:'https://icons.llama.fi/render-network.jpg'}];
 if(!index.some(r=>['render','render-network'].includes(r.slug))) throw new Error('DefiLlama render protocol recovery failed');
+
+
+// 3b Akash protocol index match high confidence equivalent
+const akashRow={name:'Akash Network',slug:'akash-network',symbol:'AKT'};
+const akashTargetAliases=['akash','akash-network','akt'];
+if(!(akashTargetAliases.includes('akt') && /akash/.test(akashRow.slug) && akashRow.symbol==='AKT')) throw new Error('Akash protocol index high-confidence match failed');
+
+// 3c guessed-only row invalid
+const guessed={source_url:'https://defillama.com/protocol/akash',image_url:'https://icons.llama.fi/akash.jpg',indexConfirmed:false};
+if(guessed.source_url.includes('/protocol/') && guessed.image_url.includes('icons.llama.fi/akash.jpg') && !guessed.indexConfirmed !== true) throw new Error('Akash guessed-only row should be invalid');
 
 // 4 CMC 400 fallback non-fatal + uppercase MON
 const mon=aliasSet('Monad'); if(!mon.cmcSymbols.includes('MON')) throw new Error('Monad MON missing');

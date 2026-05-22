@@ -15,13 +15,13 @@ type AliasInput = {
 
 const GENERIC_SUFFIXES = ["network","chain","protocol","mainnet","token","dao","finance","labs","foundation","blockchain"];
 const GROUPS: string[][] = [
-  ["ethereum","eth"],["bitcoin","btc"],["bnb chain","bnb","bsc","binancecoin","binance smart chain"],
+  ["ethereum","eth"],["bitcoin","btc"],["bnb chain","bnb","bsc","bnb-chain","binancecoin","binance smart chain","binance-smart-chain"],
   ["optimism","op mainnet","op"],["polygon","matic","pol"],["arbitrum","arb"],["avalanche","avax"],["solana","sol"],
   ["cosmos","atom"],["stellar","xlm"],["hedera","hbar","hedera-hashgraph"],["filecoin","fil"],["near","near-protocol"],
   ["render network","render","render-network","render-network-token","rndr"],["pocket network","pocket-network","pokt"],["xrp ledger","xrp","ripple"],
-  ["monad","mon"],
+  ["monad","mon","MON"],
   ["rootstock","rsk","rbtc"],["ton","toncoin","the-open-network"],["livepeer","lpt"],["hivemapper","honey"],
-  ["nosana","nos"],["bsv blockchain","bitcoin-sv","bsv"],["quai","quai-network"],
+  ["nosana","nos"],["doublezero","double-zero","2z"],["ton","toncoin","the-open-network","the open network"],["op mainnet","optimism","op-mainnet","op"],["akash network","akash","akash-network","akash.io","akt"],["bsv blockchain","bitcoin-sv","bsv"],["quai","quai-network"],
 ];
 
 const lookup = new Map<string, Set<string>>();
