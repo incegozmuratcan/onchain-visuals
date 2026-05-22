@@ -411,21 +411,24 @@ export async function hardResetAndRediscoverDefiLlamaV3Action() {
 }
 
 
-export async function recoverMissingDefiLlamaLogosAction() {
-  await requireAdmin();
+async function runMissingDefiLlamaRecovery(dryRun: boolean) {
   try {
     const logos = (await listLogos()).rows;
     const allSources = (await getAllLogoSources()).rows;
     const byLogo = new Map<string, LogoSource[]>();
     for (const source of allSources) byLogo.set(source.logo_id, [...(byLogo.get(source.logo_id) ?? []), source]);
-    const target = logos.filter((logo) => resolveCanonicalProviderState(byLogo.get(logo.id) ?? [], "defillama", logo).state === "NO");
-    const summary:any = { checked: 0, found: 0, saved: 0, reviewCandidates: 0, noReliable: 0, errors: 0, vaultCopied: 0, vaultCopyFailed: 0, remainingMissing: 0, details: [], examplesFound: [], examplesFailed: [] };
+    const target = logos.filter((logo) => {
+      const state = resolveCanonicalProviderState(byLogo.get(logo.id) ?? [], "defillama", logo);
+      if (state.state === "NO") return true;
+      return state.state === "ERR" && String(state.reason || "").toLowerCase().includes("no reliable");
+    });
+    const summary:any = { mode: dryRun ? "dry-run-missing-defillama-recovery" : "recover-missing-defillama", checked: 0, targetCount: target.length, found: 0, saved: 0, sourceSaved: 0, canonicalUpdated: 0, reviewCandidates: 0, noReliable: 0, validationFailed: 0, canonicalFailed: 0, dbSaveFailed: 0, errors: 0, vaultCopied: 0, vaultCopyFailed: 0, remainingMissing: 0, details: [], examplesFound: [], examplesFailed: [] };
     for (const logo of target) {
       summary.checked += 1;
       try {
-        const found = await searchDefiLlamaSources(logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category });
+        const found = await searchDefiLlamaSources(logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category, aliases: [logo.name, logo.slug] });
         const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high") ?? null;
-        const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, aliasesTried: found.debug.aliasesTried ?? [], chainCandidatesConsidered: found.candidates.filter((c)=>c.category==="chain").map((c)=>`${c.name}:${c.slug}`), protocolCandidatesConsidered: found.candidates.filter((c)=>c.category==="protocol").map((c)=>`${c.name}:${c.slug}`), selected: null, sourceType: null, sourceUrl: null, imageUrl: null, saved: false, canonicalStateAfterSave: "NO", vaultCopied: false, vaultCopyResult: null, rejectedReason: null, imageUrlAttempts: found.debug.attempts ?? [], finalStatus: "no reliable" };
+        const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, queryUsed: logo.name, aliasesTried: found.debug.aliasesTried ?? [], chainIndexMatches: found.candidates.filter((c)=>c.category==="chain").map((c)=>`${c.name}:${c.slug}`), protocolIndexMatches: found.candidates.filter((c)=>c.category==="protocol").map((c)=>`${c.name}:${c.slug}`), candidatesReturned: found.candidates.map((c) => ({ name: c.name, slug: c.slug, category: c.category, sourceUrl: c.sourceUrl, imageUrl: c.imageUrl, confidence: c.confidence, score: c.score, reasons: c.reasons ?? [], rejectionReason: c.recommended ? null : "not_selected" })), selectedCandidate: null, selectedAlias: null, sourceType: null, sourceUrl: null, imageUrl: null, validationResult: null, dbSaveResult: dryRun ? "dry-run/no-save" : "not_attempted", saved: false, canonicalStateAfterSave: "NO", vaultCopied: false, vaultCopyResult: null, rejectedReason: null, imageUrlAttempts: found.debug.attempts ?? [], finalStatus: "no reliable" };
         if (!candidate) {
           summary.noReliable += 1;
           detail.rejectedReason = found.error || "no reliable source";
@@ -434,28 +437,47 @@ export async function recoverMissingDefiLlamaLogosAction() {
           continue;
         }
         summary.found += 1;
-        const classified = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: { provider: "defillama", id: "preview", logo_id: logo.id, source_url: candidate.sourceUrl, image_url: candidate.imageUrl, blob_url: null, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern }, rejection_reason: null, created_at: new Date().toISOString() } });
-        if (!classified.valid) {
-          summary.noReliable += 1; detail.rejectedReason = classified.reason; summary.details.push(detail); continue;
-        }
-        const saved = await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", defillamaV3: classified.sourceType, validatedForTarget: true, reviewStatus: "needs_review", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern, fetchedAt: new Date().toISOString() } });
-        const reloaded = (await getLogoSources(logo.id)).rows;
-        const canonical = resolveCanonicalProviderState(reloaded, "defillama", logo);
-        let vaultCopyResult = "not attempted";
-        if (canonical.state === "REVIEW" || canonical.state === "OK") {
-          summary.reviewCandidates += 1;
-          vaultCopyResult = await forceReplaceManagedVaultFromDefiLlama(logo, saved, { autoVault: true, reason: "missing-defillama-recovery" });
-          if (vaultCopyResult.includes("copied from") || vaultCopyResult.includes("replaced from") || vaultCopyResult.includes("already up to date") || vaultCopyResult.includes("protected manual/upload")) {
-            summary.vaultCopied += 1;
-          } else {
-            summary.vaultCopyFailed += 1;
-          }
-        }
-        summary.saved += 1;
-        detail.selected = `${candidate.name}/${candidate.slug}`;
-        detail.sourceType = classified.sourceType;
+        detail.selectedAlias = (found.debug.aliasesTried ?? [])[0] ?? logo.name;
+        detail.selectedCandidate = `${candidate.name}/${candidate.slug}`;
         detail.sourceUrl = candidate.sourceUrl;
         detail.imageUrl = candidate.imageUrl;
+        detail.sourceType = candidate.sourceType;
+        const classified = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: { provider: "defillama", id: "preview", logo_id: logo.id, source_url: candidate.sourceUrl, image_url: candidate.imageUrl, blob_url: null, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern }, rejection_reason: null, created_at: new Date().toISOString() } });
+        detail.validationResult = classified.valid ? "valid" : `invalid:${classified.reason}`;
+        if (!classified.valid) {
+          summary.validationFailed += 1; summary.noReliable += 1; detail.rejectedReason = classified.reason; detail.finalStatus = "validation failed"; summary.details.push(detail); continue;
+        }
+        if (dryRun) {
+          detail.finalStatus = "saved";
+          summary.saved += 1;
+          summary.sourceSaved += 1;
+          summary.canonicalUpdated += 1;
+          summary.details.push(detail);
+          continue;
+        }
+        const saved = await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", defillamaV3: classified.sourceType, validatedForTarget: true, reviewStatus: "needs_review", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern, fetchedAt: new Date().toISOString() } });
+        detail.dbSaveResult = saved?.id ? `saved:${saved.id}` : "save_unknown";
+        summary.sourceSaved += 1;
+        const reloaded = (await getLogoSources(logo.id)).rows;
+        const canonical = resolveCanonicalProviderState(reloaded, "defillama", logo);
+        if (!(canonical.state === "REVIEW" || canonical.state === "OK")) {
+          summary.canonicalFailed += 1;
+          detail.canonicalStateAfterSave = canonical.state;
+          detail.finalStatus = "canonical failed";
+          summary.details.push(detail);
+          continue;
+        }
+        summary.canonicalUpdated += 1;
+        let vaultCopyResult = "not attempted";
+        summary.reviewCandidates += 1;
+        vaultCopyResult = await forceReplaceManagedVaultFromDefiLlama(logo, saved, { autoVault: true, reason: "missing-defillama-recovery" });
+        if (vaultCopyResult.includes("copied from") || vaultCopyResult.includes("replaced from") || vaultCopyResult.includes("already up to date") || vaultCopyResult.includes("protected manual/upload")) {
+          summary.vaultCopied += 1;
+        } else {
+          summary.vaultCopyFailed += 1;
+        }
+        summary.saved += 1;
+        detail.sourceType = classified.sourceType;
         detail.saved = true;
         detail.canonicalStateAfterSave = canonical.state;
         detail.vaultCopied = vaultCopyResult.includes("copied from") || vaultCopyResult.includes("replaced from") || vaultCopyResult.includes("already up to date") || vaultCopyResult.includes("protected manual/upload");
@@ -465,16 +487,39 @@ export async function recoverMissingDefiLlamaLogosAction() {
         summary.details.push(detail);
       } catch (error) {
         summary.errors += 1;
-        summary.details.push({ name: logo.name, slug: logo.slug, category: logo.category, finalStatus: "error", rejectedReason: toSafeErrorMessage(error) });
+        summary.details.push({ name: logo.name, slug: logo.slug, category: logo.category, finalStatus: "provider error", rejectedReason: toSafeErrorMessage(error) });
       }
     }
-    summary.remainingMissing = summary.checked - summary.saved;
+    summary.remainingMissing = summary.checked - summary.canonicalUpdated;
     await setAdminSetting("last_defillama_discovery_summary", JSON.stringify(summary));
+    return summary;
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    throw error;
+  }
+}
+
+export async function recoverMissingDefiLlamaLogosAction() {
+  await requireAdmin();
+  try {
+    const summary = await runMissingDefiLlamaRecovery(false);
     revalidatePath('/admin/logos');
     adminNotice('/admin/logos', summary.errors ? 'warning' : 'success', `Recover missing DefiLlama logos complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
   } catch (error) {
     if (isNextRedirect(error)) throw error;
     adminNotice('/admin/logos', 'error', `Recover missing DefiLlama logos failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
+export async function dryRunRecoverMissingDefiLlamaLogosAction() {
+  await requireAdmin();
+  try {
+    const summary = await runMissingDefiLlamaRecovery(true);
+    revalidatePath('/admin/logos');
+    adminNotice('/admin/logos', summary.errors ? 'warning' : 'success', `Dry run missing DefiLlama recovery complete: checked ${summary.checked} · found ${summary.found} · wouldSave ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice('/admin/logos', 'error', `Dry run missing DefiLlama recovery failed: ${toSafeErrorMessage(error)}`);
   }
 }
 
