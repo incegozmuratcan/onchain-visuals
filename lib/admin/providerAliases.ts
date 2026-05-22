@@ -22,6 +22,17 @@ const GROUPS: string[][] = [
   ["monad","mon","MON"],
   ["rootstock","rsk","rbtc"],["ton","toncoin","the-open-network"],["livepeer","lpt"],["hivemapper","honey"],
   ["nosana","nos"],["doublezero","double-zero","2z"],["ton","toncoin","the-open-network","the open network"],["op mainnet","optimism","op-mainnet","op"],["akash network","akash","akash-network","akash.io","akt"],["bsv blockchain","bitcoin-sv","bsv"],["quai","quai-network"],
+  ["io.net","ionet","io-net","io net","io"],
+  ["provenance","provenance blockchain","provenanced","hash"],
+  ["dimo","dimo-network"],
+  ["render","render-network","render network","rndr","render-token","render-network-token"],
+  ["cosmos","atom","cosmos-hub"],
+  ["megaeth","mega-eth","mega eth"],
+  ["glow","glow-protocol"],
+  ["eni","eni-chain","eni network"],
+  ["noble","noble-chain","noble network"],
+  ["pocket network","pocket-network","pocket","pokt"],
+  ["bitcoin sv","bitcoin-sv-chain","bitcoin-sv","bsv","bsv-blockchain"],
 ];
 
 const lookup = new Map<string, Set<string>>();
