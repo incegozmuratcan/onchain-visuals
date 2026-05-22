@@ -410,6 +410,50 @@ export async function hardResetAndRediscoverDefiLlamaV3Action() {
   }
 }
 
+
+export async function recoverMissingDefiLlamaLogosAction() {
+  await requireAdmin();
+  try {
+    const logos = (await listLogos()).rows;
+    const allSources = (await getAllLogoSources()).rows;
+    const byLogo = new Map<string, LogoSource[]>();
+    for (const source of allSources) byLogo.set(source.logo_id, [...(byLogo.get(source.logo_id) ?? []), source]);
+    const target = logos.filter((logo) => resolveCanonicalProviderState(byLogo.get(logo.id) ?? [], "defillama", logo).state === "NO");
+    const summary:any = { checked: 0, found: 0, saved: 0, noReliable: 0, errors: 0, details: [], examplesFound: [], examplesFailed: [] };
+    for (const logo of target) {
+      summary.checked += 1;
+      try {
+        const found = await searchDefiLlamaSources(logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category });
+        const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high") ?? null;
+        const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, aliasesTried: found.debug.aliasesTried ?? [], indexMatches: found.candidates.map((c)=>`${c.slug}/${(c as any).symbol||''}`), selected: null, rejectedReason: null, imageUrlAttempts: found.debug.urlPatternsTried ?? [], finalStatus: "no reliable" };
+        if (!candidate) {
+          summary.noReliable += 1;
+          detail.rejectedReason = found.error || "no reliable source";
+          summary.examplesFailed.push({ slug: logo.slug, reason: detail.rejectedReason });
+          summary.details.push(detail);
+          continue;
+        }
+        summary.found += 1;
+        const classified = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: { provider: "defillama", id: "preview", logo_id: logo.id, source_url: candidate.sourceUrl, image_url: candidate.imageUrl, blob_url: null, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern }, rejection_reason: null, created_at: new Date().toISOString() } });
+        if (!classified.valid) {
+          summary.noReliable += 1; detail.rejectedReason = classified.reason; summary.details.push(detail); continue;
+        }
+        await upsertLogoSource({ logoId: logo.id, provider: "defillama", imageUrl: candidate.imageUrl, sourceUrl: candidate.sourceUrl, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", defillamaV3: classified.sourceType, validatedForTarget: true, reviewStatus: "needs_review", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern, fetchedAt: new Date().toISOString() } });
+        summary.saved += 1; detail.selected = `${candidate.name}/${candidate.slug}`; detail.finalStatus = "saved"; summary.examplesFound.push({ slug: logo.slug, sourceType: classified.sourceType }); summary.details.push(detail);
+      } catch (error) {
+        summary.errors += 1;
+        summary.details.push({ name: logo.name, slug: logo.slug, category: logo.category, finalStatus: "error", rejectedReason: toSafeErrorMessage(error) });
+      }
+    }
+    await setAdminSetting("last_defillama_discovery_summary", JSON.stringify(summary));
+    revalidatePath('/admin/logos');
+    adminNotice('/admin/logos', summary.errors ? 'warning' : 'success', `Recover missing DefiLlama logos complete: checked ${summary.checked} · found ${summary.found} · saved ${summary.saved} · noReliable ${summary.noReliable} · errors ${summary.errors}`);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice('/admin/logos', 'error', `Recover missing DefiLlama logos failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
 export async function discoverDefiLlamaV3SourcesAction() {
   await requireAdmin();
   try {
