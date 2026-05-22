@@ -21,7 +21,7 @@ const akash=aliasSet('Akash');
 
 // 1c XRP alias set
 const xrp=aliasSet('XRP Ledger');
-['xrp','xrpl','ripple','ripple-network','xrp-ledger'].forEach(v=>{if(!xrp.aliases.includes(v)) throw new Error(`XRP alias missing ${v}`)});
+['xrp','xrpl','ripple','ripple-network','xrp-ledger','xrpl-mainnet'].forEach(v=>{if(!xrp.aliases.includes(v)) throw new Error(`XRP alias missing ${v}`)});
 
 // 2 sibling detection
 const src=[{logo:'render',provider:'defillama',image:'https://icons.llama.fi/render.jpg',status:'approved'}];
