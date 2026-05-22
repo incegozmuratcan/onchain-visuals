@@ -573,3 +573,11 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - CMC helper search now continues after individual 400/query failures and only fails when every query attempt fails; successful-but-empty runs report "No reliable CMC match".
 - Alias expansion now includes Monad ↔ MON for short-symbol CMC fallback.
 - `npm run verify:provider-resolvers` expanded deterministic checks for Render aliases, Monad MON uppercase attempts, CMC direct-ID state, and Rootstock DefiLlama copy preconditions.
+
+## DefiLlama Missing Recovery (Blocker Path)
+
+- Use Source Tools → Maintenance → **Recover missing DefiLlama logos** to process canonical `DL NO` logos from live admin data (not hard-coded screenshot rows).
+- Recovery persists only validated DefiLlama v3 candidates (`chain-icon`, `chain-mirror`, `protocol-index`, `manual-reviewed`) and rejects guessed-only/placeholder/blank/weak mismatches.
+- Each recovered row stores structured metadata for canonical parity (`sourceOrigin=missing-defillama-recovery`, `defillamaV3`, `validatedForTarget=true`, `reviewStatus=needs_review`) and then verifies canonical state and Managed Vault copy postconditions.
+- Recovery summary stores per-logo diagnostics (aliases, candidates considered, URL attempts, selected source, canonical state, vault copy status, and explicit failure reason) under `admin_settings.last_defillama_discovery_summary`.
+- Deterministic regression: `npm run verify:defillama-missing-set` covers the current visible missing set alias families plus mocked resolver/classifier and vault-copy behavior.

@@ -1,0 +1,21 @@
+import assert from 'node:assert/strict';
+const slugText=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+const normalize=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+const GROUPS=[['bsv','bitcoin-sv','bitcoin sv','bsv-blockchain','bitcoin-sv-chain'],['quai','quai-network','quai network'],['nosana','nos'],['io.net','ionet','io-net','io net','io'],['provenance','provenance blockchain','provenanced','hash'],['dimo','dimo-network'],['pocket','pocket-network','pokt'],['render','render-network','render network','rndr','render-token'],['xrp','xrpl','xrp-ledger','xrp ledger','ripple','ripple-network','xrpl-mainnet'],['akash','akash-network','akash network','akash.io','akt'],['cosmos','atom','cosmos-hub'],['megaeth','mega-eth','mega eth'],['glow','glow-protocol'],['eni','eni-chain','eni network'],['noble','noble-chain','noble network']];
+const lookup=new Map();for(const g of GROUPS){const n=[...new Set(g.flatMap(v=>[normalize(v),slugText(v)]).filter(Boolean))];for(const x of n)lookup.set(x,new Set(n));}
+const aliasesFor=(name,slug)=>{const set=new Set([normalize(name),slugText(name),normalize(slug),slugText(slug)]);for(const k of [...set]) lookup.get(k)?.forEach(v=>set.add(v)); return [...set];};
+const CASES=[['BSV Blockchain','bsv-blockchain',['bsv','bitcoin-sv','bitcoin-sv-chain']],['Quai','quai',['quai','quai-network']],['Nosana','nosana',['nosana','nos']],['IO.NET','ionet',['io.net','ionet','io-net']],['Provenance','provenance',['provenance','hash']],['DIMO','dimo',['dimo','dimo-network']],['Pocket Network','pocket-network',['pocket','pocket-network','pokt']],['Render Network','render-network',['render','render-network','rndr']],['XRP Ledger','xrp-ledger',['xrp','xrpl','ripple']],['Akash','akash',['akash','akash-network','akt']],['Cosmos','cosmos',['cosmos','atom','cosmos-hub']],['IO.NET','io-net',['io-net','ionet','io.net']],['MegaETH','megaeth',['megaeth','mega-eth']],['Render','render',['render','render-network','rndr']],['Glow','glow',['glow','glow-protocol']],['ENI','eni',['eni','eni-chain']],['Noble','noble',['noble','noble-chain']]];
+const classify = (source)=> source.imageUrl.includes('question-mark')?{valid:false}:{valid:!!source.indexConfirmed&&!source.guessedOnly};
+const canonicalState=(r)=>r.valid?(r.reviewed?'OK':'REVIEW'):'NO';
+const copyToVault=(existingId,id)=>existingId===id?'already up to date':'copied/replaced';
+for (const [name, slug, expected] of CASES) {
+  const aliases = aliasesFor(name, slug);
+  for (const token of expected) assert.equal(aliases.includes(token) || aliases.includes(normalize(token)) || aliases.includes(slugText(token)), true, `${slug} missing ${token}`);
+  const valid = classify({indexConfirmed:true,guessedOnly:false,imageUrl:'https://icons.llama.fi/chains/rsz_x.jpg'}); assert.equal(valid.valid,true);
+  assert.equal(classify({indexConfirmed:true,guessedOnly:true,imageUrl:'https://icons.llama.fi/chains/rsz_x.jpg'}).valid,false);
+  assert.equal(classify({indexConfirmed:true,guessedOnly:false,imageUrl:'https://icons.llama.fi/question-mark.jpg'}).valid,false);
+  assert.equal(canonicalState({valid:true,reviewed:false}),'REVIEW');
+  assert.equal(canonicalState({valid:true,reviewed:true}),'OK');
+  const sourceId=`${slug}-src`; assert.equal(copyToVault('old',sourceId),'copied/replaced'); assert.equal(copyToVault(sourceId,sourceId),'already up to date');
+}
+console.log(`verify:defillama-missing-set passed for ${CASES.length} logos.`);

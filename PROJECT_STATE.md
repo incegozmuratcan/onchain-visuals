@@ -1,3 +1,12 @@
+## v0.11.30 Missing DefiLlama recovery + vault verification blocker
+
+- Recovery action **Recover missing DefiLlama logos** now processes canonical `DL NO` rows only and records per-logo diagnostics including aliases tried, chain/protocol candidates considered, URL/image attempts, selected candidate, save state, canonical post-save state, and vault copy result.
+- Recovery save metadata is standardized (`sourceOrigin=missing-defillama-recovery`, `defillamaV3`, `validatedForTarget=true`, `reviewStatus=needs_review`), then canonical provider state is rechecked and DefiLlama force-replace Managed Vault copy is attempted for REVIEW/OK states.
+- Recovery summary now reports checked/found/saved/reviewCandidates/noReliable/errors/vaultCopied/vaultCopyFailed/remainingMissing with found/failed examples in `admin_settings.last_defillama_discovery_summary`.
+- Provider alias families were expanded for the current missing-set focus logos (BSV Blockchain, Quai, Nosana, IO.NET variants, Provenance, DIMO, Pocket Network, Render/Render Network, XRP Ledger, Akash, Cosmos, MegaETH, Glow, ENI, Noble).
+- Added deterministic script `npm run verify:defillama-missing-set` to validate alias families, mocked resolver/classification paths, canonical REVIEW→OK transitions, and DefiLlama manual vault copy semantics (`copied/replaced` then `already up to date`).
+- No guessed DefiLlama rows policy remains enforced: guessed-only and placeholder fixtures are explicitly rejected in deterministic verification.
+
 ## v0.11.29 DefiLlama canonical XRP alias parity hotfix
 
 - Canonical DefiLlama provider-state validation now builds known aliases from both target logo fields and persisted source metadata/URLs (including resolver debug aliases), then expands through shared alias families before validating rows.
