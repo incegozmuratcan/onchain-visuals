@@ -5,13 +5,13 @@
 - Managed Vault Copy to Vault now treats `already up to date` as true only when the active vault row strongly matches the selected source identity (copiedFrom source id/url, provider+hash, or same copied blob/image URL), not merely because a vault row exists.
 - Copy to Vault now updates existing non-protected managed-vault rows in place from the selected provider source and records replacement provenance metadata (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) plus refreshed copied-from fields.
 - Managed Vault rows copied from manual/upload remain protected from overwrite; action message is now explicit: `Managed Vault not replaced: protected manual/upload source`.
-- Copy result messages are provider-accurate and deterministic: `Managed Vault: copied from <Provider>`, `Managed Vault: updated from <Provider>`, or `Managed Vault: already up to date`.
-- DefiLlama Copy to Vault now follows the same create/update/no-op semantics as CoinGecko/CoinMarketCap without resolver/schema/seed/auth changes.
+- Copy result messages are provider-accurate and deterministic: `Managed Vault: copied from <Provider>`, `Managed Vault: replaced from <Provider>`, `Managed Vault: already up to date`, or `Managed Vault not replaced: protected manual/upload source`.
+- DefiLlama Copy to Vault now follows the same create/replace/no-op semantics as CoinGecko/CoinMarketCap without resolver/schema/seed/auth changes.
 
 
 ## v0.11.22 Vault Replace Semantics + Render Alias Recovery (Blocker)
 
-- Managed Vault copy now behaves as create/update/no-op: create when missing, `already up to date` when source/image is unchanged, and update/replace when the selected provider source differs.
+- Managed Vault copy now behaves as create/replace/no-op: create when missing, `already up to date` when source/image is unchanged, and update/replace when the selected provider source differs.
 - Vault copy metadata now records replacement provenance (`vaultUpdatedFromExisting`, `previousVaultSourceId`, `previousVaultImageUrl`) alongside copied-from provider/source/url/timestamp fields.
 - Vault rows copied from manual/upload are not overwritten by provider copy operations; action response now clearly reports replacement is blocked for safety.
 - Render alias handling now explicitly includes `render`, `render-network`, `render network`, `render-network-token`, and `rndr`, improving DefiLlama discovery and alias sibling reuse/backfill coverage between Render and Render Network.
