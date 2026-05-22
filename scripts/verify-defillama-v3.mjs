@@ -4,7 +4,7 @@ const SAFE_SUFFIX = ["network","chain","protocol","labs","foundation","dao","tok
 const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","placeholder","blank","empty","default-fallback","/api/chain-logo","generic"];
 const slugText=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const uniq=(arr)=>[...new Set(arr.filter(Boolean))];
-const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");return uniq(n)};
+const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");if(n.some((s)=>["xrp","xrpl","xrp-ledger","ripple","ripple-network","xrpl-mainnet"].includes(s)))n.push("xrp","xrpl","xrp-ledger","xrp-ledger","ripple","ripple-network","xrpl-mainnet");return uniq(n)};
 const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
 const isGuessedProtocolRow=(s,i)=>/defillama\.com\/protocol\//i.test(s)&&/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(i);
 const isExternalProtocolIcon=(u)=>/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
@@ -47,4 +47,16 @@ const oldInvalid=classify({logoName:'BNB Chain',logoSlug:'bnb-chain',source:{pro
 assert.equal(oldInvalid.valid,false);
 const bulkSimulation=[{kind:'valid',state:'REVIEW'},{kind:'noReliable',state:'MISSING'},{kind:'exception',state:'ERROR'}];
 assert.deepEqual(bulkSimulation.map((x)=>x.state),['REVIEW','MISSING','ERROR']);
-console.log('DefiLlama v3 deterministic verification passed (BNB chain-first, no protocol-icon for trusted chain, Akash missing-not-error, Aptos valid, Geodnet valid, bulk state simulation).');
+
+const xrpAliases=aliasFamily(['XRP Ledger','xrp-ledger','ripple','xrpl','52']);
+['xrp','xrpl','ripple','xrp-ledger'].forEach((v)=>assert.equal(xrpAliases.includes(v),true));
+const xrpChain=classify({logoName:'XRP Ledger',logoSlug:'xrp-ledger',knownAliases:['xrp','xrpl','ripple','ripple-network'],source:{provider:'defillama',id:'8',source_url:'https://defillama.com/chain/xrp',image_url:'https://icons.llama.fi/chains/rsz_xrp.jpg',metadata:{slug:'xrp',defillamaV3:'chain-icon'}}});
+assert.equal(xrpChain.valid,true);assert.equal(xrpChain.sourceType,'chain-icon');
+const xrpGuessed=classify({logoName:'XRP Ledger',logoSlug:'xrp-ledger',source:{provider:'defillama',id:'9',source_url:'https://defillama.com/protocol/xrp',image_url:'https://icons.llama.fi/xrp.jpg',metadata:{slug:'xrp'}}});
+assert.equal(xrpGuessed.valid,false);
+const xrpRecovery = xrpChain.valid ? {saved:true,reviewStatus:'needs_review',missing:false} : {saved:false,missing:true};
+assert.equal(xrpRecovery.saved,true);assert.equal(xrpRecovery.reviewStatus,'needs_review');assert.equal(xrpRecovery.missing,false);
+const xrpNoSourceDiagnostic={aliasesTried:['xrp','xrpl','ripple','xrp-ledger'],imageAttempts:['https://icons.llama.fi/chains/rsz_xrp.jpg -> status_404','https://icons.llama.fi/chains/xrp.jpg -> status_404']};
+assert.equal(xrpNoSourceDiagnostic.aliasesTried.includes('xrp'),true);assert.equal(xrpNoSourceDiagnostic.imageAttempts.length>0,true);
+
+console.log('DefiLlama v3 deterministic verification passed (BNB + XRP chain-first, guessed protocol rejection, recovery/no-source diagnostic simulation).');

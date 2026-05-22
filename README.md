@@ -1,3 +1,10 @@
+## v0.11.28 XRP Ledger DefiLlama resolver blocker fix
+
+- Added explicit XRP Ledger alias family normalization across provider alias expansion and DefiLlama resolver chain matching: `xrp`, `xrpl`, `xrp-ledger`, `xrp ledger`, `ripple`, `ripple-network`, `xrpl-mainnet`, plus CoinGecko/CMC-provider-id-driven expansion paths.
+- Added trusted native DefiLlama XRP chain mapping (`slug: xrp`) so chain-first discovery checks DefiLlama chain URLs before protocol search and persists only validated chain-icon candidates.
+- Added deterministic XRP coverage tests in `verify:defillama` and `verify:provider-resolvers` for alias family, valid chain-icon candidate, guessed protocol rejection, recovery simulation, and no-source diagnostic payload requirements.
+- Manual QA runbook target remains `/admin/logos/xrp-ledger`: expected DefiLlama REVIEW/OK persistence on Use + Fetch/recovery when valid image URL exists, otherwise detailed diagnostics (aliases/index rows/image attempts/rejection reasons).
+
 ## v0.11.27 Missing DefiLlama Recovery + Alias Diagnostics (Blocker)
 
 - Added Source Tools maintenance action **Recover missing DefiLlama logos** to scan canonical `DL NO` rows, run v3 resolver/index matching, and save only validated review candidates (`sourceOrigin = missing-defillama-recovery`, `defillamaV3`, `validatedForTarget`, `reviewStatus = needs_review`).
