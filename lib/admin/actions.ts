@@ -55,6 +55,7 @@ import { query } from "@/lib/server/postgres";
 import { classifyDefiLlamaSourceV3, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
 import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
 import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
+import { slugText } from "@/lib/admin/providerScoring";
 import {
   deleteAdminApiSecret,
   providerEnvVar,
@@ -850,6 +851,48 @@ export async function addDefiLlamaAction(formData: FormData) {
         message,
       );
     }
+    const resolveAttempts: Array<Record<string, string>> = [];
+    async function resolveValidDefiLlamaTokenCandidateForSave() {
+      if (!(candidate && (candidate.sourceType === "token-icon" || /defillama\.com\/token\//i.test(candidate.sourceUrl)))) return null;
+      const aliasSet = buildProviderAliasSet({
+        name: logo.name,
+        slug: logo.slug,
+        category: logo.category,
+        knownAliases: [requestedSlug, exactTokenSymbol, exactCoinGeckoId, exactCandidateName, candidate.slug].filter(Boolean),
+        coinGeckoId: logo.coingecko_id,
+      });
+      const tokenSymbols = [...new Set([
+        exactTokenSymbol,
+        String(candidate.debug?.tokenSymbol || ""),
+        exactCandidateName.replace(/[^a-z0-9.-]/gi, "").toUpperCase(),
+        logo.name.replace(/[^a-z0-9.-]/gi, "").toUpperCase(),
+        ...(aliasSet.aliases ?? []).map((a) => String(a).replace(/[^a-z0-9.-]/gi, "").toUpperCase()),
+      ].filter((v) => /^[A-Z0-9.-]{2,12}$/.test(v)))];
+      const geckoIds = [...new Set([
+        logo.coingecko_id,
+        exactCoinGeckoId,
+        String(candidate.debug?.coinGeckoId || ""),
+        candidate.slug,
+        ...(aliasSet.aliases ?? []).map((a) => slugText(a)),
+      ].filter((v): v is string => Boolean(v && String(v).trim())))];
+      for (const symbol of tokenSymbols) {
+        for (const geckoId of geckoIds) {
+          const sourceUrl = `https://defillama.com/token/${encodeURIComponent(symbol)}`;
+          const imageUrl = `https://token-icons.llamao.fi/icons/tokens/gecko/${encodeURIComponent(geckoId)}?w=48&h=48`;
+          const testCandidate = { ...candidate!, sourceUrl, imageUrl, sourceType: "token-icon" as const };
+          const check = classifyDefiLlamaSourceV3({
+            logoName: logo.name,
+            logoSlug: logo.slug,
+            logoCategory: logo.category,
+            knownAliases: [requestedSlug, symbol, geckoId, ...(aliasSet.aliases ?? [])].filter((v): v is string => Boolean(v)),
+            source: { id: "candidate", logo_id: logo.id, provider: "defillama", image_url: imageUrl, source_url: sourceUrl, blob_url: null, status: "candidate", rejection_reason: null, created_at: new Date().toISOString(), metadata: { slug: candidate!.slug, defillamaSlug: candidate!.slug } } as unknown as LogoSource,
+          });
+          resolveAttempts.push({ sourceUrl, imageUrl, reason: check.reason ?? "ok", tokenSymbol: symbol, coinGeckoId: geckoId });
+          if (check.valid) return { ...testCandidate, tokenSymbol: symbol, coinGeckoId: geckoId, tokenSymbols, geckoIds };
+        }
+      }
+      return { tokenSymbols, geckoIds };
+    }
     const classified = classifyDefiLlamaSourceV3({
       logoName: logo.name,
       logoSlug: logo.slug,
@@ -869,9 +912,14 @@ export async function addDefiLlamaAction(formData: FormData) {
       } as unknown as LogoSource,
     });
     if (!classified.valid) {
-      const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason}`;
-      await updateLogoFetchState(logo.slug, "defillama", details);
-      redirectLogoNotice(logo.slug, "warning", details);
+      const fallbackToken = await resolveValidDefiLlamaTokenCandidateForSave();
+      if (fallbackToken && "sourceUrl" in fallbackToken) {
+        candidate = { ...candidate, sourceUrl: fallbackToken.sourceUrl, imageUrl: fallbackToken.imageUrl, sourceType: "token-icon", debug: { ...(candidate.debug ?? {}), tokenSymbol: fallbackToken.tokenSymbol, coinGeckoId: fallbackToken.coinGeckoId, tokenSymbolsTried: fallbackToken.tokenSymbols, geckoIdsTried: fallbackToken.geckoIds, resolveAttempts } };
+      } else {
+        const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason} tokenSymbolsTried=${(fallbackToken as any)?.tokenSymbols?.join(",") || "none"} geckoIdsTried=${(fallbackToken as any)?.geckoIds?.join(",") || "none"} resolveAttempts=${JSON.stringify(resolveAttempts)}`;
+        await updateLogoFetchState(logo.slug, "defillama", details);
+        redirectLogoNotice(logo.slug, "warning", details);
+      }
     }
     if (
       (candidate.sourceType === "token-icon" || /defillama\.com\/token\//i.test(candidate.sourceUrl)) &&
@@ -931,8 +979,11 @@ export async function addDefiLlamaAction(formData: FormData) {
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
         defillamaV3: candidate.sourceType === "token-icon" ? "token-icon" : classified.sourceType,
-        tokenSymbol: exactTokenSymbol || undefined,
-        coinGeckoId: exactCoinGeckoId || undefined,
+        tokenSymbol: exactTokenSymbol || String((candidate.debug as any)?.tokenSymbol || "") || undefined,
+        coinGeckoId: exactCoinGeckoId || String((candidate.debug as any)?.coinGeckoId || "") || undefined,
+        aliasesTried: buildProviderAliasSet({ name: logo.name, slug: logo.slug, category: logo.category, knownAliases: [requestedSlug, exactTokenSymbol, exactCoinGeckoId].filter(Boolean), coinGeckoId: logo.coingecko_id }).aliases,
+        tokenSymbolsTried: Array.isArray((candidate.debug as any)?.tokenSymbolsTried) ? (candidate.debug as any).tokenSymbolsTried : undefined,
+        geckoIdsTried: Array.isArray((candidate.debug as any)?.geckoIdsTried) ? (candidate.debug as any).geckoIdsTried : undefined,
       },
       status: "candidate",
       reviveRejected: false,
