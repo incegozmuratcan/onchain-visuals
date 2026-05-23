@@ -1,3 +1,9 @@
+## v0.11.36 Provider coverage orchestrator blocker fix
+
+- Neutralized PR #120 local fallback detour for glow/eni/quai/render by removing static fallback wiring from `logoRegistry` and deleting unused static fallback SVG assets so local files cannot be misread as provider coverage.
+- Provider Coverage Orchestrator actions now compute and persist live target lists (`missingCgTargets`, `missingCmcTargets`, `missingDefiLlamaTargets`) and include a per-logo/provider `outcomeTable` in `last_provider_coverage_orchestrator_summary`.
+- Resolve path now executes real provider resolution attempts by invoking per-logo discovery for missing CG/CMC/DL targets and then DefiLlama missing recovery, instead of only writing unchanged before/after counters.
+
 ## v0.11.34 Provider coverage orchestrator baseline
 
 - Added a deterministic verification script `npm run verify:provider-coverage` (`scripts/verify-provider-coverage.mjs`) to enforce missing-target selection, alias sanitization, CoinGecko/CMC/DefiLlama resolver-path expectations, canonical post-save checks, and managed-vault copy semantics.

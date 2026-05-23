@@ -423,6 +423,10 @@ type ProviderCoverageSummary = {
   missingCgAfter: number;
   missingCmcAfter: number;
   missingDefiLlamaAfter: number;
+  missingCgTargets: string[];
+  missingCmcTargets: string[];
+  missingDefiLlamaTargets: string[];
+  outcomeTable: Array<Record<string, unknown>>;
 };
 
 async function computeMissingProviderCounts() {
@@ -458,7 +462,16 @@ export async function dryRunAllMissingProviderCoverageAction() {
       missingCgAfter: before.missingCg,
       missingCmcAfter: before.missingCmc,
       missingDefiLlamaAfter: before.missingDefiLlama,
+      missingCgTargets: [],
+      missingCmcTargets: [],
+      missingDefiLlamaTargets: [],
+      outcomeTable: [],
     };
+    const run = await runProviderCoverageOrchestrator(true);
+    summary.missingCgTargets = run.missingCgTargets;
+    summary.missingCmcTargets = run.missingCmcTargets;
+    summary.missingDefiLlamaTargets = run.missingDefiLlamaTargets;
+    summary.outcomeTable = run.outcomeTable;
     await setAdminSetting("last_provider_coverage_orchestrator_summary", JSON.stringify(summary));
     adminNotice('/admin/logos', 'success', `Dry run provider coverage complete: CG ${summary.missingCgBefore} -> ${summary.missingCgAfter} · CMC ${summary.missingCmcBefore} -> ${summary.missingCmcAfter} · DL ${summary.missingDefiLlamaBefore} -> ${summary.missingDefiLlamaAfter}`);
   } catch (error) {
@@ -471,7 +484,7 @@ export async function resolveAllMissingProviderCoverageAction() {
   await requireAdmin();
   try {
     const before = await computeMissingProviderCounts();
-    await runMissingDefiLlamaRecovery(false);
+    const run = await runProviderCoverageOrchestrator(false);
     const after = await computeMissingProviderCounts();
     const summary: ProviderCoverageSummary = {
       timestamp: new Date().toISOString(),
@@ -482,6 +495,10 @@ export async function resolveAllMissingProviderCoverageAction() {
       missingCgAfter: after.missingCg,
       missingCmcAfter: after.missingCmc,
       missingDefiLlamaAfter: after.missingDefiLlama,
+      missingCgTargets: run.missingCgTargets,
+      missingCmcTargets: run.missingCmcTargets,
+      missingDefiLlamaTargets: run.missingDefiLlamaTargets,
+      outcomeTable: run.outcomeTable,
     };
     await setAdminSetting("last_provider_coverage_orchestrator_summary", JSON.stringify(summary));
     adminNotice('/admin/logos', 'success', `Resolve provider coverage complete: CG ${summary.missingCgBefore} -> ${summary.missingCgAfter} · CMC ${summary.missingCmcBefore} -> ${summary.missingCmcAfter} · DL ${summary.missingDefiLlamaBefore} -> ${summary.missingDefiLlamaAfter}`);
@@ -489,6 +506,40 @@ export async function resolveAllMissingProviderCoverageAction() {
     if (isNextRedirect(error)) throw error;
     adminNotice('/admin/logos', 'error', `Resolve provider coverage failed: ${toSafeErrorMessage(error)}`);
   }
+}
+
+async function runProviderCoverageOrchestrator(dryRun: boolean) {
+  const logos = (await listLogos()).rows;
+  const allSources = (await getAllLogoSources()).rows;
+  const byLogo = new Map<string, LogoSource[]>();
+  for (const source of allSources) byLogo.set(source.logo_id, [...(byLogo.get(source.logo_id) ?? []), source]);
+  const missingCgTargets: string[] = [];
+  const missingCmcTargets: string[] = [];
+  const missingDefiLlamaTargets: string[] = [];
+  const outcomeTable: Array<Record<string, unknown>> = [];
+  for (const logo of logos) {
+    const sources = byLogo.get(logo.id) ?? [];
+    const cg = resolveCanonicalProviderState(sources, "coingecko", logo);
+    const cmc = resolveCanonicalProviderState(sources, "coinmarketcap", logo);
+    const dl = resolveCanonicalProviderState(sources, "defillama", logo);
+    if (cg.state === "NO" || cg.state === "ERR") missingCgTargets.push(logo.slug);
+    if (cmc.state === "NO" || cmc.state === "ERR") missingCmcTargets.push(logo.slug);
+    if (dl.state === "NO" || dl.state === "ERR") missingDefiLlamaTargets.push(logo.slug);
+  }
+  for (const slug of missingCgTargets) outcomeTable.push({ logo: slug, provider: "coingecko", finalStatus: dryRun ? "dry_run_targeted" : "resolve_attempted", dbSaved: false, reason: "covered by per-logo discover flow" });
+  for (const slug of missingCmcTargets) outcomeTable.push({ logo: slug, provider: "coinmarketcap", finalStatus: dryRun ? "dry_run_targeted" : "resolve_attempted", dbSaved: false, reason: "covered by per-logo discover flow" });
+  for (const slug of missingDefiLlamaTargets) outcomeTable.push({ logo: slug, provider: "defillama", finalStatus: dryRun ? "dry_run_targeted" : "resolve_attempted", dbSaved: false, reason: "covered by defillama recovery/discovery flow" });
+  if (!dryRun) {
+    for (const logo of logos.filter((row) => missingCgTargets.includes(row.slug) || missingCmcTargets.includes(row.slug) || missingDefiLlamaTargets.includes(row.slug))) {
+      try {
+        await discoverLogoSources(logo, { force: true, backupVault: true });
+      } catch (error) {
+        outcomeTable.push({ logo: logo.slug, provider: "orchestrator", finalStatus: "provider_error", reason: toSafeErrorMessage(error) });
+      }
+    }
+    await runMissingDefiLlamaRecovery(false);
+  }
+  return { missingCgTargets, missingCmcTargets, missingDefiLlamaTargets, outcomeTable };
 }
 async function runMissingDefiLlamaRecovery(dryRun: boolean) {
   try {
