@@ -656,3 +656,9 @@
 - Dry-run recovery summaries are persisted separately in `admin_settings.last_defillama_dry_run_recovery_summary` (live in `last_defillama_live_recovery_summary`) and include full `details` arrays.
 - Source Tools DefiLlama summary now renders expandable per-logo dry-run/recovery detail rows in admin UI.
 - CoinMarketCap search hardens alias query behavior by skipping invalid empty params and keeping alias attempts resilient; numeric-ID mode bypasses search.
+## v0.11.41 DefiLlama token-icon image-first save + diagnostics (Blocker)
+
+- DefiLlama token-icon save validation is now image-first in Use + Fetch candidate validation/fallback paths by tagging token attempts with `sourceType=token-icon` + `defillamaV3=token-icon`; token page route probe failures (`reason=resolve`) are no longer terminal when token image + alias-family target match is valid.
+- IO.NET fallback behavior now accepts token-icon pairs such as `/token/IONET` + `gecko/io` as REVIEW when alias family is strong, and persists `metadata.routeProbeStatus=route_probe_failed` instead of hard failing save.
+- DefiLlama token fallback/save metadata now records `originalPreviewSourceUrl`, `selectedTokenSourceUrl`, `selectedTokenImageUrl`, `tokenSymbolsTried`, and `geckoIdsTried` for post-save traceability.
+- DefiLlama token candidate failure UX now stores full fallback diagnostics in fetch-state details (`originalSourceUrl`, `tokenSymbolsTried`, `geckoIdsTried`, `sourceUrlsTried`, `imageUrlsTried`, `perAttemptReason`, `selectedAttempt`) while keeping the redirect banner short.
