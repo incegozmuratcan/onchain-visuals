@@ -67,6 +67,11 @@ import {
 
 async function ensureLogoFromForm(formData: FormData) {
   await requireAdmin();
+  const slug = String(formData.get("slug") || "").trim();
+  if (slug) {
+    const existing = await getLogo(slug);
+    if (existing) return existing;
+  }
   const name = String(formData.get("name") || "").trim();
   const category =
     String(formData.get("category") || "project").trim() || "project";
@@ -1198,6 +1203,11 @@ async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
 export async function addCoinGeckoAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const coinId = String(formData.get("coinGeckoId") || "").trim();
+  const forceReviewCandidate =
+    String(formData.get("forceReviewCandidate") || "").trim() === "1";
+  const approvalOrigin = String(formData.get("approvalOrigin") || "").trim();
+  const candidateName = String(formData.get("candidateName") || "").trim();
+  const candidateSymbol = String(formData.get("candidateSymbol") || "").trim();
   if (!coinId)
     redirectLogoNotice(logo.slug, "warning", "Add CoinGecko ID first.");
   try {
@@ -1217,14 +1227,21 @@ export async function addCoinGeckoAction(formData: FormData) {
       ...source,
       metadata: {
         ...source.metadata,
-        approvalOrigin: auto.ok ? "auto" : "candidate",
+        approvalOrigin: forceReviewCandidate
+          ? approvalOrigin || "admin_selected_low_confidence"
+          : auto.ok
+            ? "auto"
+            : "candidate",
         autoApproveReason: auto.reason,
+        reviewStatus: forceReviewCandidate ? "needs_review" : undefined,
+        candidateName: candidateName || undefined,
+        candidateSymbol: candidateSymbol || undefined,
       },
-      status: auto.ok ? "approved" : "candidate",
+      status: forceReviewCandidate ? "candidate" : auto.ok ? "approved" : "candidate",
       reviveRejected: true,
     });
     let vaultMessage = "";
-    if (auto.ok) {
+    if (auto.ok && !forceReviewCandidate) {
       await autoApproveSource(created.id, auto.reason);
       vaultMessage = await autoCopyPrimaryToVault(logo, created, "trusted-primary");
     }
@@ -1234,7 +1251,9 @@ export async function addCoinGeckoAction(formData: FormData) {
     redirectLogoNotice(
       logo.slug,
       "success",
-      auto.ok
+      forceReviewCandidate
+        ? "CoinGecko review candidate saved. Admin review required."
+        : auto.ok
         ? `CoinGecko logo fetched and approved. ${vaultMessage}`
         : "CoinGecko candidate fetched for review.",
     );
@@ -2514,10 +2533,21 @@ export async function useCoinGeckoIdAction(formData: FormData) {
   const logo = await getLogo(slug);
   if (!logo) redirectLogoNotice(slug, "error", "Logo was not found.");
   await updateLogoProviderId(slug, "coingecko", coinId);
+  const useAsReviewCandidate =
+    String(formData.get("useAsReviewCandidate") || "").trim() === "1";
+  const candidateName = String(formData.get("candidateName") || "").trim();
+  const candidateSymbol = String(formData.get("candidateSymbol") || "").trim();
   const form = new FormData();
+  form.set("slug", logo.slug);
   form.set("name", logo.name);
   form.set("category", logo.category);
   form.set("coinGeckoId", coinId);
+  if (useAsReviewCandidate) {
+    form.set("forceReviewCandidate", "1");
+    form.set("approvalOrigin", "admin_selected_low_confidence");
+    form.set("candidateName", candidateName);
+    form.set("candidateSymbol", candidateSymbol);
+  }
   return addCoinGeckoAction(form);
 }
 

@@ -12,7 +12,8 @@ const SAFE_SUFFIX = ["network","chain","protocol","labs","foundation","dao","tok
 const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","placeholder","blank","empty","default-fallback","/api/chain-logo","generic"]
 
 function isChainIconUrl(url: string) {
-  return /https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(url);
+  return /https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(url)
+    || /https?:\/\/icons\.llamao\.fi\/icons\/chains\/(?:rsz_)?[^/?#.]+(?:\?w=48&h=48)?/i.test(url);
 }
 
 function isGuessedProtocolRow(sourceUrl: string, imageUrl: string) {
@@ -48,7 +49,10 @@ function slugFromUrl(value: string) {
   const m1 = v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);
   if (m1?.[1]) return slugText(m1[1]);
   const m2 = v.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);
-  return m2?.[1] ? slugText(m2[1]) : "";
+  if (m2?.[1]) return slugText(m2[1]);
+  const m3 = v.match(/icons\.llamao\.fi\/icons\/chains\/(?:rsz_)?([^/?#.&]+)/i);
+  if (m3?.[1]) return slugText(m3[1]);
+  return "";
 }
 
 export function classifyDefiLlamaSourceV3(input: { logoName?: string; logoSlug?: string; logoCategory?: string; source: LogoSource | null | undefined; knownAliases?: string[]; }): DefiLlamaValidationResult {

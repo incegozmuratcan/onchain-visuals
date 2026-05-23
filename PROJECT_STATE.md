@@ -1,3 +1,10 @@
+## v0.11.42 Remaining provider-source blocker fixes (Blocker)
+
+- Added first-class DefiLlama llamao chain-icon endpoint handling for `icons.llamao.fi/icons/chains/rsz_{slug}?w=48&h=48` (plus direct llamao chain pattern) alongside legacy `icons.llama.fi` chain fallback patterns.
+- Added deterministic DefiLlama validation coverage for ENI llamao chain icon, Provenance llamao chain icon, and BSV token icon (`token-icons.llamao.fi/.../bitcoin-cash-sv?w=48&h=48`).
+- Fixed provider-save target identity by preferring explicit logo slug lookup in form actions before name/category upsert; this prevents duplicate alias-family persistence drift (notably `io-net` vs `ionet`).
+- CoinGecko helper now supports explicit admin override for low-confidence/non-recommended visible candidates via **Use as review**; saved rows are review candidates (`status=candidate`, `metadata.reviewStatus=needs_review`, `metadata.approvalOrigin=admin_selected_low_confidence`) and are not auto-approved.
+
 ## v0.11.40 DefiLlama token Use+Fetch fallback completion (Blocker)
 
 - DefiLlama token-route save now enforces token symbol fallback priority for Use + Fetch: explicit preview token symbol, CoinGecko symbol, CoinMarketCap symbol, provider alias symbols, uppercase short aliases, and only then normalized slug variants.
