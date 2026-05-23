@@ -592,3 +592,11 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Dry-run details are stored under `last_defillama_dry_run_recovery_summary`; live recovery under `last_defillama_live_recovery_summary`.
 - Source Tools now shows expandable per-logo dry-run/recovery details including aliases, candidate, rejection reason and final status.
 - CoinMarketCap resolver skips invalid empty query params and supports numeric-ID bypass path to avoid unnecessary failing search attempts.
+
+
+## DefiLlama Missing Recovery Notes (v0.11.33)
+- Provider image URLs/URL-like tokens are sanitized out of alias search sets; CoinGecko/CMC ids and image metadata remain diagnostics only.
+- XRP alias family parity is enforced (`xrp`, `xrpl`, `ripple`, `xrp-ledger`) to prevent false `target_mismatch` rejects for chain-icon sources.
+- Trusted chain recovery mappings include Cosmos Hub, Noble, Quai Network, and MegaETH with chain icon URL attempts under `icons.llama.fi/chains/*`.
+- Dry-run/live recovery details now use specific final statuses (`no_index_match`, `no_chain_index_match`, `no_protocol_index_match`, `target_mismatch`, `would_save`, etc.) instead of generic `no_candidate`.
+- DefiLlama diagnostics separate provider metadata (CG/CMC ids/image URLs) from `aliasesTried`.

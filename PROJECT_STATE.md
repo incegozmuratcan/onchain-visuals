@@ -1,3 +1,10 @@
+## v0.11.33 DefiLlama missing recovery root-cause fixes (Blocker)
+
+- Sanitized provider alias generation so URL/image/CDN/query-string/numeric-only tokens are excluded from DefiLlama alias search while provider metadata remains available for diagnostics.
+- Fixed XRP/XRPL/Ripple alias-family target validation parity so `xrp` chain sources no longer fail as `target_mismatch` for `ripple`/`xrp-ledger` targets.
+- Added trusted chain mappings for Cosmos Hub, Noble, Quai Network, and MegaETH and constrained trusted chain icon attempts to `icons.llama.fi/chains/*` patterns.
+- Missing DefiLlama dry-run/live detail statuses now emit specific `finalStatus` reasons (`no_index_match`, `no_chain_index_match`, `no_protocol_index_match`, `target_mismatch`, `validation_failed`, `would_save`, `provider_error`) with candidate diagnostics.
+
 ## v0.11.31 Live Missing DefiLlama recovery trace + dry-run blocker fix
 
 - Added **Dry run missing DefiLlama recovery** Source Tools action: resolves current canonical missing DefiLlama targets using live resolver/index logic, records per-logo candidate diagnostics, and does not write source rows.
