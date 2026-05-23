@@ -1322,9 +1322,19 @@ export default async function LogoDetailPage({
                 </div>
                 {recommendedDefiLlama && defiLlamaPreview ? (
                   <div className="grid gap-0.5 font-bold text-slate-400">
+                    {(() => {
+                      const displayType =
+                        recommendedDefiLlama.sourceType === "token-icon" ||
+                        (/defillama\.com\/token\//i.test(recommendedDefiLlama.sourceUrl) &&
+                          /token-icons\.llamao\.fi\/icons\/tokens\/gecko\//i.test(defiLlamaPreview))
+                          ? "token"
+                          : recommendedDefiLlama.category;
+                      return (
                     <a href={recommendedDefiLlama.sourceUrl} className="truncate underline">
-                      Recommended · high confidence · {recommendedDefiLlama.category} · {recommendedDefiLlama.sourceUrl}
+                          Recommended · high confidence · {displayType} · {recommendedDefiLlama.sourceUrl}
                     </a>
+                      );
+                    })()}
                     <a href={defiLlamaPreview} className="truncate underline">
                       Icon: {defiLlamaPreview}
                     </a>
@@ -1343,6 +1353,14 @@ export default async function LogoDetailPage({
                     name="providerSlug"
                     value={recommendedDefiLlama.slug}
                   />
+                  <input type="hidden" name="sourceUrl" value={recommendedDefiLlama.sourceUrl} />
+                  <input type="hidden" name="imageUrl" value={recommendedDefiLlama.imageUrl} />
+                  <input type="hidden" name="sourceType" value={recommendedDefiLlama.sourceType} />
+                  <input type="hidden" name="selectedImagePattern" value={recommendedDefiLlama.selectedImagePattern} />
+                  <input type="hidden" name="tokenSymbol" value="" />
+                  <input type="hidden" name="coinGeckoId" value={recommendedDefiLlama.slug ?? ""} />
+                  <input type="hidden" name="resolverConfidence" value={recommendedDefiLlama.confidence} />
+                  <input type="hidden" name="candidateName" value={recommendedDefiLlama.name} />
                   <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">
                     Use + Fetch
                   </button>
