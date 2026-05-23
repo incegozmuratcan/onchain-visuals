@@ -4,7 +4,7 @@ import { slugText } from "@/lib/admin/providerScoring";
 import { sourceMetadataObject } from "@/lib/admin/providerState";
 import { searchDefiLlamaSources } from "@/lib/admin/defillamaResolver";
 
-export type DefiLlamaSourceType = "chain-mirror" | "chain-icon" | "protocol-index" | "manual-reviewed" | "invalid";
+export type DefiLlamaSourceType = "chain-mirror" | "chain-icon" | "protocol-index" | "token-icon" | "manual-reviewed" | "invalid";
 export type DefiLlamaValidationResult = { valid: boolean; reason: string; sourceType: DefiLlamaSourceType; normalizedSourceSlug?: string; normalizedTargetSlugs?: string[]; isPlaceholder?: boolean; isMismatched?: boolean; isExternalProtocolIcon?: boolean; };
 const AUTO_REVIEW_STATUSES = new Set(["selected_needs_review", "needs_review", "pending"]);
 
@@ -21,6 +21,9 @@ function isGuessedProtocolRow(sourceUrl: string, imageUrl: string) {
 
 function isExternalProtocolIcon(url: string) {
   return /https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(url);
+}
+function isTokenIconUrl(url: string) {
+  return /^https?:\/\/token-icons\.llamao\.fi\/icons\/tokens\/gecko\/[a-z0-9-]+\?w=48&h=48/i.test(url);
 }
 
 function uniq(values: string[]) { return [...new Set(values.filter(Boolean))]; }
@@ -71,9 +74,11 @@ export function classifyDefiLlamaSourceV3(input: { logoName?: string; logoSlug?:
   const adminReviewed = reviewStatus === "reviewed" || approvalOrigin === "admin";
   const chainMirror = imageUrl.startsWith("/logos/chains/") && /\/chains\/rsz_/i.test(sourceUrl);
   const chainIcon = isChainIconUrl(sourceUrl) || isChainIconUrl(imageUrl);
+  const tokenIcon = /defillama\.com\/token\//i.test(sourceUrl) && isTokenIconUrl(imageUrl) && [String(meta.defillamaV3||""), String(meta.sourceType||"")].some((v)=>v.toLowerCase()==="token-icon");
   if (adminReviewed) return { valid:true, reason:"admin_reviewed", sourceType:"manual-reviewed", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
   if (chainMirror) return { valid:true, reason:"valid_chain_mirror", sourceType:"chain-mirror", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
   if (chainIcon) return { valid:true, reason:"valid_chain_icon", sourceType:"chain-icon", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: externalProtocolIcon };
+  if (tokenIcon) return { valid:true, reason:"valid_token_icon", sourceType:"token-icon", normalizedSourceSlug:sourceSlug, normalizedTargetSlugs:targetSlugs, isExternalProtocolIcon: false };
   const resolverConfirmed =
     meta.resolver === true ||
     String(meta.sourceOrigin || "").toLowerCase() === "defillama-v3-discovery" || String(meta.sourceOrigin || "").toLowerCase() === "defillama-helper" ||

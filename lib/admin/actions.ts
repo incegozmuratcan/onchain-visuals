@@ -593,13 +593,13 @@ async function runMissingDefiLlamaRecovery(dryRun: boolean) {
         const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high") ?? null;
         const chainCandidatesCount = found.candidates.filter((c)=>c.category==="chain").length;
         const protocolCandidatesCount = found.candidates.filter((c)=>c.category==="protocol").length;
-        const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, queryUsed: logo.name, aliasesTried: found.debug.aliasesTried ?? aliases, queryAttempts: found.debug.attempts ?? [], chainCandidates: found.candidates.filter((c)=>c.category==="chain").map((c)=>`${c.name}:${c.slug}`), protocolCandidates: found.candidates.filter((c)=>c.category==="protocol").map((c)=>`${c.name}:${c.slug}`), resolverCandidates: found.candidates.map((c) => ({ name: c.name, slug: c.slug, category: c.category, sourceUrl: c.sourceUrl, imageUrl: c.imageUrl, sourceType: c.sourceType, confidence: c.confidence, score: c.score, reasons: c.reasons ?? [], rejectionReason: c.recommended ? null : "not_selected" })), selectedCandidate: null, validationResult: null, canonicalSimulation: null, vaultSimulation: null, dbSaveResult: dryRun ? "dry-run/no-save" : "not_attempted", sourceSaved: false, canonicalUpdated: false, vaultCopied: false, vaultCopyFailed: false, vaultCopyResult: null, rejectionReason: null, finalStatus: "no_candidate" };
+        const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, queryUsed: logo.name, aliasesTried: found.debug.aliasesTried ?? aliases, queryAttempts: found.debug.attempts ?? [], chainCandidates: found.candidates.filter((c)=>c.category==="chain").map((c)=>`${c.name}:${c.slug}`), protocolCandidates: found.candidates.filter((c)=>c.category==="protocol").map((c)=>`${c.name}:${c.slug}`), resolverCandidates: found.candidates.map((c) => ({ name: c.name, slug: c.slug, category: c.category, sourceUrl: c.sourceUrl, imageUrl: c.imageUrl, sourceType: c.sourceType, confidence: c.confidence, score: c.score, reasons: c.reasons ?? [], rejectionReason: c.recommended ? null : "not_selected" })), selectedCandidate: null, validationResult: null, canonicalSimulation: null, vaultSimulation: null, dbSaveResult: dryRun ? "dry-run/no-save" : "not_attempted", sourceSaved: false, canonicalUpdated: false, vaultCopied: false, vaultCopyFailed: false, vaultCopyResult: null, rejectionReason: null, finalStatus: "no_candidate", tokenSymbolsTried: [], geckoIdsTried: [], tokenPagesTried: [], tokenIconsTried: [] };
         if (!candidate) {
           summary.noCandidate += 1;
           summary.noReliable += 1;
           detail.providerMetadata = { providerImageUrls: providerImageMetadata };
           detail.rejectionReason = found.error || "no reliable source";
-          detail.finalStatus = chainCandidatesCount === 0 && protocolCandidatesCount === 0 ? "no_index_match" : chainCandidatesCount === 0 ? "no_chain_index_match" : "no_protocol_index_match";
+          detail.finalStatus = chainCandidatesCount === 0 && protocolCandidatesCount === 0 ? "token_no_match" : chainCandidatesCount === 0 ? "no_chain_index_match" : "no_protocol_index_match";
           if (detail.finalStatus === "no_index_match" && providerImageMetadata.length) {
             detail.rejectionReason = "DefiLlama no index match; CG/CMC source available";
           }
@@ -609,6 +609,8 @@ async function runMissingDefiLlamaRecovery(dryRun: boolean) {
         }
         summary.candidatesFound += 1;
         detail.selectedAlias = (found.debug.aliasesTried ?? [])[0] ?? logo.name;
+        detail.tokenSymbolsTried = (found.debug.notices ?? []).filter((n:any)=>String(n).startsWith('tokenSymbolsTried='));
+        detail.geckoIdsTried = (found.debug.notices ?? []).filter((n:any)=>String(n).startsWith('geckoIdsTried='));
         detail.selectedCandidate = { name: candidate.name, slug: candidate.slug, sourceUrl: candidate.sourceUrl, imageUrl: candidate.imageUrl, sourceType: candidate.sourceType, confidence: candidate.confidence, score: candidate.score };
         const classified = await validateDefiLlamaSourceForLogoWithResolver({ logoName: logo.name, logoSlug: logo.slug, logoCategory: logo.category, source: { provider: "defillama", id: "preview", logo_id: logo.id, source_url: candidate.sourceUrl, image_url: candidate.imageUrl, blob_url: null, status: "candidate", metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceOrigin: "missing-defillama-recovery", resolver: true, resolverConfidence: candidate.confidence, resolverReasons: candidate.reasons ?? [], sourceType: candidate.sourceType, selectedImagePattern: candidate.selectedImagePattern }, rejection_reason: null, created_at: new Date().toISOString() } });
         detail.validationResult = classified.valid ? "valid" : `invalid:${classified.reason}`;
