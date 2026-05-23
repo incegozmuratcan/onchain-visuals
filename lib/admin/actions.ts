@@ -861,20 +861,59 @@ export async function addDefiLlamaAction(formData: FormData) {
         knownAliases: [requestedSlug, exactTokenSymbol, exactCoinGeckoId, exactCandidateName, candidate.slug].filter(Boolean),
         coinGeckoId: logo.coingecko_id,
       });
-      const tokenSymbols = [...new Set([
-        exactTokenSymbol,
-        String(candidate.debug?.tokenSymbol || ""),
-        exactCandidateName.replace(/[^a-z0-9.-]/gi, "").toUpperCase(),
-        logo.name.replace(/[^a-z0-9.-]/gi, "").toUpperCase(),
-        ...(aliasSet.aliases ?? []).map((a) => String(a).replace(/[^a-z0-9.-]/gi, "").toUpperCase()),
-      ].filter((v) => /^[A-Z0-9.-]{2,12}$/.test(v)))];
-      const geckoIds = [...new Set([
-        logo.coingecko_id,
-        exactCoinGeckoId,
-        String(candidate.debug?.coinGeckoId || ""),
-        candidate.slug,
-        ...(aliasSet.aliases ?? []).map((a) => slugText(a)),
-      ].filter((v): v is string => Boolean(v && String(v).trim())))];
+      const pushUnique = (arr: string[], value: string) => {
+        if (!value || arr.includes(value)) return;
+        arr.push(value);
+      };
+      const tokenSymbols: string[] = [];
+      const addSymbol = (value: unknown) => {
+        const cleaned = String(value || "").replace(/[^a-z0-9.-]/gi, "").toUpperCase();
+        if (/^[A-Z0-9.-]{2,12}$/.test(cleaned)) pushUnique(tokenSymbols, cleaned);
+      };
+      // 1) explicit tokenSymbol from preview if real
+      addSymbol(exactTokenSymbol);
+      // 2) CoinGecko symbol from source metadata/debug
+      addSymbol((candidate.debug as any)?.coinGeckoSymbol);
+      // 3) CoinMarketCap symbol from source metadata/debug
+      addSymbol((candidate.debug as any)?.coinMarketCapSymbol);
+      // 4) known symbol aliases from providerAliases / context
+      addSymbol((candidate.debug as any)?.tokenSymbol);
+      addSymbol(exactCandidateName);
+      // 5) uppercase short aliases
+      (aliasSet.aliases ?? []).forEach((a) => addSymbol(a));
+      // 6) normalized slug variants only as fallback
+      addSymbol(logo.name);
+      addSymbol(requestedSlug);
+      addSymbol(candidate.slug);
+      // Explicit IO.NET family ordering guardrail.
+      const hasIoFamily = [requestedSlug, logo.slug, candidate.slug, exactCandidateName, exactTokenSymbol]
+        .some((v) => /^(io|io-net|io\.net|ionet)$/i.test(String(v || "").trim()));
+      if (hasIoFamily) {
+        ["IO", "IO.NET", "IONET", "IO-NET"].forEach((s) => {
+          const idx = tokenSymbols.indexOf(s);
+          if (idx >= 0) tokenSymbols.splice(idx, 1);
+        });
+        tokenSymbols.unshift("IO", "IO.NET", "IONET", "IO-NET");
+      }
+      const geckoIds: string[] = [];
+      const addGeckoId = (value: unknown) => {
+        const cleaned = slugText(String(value || ""));
+        if (!cleaned) return;
+        pushUnique(geckoIds, cleaned);
+      };
+      addGeckoId(logo.coingecko_id);
+      addGeckoId(exactCoinGeckoId);
+      addGeckoId((candidate.debug as any)?.coinGeckoId);
+      addGeckoId(candidate.slug);
+      (aliasSet.aliases ?? []).forEach((a) => addGeckoId(a));
+      if (hasIoFamily) {
+        ["io", "io-net", "ionet"].forEach((id) => {
+          const idx = geckoIds.indexOf(id);
+          if (idx >= 0) geckoIds.splice(idx, 1);
+          geckoIds.push(id);
+        });
+        geckoIds.unshift("io", "io-net", "ionet");
+      }
       for (const symbol of tokenSymbols) {
         for (const geckoId of geckoIds) {
           const sourceUrl = `https://defillama.com/token/${encodeURIComponent(symbol)}`;
@@ -891,7 +930,7 @@ export async function addDefiLlamaAction(formData: FormData) {
           if (check.valid) return { ...testCandidate, tokenSymbol: symbol, coinGeckoId: geckoId, tokenSymbols, geckoIds };
         }
       }
-      return { tokenSymbols, geckoIds };
+      return { tokenSymbols, geckoIds, sourceUrlsTried: resolveAttempts.map((a) => a.sourceUrl), imageUrlsTried: resolveAttempts.map((a) => a.imageUrl), perAttemptReason: resolveAttempts.map((a) => `${a.tokenSymbol}:${a.coinGeckoId}:${a.reason}`) };
     }
     const classified = classifyDefiLlamaSourceV3({
       logoName: logo.name,
@@ -916,7 +955,7 @@ export async function addDefiLlamaAction(formData: FormData) {
       if (fallbackToken && "sourceUrl" in fallbackToken) {
         candidate = { ...candidate, sourceUrl: fallbackToken.sourceUrl, imageUrl: fallbackToken.imageUrl, sourceType: "token-icon", debug: { ...(candidate.debug ?? {}), tokenSymbol: fallbackToken.tokenSymbol, coinGeckoId: fallbackToken.coinGeckoId, tokenSymbolsTried: fallbackToken.tokenSymbols, geckoIdsTried: fallbackToken.geckoIds, resolveAttempts } };
       } else {
-        const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason} tokenSymbolsTried=${(fallbackToken as any)?.tokenSymbols?.join(",") || "none"} geckoIdsTried=${(fallbackToken as any)?.geckoIds?.join(",") || "none"} resolveAttempts=${JSON.stringify(resolveAttempts)}`;
+        const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason} tokenSymbolsTried=${(fallbackToken as any)?.tokenSymbols?.join(",") || "none"} geckoIdsTried=${(fallbackToken as any)?.geckoIds?.join(",") || "none"} sourceUrlsTried=${JSON.stringify((fallbackToken as any)?.sourceUrlsTried || resolveAttempts.map((a)=>a.sourceUrl))} imageUrlsTried=${JSON.stringify((fallbackToken as any)?.imageUrlsTried || resolveAttempts.map((a)=>a.imageUrl))} perAttemptReason=${JSON.stringify((fallbackToken as any)?.perAttemptReason || resolveAttempts.map((a)=>`${a.tokenSymbol}:${a.coinGeckoId}:${a.reason}`))}`;
         await updateLogoFetchState(logo.slug, "defillama", details);
         redirectLogoNotice(logo.slug, "warning", details);
       }
@@ -979,6 +1018,10 @@ export async function addDefiLlamaAction(formData: FormData) {
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
         defillamaV3: candidate.sourceType === "token-icon" ? "token-icon" : classified.sourceType,
+        routeProbeStatus:
+          candidate.sourceType === "token-icon" && resolveAttempts.some((a) => a.reason === "resolve")
+            ? "route_probe_failed"
+            : undefined,
         tokenSymbol: exactTokenSymbol || String((candidate.debug as any)?.tokenSymbol || "") || undefined,
         coinGeckoId: exactCoinGeckoId || String((candidate.debug as any)?.coinGeckoId || "") || undefined,
         aliasesTried: buildProviderAliasSet({ name: logo.name, slug: logo.slug, category: logo.category, knownAliases: [requestedSlug, exactTokenSymbol, exactCoinGeckoId].filter(Boolean), coinGeckoId: logo.coingecko_id }).aliases,
