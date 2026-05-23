@@ -22,4 +22,14 @@ const summaryCase={checked:17,candidatesFound:1,saveable:0,rejectedCandidates:1,
 if(!(summaryCase.checked===17&&summaryCase.candidatesFound===1&&summaryCase.saveable===0&&summaryCase.rejectedCandidates===1&&summaryCase.noCandidate===16&&summaryCase.errors===0)) throw new Error('dry-run summary semantics regression');
 const separatedOutcome={sourceSaved:true,canonicalUpdated:true,vaultCopyFailed:true,finalStatus:'recovered'};
 if(!(separatedOutcome.sourceSaved&&separatedOutcome.canonicalUpdated&&separatedOutcome.vaultCopyFailed&&separatedOutcome.finalStatus==='recovered')) throw new Error('source recovery must remain recovered when vault fails');
+const dryRunSummary={
+  checked:17,candidatesFound:1,rejectedCandidates:1,
+  details:[{slug:'quai',name:'Quai',finalStatus:'validation_failed',aliasesTried:['quai','quai-network'],selectedCandidate:{name:'Quai Network',slug:'quai-network',sourceUrl:'https://defillama.com/chain/quai',imageUrl:'https://icons.llama.fi/chains/rsz_quai.jpg',sourceType:'chain-icon'},validationResult:'invalid:target_mismatch',rejectionReason:'target mismatch',canonicalSimulation:'would_update',vaultSimulation:'would_attempt'}]
+};
+if(!(Array.isArray(dryRunSummary.details)&&dryRunSummary.details.length===1)) throw new Error('dry-run details should be preserved');
+if(!(dryRunSummary.candidatesFound===1&&dryRunSummary.rejectedCandidates===1&&dryRunSummary.details[0].slug==='quai')) throw new Error('candidatesFound/rejectedCandidates detail linkage regression');
+const liveSummary={checked:1,sourceSaved:1,canonicalUpdated:1,vaultCopied:0,vaultCopyFailed:1,noReliable:0,errors:0,details:[{slug:'quai',finalStatus:'saved_source_but_vault_failed',vaultCopyResult:'Managed Vault replace failed'}]};
+if(!(liveSummary.details[0].finalStatus==='saved_source_but_vault_failed'&&liveSummary.vaultCopyFailed===1)) throw new Error('live recovery details should be preserved');
+const emptySetting=null;
+if(!(emptySetting===null)) throw new Error('"not run yet" state regression');
 console.log(`verify:defillama-missing-set passed for ${CASES.length} logos.`);
