@@ -116,9 +116,12 @@ async function cmcHeaders() {
   return { accept: "application/json", "X-CMC_PRO_API_KEY": resolved.value };
 }
 
-type SearchContext = { targetName?: string | null; targetSlug?: string | null; aliases?: string[] };
+type SearchContext = { targetName?: string | null; targetSlug?: string | null; aliases?: string[]; numericId?: string | null };
 
 export async function searchCoinMarketCapIds(query: string, context: SearchContext = {}): Promise<{ candidates: CoinMarketCapCandidate[]; error: string | null; apiKeyMissing?: boolean }> {
+  if (context.numericId && /^\d+$/.test(String(context.numericId))) {
+    return { candidates: [], error: null };
+  }
   const q = query.trim();
   if (!q) return { candidates: [], error: null };
   try {
@@ -128,8 +131,8 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
     const slugTokens = unique([slugText(q), ...aliasTokens.map(slugText)]).slice(0, 10);
     const symbols = unique([q.replace(/[^a-z0-9]/gi, "").toUpperCase(), ...symbolTokens(aliasTokens).map((token) => token.toUpperCase())]).slice(0, 10);
     const urls = unique([
-      ...symbols.map((symbol) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?symbol=${encodeURIComponent(symbol)}&listing_status=active,untracked`),
-      ...slugTokens.map((slug) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?slug=${encodeURIComponent(slug)}&listing_status=active,untracked`),
+      ...symbols.filter(Boolean).map((symbol) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?symbol=${encodeURIComponent(symbol)}&listing_status=active,untracked`),
+      ...slugTokens.filter(Boolean).map((slug) => `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?slug=${encodeURIComponent(slug)}&listing_status=active,untracked`),
       `https://pro-api.coinmarketcap.com/v1/cryptocurrency/map?listing_status=active&sort=cmc_rank&limit=500`,
     ]);
     const rows: any[] = [];
