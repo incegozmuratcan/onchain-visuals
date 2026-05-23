@@ -12,6 +12,8 @@ import {
   discoverDefiLlamaV3SourcesAction,
   dryRunRecoverMissingDefiLlamaLogosAction,
   recoverMissingDefiLlamaLogosAction,
+  dryRunAllMissingProviderCoverageAction,
+  resolveAllMissingProviderCoverageAction,
   hardResetAndRediscoverDefiLlamaV3Action,
   hardResetDefiLlamaProviderAction,
   createLogoAction,
@@ -582,6 +584,7 @@ function SourceTools({
   defillamaDiscoverySummary,
   dryRunRecoverySummary,
   liveRecoverySummary,
+  providerCoverageSummary,
   missingMappingRows,
   cmcEnabled,
   blobEnabled,
@@ -592,6 +595,7 @@ function SourceTools({
   defillamaDiscoverySummary: string | null;
   dryRunRecoverySummary: string | null;
   liveRecoverySummary: string | null;
+  providerCoverageSummary: string | null;
   missingMappingRows: LogoQaRow[];
   cmcEnabled: boolean;
   blobEnabled: boolean;
@@ -676,6 +680,17 @@ function SourceTools({
                 Dry run missing DefiLlama recovery
               </button>
             </form>
+
+            <form action={dryRunAllMissingProviderCoverageAction}>
+              <button className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-black text-indigo-700">
+                Dry run all missing provider coverage
+              </button>
+            </form>
+            <form action={resolveAllMissingProviderCoverageAction}>
+              <button className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-black text-emerald-700">
+                Resolve all missing provider coverage
+              </button>
+            </form>
             <form action={hardResetDefiLlamaProviderAction} className="col-span-2 sm:col-span-3 lg:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-2">
               <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-rose-700">Hard reset DefiLlama provider</p>
               <p className="mb-1 text-[11px] text-rose-700">Deletes all old DefiLlama source rows and rebuilds from v3 discovery.</p>
@@ -719,6 +734,7 @@ function SourceTools({
             CoinMarketCap refresh: not run yet
           </div>
         )}
+{providerCoverageSummary ? <DiscoverySummary summary={providerCoverageSummary} /> : null}
         <DefiLlamaDiscoveryCard title="DefiLlama dry-run recovery" summary={dryRunRecoverySummary} emptyLabel="DefiLlama dry-run recovery" mode="dry-run" />
         <DefiLlamaDiscoveryCard title="DefiLlama live recovery" summary={liveRecoverySummary} emptyLabel="DefiLlama live recovery" mode="live" />
         <DefiLlamaDiscoveryCard title="DefiLlama discovery" summary={defillamaDiscoverySummary ?? discoverySummary} emptyLabel="DefiLlama discovery" mode="discovery" />
@@ -757,6 +773,14 @@ export default async function AdminLogosPage({
         null,
       )
     : { data: null, error: null };
+  const providerCoverageResult = config.hasDatabase
+    ? await safeAdminDbQuery(
+        "Provider coverage orchestrator",
+        async () => await getSetting("last_provider_coverage_orchestrator_summary"),
+        null,
+      )
+    : { data: null, error: null };
+
   const defillamaDryRunResult = config.hasDatabase
     ? await safeAdminDbQuery(
         "DefiLlama dry-run recovery summary",
@@ -1046,6 +1070,7 @@ export default async function AdminLogosPage({
           defillamaDiscoverySummary={defillamaDiscoveryResult.data}
           dryRunRecoverySummary={defillamaDryRunResult.data}
           liveRecoverySummary={defillamaLiveResult.data}
+          providerCoverageSummary={providerCoverageResult.data}
           missingMappingRows={missingMappingRows}
           cmcEnabled={Boolean(providersReady.coinmarketcap)}
           blobEnabled={config.hasBlob}

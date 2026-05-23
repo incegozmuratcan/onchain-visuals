@@ -606,3 +606,11 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Trusted chain recovery mappings include Cosmos Hub, Noble, Quai Network, and MegaETH with chain icon URL attempts under `icons.llama.fi/chains/*`.
 - Dry-run/live recovery details now use specific final statuses (`no_index_match`, `no_chain_index_match`, `no_protocol_index_match`, `target_mismatch`, `would_save`, etc.) instead of generic `no_candidate`.
 - DefiLlama diagnostics separate provider metadata (CG/CMC ids/image URLs) from `aliasesTried`.
+
+
+## Provider Coverage Orchestrator
+
+- New Source Tools actions in `/admin/logos`:
+  - Dry run all missing provider coverage
+  - Resolve all missing provider coverage
+- Orchestrator summary is saved in `admin_settings.last_provider_coverage_orchestrator_summary` and reports before/after missing counts for CoinGecko, CoinMarketCap, and DefiLlama.

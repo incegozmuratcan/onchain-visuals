@@ -412,6 +412,84 @@ export async function hardResetAndRediscoverDefiLlamaV3Action() {
 }
 
 
+
+
+type ProviderCoverageSummary = {
+  timestamp: string;
+  mode: "dry-run" | "resolve";
+  missingCgBefore: number;
+  missingCmcBefore: number;
+  missingDefiLlamaBefore: number;
+  missingCgAfter: number;
+  missingCmcAfter: number;
+  missingDefiLlamaAfter: number;
+};
+
+async function computeMissingProviderCounts() {
+  const logos = (await listLogos()).rows;
+  const allSources = (await getAllLogoSources()).rows;
+  const byLogo = new Map<string, LogoSource[]>();
+  for (const source of allSources) byLogo.set(source.logo_id, [...(byLogo.get(source.logo_id) ?? []), source]);
+  let missingCg = 0;
+  let missingCmc = 0;
+  let missingDefiLlama = 0;
+  for (const logo of logos) {
+    const sources = byLogo.get(logo.id) ?? [];
+    const cg = resolveCanonicalProviderState(sources, "coingecko", logo);
+    const cmc = resolveCanonicalProviderState(sources, "coinmarketcap", logo);
+    const dl = resolveCanonicalProviderState(sources, "defillama", logo);
+    if (cg.state === "NO" || cg.state === "ERR") missingCg += 1;
+    if (cmc.state === "NO" || cmc.state === "ERR") missingCmc += 1;
+    if (dl.state === "NO" || dl.state === "ERR") missingDefiLlama += 1;
+  }
+  return { missingCg, missingCmc, missingDefiLlama };
+}
+
+export async function dryRunAllMissingProviderCoverageAction() {
+  await requireAdmin();
+  try {
+    const before = await computeMissingProviderCounts();
+    const summary: ProviderCoverageSummary = {
+      timestamp: new Date().toISOString(),
+      mode: "dry-run",
+      missingCgBefore: before.missingCg,
+      missingCmcBefore: before.missingCmc,
+      missingDefiLlamaBefore: before.missingDefiLlama,
+      missingCgAfter: before.missingCg,
+      missingCmcAfter: before.missingCmc,
+      missingDefiLlamaAfter: before.missingDefiLlama,
+    };
+    await setAdminSetting("last_provider_coverage_orchestrator_summary", JSON.stringify(summary));
+    adminNotice('/admin/logos', 'success', `Dry run provider coverage complete: CG ${summary.missingCgBefore} -> ${summary.missingCgAfter} · CMC ${summary.missingCmcBefore} -> ${summary.missingCmcAfter} · DL ${summary.missingDefiLlamaBefore} -> ${summary.missingDefiLlamaAfter}`);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice('/admin/logos', 'error', `Dry run provider coverage failed: ${toSafeErrorMessage(error)}`);
+  }
+}
+
+export async function resolveAllMissingProviderCoverageAction() {
+  await requireAdmin();
+  try {
+    const before = await computeMissingProviderCounts();
+    await runMissingDefiLlamaRecovery(false);
+    const after = await computeMissingProviderCounts();
+    const summary: ProviderCoverageSummary = {
+      timestamp: new Date().toISOString(),
+      mode: "resolve",
+      missingCgBefore: before.missingCg,
+      missingCmcBefore: before.missingCmc,
+      missingDefiLlamaBefore: before.missingDefiLlama,
+      missingCgAfter: after.missingCg,
+      missingCmcAfter: after.missingCmc,
+      missingDefiLlamaAfter: after.missingDefiLlama,
+    };
+    await setAdminSetting("last_provider_coverage_orchestrator_summary", JSON.stringify(summary));
+    adminNotice('/admin/logos', 'success', `Resolve provider coverage complete: CG ${summary.missingCgBefore} -> ${summary.missingCgAfter} · CMC ${summary.missingCmcBefore} -> ${summary.missingCmcAfter} · DL ${summary.missingDefiLlamaBefore} -> ${summary.missingDefiLlamaAfter}`);
+  } catch (error) {
+    if (isNextRedirect(error)) throw error;
+    adminNotice('/admin/logos', 'error', `Resolve provider coverage failed: ${toSafeErrorMessage(error)}`);
+  }
+}
 async function runMissingDefiLlamaRecovery(dryRun: boolean) {
   try {
     const logos = (await listLogos()).rows;
