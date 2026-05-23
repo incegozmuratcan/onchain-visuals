@@ -1,3 +1,10 @@
+## v0.11.39 Source Tools cleanup + DefiLlama token-route save self-healing (Blocker)
+
+- `/admin/logos` Source Tools was reduced to productized actions only: **Complete logo coverage**, **Retry failed**, **Backfill alias-equivalent sources**, **Backup approved to vault**, **Force discover all**, **Apply safe CG**, and **Scan metric entities**. Experimental/dry-run/provider-coverage/hard-reset debug controls and summary cards were removed from normal Source Tools UI wiring.
+- DefiLlama token-route save now self-heals exact-preview failures by probing token symbol + CoinGecko ID combinations and saving the first candidate pair that passes DefiLlama validation instead of failing on the first invalid `/token/{SYMBOL}` attempt.
+- Token-route save metadata now records fallback context (`aliasesTried`, `tokenSymbolsTried`, `geckoIdsTried`) and failure diagnostics include tried symbols/IDs/URL attempts and validation reasons when all combinations fail.
+- Verified target examples documented for IO.NET (`/token/IO` + gecko `io` fallback from invalid `/token/IONET`), DIMO (`/token/DIMO` + `dimo`), and Render/Render Network (`/token/RENDER` + `render-token`).
+
 
 ## v0.11.38 DefiLlama preview candidate save parity (Blocker)
 

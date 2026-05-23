@@ -9,17 +9,9 @@ import {
   applySafeCoinGeckoCandidatesAction,
   bulkRefreshCoinGeckoLogosAction,
   bulkRefreshCoinMarketCapLogosAction,
-  discoverDefiLlamaV3SourcesAction,
-  dryRunRecoverMissingDefiLlamaLogosAction,
-  recoverMissingDefiLlamaLogosAction,
-  dryRunAllMissingProviderCoverageAction,
-  resolveAllMissingProviderCoverageAction,
-  hardResetAndRediscoverDefiLlamaV3Action,
-  hardResetDefiLlamaProviderAction,
   createLogoAction,
   discoverLogoSourcesBulkAction,
   backfillAliasEquivalentSourcesAction,
-  importLegacyLocalLogosToVaultAction,
   scanMetricLogosAction,
 } from "@/lib/admin/actions";
 import { getAllLogoSources, listLogos } from "@/lib/admin/logoDb";
@@ -34,7 +26,6 @@ import {
   getBulkRefreshSummaries,
   type BulkRefreshSummary,
 } from "@/lib/admin/providerStatus";
-import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 import {
   METRIC_LOGO_SCAN_SETTING,
   parseMetricLogoScanSummary,
@@ -581,23 +572,13 @@ function SourceTools({
   summaries,
   scanSummary,
   discoverySummary,
-  defillamaDiscoverySummary,
-  dryRunRecoverySummary,
-  liveRecoverySummary,
-  providerCoverageSummary,
   missingMappingRows,
-  cmcEnabled,
   blobEnabled,
 }: {
   summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>;
   scanSummary: ReturnType<typeof parseMetricLogoScanSummary>;
   discoverySummary: string | null;
-  defillamaDiscoverySummary: string | null;
-  dryRunRecoverySummary: string | null;
-  liveRecoverySummary: string | null;
-  providerCoverageSummary: string | null;
   missingMappingRows: LogoQaRow[];
-  cmcEnabled: boolean;
   blobEnabled: boolean;
 }) {
   const missingEntries = missingMappingRows.map((row) => ({
@@ -657,52 +638,6 @@ function SourceTools({
                 Backup approved to vault
               </button>
             </form>
-            <form action={importLegacyLocalLogosToVaultAction}>
-              <button
-                disabled={!blobEnabled}
-                className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600 disabled:opacity-50"
-              >
-                Import legacy local logos to Vault
-              </button>
-            </form>
-            <form action={discoverDefiLlamaV3SourcesAction}>
-              <button className="w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 font-black text-slate-600">
-                Discover DefiLlama v3 sources
-              </button>
-            </form>
-            <form action={recoverMissingDefiLlamaLogosAction}>
-              <button className="w-full rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 font-black text-sky-700">
-                Recover missing DefiLlama logos
-              </button>
-            </form>
-            <form action={dryRunRecoverMissingDefiLlamaLogosAction}>
-              <button className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-black text-indigo-700">
-                Dry run missing DefiLlama recovery
-              </button>
-            </form>
-
-            <form action={dryRunAllMissingProviderCoverageAction}>
-              <button className="w-full rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 font-black text-indigo-700">
-                Dry run all missing provider coverage
-              </button>
-            </form>
-            <form action={resolveAllMissingProviderCoverageAction}>
-              <button className="w-full rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 font-black text-emerald-700">
-                Resolve all missing provider coverage
-              </button>
-            </form>
-            <form action={hardResetDefiLlamaProviderAction} className="col-span-2 sm:col-span-3 lg:col-span-2 rounded-xl border border-rose-200 bg-rose-50 p-2">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-[0.14em] text-rose-700">Hard reset DefiLlama provider</p>
-              <p className="mb-1 text-[11px] text-rose-700">Deletes all old DefiLlama source rows and rebuilds from v3 discovery.</p>
-              <button className="w-full rounded-full border border-rose-300 bg-rose-600 px-3 py-1.5 font-black text-white">
-                Hard reset DefiLlama provider
-              </button>
-            </form>
-            <form action={hardResetAndRediscoverDefiLlamaV3Action} className="col-span-2 sm:col-span-3 lg:col-span-2">
-              <button className="w-full rounded-full border border-rose-300 bg-rose-700 px-3 py-1.5 font-black text-white">
-                Hard reset + rediscover DefiLlama v3
-              </button>
-            </form>
           </div>
         </div>
       </div>
@@ -734,10 +669,7 @@ function SourceTools({
             CoinMarketCap refresh: not run yet
           </div>
         )}
-{providerCoverageSummary ? <DiscoverySummary summary={providerCoverageSummary} /> : null}
-        <DefiLlamaDiscoveryCard title="DefiLlama dry-run recovery" summary={dryRunRecoverySummary} emptyLabel="DefiLlama dry-run recovery" mode="dry-run" />
-        <DefiLlamaDiscoveryCard title="DefiLlama live recovery" summary={liveRecoverySummary} emptyLabel="DefiLlama live recovery" mode="live" />
-        <DefiLlamaDiscoveryCard title="DefiLlama discovery" summary={defillamaDiscoverySummary ?? discoverySummary} emptyLabel="DefiLlama discovery" mode="discovery" />
+        <DefiLlamaDiscoveryCard title="DefiLlama discovery" summary={discoverySummary} emptyLabel="DefiLlama discovery" mode="discovery" />
       </div>
     </AdminSection>
   );
@@ -773,35 +705,6 @@ export default async function AdminLogosPage({
         null,
       )
     : { data: null, error: null };
-  const providerCoverageResult = config.hasDatabase
-    ? await safeAdminDbQuery(
-        "Provider coverage orchestrator",
-        async () => await getSetting("last_provider_coverage_orchestrator_summary"),
-        null,
-      )
-    : { data: null, error: null };
-
-  const defillamaDryRunResult = config.hasDatabase
-    ? await safeAdminDbQuery(
-        "DefiLlama dry-run recovery summary",
-        async () => await getSetting("last_defillama_dry_run_recovery_summary"),
-        null,
-      )
-    : { data: null, error: null };
-  const defillamaLiveResult = config.hasDatabase
-    ? await safeAdminDbQuery(
-        "DefiLlama live recovery summary",
-        async () => await getSetting("last_defillama_live_recovery_summary"),
-        null,
-      )
-    : { data: null, error: null };
-  const defillamaDiscoveryResult = config.hasDatabase
-    ? await safeAdminDbQuery(
-        "DefiLlama discovery summary",
-        async () => await getSetting("last_defillama_discovery_summary"),
-        null,
-      )
-    : { data: null, error: null };
   const logoResult = config.hasDatabase
     ? await safeAdminDbQuery(
         "Logo records",
@@ -816,9 +719,6 @@ export default async function AdminLogosPage({
         [],
       )
     : { data: [], error: null };
-  const providersReady = {
-    coinmarketcap: Boolean((await resolveApiSecret("coinmarketcap")).value),
-  };
   const summaries = summaryResult.data;
   const scanSummary = scanResult.data;
   const logos = logoResult.data;
@@ -827,9 +727,6 @@ export default async function AdminLogosPage({
     summaryResult.error,
     scanResult.error,
     discoveryResult.error,
-    defillamaDryRunResult.error,
-    defillamaLiveResult.error,
-    defillamaDiscoveryResult.error,
     logoResult.error,
     sourceResult.error,
   ].filter(Boolean);
@@ -1067,12 +964,7 @@ export default async function AdminLogosPage({
           summaries={summaries}
           scanSummary={scanSummary}
           discoverySummary={discoveryResult.data}
-          defillamaDiscoverySummary={defillamaDiscoveryResult.data}
-          dryRunRecoverySummary={defillamaDryRunResult.data}
-          liveRecoverySummary={defillamaLiveResult.data}
-          providerCoverageSummary={providerCoverageResult.data}
           missingMappingRows={missingMappingRows}
-          cmcEnabled={Boolean(providersReady.coinmarketcap)}
           blobEnabled={config.hasBlob}
         />
       </section>
