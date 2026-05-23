@@ -42,16 +42,35 @@ for (const g of GROUPS) {
 }
 
 const uniq = (v: string[]) => [...new Set(v.filter(Boolean))];
+const URL_TOKEN_RE = /^https?:\/\//i;
+const SANITIZED_URL_TOKEN_RE = /^https[-_]/i;
+const IMAGE_HINT_RE = /\.(png|jpg|jpeg|svg|webp)(\?|$)/i;
+const RAW_CDN_PATH_RE = /(coinmarketcap|coingecko|icons\.llama|cloudfront|cdn)/i;
+const NUMERIC_ONLY_RE = /^\d+$/;
+
+function isAliasPollutionToken(value: string) {
+  const trimmed = String(value || "").trim();
+  if (!trimmed) return true;
+  const lower = trimmed.toLowerCase();
+  if (URL_TOKEN_RE.test(lower)) return true;
+  if (IMAGE_HINT_RE.test(lower)) return true;
+  if (lower.includes("?")) return true;
+  if (SANITIZED_URL_TOKEN_RE.test(lower) && RAW_CDN_PATH_RE.test(lower)) return true;
+  if (RAW_CDN_PATH_RE.test(lower) && (lower.includes("/") || lower.includes("-"))) return true;
+  return false;
+}
 
 export function buildProviderAliasSet(input: AliasInput) {
   const seed = uniq([
     input.name || "", input.slug || "", input.coinGeckoId || "", input.coinGeckoSymbol || "", input.coinGeckoName || "",
     input.cmcSymbol || "", input.cmcName || "", input.defillamaSlug || "", ...(input.knownAliases ?? []),
-  ]);
+  ]).filter((token) => !isAliasPollutionToken(token));
   const aliases = new Set<string>();
   for (const s of seed) {
+    if (NUMERIC_ONLY_RE.test(String(s).trim())) continue;
     const n = normalizeProviderText(s);
     const sl = slugText(s);
+    if (isAliasPollutionToken(n) || isAliasPollutionToken(sl)) continue;
     [n, sl].filter(Boolean).forEach((t)=>aliases.add(t));
     lookup.get(n)?.forEach((a)=>aliases.add(a));
     lookup.get(sl)?.forEach((a)=>aliases.add(a));
@@ -65,7 +84,7 @@ export function buildProviderAliasSet(input: AliasInput) {
   return {
     aliases: all,
     normalizedAliases: all,
-    searchQueries: uniq([...(input.name ? [input.name] : []), ...(input.slug ? [input.slug] : []), ...all]),
+    searchQueries: uniq([...(input.name ? [input.name] : []), ...(input.slug ? [input.slug] : []), ...all]).filter((q)=>!isAliasPollutionToken(q)),
     providerVariants: {
       defillama: uniq(all.map((a)=>a.replace(/\s+/g,"-")).concat(all)),
       cmcSymbols: uniq(symbols.map((s)=>s.toUpperCase())),

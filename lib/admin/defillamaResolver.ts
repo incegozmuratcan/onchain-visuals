@@ -81,6 +81,9 @@ const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases
   { name: "zkSync Era", slug: "zksync era", aliases: ["zksync", "zk-sync", "zksync era", "zksync-era", "zk sync era"] },
   { name: "Katana", slug: "katana", aliases: ["katana", "kat"] },
   { name: "MegaETH", slug: "megaeth", aliases: ["megaeth", "mega-eth", "mega"] },
+  { name: "Cosmos Hub", slug: "cosmos", aliases: ["cosmos", "cosmos-hub", "atom"] },
+  { name: "Noble", slug: "noble", aliases: ["noble", "noble-chain", "noble network", "noble-network"] },
+  { name: "Quai Network", slug: "quai", aliases: ["quai", "quai-network", "quai network"] },
 ];
 
 const KNOWN_ALIAS_GROUPS = [
@@ -171,7 +174,6 @@ function trustedRows(): IndexRow[] {
     imageUrls: unique([mapping.slug, ...mapping.aliases, ...expandKnownAliases(mapping.slug, ...mapping.aliases)]).flatMap((alias) => [
       resizedChainIconUrl(alias),
       chainIconUrl(alias),
-      protocolIconUrl(alias),
     ]),
     imageSlugs: unique([mapping.slug, ...mapping.aliases]),
     trusted: true,

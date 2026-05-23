@@ -32,6 +32,12 @@ function aliasFamily(slugs: string[]) {
   if (hasBnb) {
     normalized.push("bnb", "bnb-chain", "bnb-chain-network", "bsc", "binance-smart-chain", "binancecoin");
   }
+  const hasXrpFamily = normalized.some((s) =>
+    ["xrp", "xrpl", "xrp-ledger", "ripple", "ripple-network", "xrpl-mainnet"].includes(s),
+  );
+  if (hasXrpFamily) {
+    normalized.push("xrp", "xrpl", "xrp-ledger", "xrp-ledger-chain", "ripple", "ripple-network", "xrpl-mainnet");
+  }
   return uniq(normalized);
 }
 function slugFromUrl(value: string) {

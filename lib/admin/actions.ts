@@ -54,6 +54,7 @@ import { logoSourceManifest } from "@/lib/logos/logoSourceManifest";
 import { query } from "@/lib/server/postgres";
 import { classifyDefiLlamaSourceV3, validateDefiLlamaSourceForLogoWithResolver } from "@/lib/admin/defillamaValidator";
 import { resolveCanonicalProviderState } from "@/lib/admin/providerState";
+import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
 import {
   deleteAdminApiSecret,
   providerEnvVar,
@@ -437,22 +438,42 @@ async function runMissingDefiLlamaRecovery(dryRun: boolean) {
       try {
         const sourceRows = byLogo.get(logo.id) ?? [];
         const aliasSet = new Set<string>([logo.name, logo.slug]);
+        const providerImageMetadata: string[] = [];
         for (const row of sourceRows) {
           const meta = sourceMetadata(row);
           [meta.slug, meta.defillamaSlug, meta.coinId, meta.symbol, meta.name, meta.id, meta.coinGeckoId, meta.coinMarketCapId, meta.copiedFromUrl].forEach((v) => {
             const value = String(v || "").trim();
             if (value) aliasSet.add(value);
           });
+          [row.image_url, row.source_url, meta.logo, meta.logoUrl].forEach((v) => {
+            const value = String(v || "").trim();
+            if (value) providerImageMetadata.push(value);
+          });
         }
-        const aliases = Array.from(aliasSet).filter(Boolean);
+        const aliasPack = buildProviderAliasSet({
+          name: logo.name,
+          slug: logo.slug,
+          category: logo.category,
+          knownAliases: Array.from(aliasSet),
+          coinGeckoId: logo.coingecko_id,
+          cmcName: logo.name,
+          cmcSymbol: "",
+        });
+        const aliases = aliasPack.aliases;
         const found = await searchDefiLlamaSources(logo.name, { targetName: logo.name, targetSlug: logo.slug, category: logo.category, aliases });
         const candidate = found.candidates.find((row) => row.recommended && row.confidence === "high") ?? null;
+        const chainCandidatesCount = found.candidates.filter((c)=>c.category==="chain").length;
+        const protocolCandidatesCount = found.candidates.filter((c)=>c.category==="protocol").length;
         const detail:any = { name: logo.name, slug: logo.slug, category: logo.category, queryUsed: logo.name, aliasesTried: found.debug.aliasesTried ?? aliases, queryAttempts: found.debug.attempts ?? [], chainCandidates: found.candidates.filter((c)=>c.category==="chain").map((c)=>`${c.name}:${c.slug}`), protocolCandidates: found.candidates.filter((c)=>c.category==="protocol").map((c)=>`${c.name}:${c.slug}`), resolverCandidates: found.candidates.map((c) => ({ name: c.name, slug: c.slug, category: c.category, sourceUrl: c.sourceUrl, imageUrl: c.imageUrl, sourceType: c.sourceType, confidence: c.confidence, score: c.score, reasons: c.reasons ?? [], rejectionReason: c.recommended ? null : "not_selected" })), selectedCandidate: null, validationResult: null, canonicalSimulation: null, vaultSimulation: null, dbSaveResult: dryRun ? "dry-run/no-save" : "not_attempted", sourceSaved: false, canonicalUpdated: false, vaultCopied: false, vaultCopyFailed: false, vaultCopyResult: null, rejectionReason: null, finalStatus: "no_candidate" };
         if (!candidate) {
           summary.noCandidate += 1;
           summary.noReliable += 1;
+          detail.providerMetadata = { providerImageUrls: providerImageMetadata };
           detail.rejectionReason = found.error || "no reliable source";
-          detail.finalStatus = "no_candidate";
+          detail.finalStatus = chainCandidatesCount === 0 && protocolCandidatesCount === 0 ? "no_index_match" : chainCandidatesCount === 0 ? "no_chain_index_match" : "no_protocol_index_match";
+          if (detail.finalStatus === "no_index_match" && providerImageMetadata.length) {
+            detail.rejectionReason = "DefiLlama no index match; CG/CMC source available";
+          }
           summary.examplesFailed.push({ slug: logo.slug, reason: detail.rejectionReason });
           summary.details.push(detail);
           continue;
@@ -467,7 +488,7 @@ async function runMissingDefiLlamaRecovery(dryRun: boolean) {
           summary.rejectedCandidates += 1;
           summary.noReliable += 1;
           detail.rejectionReason = classified.reason;
-          detail.finalStatus = "validation_failed";
+          detail.finalStatus = classified.reason === "target_mismatch" ? "target_mismatch" : "validation_failed";
           summary.details.push(detail); continue;
         }
         summary.saveable += 1;

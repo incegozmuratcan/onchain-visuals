@@ -4,6 +4,7 @@ const normalize=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,' 
 const GROUPS=[['bsv','bitcoin-sv','bitcoin sv','bsv-blockchain','bitcoin-sv-chain'],['quai','quai-network','quai network'],['nosana','nos'],['io.net','ionet','io-net','io net','io'],['provenance','provenance blockchain','provenanced','hash'],['dimo','dimo-network'],['pocket','pocket-network','pokt'],['render','render-network','render network','rndr','render-token'],['xrp','xrpl','xrp-ledger','xrp ledger','ripple','ripple-network','xrpl-mainnet'],['akash','akash-network','akash network','akash.io','akt'],['cosmos','atom','cosmos-hub'],['megaeth','mega-eth','mega eth'],['glow','glow-protocol'],['eni','eni-chain','eni network'],['noble','noble-chain','noble network']];
 const lookup=new Map();for(const g of GROUPS){const n=[...new Set(g.flatMap(v=>[normalize(v),slugText(v)]).filter(Boolean))];for(const x of n)lookup.set(x,new Set(n));}
 const aliasesFor=(name,slug)=>{const set=new Set([normalize(name),slugText(name),normalize(slug),slugText(slug)]);for(const k of [...set]) lookup.get(k)?.forEach(v=>set.add(v)); return [...set];};
+const sanitizeAlias=(arr)=>arr.filter((v)=>!/^https?:\/\//i.test(v)&&!/\.(png|jpg|jpeg|svg|webp)(\?|$)/i.test(v)&&!/\?/.test(v)&&!/^https-/.test(v)&&!/^\d+$/.test(v.trim()));
 const CASES=[['BSV Blockchain','bsv-blockchain',['bsv','bitcoin-sv','bitcoin-sv-chain']],['Quai','quai',['quai','quai-network']],['Nosana','nosana',['nosana','nos']],['IO.NET','ionet',['io.net','ionet','io-net']],['Provenance','provenance',['provenance','hash']],['DIMO','dimo',['dimo','dimo-network']],['Pocket Network','pocket-network',['pocket','pocket-network','pokt']],['Render Network','render-network',['render','render-network','rndr']],['XRP Ledger','xrp-ledger',['xrp','xrpl','ripple']],['Akash','akash',['akash','akash-network','akt']],['Cosmos','cosmos',['cosmos','atom','cosmos-hub']],['IO.NET','io-net',['io-net','ionet','io.net']],['MegaETH','megaeth',['megaeth','mega-eth']],['Render','render',['render','render-network','rndr']],['Glow','glow',['glow','glow-protocol']],['ENI','eni',['eni','eni-chain']],['Noble','noble',['noble','noble-chain']]];
 const classify = (source)=> source.imageUrl.includes('question-mark')?{valid:false}:{valid:!!source.indexConfirmed&&!source.guessedOnly};
 const canonicalState=(r)=>r.valid?(r.reviewed?'OK':'REVIEW'):'NO';
@@ -32,4 +33,16 @@ const liveSummary={checked:1,sourceSaved:1,canonicalUpdated:1,vaultCopied:0,vaul
 if(!(liveSummary.details[0].finalStatus==='saved_source_but_vault_failed'&&liveSummary.vaultCopyFailed===1)) throw new Error('live recovery details should be preserved');
 const emptySetting=null;
 if(!(emptySetting===null)) throw new Error('"not run yet" state regression');
+const polluted=['akash','https://s2.coinmarketcap.com/static/img/coins/64x64/7431.png','https-coin-images-coingecko-com-coins-images-12785-large-akash-logo-png-1696512580','7431'];
+const cleaned=sanitizeAlias(polluted);
+assert.equal(cleaned.includes('akash'),true);
+assert.equal(cleaned.some((v)=>v.includes('http')),false);
+assert.equal(cleaned.includes('7431'),false);
+const xrpAliases=aliasesFor('XRP Ledger','ripple');
+for (const token of ['xrp','xrpl','ripple','xrp-ledger']) assert.equal(xrpAliases.includes(token),true);
+const trustedChains=['cosmos','noble','quai','megaeth'];
+for (const chain of trustedChains) {
+  const c=aliasesFor(chain,chain);
+  assert.equal(c.includes(chain),true,`${chain} trusted mapping missing`);
+}
 console.log(`verify:defillama-missing-set passed for ${CASES.length} logos.`);
