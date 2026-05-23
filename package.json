@@ -15,7 +15,8 @@
     "verify:defillama-repair": "node scripts/verify-defillama-repair.mjs",
     "verify:defillama-hard-reset": "node scripts/verify-defillama-hard-reset.mjs",
     "verify:provider-resolvers": "node scripts/verify-provider-resolvers.mjs",
-    "verify:defillama-missing-set": "node scripts/verify-defillama-missing-set.mjs"
+    "verify:defillama-missing-set": "node scripts/verify-defillama-missing-set.mjs",
+    "verify:provider-coverage": "node scripts/verify-provider-coverage.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
