@@ -296,34 +296,16 @@ function serializeManifest(entries, unresolved) {
   return `${header}export const logoSourceManifest: LogoSourceManifestEntry[] = ${JSON.stringify(entries, null, 2)};\n\nexport const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = ${JSON.stringify(unresolved, null, 2)};\n\nexport const logoSourceManifestByKey = new Map(logoSourceManifest.map((entry) => [\`${"${entry.category}:${entry.slug}"}\`, entry]));\n`;
 }
 
-async function networkAvailable() {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-    const response = await fetch("https://icons.llama.fi/favicon.ico", { signal: controller.signal, headers: { "user-agent": "learnDeFi-logo-sync/1.0" } });
-    clearTimeout(timeout);
-    return response.ok || response.status === 404 || response.status === 403;
-  } catch {
-    return false;
-  }
-}
-
 async function main() {
   ensureDirs();
   const required = new Set(requiredActiveLogoKeys);
   const logos = logoRegistry.filter((logo) => required.has(`${logo.category}:${logo.slug}`)).sort((a, b) => `${a.category}:${a.slug}`.localeCompare(`${b.category}:${b.slug}`));
   const entries = [];
   const unresolved = [];
-  const online = await networkAvailable();
-  if (!online) console.warn("Logo sync warning: network/download unavailable; generating unresolved source candidates without fake approvals.");
   for (const logo of logos) {
     const attempted = [];
     let accepted = null;
     for (const candidate of candidatesFor(logo)) {
-      if (!online) {
-        attempted.push({ provider: candidate.provider, url: candidate.url, status: "network-unavailable", error: "download probe failed", note: candidate.note });
-        continue;
-      }
       if (candidate.sourceOnly) {
         attempted.push({ provider: candidate.provider, url: candidate.url, status: "source-note", error: "not a direct image URL", note: candidate.note });
         continue;

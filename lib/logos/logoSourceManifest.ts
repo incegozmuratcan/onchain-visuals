@@ -11,7 +11,6 @@ export type LogoSourceProvider =
   | "trustwallet-assets"
   | "spothq-cryptocurrency-icons"
   | "other-data-provider"
-  | "coingecko"
   | "existing-local-reviewed";
 
 export type LogoApprovalStatus = "approved" | "needs-review" | "missing" | "rejected";
@@ -45,893 +44,7 @@ export type LogoSourceUnresolvedEntry = {
   attemptedCandidates: { provider: string; url: string; status: string; error: string; note?: string }[];
 };
 
-export const logoSourceManifest: LogoSourceManifestEntry[] = [
-  {
-    "canonicalName": "Abstract",
-    "slug": "abstract",
-    "category": "chain",
-    "localPath": "/logos/chains/abstract.jpg",
-    "rawPath": "/logos/raw/defillama/chain-abstract.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_abstract.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for abstract.",
-    "downloadedAt": "2026-05-12T10:35:49.379Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "05c33fb58ea56989391d2ad0df8b62040d0b4e2cf58f89d944377dad38b6fa0c",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Algorand",
-    "slug": "algorand",
-    "category": "chain",
-    "localPath": "/logos/chains/algorand.svg",
-    "rawPath": "/logos/raw/simple-icons/chain-algorand.svg",
-    "sourceProvider": "simple-icons",
-    "sourceUrl": "https://cdn.simpleicons.org/algorand",
-    "sourceNote": "Simple Icons Algorand SVG fetched as source-backed local asset.",
-    "downloadedAt": "2026-05-12T10:35:49.423Z",
-    "originalContentType": "image/svg+xml",
-    "sha256": "75ad3f9286c14e80ae143c13a0056fad8014426d1bbcaf8ef8d3619aec3e07d2",
-    "width": 24,
-    "height": 24,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Aptos",
-    "slug": "aptos",
-    "category": "chain",
-    "localPath": "/logos/chains/aptos.jpg",
-    "rawPath": "/logos/raw/defillama/chain-aptos.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_aptos.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for aptos.",
-    "downloadedAt": "2026-05-12T10:35:49.529Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "722285a86992f2f9ece156ce9af7e19db8c44315f5ccf0f2122c5b268e6aea68",
-    "width": 24,
-    "height": 24,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Arbitrum",
-    "slug": "arbitrum",
-    "category": "chain",
-    "localPath": "/logos/chains/arbitrum.jpg",
-    "rawPath": "/logos/raw/defillama/chain-arbitrum.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_arbitrum.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for arbitrum.",
-    "downloadedAt": "2026-05-12T10:35:49.639Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "fd631ecef20f16e36cd3309d59a2e59a5d6e183edcf3681850c17d8d4b04919d",
-    "width": 250,
-    "height": 250,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Avalanche",
-    "slug": "avalanche",
-    "category": "chain",
-    "localPath": "/logos/chains/avalanche.jpg",
-    "rawPath": "/logos/raw/defillama/chain-avalanche.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_avalanche.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for avalanche.",
-    "downloadedAt": "2026-05-12T10:35:49.754Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "3a64cdb1c67f3dbda43766226cd1868fb651532cdbc53c334f53e1c3fc30e43a",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Base",
-    "slug": "base",
-    "category": "chain",
-    "localPath": "/logos/chains/base.jpg",
-    "rawPath": "/logos/raw/defillama/chain-base.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_base.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for base.",
-    "downloadedAt": "2026-05-12T10:35:49.848Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "a1021141945eed5807481f6a872ffc3c177f995823ea16d7c29414cf31fae52b",
-    "width": 249,
-    "height": 249,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Bitcoin",
-    "slug": "bitcoin",
-    "category": "chain",
-    "localPath": "/logos/chains/bitcoin.jpg",
-    "rawPath": "/logos/raw/defillama/chain-bitcoin.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_bitcoin.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for bitcoin.",
-    "downloadedAt": "2026-05-12T10:35:49.959Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "41a54e858f96365fe2fbd7bc0216df4ec488ea8a44d39595196da91188b2ee25",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "BNB Chain",
-    "slug": "bsc",
-    "category": "chain",
-    "localPath": "/logos/chains/bsc.jpg",
-    "rawPath": "/logos/raw/defillama/chain-bsc.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/bsc.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for bsc.",
-    "downloadedAt": "2026-05-12T10:35:50.147Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "b5b78fc3ce1d5db250ca2adec253001f12c2c9877b13a8179216c62a919dd5ba",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "BSV Blockchain",
-    "slug": "bsv-blockchain",
-    "category": "chain",
-    "localPath": "/logos/chains/bsv-blockchain.svg",
-    "rawPath": "/logos/raw/cryptologos/chain-bsv-blockchain.svg",
-    "sourceProvider": "crypto-logos",
-    "sourceUrl": "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg",
-    "sourceNote": "Registry source URL candidate for chain:bsv-blockchain.",
-    "downloadedAt": "2026-05-12T10:35:51.357Z",
-    "originalContentType": "image/svg+xml",
-    "sha256": "907602c1fd8c3a1c9e65f6951df3b5e352f791c6a7dfec28143fa7ac4e67d4d1",
-    "width": 2499.6,
-    "height": 2500,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed. Rejected current source: Bitcoin-like BSV icon is too similar to BTC for card usage.",
-    "visualRejected": true,
-    "visualRejectReason": "Too similar to BTC; use clearer BSV-specific fallback until a distinct BSV Blockchain logo is provided.",
-    "fallbackPreferredUntilManualAsset": true
-  },
-  {
-    "canonicalName": "Canton",
-    "slug": "canton-network",
-    "category": "chain",
-    "localPath": "/logos/chains/canton-network.jpg",
-    "rawPath": "/logos/raw/defillama/chain-canton-network.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/canton.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for canton.",
-    "downloadedAt": "2026-05-12T10:35:51.779Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "c21b358de1f1cdab2256e25d97dd2ac3c0983843a6dc3700c735281195d63d00",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Cardano",
-    "slug": "cardano",
-    "category": "chain",
-    "localPath": "/logos/chains/cardano.jpg",
-    "rawPath": "/logos/raw/defillama/chain-cardano.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_cardano.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for cardano.",
-    "downloadedAt": "2026-05-12T10:35:51.870Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "c1b075e75d3e8bfb1bf5fb7fb16458f49b47fdd55db7c8afdb173f7de1c5c49a",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Celo",
-    "slug": "celo",
-    "category": "chain",
-    "localPath": "/logos/chains/celo.jpg",
-    "rawPath": "/logos/raw/defillama/chain-celo.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_celo.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for celo.",
-    "downloadedAt": "2026-05-12T10:35:52.044Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "19aa76545f31b3d060afb31b1474d05db0d38192e18dac0771300a25daf0343d",
-    "width": 200,
-    "height": 200,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Cosmos",
-    "slug": "cosmos",
-    "category": "chain",
-    "localPath": "/logos/chains/cosmos.jpg",
-    "rawPath": "/logos/raw/defillama/chain-cosmos.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_cosmos.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for cosmos.",
-    "downloadedAt": "2026-05-12T10:35:52.144Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "a3530ad9fb100c0a7bcbb56a10b3774cb5261e4d28f951c3e1433b2ab3bb0375",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Cronos",
-    "slug": "cronos",
-    "category": "chain",
-    "localPath": "/logos/chains/cronos.jpg",
-    "rawPath": "/logos/raw/defillama/chain-cronos.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_cronos.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for cronos.",
-    "downloadedAt": "2026-05-12T10:35:52.255Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "29481fd63f82aae14872c1197e3bcd5dfd3039a27d54f6d9984068957f5c81bd",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Ethereum",
-    "slug": "ethereum",
-    "category": "chain",
-    "localPath": "/logos/chains/ethereum.jpg",
-    "rawPath": "/logos/raw/defillama/chain-ethereum.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_ethereum.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for ethereum.",
-    "downloadedAt": "2026-05-12T10:35:53.104Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "b1da46a64e94662ac7d70b087e08ee7b52bb7c652ea0d641709f23f74debb833",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Fantom",
-    "slug": "fantom",
-    "category": "chain",
-    "localPath": "/logos/chains/fantom.jpg",
-    "rawPath": "/logos/raw/defillama/chain-fantom.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_fantom.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for fantom.",
-    "downloadedAt": "2026-05-12T10:35:53.245Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "ba5c24b59e0ce9c4723f761c3d179a0ec2a161440f50dede4292583993df054b",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Fogo",
-    "slug": "fogo",
-    "category": "chain",
-    "localPath": "/logos/chains/fogo.jpg",
-    "rawPath": "/logos/raw/defillama/chain-fogo.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_fogo.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for fogo.",
-    "downloadedAt": "2026-05-12T10:35:53.339Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "0eec561f85d09d3a36ab7d8065cb86ae2d946cdc93e2b07c24c37b073f16dc07",
-    "width": 399,
-    "height": 399,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Hedera",
-    "slug": "hedera",
-    "category": "chain",
-    "localPath": "/logos/chains/hedera.svg",
-    "rawPath": "/logos/raw/simple-icons/chain-hedera.svg",
-    "sourceProvider": "simple-icons",
-    "sourceUrl": "https://cdn.simpleicons.org/hedera",
-    "sourceNote": "Simple Icons Hedera SVG fetched as source-backed local asset.",
-    "downloadedAt": "2026-05-12T10:35:53.404Z",
-    "originalContentType": "image/svg+xml",
-    "sha256": "5237cd1b7ac030594b2d316468f959cf04c5c725be0ffaf93cbcb97120f6030d",
-    "width": 24,
-    "height": 24,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Injective",
-    "slug": "injective",
-    "category": "chain",
-    "localPath": "/logos/chains/injective.jpg",
-    "rawPath": "/logos/raw/defillama/chain-injective.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_injective.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for injective.",
-    "downloadedAt": "2026-05-12T10:35:53.809Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "33ea87da887c4025bc54f5a96f8763dfda30779152b3c2a87a95a458b01f1dec",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Ink",
-    "slug": "ink",
-    "category": "chain",
-    "localPath": "/logos/chains/ink.jpg",
-    "rawPath": "/logos/raw/defillama/chain-ink.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_ink.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for ink.",
-    "downloadedAt": "2026-05-12T10:35:53.916Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "52d0e802c69c65b7eb1662629668c8d0f173c5984914f2c7577c0dd39a530f4d",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "ICP",
-    "slug": "internet-computer",
-    "category": "chain",
-    "localPath": "/logos/chains/internet-computer.jpg",
-    "rawPath": "/logos/raw/defillama/chain-internet-computer.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_internet-computer.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for internet-computer.",
-    "downloadedAt": "2026-05-12T10:35:54.030Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "ae479010ef8f5822b99bbaf62a252855674033765c8c06d52390ab59bd6a6bac",
-    "width": 250,
-    "height": 250,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Linea",
-    "slug": "linea",
-    "category": "chain",
-    "localPath": "/logos/chains/linea.jpg",
-    "rawPath": "/logos/raw/defillama/chain-linea.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_linea.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for linea.",
-    "downloadedAt": "2026-05-12T10:35:54.132Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "f3c65cba07722269616f4778de96cfea93ac0351a8d628776d5841ce28467011",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Mantle",
-    "slug": "mantle",
-    "category": "chain",
-    "localPath": "/logos/chains/mantle.jpg",
-    "rawPath": "/logos/raw/defillama/chain-mantle.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_mantle.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for mantle.",
-    "downloadedAt": "2026-05-12T10:35:54.224Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "6aa0ac56f199768d3c0e33d59c656d24eddf43399efd4e8e1f8273017ba72ecf",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Monad",
-    "slug": "monad",
-    "category": "chain",
-    "localPath": "/logos/chains/monad.jpg",
-    "rawPath": "/logos/raw/defillama/chain-monad.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_monad.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for monad.",
-    "downloadedAt": "2026-05-12T10:35:54.317Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "0f4512d8366d9fccb6cf7d857bb0acac3c0a241e2da7f2fd3c85d5274714b57a",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Morph",
-    "slug": "morph",
-    "category": "chain",
-    "localPath": "/logos/chains/morph.jpg",
-    "rawPath": "/logos/raw/defillama/chain-morph.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_morph.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for morph.",
-    "downloadedAt": "2026-05-12T10:35:54.431Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "43cc3bba306dc16a1a4dfe8f64c32da6b36d67a373e6ab3cd6740e09c0bd2a6d",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Near",
-    "slug": "near",
-    "category": "chain",
-    "localPath": "/logos/chains/near.jpg",
-    "rawPath": "/logos/raw/defillama/chain-near.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_near.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for near.",
-    "downloadedAt": "2026-05-12T10:35:54.534Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "8407fe546d84da6f925be5c6d7ccf05937a666db6246f0d876b77cf8acfe7482",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "OP Mainnet",
-    "slug": "optimism",
-    "category": "chain",
-    "localPath": "/logos/chains/optimism.jpg",
-    "rawPath": "/logos/raw/defillama/chain-optimism.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/optimism.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for optimism.",
-    "downloadedAt": "2026-05-12T10:35:54.731Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "c310e282270f0f8f951e38ea5b23d32a1bedaf14f1a87fad5f536424de7981bb",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Polygon",
-    "slug": "polygon",
-    "category": "chain",
-    "localPath": "/logos/chains/polygon.jpg",
-    "rawPath": "/logos/raw/defillama/chain-polygon.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_polygon.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for polygon.",
-    "downloadedAt": "2026-05-12T10:35:54.817Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "bb99032bfe23dccb63202a299c8ffafa3cff792578fa6e6c14ac59a954d58e67",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "PulseChain",
-    "slug": "pulsechain",
-    "category": "chain",
-    "localPath": "/logos/chains/pulsechain.jpg",
-    "rawPath": "/logos/raw/defillama/chain-pulsechain.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/pulsechain.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for pulsechain.",
-    "downloadedAt": "2026-05-12T10:35:55.080Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "096b03091143b52021240ac4adcf8527654b8364dfc7ed5dd59626fda8b62a4e",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "XRP Ledger",
-    "slug": "ripple",
-    "category": "chain",
-    "localPath": "/logos/chains/ripple.jpg",
-    "rawPath": "/logos/raw/defillama/chain-ripple.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_ripple.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for ripple.",
-    "downloadedAt": "2026-05-12T10:35:55.277Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "9a2c987686f15708af0fe4c96b9784e0ac94e723e86123730b288fbd06d60fa8",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Rootstock",
-    "slug": "rootstock",
-    "category": "chain",
-    "localPath": "/logos/chains/rootstock.jpg",
-    "rawPath": "/logos/raw/defillama/chain-rootstock.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_rootstock.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for rootstock.",
-    "downloadedAt": "2026-05-12T10:35:55.362Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "f13e53a89a9a7151873757a65a67a68a5d108182ee51ef9f7d6e6e78e63ca80a",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Sei",
-    "slug": "sei",
-    "category": "chain",
-    "localPath": "/logos/chains/sei.jpg",
-    "rawPath": "/logos/raw/defillama/chain-sei.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_sei.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for sei.",
-    "downloadedAt": "2026-05-12T10:35:55.475Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "d0ce715b1519cc22636ab4b8d69861cce0abbab42f495c7abb95b712f2b65206",
-    "width": 250,
-    "height": 250,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Solana",
-    "slug": "solana",
-    "category": "chain",
-    "localPath": "/logos/chains/solana.jpg",
-    "rawPath": "/logos/raw/defillama/chain-solana.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_solana.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for solana.",
-    "downloadedAt": "2026-05-12T10:35:55.571Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "1b4263645656a382cb417cd04e951a25ec256a07f7d6bce90e7de321a3c51d89",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Starknet",
-    "slug": "starknet",
-    "category": "chain",
-    "localPath": "/logos/chains/starknet.jpg",
-    "rawPath": "/logos/raw/defillama/chain-starknet.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/starknet.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for starknet.",
-    "downloadedAt": "2026-05-12T10:35:55.786Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "1dea98123cd4726a50f9ba7245fc65754ca1ba2c8d82fb2a0b13dc74985ef59b",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Stellar",
-    "slug": "stellar",
-    "category": "chain",
-    "localPath": "/logos/chains/stellar.jpg",
-    "rawPath": "/logos/raw/defillama/chain-stellar.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_stellar.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for stellar.",
-    "downloadedAt": "2026-05-12T10:35:55.873Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "2cedeaffd56396d62ae3410a6e43f12950596d3a93a62a55ef7886d4fbe08498",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Sui",
-    "slug": "sui",
-    "category": "chain",
-    "localPath": "/logos/chains/sui.jpg",
-    "rawPath": "/logos/raw/defillama/chain-sui.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_sui.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for sui.",
-    "downloadedAt": "2026-05-12T10:35:55.977Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "6030442f8a71fb16443ea457fc6fcf5fca5bd97cdc5495f011490a1fbfbae662",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "TON",
-    "slug": "ton",
-    "category": "chain",
-    "localPath": "/logos/chains/ton.jpg",
-    "rawPath": "/logos/raw/defillama/chain-ton.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_ton.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for ton.",
-    "downloadedAt": "2026-05-12T10:35:56.066Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "e1238a29ecd69bd409f7662e5bf576db4696318b656c79a93cb3d6f54451fddd",
-    "width": 24,
-    "height": 24,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Tron",
-    "slug": "tron",
-    "category": "chain",
-    "localPath": "/logos/chains/tron.jpg",
-    "rawPath": "/logos/raw/defillama/chain-tron.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_tron.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for tron.",
-    "downloadedAt": "2026-05-12T10:35:56.171Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "f4ed79700edc67b4e002778ed507e4d5d077351a08b7e61544974bca98393d1a",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "ZKsync Era",
-    "slug": "zksync-era",
-    "category": "chain",
-    "localPath": "/logos/chains/zksync-era.jpg",
-    "rawPath": "/logos/raw/defillama/chain-zksync-era.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chains/rsz_zksync-era.jpg",
-    "sourceNote": "DefiLlama chain icon mirror candidate for zksync-era.",
-    "downloadedAt": "2026-05-12T10:35:56.288Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "382bb9074aaa6809a8a5e1ce2fb5d15455c5f7c1e71ef81ff4cd6dfe6cbe2166",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Akash",
-    "slug": "akash",
-    "category": "project",
-    "localPath": "/logos/projects/akash.svg",
-    "rawPath": "/logos/raw/cryptologos/project-akash.svg",
-    "sourceProvider": "crypto-logos",
-    "sourceUrl": "https://cryptologos.cc/logos/akash-network-akt-logo.svg",
-    "sourceNote": "Registry source URL candidate for project:akash.",
-    "downloadedAt": "2026-05-12T10:35:56.979Z",
-    "originalContentType": "image/svg+xml",
-    "sha256": "ccefda57c5f3dccb887aa24aabf8f7146f0728edd0220c1d97442fb150beedfb",
-    "width": 30.4,
-    "height": 26.6,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Chutes",
-    "slug": "chutes",
-    "category": "project",
-    "localPath": "/logos/projects/chutes.jpg",
-    "rawPath": "/logos/raw/defillama/project-chutes.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/chutes.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for chutes.",
-    "downloadedAt": "2026-05-12T10:35:57.084Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "1f5e5018833d359552688017ea9cc14e39b1a2b1bc48364b6c3c39c7595d6f05",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "DoubleZero",
-    "slug": "doublezero",
-    "category": "project",
-    "localPath": "/logos/projects/doublezero.jpg",
-    "rawPath": "/logos/raw/defillama/project-doublezero.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/doublezero.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for doublezero.",
-    "downloadedAt": "2026-05-12T10:35:57.514Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "72a46bb1fc5ecdcf5826c42f8b25e15db056919deb6d46c272c2025219f96446",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Filecoin",
-    "slug": "filecoin",
-    "category": "project",
-    "localPath": "/logos/projects/filecoin.jpg",
-    "rawPath": "/logos/raw/defillama/project-filecoin.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/filecoin.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for filecoin.",
-    "downloadedAt": "2026-05-12T10:35:57.625Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "a8fd6439f06d25a59bd687feec2738965d575637ca89dcc58dddcfb012491909",
-    "width": 28,
-    "height": 28,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "GEODNET",
-    "slug": "geodnet",
-    "category": "project",
-    "localPath": "/logos/projects/geodnet.jpg",
-    "rawPath": "/logos/raw/defillama/project-geodnet.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/geodnet.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for geodnet.",
-    "downloadedAt": "2026-05-12T10:35:57.739Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "56e0bbfc7a5689a6109ddce847f076957383b06376aa10be0603e4059c8292c8",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Grass",
-    "slug": "grass",
-    "category": "project",
-    "localPath": "/logos/projects/grass.jpg",
-    "rawPath": "/logos/raw/defillama/project-grass.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/grass.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for grass.",
-    "downloadedAt": "2026-05-12T10:35:58.040Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "f44f2aa499ff94f60d9edd3fa7875462e964c00a2efa4e961924a599a678fb95",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Helium",
-    "slug": "helium",
-    "category": "project",
-    "localPath": "/logos/projects/helium.jpg",
-    "rawPath": "/logos/raw/defillama/project-helium.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/helium.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for helium.",
-    "downloadedAt": "2026-05-12T10:35:58.145Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "fbb8714c3616372c48007f7f4f97f59d2c6506a19b573413fcde35db5abe3aa8",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Hivemapper",
-    "slug": "hivemapper",
-    "category": "project",
-    "localPath": "/logos/projects/hivemapper.jpg",
-    "rawPath": "/logos/raw/defillama/project-hivemapper.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/hivemapper.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for hivemapper.",
-    "downloadedAt": "2026-05-12T10:35:58.237Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "a8e1151b05846f0ff46c394c6711cdbbf1699c8720b01ae088bf7b3f9f75d363",
-    "width": 400,
-    "height": 400,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Livepeer",
-    "slug": "livepeer",
-    "category": "project",
-    "localPath": "/logos/projects/livepeer.jpg",
-    "rawPath": "/logos/raw/defillama/project-livepeer.jpg",
-    "sourceProvider": "defillama",
-    "sourceUrl": "https://icons.llama.fi/livepeer.jpg",
-    "sourceNote": "DefiLlama generic icon mirror candidate for livepeer.",
-    "downloadedAt": "2026-05-12T10:35:58.637Z",
-    "originalContentType": "image/jpeg",
-    "sha256": "2106029da788ee6461b018e5c65965a3363c624e34598e0a9a81eb5c6e6b81e3",
-    "width": 200,
-    "height": 200,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  },
-  {
-    "canonicalName": "Render Network",
-    "slug": "render-network",
-    "category": "project",
-    "localPath": "/logos/projects/render-network.svg",
-    "rawPath": "/logos/raw/simple-icons/project-render-network.svg",
-    "sourceProvider": "simple-icons",
-    "sourceUrl": "https://simpleicons.org/icons/render.svg",
-    "sourceNote": "Registry source URL candidate for project:render-network.",
-    "downloadedAt": "2026-05-12T10:36:00.938Z",
-    "originalContentType": "image/svg+xml",
-    "sha256": "bd1597c44b4417a0f22f4ae6df79f935b4afd850f7a6a6717090b6f46f28e6d6",
-    "width": 24,
-    "height": 24,
-    "approvalStatus": "approved",
-    "rightsNote": "Logos are trademarks of their respective owners and are used for identification purposes. Source/provenance is tracked in the logo source manifest.",
-    "notes": "Downloaded by scripts/sync-logos.mjs; final asset is local and source-backed."
-  }
-];
+export const logoSourceManifest: LogoSourceManifestEntry[] = [];
 
 export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
   {
@@ -942,14 +55,16 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/benji.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for benji."
       },
       {
         "provider": "official",
         "url": "https://www.franklintempleton.com/solutions/blockchain/benji",
-        "status": "200",
-        "error": "unsupported content-type text/html"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for asset:benji."
       }
     ]
   },
@@ -961,14 +76,520 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/buidl.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for buidl."
       },
       {
         "provider": "official",
         "url": "https://www.blackrock.com/cash/en-us/products/329365/blackrock-usd-institutional-digital-liquidity-fund",
-        "status": "200",
-        "error": "unsupported content-type text/html;charset=UTF-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for asset:buidl."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Abstract",
+    "slug": "abstract",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_abstract.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for abstract."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/abstract.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for abstract."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.abs.xyz/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:abstract."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Algorand",
+    "slug": "algorand",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/algorand",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Algorand SVG fetched as source-backed local asset."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_algorand.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for algorand."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/algorand.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for algorand."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/algorand.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:algorand."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Aptos",
+    "slug": "aptos",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_aptos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for aptos."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/aptos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for aptos."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/aptos.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:aptos."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/aptos",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Aptos SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Arbitrum",
+    "slug": "arbitrum",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_arbitrum.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for arbitrum."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/arbitrum.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for arbitrum."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/arbitrum.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:arbitrum."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/arbitrum",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Arbitrum SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Avalanche",
+    "slug": "avalanche",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_avalanche.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for avalanche."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/avalanche.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for avalanche."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/avalanche-avax-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:avalanche."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Base",
+    "slug": "base",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_base.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for base."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/base.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for base."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/base.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:base."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/base",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Base SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Bitcoin",
+    "slug": "bitcoin",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bitcoin.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bitcoin."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bitcoin.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bitcoin."
+      },
+      {
+        "provider": "spothq-cryptocurrency-icons",
+        "url": "https://github.com/spothq/cryptocurrency-icons/blob/master/svg/color/btc.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:bitcoin."
+      }
+    ]
+  },
+  {
+    "canonicalName": "BNB Chain",
+    "slug": "bsc",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bsc.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bsc."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bsc.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bsc."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_binance.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for binance."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/binance.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for binance."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bnb.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bnb."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bnb.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bnb."
+      },
+      {
+        "provider": "official-brand-kit",
+        "url": "https://www.bnbchain.org/en/brand",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:bsc."
+      }
+    ]
+  },
+  {
+    "canonicalName": "BSV Blockchain",
+    "slug": "bsv-blockchain",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "coingecko",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=bitcoin-sv",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "CoinGecko markets API candidate for bitcoin-sv."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bsv-blockchain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bsv-blockchain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bsv-blockchain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bsv-blockchain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bsv.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bsv."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bsv.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bsv."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_bitcoin-sv.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for bitcoin-sv."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/bitcoin-sv.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for bitcoin-sv."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:bsv-blockchain."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Canton",
+    "slug": "canton-network",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_canton-network.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for canton-network."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/canton-network.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for canton-network."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_canton.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for canton."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/canton.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for canton."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.canton.network/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:canton-network."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Cardano",
+    "slug": "cardano",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_cardano.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for cardano."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/cardano.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for cardano."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/cardano-ada-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:cardano."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Celo",
+    "slug": "celo",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/celo",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Celo SVG fetched as source-backed local asset."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_celo.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for celo."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/celo.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for celo."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/celo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:celo."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Cosmos",
+    "slug": "cosmos",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_cosmos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for cosmos."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/cosmos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for cosmos."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/cosmos-atom-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:cosmos."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Cronos",
+    "slug": "cronos",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_cronos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for cronos."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/cronos.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for cronos."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/cronos-cro-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:cronos."
       }
     ]
   },
@@ -980,63 +601,212 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/chains/rsz_eni.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama ENI chain icon direct candidate."
       },
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/eni.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama ENI generic icon direct candidate."
       },
       {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/chains/rsz_eni-blockchain.jpg",
-        "status": "404",
-        "error": "Not Found"
-      },
-      {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/eni-blockchain.jpg",
-        "status": "404",
-        "error": "Not Found"
-      },
-      {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/chains/rsz_eni-network.jpg",
-        "status": "404",
-        "error": "Not Found"
-      },
-      {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/eni-network.jpg",
-        "status": "404",
-        "error": "Not Found"
-      },
-      {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/chains/rsz_eniac.jpg",
-        "status": "404",
-        "error": "Not Found"
-      },
-      {
-        "provider": "defillama",
-        "url": "https://icons.llama.fi/eniac.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "provider": "coingecko",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=eni",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "CoinGecko markets API candidate for eni."
       },
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/chains/rsz_eni.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for eni."
       },
       {
-        "provider": "other-data-provider",
-        "url": "https://www.coingecko.com/en/chains/eni",
-        "status": "source-note",
-        "error": "CoinGecko page is not a direct image URL",
-        "note": "CoinGecko ENI chain page source note."
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/eni.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for eni."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_eni-blockchain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for eni-blockchain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/eni-blockchain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for eni-blockchain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_eni-network.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for eni-network."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/eni-network.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for eni-network."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_eniac.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for eniac."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/eniac.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for eniac."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_eni.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "ENI appears as a real chain entity on CoinGecko; DefiLlama direct image candidates are tracked in unresolved source candidates."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Ethereum",
+    "slug": "ethereum",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_ethereum.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for ethereum."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/ethereum.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for ethereum."
+      },
+      {
+        "provider": "spothq-cryptocurrency-icons",
+        "url": "https://github.com/spothq/cryptocurrency-icons/blob/master/svg/color/eth.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:ethereum."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/ethereum",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Ethereum SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Fantom",
+    "slug": "fantom",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_fantom.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for fantom."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/fantom.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for fantom."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/fantom-ftm-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:fantom."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Fogo",
+    "slug": "fogo",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_fogo.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for fogo."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/fogo.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for fogo."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.fogo.io/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:fogo."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Hedera",
+    "slug": "hedera",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/hedera",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Hedera SVG fetched as source-backed local asset."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_hedera.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for hedera."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/hedera.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for hedera."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/hedera.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:hedera."
       }
     ]
   },
@@ -1046,23 +816,228 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
     "category": "chain",
     "attemptedCandidates": [
       {
+        "provider": "official-brand-kit",
+        "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Official Hyperliquid brand kit page provides PNG and SVG logo zip downloads; page is a source note, not a direct image."
+      },
+      {
+        "provider": "coingecko",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=hyperliquid",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "CoinGecko markets API candidate for hyperliquid."
+      },
+      {
         "provider": "defillama",
         "url": "https://icons.llama.fi/chains/rsz_hyperliquid.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for hyperliquid."
       },
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/hyperliquid.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for hyperliquid."
       },
       {
         "provider": "official-brand-kit",
         "url": "https://hyperliquid.gitbook.io/hyperliquid-docs/brand-kit",
-        "status": "source-note",
-        "error": "brand kit page is not a direct image URL",
+        "status": "network-unavailable",
+        "error": "download probe failed",
         "note": "Official Hyperliquid brand kit page provides PNG and SVG logo zip downloads; page is a source note, not a direct image."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Injective",
+    "slug": "injective",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_injective.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for injective."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/injective.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for injective."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/injective-inj-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:injective."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Ink",
+    "slug": "ink",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_ink.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for ink."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/ink.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for ink."
+      },
+      {
+        "provider": "official",
+        "url": "https://inkonchain.com/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:ink."
+      }
+    ]
+  },
+  {
+    "canonicalName": "ICP",
+    "slug": "internet-computer",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_internet-computer.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for internet-computer."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/internet-computer.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for internet-computer."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_icp.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for icp."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/icp.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for icp."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/internet-computer-icp-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:internet-computer."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Kaia",
+    "slug": "kaia",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_kaia.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for kaia."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/kaia.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for kaia."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.kaia.io/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:kaia."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Linea",
+    "slug": "linea",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_linea.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for linea."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/linea.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for linea."
+      },
+      {
+        "provider": "official",
+        "url": "https://linea.build/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:linea."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Mantle",
+    "slug": "mantle",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_mantle.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for mantle."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/mantle.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for mantle."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/mantle.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:mantle."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/mantle",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Mantle SVG fetched as source-backed local asset."
       }
     ]
   },
@@ -1074,9 +1049,268 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "other-data-provider",
         "url": "https://logo.svgcdn.com/token-branded/mega-eth.png",
-        "status": "not-run",
-        "error": "direct transparent PNG candidate added; run npm run logos:sync when network can resolve logo.svgcdn.com",
+        "status": "network-unavailable",
+        "error": "download probe failed",
         "note": "MegaETH direct transparent PNG candidate from brandpnglogo/svgcdn. Needs visual review."
+      },
+      {
+        "provider": "coingecko",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=megaeth",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "CoinGecko markets API candidate for megaeth."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_megaeth.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for megaeth."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/megaeth.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for megaeth."
+      },
+      {
+        "provider": "other-data-provider",
+        "url": "https://logo.svgcdn.com/token-branded/mega-eth.png",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "MegaETH direct transparent PNG candidate from brandpnglogo/svgcdn. Needs visual review."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Monad",
+    "slug": "monad",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_monad.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for monad."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/monad.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for monad."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.monad.xyz/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:monad."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Morph",
+    "slug": "morph",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_morph.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for morph."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/morph.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for morph."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.morphl2.io/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:morph."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Near",
+    "slug": "near",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_near.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for near."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/near.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for near."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/near.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:near."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/near",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons NEAR SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "OP Mainnet",
+    "slug": "optimism",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_optimism.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for optimism."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/optimism.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for optimism."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_op-mainnet.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for op-mainnet."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/op-mainnet.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for op-mainnet."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/optimism.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:optimism."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/optimism",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Optimism SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Plasma",
+    "slug": "plasma",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_plasma.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for plasma."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/plasma.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for plasma."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.plasma.to/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:plasma."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Plume",
+    "slug": "plume",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_plume.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for plume."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/plume.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for plume."
+      },
+      {
+        "provider": "official",
+        "url": "https://plume.org/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:plume."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Polygon",
+    "slug": "polygon",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_polygon.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for polygon."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/polygon.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for polygon."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/polygon.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:polygon."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/polygon",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Polygon SVG fetched as source-backed local asset."
       }
     ]
   },
@@ -1088,9 +1322,548 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "official-brand-kit",
         "url": "https://provenance.io/presskit",
-        "status": "source-note",
-        "error": "presskit page is not a direct image URL",
-        "note": "Official Provenance presskit page says logos are available in PNG and SVG format; use as source note until a direct logo URL is confirmed."
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Official Provenance presskit page says logos are available in PNG and SVG format; page is a source note until a direct logo URL is confirmed."
+      },
+      {
+        "provider": "coingecko",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=provenance-blockchain",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "CoinGecko markets API candidate for provenance-blockchain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_provenance.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for provenance."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/provenance.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for provenance."
+      },
+      {
+        "provider": "official-brand-kit",
+        "url": "https://provenance.io/presskit",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Official Provenance presskit page says logos are available in PNG and SVG format; page is a source note until a direct logo URL is confirmed."
+      }
+    ]
+  },
+  {
+    "canonicalName": "PulseChain",
+    "slug": "pulsechain",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_pulsechain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for pulsechain."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/pulsechain.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for pulsechain."
+      },
+      {
+        "provider": "official",
+        "url": "https://pulsechain.com/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:pulsechain."
+      }
+    ]
+  },
+  {
+    "canonicalName": "XRP Ledger",
+    "slug": "ripple",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_ripple.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for ripple."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/ripple.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for ripple."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_xrp.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for xrp."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/xrp.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for xrp."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_xrpl.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for xrpl."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/xrpl.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for xrpl."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/xrp.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:ripple."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/xrp",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons XRP SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Rootstock",
+    "slug": "rootstock",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_rootstock.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for rootstock."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/rootstock.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for rootstock."
+      },
+      {
+        "provider": "official",
+        "url": "https://rootstock.io/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:rootstock."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Saga",
+    "slug": "saga",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_saga.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for saga."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/saga.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for saga."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.saga.xyz/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:saga."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Sei",
+    "slug": "sei",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_sei.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for sei."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/sei.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for sei."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/sei-sei-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:sei."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Solana",
+    "slug": "solana",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_solana.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for solana."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/solana.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for solana."
+      },
+      {
+        "provider": "official-brand-kit",
+        "url": "https://solana.com/branding/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:solana."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/solana",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Solana SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Starknet",
+    "slug": "starknet",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_starknet.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for starknet."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/starknet.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for starknet."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/starknet.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:starknet."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/starknet",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Starknet SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Stellar",
+    "slug": "stellar",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_stellar.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for stellar."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/stellar.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for stellar."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/stellar.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:stellar."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/stellar",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Stellar SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Sui",
+    "slug": "sui",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_sui.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for sui."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/sui.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for sui."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/sui.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:sui."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/sui",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons Sui SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "TON",
+    "slug": "ton",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_ton.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for ton."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/ton.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for ton."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_toncoin.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for toncoin."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/toncoin.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for toncoin."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/ton.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:ton."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/ton",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons TON SVG fetched as source-backed local asset."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Tron",
+    "slug": "tron",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_tron.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for tron."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/tron.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for tron."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/tron-trx-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:tron."
+      }
+    ]
+  },
+  {
+    "canonicalName": "X Layer",
+    "slug": "x-layer",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_x-layer.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for x-layer."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/x-layer.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for x-layer."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.okx.com/xlayer",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:x-layer."
+      }
+    ]
+  },
+  {
+    "canonicalName": "ZKsync Era",
+    "slug": "zksync-era",
+    "category": "chain",
+    "attemptedCandidates": [
+      {
+        "provider": "simple-icons",
+        "url": "https://cdn.simpleicons.org/zksync",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Simple Icons ZKsync SVG fetched as source-backed local asset."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_zksync-era.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for zksync-era."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/zksync-era.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for zksync-era."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chains/rsz_zksync.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama chain icon mirror candidate for zksync."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/zksync.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for zksync."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/zksync.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for chain:zksync-era."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Akash",
+    "slug": "akash",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/akash.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for akash."
+      },
+      {
+        "provider": "crypto-logos",
+        "url": "https://cryptologos.cc/logos/akash-network-akt-logo.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:akash."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Chutes",
+    "slug": "chutes",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/chutes.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for chutes."
+      },
+      {
+        "provider": "official",
+        "url": "https://chutes.ai/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:chutes."
       }
     ]
   },
@@ -1102,14 +1875,100 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/dimo.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for dimo."
       },
       {
         "provider": "official",
         "url": "https://dimo.org/",
-        "status": "200",
-        "error": "unsupported content-type text/html; charset=utf-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:dimo."
+      }
+    ]
+  },
+  {
+    "canonicalName": "DoubleZero",
+    "slug": "doublezero",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/doublezero.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for doublezero."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/double-zero.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for double-zero."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/2z.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for 2z."
+      },
+      {
+        "provider": "official",
+        "url": "https://doublezero.xyz/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:doublezero."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Filecoin",
+    "slug": "filecoin",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/filecoin.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for filecoin."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/fil.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for fil."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/filecoin.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:filecoin."
+      }
+    ]
+  },
+  {
+    "canonicalName": "GEODNET",
+    "slug": "geodnet",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/geodnet.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for geodnet."
+      },
+      {
+        "provider": "official",
+        "url": "https://geodnet.com/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:geodnet."
       }
     ]
   },
@@ -1121,14 +1980,79 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/glow.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for glow."
       },
       {
         "provider": "official",
         "url": "https://glowlabs.org/",
-        "status": "200",
-        "error": "unsupported content-type text/html; charset=utf-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:glow."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Grass",
+    "slug": "grass",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/grass.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for grass."
+      },
+      {
+        "provider": "official",
+        "url": "https://www.getgrass.io/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:grass."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Helium",
+    "slug": "helium",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/helium.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for helium."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/helium.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:helium."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Hivemapper",
+    "slug": "hivemapper",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/hivemapper.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for hivemapper."
+      },
+      {
+        "provider": "official",
+        "url": "https://hivemapper.com/",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:hivemapper."
       }
     ]
   },
@@ -1140,20 +2064,44 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/io-net.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for io-net."
       },
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/ionet.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for ionet."
       },
       {
         "provider": "official",
         "url": "https://io.net/",
-        "status": "200",
-        "error": "unsupported content-type text/html; charset=utf-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:io-net."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Livepeer",
+    "slug": "livepeer",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/livepeer.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for livepeer."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/livepeer.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:livepeer."
       }
     ]
   },
@@ -1165,14 +2113,16 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/nosana.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for nosana."
       },
       {
         "provider": "official",
         "url": "https://nosana.io/",
-        "status": "200",
-        "error": "unsupported content-type text/html; charset=utf-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:nosana."
       }
     ]
   },
@@ -1184,20 +2134,51 @@ export const unresolvedLogoSources: LogoSourceUnresolvedEntry[] = [
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/pocket-network.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for pocket-network."
       },
       {
         "provider": "defillama",
         "url": "https://icons.llama.fi/pocket.jpg",
-        "status": "404",
-        "error": "Not Found"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for pocket."
       },
       {
         "provider": "official",
         "url": "https://www.pokt.network/",
-        "status": "200",
-        "error": "unsupported content-type text/html; charset=UTF-8"
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:pocket-network."
+      }
+    ]
+  },
+  {
+    "canonicalName": "Render Network",
+    "slug": "render-network",
+    "category": "project",
+    "attemptedCandidates": [
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/render-network.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for render-network."
+      },
+      {
+        "provider": "defillama",
+        "url": "https://icons.llama.fi/render.jpg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "DefiLlama generic icon mirror candidate for render."
+      },
+      {
+        "provider": "simple-icons",
+        "url": "https://simpleicons.org/icons/render.svg",
+        "status": "network-unavailable",
+        "error": "download probe failed",
+        "note": "Registry source URL candidate for project:render-network."
       }
     ]
   }
