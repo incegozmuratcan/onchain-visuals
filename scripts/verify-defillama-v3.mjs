@@ -8,6 +8,7 @@ const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.som
 const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
 const isGuessedProtocolRow=(s,i)=>/defillama\.com\/protocol\//i.test(s)&&/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(i);
 const isExternalProtocolIcon=(u)=>/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
+const isTokenIconUrl=(u)=>/^https?:\/\/token-icons\.llamao\.fi\/icons\/tokens\/gecko\/[a-z0-9-]+\?w=48&h=48/i.test(u);
 const slugFromUrl=(v)=>{v=String(v||'').toLowerCase();const m1=v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);if(m1?.[1])return slugText(m1[1]);const m2=v.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);return m2?.[1]?slugText(m2[1]):''};
 function classify({logoName,logoSlug,source,knownAliases=[]}){
  const meta=source.metadata||{};const imageUrl=source.image_url||'';const sourceUrl=source.source_url||'';const combined=[imageUrl,sourceUrl,JSON.stringify(meta)].join(' ').toLowerCase();
@@ -18,8 +19,10 @@ function classify({logoName,logoSlug,source,knownAliases=[]}){
  if(!sourceOk) return {valid:false,sourceType:'invalid',reason:'target_mismatch'};
  const chainMirror=imageUrl.startsWith('/logos/chains/')&&/\/chains\/rsz_/i.test(sourceUrl);
  const chainIcon=isChainIconUrl(sourceUrl)||isChainIconUrl(imageUrl);
+ const tokenIcon=/defillama\.com\/token\//i.test(sourceUrl)&&isTokenIconUrl(imageUrl)&&[String(meta.defillamaV3||''),String(meta.sourceType||'')].some((v)=>v.toLowerCase()==='token-icon');
  if(chainMirror) return {valid:true,sourceType:'chain-mirror',reason:'valid_chain_mirror'};
  if(chainIcon) return {valid:true,sourceType:'chain-icon',reason:'valid_chain_icon'};
+ if(tokenIcon) return {valid:true,sourceType:'token-icon',reason:'valid_token_icon'};
  if(isGuessedProtocolRow(sourceUrl,imageUrl)) return {valid:false,sourceType:'invalid',reason:'old_guessed_protocol_source'};
  const resolverConfirmed=meta.resolver===true||String(meta.sourceOrigin||'').toLowerCase()==='defillama-helper'||String(meta.resolverConfidence||'').toLowerCase()==='high'||meta.indexConfirmed===true||meta.protocolIndexConfirmed===true;
  if(isGuessedProtocolRow(sourceUrl,imageUrl) && !resolverConfirmed) return {valid:false,sourceType:'invalid',reason:'old_guessed_protocol_source'};
@@ -70,5 +73,14 @@ assert.equal(canonicalState({...xrpCandidate,status:'approved',metadata:{...xrpC
 
 const xrpNoSourceDiagnostic={aliasesTried:['xrp','xrpl','ripple','xrp-ledger'],imageAttempts:['https://icons.llama.fi/chains/rsz_xrpl.jpg -> status_404','https://icons.llama.fi/chains/xrp.jpg -> status_404']};
 assert.equal(xrpNoSourceDiagnostic.aliasesTried.includes('xrp'),true);assert.equal(xrpNoSourceDiagnostic.imageAttempts.length>0,true);
+
+const ioToken = classify({logoName:'IO.NET',logoSlug:'io-net',knownAliases:['ionet','io','io.net'],source:{provider:'defillama',id:'11',source_url:'https://defillama.com/token/IONET',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48',status:'candidate',metadata:{slug:'io',defillamaV3:'token-icon',sourceType:'token-icon',routeProbeStatus:'route_probe_failed'}}});
+assert.equal(ioToken.valid,true);assert.equal(ioToken.sourceType,'token-icon');
+const dimoToken = classify({logoName:'DIMO',logoSlug:'dimo',source:{provider:'defillama',id:'12',source_url:'https://defillama.com/token/DIMO',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/dimo?w=48&h=48',status:'candidate',metadata:{slug:'dimo',defillamaV3:'token-icon',sourceType:'token-icon'}}});
+assert.equal(dimoToken.valid,true);assert.equal(dimoToken.sourceType,'token-icon');
+const renderToken = classify({logoName:'Render',logoSlug:'render',knownAliases:['render-network'],source:{provider:'defillama',id:'13',source_url:'https://defillama.com/token/RENDER',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/render-token?w=48&h=48',status:'candidate',metadata:{slug:'render-token',defillamaV3:'token-icon',sourceType:'token-icon'}}});
+assert.equal(renderToken.valid,true);assert.equal(renderToken.sourceType,'token-icon');
+const failureDiagnostic = { tokenSymbolsTried:['IO','IO.NET','IONET','IO-NET'], geckoIdsTried:['io','io-net','ionet'], sourceUrlsTried:['https://defillama.com/token/IONET'], imageUrlsTried:['https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48'], perAttemptReason:['IONET:io:resolve'] };
+assert.equal(Array.isArray(failureDiagnostic.tokenSymbolsTried),true);assert.equal(Array.isArray(failureDiagnostic.geckoIdsTried),true);assert.equal(Array.isArray(failureDiagnostic.sourceUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.imageUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.perAttemptReason),true);
 
 console.log('DefiLlama v3 deterministic verification passed (BNB + XRP chain-first, guessed protocol rejection, recovery/no-source diagnostic simulation).');

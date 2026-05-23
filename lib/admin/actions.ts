@@ -924,7 +924,7 @@ export async function addDefiLlamaAction(formData: FormData) {
             logoSlug: logo.slug,
             logoCategory: logo.category,
             knownAliases: [requestedSlug, symbol, geckoId, ...(aliasSet.aliases ?? [])].filter((v): v is string => Boolean(v)),
-            source: { id: "candidate", logo_id: logo.id, provider: "defillama", image_url: imageUrl, source_url: sourceUrl, blob_url: null, status: "candidate", rejection_reason: null, created_at: new Date().toISOString(), metadata: { slug: candidate!.slug, defillamaSlug: candidate!.slug } } as unknown as LogoSource,
+            source: { id: "candidate", logo_id: logo.id, provider: "defillama", image_url: imageUrl, source_url: sourceUrl, blob_url: null, status: "candidate", rejection_reason: null, created_at: new Date().toISOString(), metadata: { slug: candidate!.slug, defillamaSlug: candidate!.slug, sourceType: "token-icon", defillamaV3: "token-icon", tokenSymbol: symbol, coinGeckoId: geckoId } } as unknown as LogoSource,
           });
           resolveAttempts.push({ sourceUrl, imageUrl, reason: check.reason ?? "ok", tokenSymbol: symbol, coinGeckoId: geckoId });
           if (check.valid) return { ...testCandidate, tokenSymbol: symbol, coinGeckoId: geckoId, tokenSymbols, geckoIds };
@@ -947,7 +947,7 @@ export async function addDefiLlamaAction(formData: FormData) {
         status: "candidate",
         rejection_reason: null,
         created_at: new Date().toISOString(),
-        metadata: { slug: candidate.slug, defillamaSlug: candidate.slug },
+        metadata: { slug: candidate.slug, defillamaSlug: candidate.slug, sourceType: candidate.sourceType, defillamaV3: candidate.sourceType === "token-icon" ? "token-icon" : undefined, tokenSymbol: exactTokenSymbol || undefined, coinGeckoId: exactCoinGeckoId || undefined },
       } as unknown as LogoSource,
     });
     if (!classified.valid) {
@@ -955,9 +955,21 @@ export async function addDefiLlamaAction(formData: FormData) {
       if (fallbackToken && "sourceUrl" in fallbackToken) {
         candidate = { ...candidate, sourceUrl: fallbackToken.sourceUrl, imageUrl: fallbackToken.imageUrl, sourceType: "token-icon", debug: { ...(candidate.debug ?? {}), tokenSymbol: fallbackToken.tokenSymbol, coinGeckoId: fallbackToken.coinGeckoId, tokenSymbolsTried: fallbackToken.tokenSymbols, geckoIdsTried: fallbackToken.geckoIds, resolveAttempts } };
       } else {
-        const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason} tokenSymbolsTried=${(fallbackToken as any)?.tokenSymbols?.join(",") || "none"} geckoIdsTried=${(fallbackToken as any)?.geckoIds?.join(",") || "none"} sourceUrlsTried=${JSON.stringify((fallbackToken as any)?.sourceUrlsTried || resolveAttempts.map((a)=>a.sourceUrl))} imageUrlsTried=${JSON.stringify((fallbackToken as any)?.imageUrlsTried || resolveAttempts.map((a)=>a.imageUrl))} perAttemptReason=${JSON.stringify((fallbackToken as any)?.perAttemptReason || resolveAttempts.map((a)=>`${a.tokenSymbol}:${a.coinGeckoId}:${a.reason}`))}`;
-        await updateLogoFetchState(logo.slug, "defillama", details);
-        redirectLogoNotice(logo.slug, "warning", details);
+        const fullDiagnostic = {
+          originalSourceUrl: exactSourceUrl || candidate.sourceUrl,
+          sourceUrl: candidate.sourceUrl,
+          imageUrl: candidate.imageUrl,
+          sourceType: candidate.sourceType,
+          reason: classified.reason,
+          tokenSymbolsTried: (fallbackToken as any)?.tokenSymbols ?? [],
+          geckoIdsTried: (fallbackToken as any)?.geckoIds ?? [],
+          sourceUrlsTried: (fallbackToken as any)?.sourceUrlsTried || resolveAttempts.map((a)=>a.sourceUrl),
+          imageUrlsTried: (fallbackToken as any)?.imageUrlsTried || resolveAttempts.map((a)=>a.imageUrl),
+          perAttemptReason: (fallbackToken as any)?.perAttemptReason || resolveAttempts.map((a)=>`${a.tokenSymbol}:${a.coinGeckoId}:${a.reason}`),
+          selectedAttempt: null,
+        };
+        await updateLogoFetchState(logo.slug, "defillama", `DefiLlama token candidate invalid. Open Details for full attempts.\n${JSON.stringify(fullDiagnostic)}`);
+        redirectLogoNotice(logo.slug, "warning", "DefiLlama token candidate invalid. Open Details for full attempts.");
       }
     }
     if (
@@ -1018,6 +1030,9 @@ export async function addDefiLlamaAction(formData: FormData) {
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
         defillamaV3: candidate.sourceType === "token-icon" ? "token-icon" : classified.sourceType,
+        originalPreviewSourceUrl: exactSourceUrl || undefined,
+        selectedTokenSourceUrl: candidate.sourceType === "token-icon" ? candidate.sourceUrl : undefined,
+        selectedTokenImageUrl: candidate.sourceType === "token-icon" ? candidate.imageUrl : undefined,
         routeProbeStatus:
           candidate.sourceType === "token-icon" && resolveAttempts.some((a) => a.reason === "resolve")
             ? "route_probe_failed"
