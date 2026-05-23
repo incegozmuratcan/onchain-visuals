@@ -1,3 +1,9 @@
+## v0.11.34 Provider coverage orchestrator baseline
+
+- Added a deterministic verification script `npm run verify:provider-coverage` (`scripts/verify-provider-coverage.mjs`) to enforce missing-target selection, alias sanitization, CoinGecko/CMC/DefiLlama resolver-path expectations, canonical post-save checks, and managed-vault copy semantics.
+- Verification explicitly validates that polluted aliases (URLs/image/CDN/query/numeric-only IDs) are excluded from search aliases while keeping symbol aliases (e.g., `AKT`) for provider search.
+- Added script wiring in `package.json` and documented this check as part of provider-coverage release workflow.
+
 ## v0.11.33 DefiLlama missing recovery root-cause fixes (Blocker)
 
 - Sanitized provider alias generation so URL/image/CDN/query-string/numeric-only tokens are excluded from DefiLlama alias search while provider metadata remains available for diagnostics.
