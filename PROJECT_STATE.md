@@ -1,3 +1,9 @@
+## v0.11.35 Provider Coverage Orchestrator actions
+
+- Added Source Tools actions **Dry run all missing provider coverage** and **Resolve all missing provider coverage**.
+- Added persisted orchestrator summary (`admin_settings.last_provider_coverage_orchestrator_summary`) with live before/after missing counts for CoinGecko, CoinMarketCap, and DefiLlama.
+- Added Source Tools summary card to expose orchestrator run output in `/admin/logos`.
+
 ## v0.11.34 Provider coverage orchestrator baseline
 
 - Added a deterministic verification script `npm run verify:provider-coverage` (`scripts/verify-provider-coverage.mjs`) to enforce missing-target selection, alias sanitization, CoinGecko/CMC/DefiLlama resolver-path expectations, canonical post-save checks, and managed-vault copy semantics.
