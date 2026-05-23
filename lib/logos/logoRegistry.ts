@@ -160,8 +160,14 @@ export const logoRegistry: LogoRegistryEntry[] = [
     rejectedProvidersForCard: [{ provider: "crypto-logos", sourceUrl: "https://cryptologos.cc/logos/bitcoin-sv-bsv-logo.svg", reason: "Rejected current source: Bitcoin-like BSV icon is too similar to BTC for card usage." }],
     notes: "Production cards use a clean BSV fallback, but it remains missing/unapproved in logo audit until a distinct BSV Blockchain logo is provided.",
   }),
+  chain("Quai", "quai", ["quai", "quai network", "quai-network"], "defillama", "https://icons.llama.fi/chains/rsz_quai.jpg", {
+    localPath: "/logos/chains/quai.svg",
+    quality: "missing",
+    sourceNote: "Local fallback logo only. Provider-backed DefiLlama/CG/CMC coverage must be resolved separately.",
+    notes: "Uses local Quai fallback until approved provider source is persisted.",
+  }),
   chain("ENI", "eni", ["eni", "eni blockchain", "eni network", "eniac"], "defillama", "https://icons.llama.fi/chains/rsz_eni.jpg", {
-    localPath: "/api/chain-logo/eni",
+    localPath: "/logos/chains/eni.svg",
     scale: 1.08,
     padding: 0,
     quality: "missing",
@@ -178,6 +184,7 @@ export const logoRegistry: LogoRegistryEntry[] = [
   project("IO.NET", "io-net", ["io.net", "io net", "ionet"], "official", "https://io.net/"),
   project("Chutes", "chutes", ["chutes"], "official", "https://chutes.ai/"),
   project("Render Network", "render-network", ["render network", "render", "rndr"], "simple-icons", "https://simpleicons.org/icons/render.svg"),
+  project("Render", "render", ["render", "rndr", "render network", "render-network"], "existing-local-reviewed", "https://simpleicons.org/icons/render.svg", { localPath: "/logos/render.svg", quality: "missing", notes: "Local fallback alias for Render; provider coverage remains separate." }),
   project("Akash", "akash", ["akash", "akash network", "akt"], "crypto-logos", "https://cryptologos.cc/logos/akash-network-akt-logo.svg"),
   project("DoubleZero", "doublezero", ["doublezero", "double zero", "2z"], "official", "https://doublezero.xyz/"),
   project("Filecoin", "filecoin", ["filecoin", "fil"], "simple-icons", "https://simpleicons.org/icons/filecoin.svg", { scale: 1.2, padding: 0 }),
