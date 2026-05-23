@@ -1,4 +1,12 @@
 
+## v0.11.38 DefiLlama preview candidate save parity (Blocker)
+
+- DefiLlama Use + Fetch now submits and persists the exact preview candidate payload (source URL/image URL/source type/image pattern + token metadata) instead of re-resolving from `providerSlug` alone.
+- `addDefiLlamaAction` now validates exact token-route candidates directly (token page + token-icons gecko URL + token-icon source type) and records explicit failure diagnostics when candidate fields are missing/invalid.
+- Resolver fallback now uses full alias context (`buildProviderAliasSet`) with known IDs/aliases rather than `aliases: [requestedSlug]`, improving IO.NET / DIMO / Render token-route parity.
+- Token-route persistence now preserves token-source metadata (`defillamaV3=token-icon`, `sourceType=token-icon`, `sourceOrigin=defillama-token-route`, `validatedForTarget=true`) so canonical DefiLlama state reaches REVIEW/OK consistently.
+- DefiLlama preview UI now labels token-route recommendations as `token` rather than `protocol` when token-route URL patterns are present.
+
 ## v0.11.37 DefiLlama token route resolver (Blocker)
 
 - Added DefiLlama token route discovery as a first-class source family (`token-icon`) using `/token/{SYMBOL}` source pages and `token-icons.llamao.fi/icons/tokens/gecko/{coinGeckoId}?w=48&h=48` icon URLs.

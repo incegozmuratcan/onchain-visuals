@@ -782,46 +782,79 @@ export async function addManualUrlAction(formData: FormData) {
 export async function addDefiLlamaAction(formData: FormData) {
   const logo = await ensureLogoFromForm(formData);
   const requestedSlug = String(formData.get("providerSlug") || logo.slug).trim();
+  const exactSourceUrl = String(formData.get("sourceUrl") || "").trim();
+  const exactImageUrl = String(formData.get("imageUrl") || "").trim();
+  const exactSourceType = String(formData.get("sourceType") || "").trim().toLowerCase();
+  const exactSelectedImagePattern = String(formData.get("selectedImagePattern") || "").trim();
+  const exactTokenSymbol = String(formData.get("tokenSymbol") || "").trim();
+  const exactCoinGeckoId = String(formData.get("coinGeckoId") || "").trim();
+  const exactResolverConfidence = String(formData.get("resolverConfidence") || "").trim();
+  const exactCandidateName = String(formData.get("candidateName") || "").trim();
   if (!requestedSlug)
     redirectLogoNotice(logo.slug, "error", "Add a DefiLlama slug first.");
 
   try {
     const sourcesBefore = (await getLogoSources(logo.id)).rows;
-    const found = await searchDefiLlamaSources(requestedSlug, {
-      targetName: logo.name,
-      targetSlug: logo.slug,
-      category: logo.category,
-      aliases: [requestedSlug],
-    });
-    const candidate =
-      found.candidates.find(
-        (row) =>
-          row.slug === requestedSlug &&
-          row.confidence === "high" &&
-          row.recommended,
-      ) ??
-      found.candidates.find(
-        (row) => row.confidence === "high" && row.recommended,
-      ) ??
-      null;
+    const hasExactPreviewFields =
+      Boolean(exactSourceUrl) || Boolean(exactImageUrl) || Boolean(exactSourceType);
+    let found: Awaited<ReturnType<typeof searchDefiLlamaSources>> | null = null;
+    let candidate: { slug: string; confidence: string; recommended: boolean; sourceUrl: string; imageUrl: string; name: string; sourceType: string; selectedImagePattern?: string; score?: number; reasons?: string[]; debug?: Record<string, unknown> } | null = null;
+
+    if (hasExactPreviewFields) {
+      if (!exactSourceUrl || !exactImageUrl || !exactSourceType) {
+        const message = `DefiLlama token candidate missing fields: sourceUrl=${Boolean(exactSourceUrl)} imageUrl=${Boolean(exactImageUrl)} sourceType=${Boolean(exactSourceType)}.`;
+        await updateLogoFetchState(logo.slug, "defillama", message);
+        redirectLogoNotice(logo.slug, "error", message);
+      }
+      candidate = {
+        slug: requestedSlug,
+        confidence: exactResolverConfidence || "high",
+        recommended: true,
+        sourceUrl: exactSourceUrl,
+        imageUrl: exactImageUrl,
+        name: exactCandidateName || logo.name,
+        sourceType: exactSourceType,
+        selectedImagePattern: exactSelectedImagePattern || (exactSourceType === "token-icon" ? "token-icon" : undefined),
+        score: undefined,
+        reasons: ["exact preview candidate submission"],
+        debug: { tokenSymbol: exactTokenSymbol || undefined, coinGeckoId: exactCoinGeckoId || undefined },
+      };
+    } else {
+      const aliasSet = buildProviderAliasSet({
+        name: logo.name,
+        slug: logo.slug,
+        knownAliases: [requestedSlug],
+        coinGeckoId: logo.coingecko_id,
+        defillamaSlug: requestedSlug,
+      });
+      found = await searchDefiLlamaSources(requestedSlug, {
+        targetName: logo.name,
+        targetSlug: logo.slug,
+        category: logo.category,
+        aliases: aliasSet.providerVariants.defillama,
+      });
+      candidate =
+        found.candidates.find((row) => row.slug === requestedSlug && row.confidence === "high" && row.recommended) ??
+        found.candidates.find((row) => row.confidence === "high" && row.recommended) ??
+        null;
+    }
 
     if (!candidate) {
-      await updateLogoFetchState(
-        logo.slug,
-        "defillama",
-        "No reliable DefiLlama source found.",
-      );
+      const message = hasExactPreviewFields
+        ? `DefiLlama exact candidate validation failed: missing candidate after parse sourceUrl=${exactSourceUrl || "n/a"} imageUrl=${exactImageUrl || "n/a"} sourceType=${exactSourceType || "n/a"}`
+        : "No reliable DefiLlama source found.";
+      await updateLogoFetchState(logo.slug, "defillama", message);
       redirectLogoNotice(
         logo.slug,
         "warning",
-        "No reliable DefiLlama source found.",
+        message,
       );
     }
     const classified = classifyDefiLlamaSourceV3({
       logoName: logo.name,
       logoSlug: logo.slug,
       logoCategory: logo.category,
-      knownAliases: [requestedSlug, candidate.slug],
+      knownAliases: [requestedSlug, candidate.slug, exactTokenSymbol, exactCoinGeckoId].filter(Boolean),
       source: {
         id: "candidate",
         logo_id: logo.id,
@@ -836,8 +869,18 @@ export async function addDefiLlamaAction(formData: FormData) {
       } as unknown as LogoSource,
     });
     if (!classified.valid) {
-      await updateLogoFetchState(logo.slug, "defillama", "No reliable DefiLlama source found.");
-      redirectLogoNotice(logo.slug, "warning", `No reliable DefiLlama source found (${classified.reason}).`);
+      const details = `DefiLlama candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType} reason=${classified.reason}`;
+      await updateLogoFetchState(logo.slug, "defillama", details);
+      redirectLogoNotice(logo.slug, "warning", details);
+    }
+    if (
+      (candidate.sourceType === "token-icon" || /defillama\.com\/token\//i.test(candidate.sourceUrl)) &&
+      (!/^https:\/\/defillama\.com\/token\//i.test(candidate.sourceUrl) ||
+        !/^https:\/\/token-icons\.llamao\.fi\/icons\/tokens\/gecko\//i.test(candidate.imageUrl))
+    ) {
+      const message = `DefiLlama token candidate invalid: sourceUrl=${candidate.sourceUrl} imageUrl=${candidate.imageUrl} sourceType=${candidate.sourceType}`;
+      await updateLogoFetchState(logo.slug, "defillama", message);
+      redirectLogoNotice(logo.slug, "error", message);
     }
 
     const existingDefiLlamaSource = sourcesBefore.find((source) => {
@@ -882,12 +925,14 @@ export async function addDefiLlamaAction(formData: FormData) {
         score: candidate.score,
         fetchedAt: new Date().toISOString(),
         reviewStatus,
-        sourceOrigin: "defillama-v3-discovery",
+        sourceOrigin: candidate.sourceType === "token-icon" ? "defillama-token-route" : "defillama-v3-discovery",
         sourceType: candidate.sourceType,
         selectedImagePattern: candidate.selectedImagePattern,
         canonicalCandidate: reviewStatus === "selected_needs_review",
         resolverDebug: candidate.debug,
-        defillamaV3: classified.sourceType,
+        defillamaV3: candidate.sourceType === "token-icon" ? "token-icon" : classified.sourceType,
+        tokenSymbol: exactTokenSymbol || undefined,
+        coinGeckoId: exactCoinGeckoId || undefined,
       },
       status: "candidate",
       reviveRejected: false,
@@ -940,7 +985,7 @@ export async function addDefiLlamaAction(formData: FormData) {
             )
           )
         where id = $1 and logo_id = $2`,
-      [created.id, logo.id, classified.sourceType],
+      [created.id, logo.id, candidate.sourceType === "token-icon" ? "token-icon" : classified.sourceType],
     );
 
     const postSaveSources = (await getLogoSources(logo.id)).rows;
