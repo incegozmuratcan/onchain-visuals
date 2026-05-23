@@ -374,43 +374,115 @@ function DiscoverySummary({ summary }: { summary: string }) {
   }
 }
 
-function DefiLlamaDiscoveryCard({ summary }: { summary: string }) {
+function formatDefiLlamaDetailEntries(summary: Record<string, unknown>) {
+  const rawDetails = Array.isArray(summary.details)
+    ? (summary.details as Record<string, unknown>[])
+    : [];
+  return rawDetails.map((row) => {
+    const candidate = (row.selectedCandidate ?? null) as
+      | Record<string, unknown>
+      | null;
+    return {
+      slug: String(row.slug ?? "-"),
+      name: row.name ? String(row.name) : null,
+      finalStatus: String(row.finalStatus ?? "-"),
+      aliases: Array.isArray(row.aliasesTried) ? row.aliasesTried.map(String) : [],
+      sourceUrl: candidate?.sourceUrl ? String(candidate.sourceUrl) : "-",
+      imageUrl: candidate?.imageUrl ? String(candidate.imageUrl) : "-",
+      sourceType: candidate?.sourceType ? String(candidate.sourceType) : "-",
+      candidateLabel: candidate?.name
+        ? `${String(candidate.name)} / ${String(candidate.slug ?? "-")}`
+        : "-",
+      validation:
+        typeof row.validationResult === "string"
+          ? row.validationResult
+          : "-",
+      rejectionReason: row.rejectionReason ? String(row.rejectionReason) : "-",
+      canonicalResult: row.canonicalSimulation
+        ? String(row.canonicalSimulation)
+        : row.canonicalStateAfterSave
+          ? String(row.canonicalStateAfterSave)
+          : "-",
+      vaultResult: row.vaultSimulation
+        ? String(row.vaultSimulation)
+        : row.vaultCopyResult
+          ? String(row.vaultCopyResult)
+          : "-",
+    };
+  });
+}
+
+function DefiLlamaDiscoveryCard({
+  title,
+  summary,
+  emptyLabel,
+  mode,
+}: {
+  title: string;
+  summary: string | null;
+  emptyLabel: string;
+  mode: "discovery" | "dry-run" | "live";
+}) {
+  if (!summary)
+    return (
+      <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
+        {emptyLabel}: not run yet
+      </div>
+    );
   try {
     const data = JSON.parse(summary) as Record<string, unknown>;
     const checked = Number(data.checked ?? 0);
-    const found = Number(data.defillamaFetched ?? data.defillamaFound ?? 0);
-    const noReliable = Number(data.defillamaNoReliable ?? data.defillamaMissing ?? 0);
-    const missing = Number(data.defillamaMissing ?? data.defillamaNoReliable ?? 0);
-    const errors = Number(data.defillamaErrors ?? 0);
+    const noReliable = Number(data.noReliable ?? data.defillamaNoReliable ?? 0);
+    const errors = Number(data.errors ?? data.defillamaErrors ?? 0);
     const details = [
       ...(Array.isArray(data.candidateList) ? data.candidateList.map(String).filter((item) => item.includes("DefiLlama")) : []),
       ...(Array.isArray(data.firstErrors) ? data.firstErrors.map(String).filter((item) => item.includes("DefiLlama")) : []),
       ...(Array.isArray(data.firstSkippedReasons) ? data.firstSkippedReasons.map(String).filter((item) => item.includes("DefiLlama")) : []),
     ].map(detailFromText);
-    const recoveryDetails = Array.isArray(data.details) ? data.details as any[] : [];
+    const recoveryDetails = formatDefiLlamaDetailEntries(data);
+    const headline =
+      mode === "dry-run"
+        ? `${checked} checked · ${Number(data.candidatesFound ?? 0)} candidatesFound · ${Number(data.saveable ?? 0)} saveable · ${Number(data.wouldSave ?? 0)} wouldSave · ${Number(data.rejectedCandidates ?? 0)} rejectedCandidates · ${Number(data.noCandidate ?? 0)} noCandidate · ${Number(data.noReliable ?? 0)} noReliable · ${Number(data.validationFailed ?? 0)} validationFailed · ${Number(data.canonicalWouldFail ?? 0)} canonicalWouldFail · ${Number(data.vaultWouldCopy ?? 0)} vaultWouldCopy · ${Number(data.vaultWouldFail ?? 0)} vaultWouldFail · ${errors} errors`
+        : mode === "live"
+          ? `${checked} checked · ${Number(data.sourceSaved ?? 0)} sourceSaved · ${Number(data.canonicalUpdated ?? 0)} canonicalUpdated · ${Number(data.vaultCopied ?? 0)} vaultCopied · ${Number(data.vaultCopyFailed ?? 0)} vaultCopyFailed · ${Number(data.noReliable ?? 0)} noReliable · ${errors} errors`
+          : `${checked} checked · ${Number(data.defillamaFetched ?? data.defillamaFound ?? 0)} found · ${Number(data.defillamaNoReliable ?? data.defillamaMissing ?? 0)} no reliable · ${Number(data.defillamaMissing ?? data.defillamaNoReliable ?? 0)} missing · ${Number(data.defillamaErrors ?? 0)} errors`;
     return (
       <div className={`rounded-lg border p-2 text-xs font-bold ${summaryToneClass(errors, noReliable)}`}>
         <div className="flex items-center justify-between gap-2">
-          <div className="font-black">DefiLlama discovery</div>
+          <div className="font-black">{title}</div>
           <div className="text-slate-400">{data.timestamp ? new Date(String(data.timestamp)).toLocaleString() : "latest"}</div>
         </div>
-        <div className="mt-1">
-          {checked} checked · {found} found · {noReliable} no reliable · {missing} missing · {errors} errors
-        </div>
-        <details className="mt-1">
-          <summary className="cursor-pointer text-slate-500">Details</summary>
-          <DetailList entries={details} empty="No DefiLlama details recorded" />
-        </details>
+        <div className="mt-1">{headline}</div>
+        {details.length ? (
+          <details className="mt-1">
+            <summary className="cursor-pointer text-slate-500">Details</summary>
+            <DetailList entries={details} empty="No DefiLlama details recorded" />
+          </details>
+        ) : null}
         {recoveryDetails.length ? (
           <details className="mt-1">
-            <summary className="cursor-pointer text-slate-500">Dry-run / recovery details ({recoveryDetails.length})</summary>
+            <summary className="cursor-pointer text-slate-500">
+              Show all detail rows ({recoveryDetails.length})
+            </summary>
             <div className="mt-1 grid gap-1">
-              {recoveryDetails.slice(0, 200).map((row: any) => (
-                <div key={`${String(row.slug)}-${String(row.finalStatus)}`} className="rounded border border-slate-100 bg-white p-1.5 text-[11px] text-slate-700">
-                  <div className="font-black">{row.slug} — {row.finalStatus}</div>
-                  <div>aliases: {Array.isArray(row.aliasesTried) ? row.aliasesTried.slice(0, 8).join(", ") : "-"}</div>
-                  <div>candidate: {row.selectedCandidate?.name ?? row.selectedCandidate ?? "-"}</div>
-                  <div>reason: {row.rejectionReason ?? "-"}</div>
+              {recoveryDetails.slice(0, 300).map((row) => (
+                <div
+                  key={`${row.slug}-${row.finalStatus}`}
+                  className="rounded border border-slate-100 bg-white p-1.5 text-[11px] text-slate-700"
+                >
+                  <div className="font-black">
+                    {row.slug}
+                    {row.name ? ` — ${row.name}` : ""} — {row.finalStatus}
+                  </div>
+                  <div>aliases: {row.aliases.length ? row.aliases.join(", ") : "-"}</div>
+                  <div>candidate: {row.candidateLabel}</div>
+                  <div>source: {row.sourceUrl}</div>
+                  <div>image: {row.imageUrl}</div>
+                  <div>sourceType: {row.sourceType}</div>
+                  <div>validation: {row.validation}</div>
+                  <div>reason: {row.rejectionReason}</div>
+                  <div>canonical: {row.canonicalResult}</div>
+                  <div>vault: {row.vaultResult}</div>
                 </div>
               ))}
             </div>
@@ -419,7 +491,11 @@ function DefiLlamaDiscoveryCard({ summary }: { summary: string }) {
       </div>
     );
   } catch {
-    return <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">DefiLlama discovery: not run yet</div>;
+    return (
+      <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
+        {emptyLabel}: not run yet
+      </div>
+    );
   }
 }
 
@@ -503,6 +579,9 @@ function SourceTools({
   summaries,
   scanSummary,
   discoverySummary,
+  defillamaDiscoverySummary,
+  dryRunRecoverySummary,
+  liveRecoverySummary,
   missingMappingRows,
   cmcEnabled,
   blobEnabled,
@@ -510,6 +589,9 @@ function SourceTools({
   summaries: Awaited<ReturnType<typeof getBulkRefreshSummaries>>;
   scanSummary: ReturnType<typeof parseMetricLogoScanSummary>;
   discoverySummary: string | null;
+  defillamaDiscoverySummary: string | null;
+  dryRunRecoverySummary: string | null;
+  liveRecoverySummary: string | null;
   missingMappingRows: LogoQaRow[];
   cmcEnabled: boolean;
   blobEnabled: boolean;
@@ -637,13 +719,9 @@ function SourceTools({
             CoinMarketCap refresh: not run yet
           </div>
         )}
-        {discoverySummary ? (
-          <DefiLlamaDiscoveryCard summary={discoverySummary} />
-        ) : (
-          <div className="rounded-lg bg-slate-50 p-2 text-xs font-bold text-slate-400">
-            DefiLlama discovery: not run yet
-          </div>
-        )}
+        <DefiLlamaDiscoveryCard title="DefiLlama dry-run recovery" summary={dryRunRecoverySummary} emptyLabel="DefiLlama dry-run recovery" mode="dry-run" />
+        <DefiLlamaDiscoveryCard title="DefiLlama live recovery" summary={liveRecoverySummary} emptyLabel="DefiLlama live recovery" mode="live" />
+        <DefiLlamaDiscoveryCard title="DefiLlama discovery" summary={defillamaDiscoverySummary ?? discoverySummary} emptyLabel="DefiLlama discovery" mode="discovery" />
       </div>
     </AdminSection>
   );
@@ -679,6 +757,27 @@ export default async function AdminLogosPage({
         null,
       )
     : { data: null, error: null };
+  const defillamaDryRunResult = config.hasDatabase
+    ? await safeAdminDbQuery(
+        "DefiLlama dry-run recovery summary",
+        async () => await getSetting("last_defillama_dry_run_recovery_summary"),
+        null,
+      )
+    : { data: null, error: null };
+  const defillamaLiveResult = config.hasDatabase
+    ? await safeAdminDbQuery(
+        "DefiLlama live recovery summary",
+        async () => await getSetting("last_defillama_live_recovery_summary"),
+        null,
+      )
+    : { data: null, error: null };
+  const defillamaDiscoveryResult = config.hasDatabase
+    ? await safeAdminDbQuery(
+        "DefiLlama discovery summary",
+        async () => await getSetting("last_defillama_discovery_summary"),
+        null,
+      )
+    : { data: null, error: null };
   const logoResult = config.hasDatabase
     ? await safeAdminDbQuery(
         "Logo records",
@@ -704,6 +803,9 @@ export default async function AdminLogosPage({
     summaryResult.error,
     scanResult.error,
     discoveryResult.error,
+    defillamaDryRunResult.error,
+    defillamaLiveResult.error,
+    defillamaDiscoveryResult.error,
     logoResult.error,
     sourceResult.error,
   ].filter(Boolean);
@@ -941,6 +1043,9 @@ export default async function AdminLogosPage({
           summaries={summaries}
           scanSummary={scanSummary}
           discoverySummary={discoveryResult.data}
+          defillamaDiscoverySummary={defillamaDiscoveryResult.data}
+          dryRunRecoverySummary={defillamaDryRunResult.data}
+          liveRecoverySummary={defillamaLiveResult.data}
           missingMappingRows={missingMappingRows}
           cmcEnabled={Boolean(providersReady.coinmarketcap)}
           blobEnabled={config.hasBlob}
