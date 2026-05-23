@@ -17,8 +17,8 @@ export type DefiLlamaDebugAttempt = {
   reason: string;
 };
 
-export type DefiLlamaSourceType = "chain-icon" | "chain-mirror" | "protocol-index";
-export type DefiLlamaImagePattern = "chains-rsz" | "chains-direct" | "protocol-icon" | "local-chain-mirror";
+export type DefiLlamaSourceType = "chain-icon" | "chain-mirror" | "protocol-index" | "token-icon";
+export type DefiLlamaImagePattern = "chains-rsz" | "chains-direct" | "protocol-icon" | "local-chain-mirror" | "token-icon";
 
 export type DefiLlamaCandidate = {
   id: string;
@@ -55,6 +55,13 @@ export type DefiLlamaSearchDebug = {
 };
 
 type ResolverContext = { targetName?: string | null; targetSlug?: string | null; category?: string | null; aliases?: string[] };
+
+type TokenRouteDebug = {
+  tokenSymbolsTried: string[];
+  geckoIdsTried: string[];
+  tokenPagesTried: string[];
+  tokenIconsTried: string[];
+};
 
 type IndexRow = {
   name: string;
@@ -163,6 +170,8 @@ function resizedChainIconUrl(value: string) {
 function protocolIconUrl(value: string) {
   return `https://icons.llama.fi/${encodeURIComponent(value)}.jpg`;
 }
+function tokenPageUrl(symbolUpper: string) { return `https://defillama.com/token/${encodeURIComponent(symbolUpper)}`; }
+function tokenIconUrl(geckoId: string) { return `https://token-icons.llamao.fi/icons/tokens/gecko/${encodeURIComponent(geckoId)}?w=48&h=48`; }
 
 function trustedRows(): IndexRow[] {
   return TRUSTED_NATIVE_CHAIN_MAPPINGS.map((mapping) => ({
@@ -264,13 +273,39 @@ async function hasImage(url: string): Promise<{ ok: boolean; attempts: DefiLlama
   try {
     const response = await fetchWithTimeout(url, { headers: { accept: "image/png,image/jpeg,image/webp,*/*", range: "bytes=0-2047" }, cache: "no-store" });
     const contentType = response.headers.get("content-type");
-    const accepted = response.ok && imageLike(contentType);
+    const len = Number(response.headers.get("content-length") || "0");
+    const accepted = response.ok && imageLike(contentType) && (Number.isFinite(len) ? len >= 200 : true);
     attempts.push({ url, method: "GET", status: response.status, contentType, accepted, reason: accepted ? "partial GET image content-type" : response.ok ? "weak_or_missing_content_type" : `status_${response.status}` });
     return { ok: accepted, attempts };
   } catch (error) {
     attempts.push({ url, method: "GET", status: null, contentType: null, accepted: false, reason: error instanceof Error ? error.message : "get_failed" });
     return { ok: false, attempts };
   }
+}
+
+async function resolveTokenRoute(query: string, context: ResolverContext): Promise<{ candidate: DefiLlamaCandidate | null; debug: TokenRouteDebug; attempts: DefiLlamaDebugAttempt[] }> {
+  const symbolsRaw = unique([
+    query,
+    ...(context.aliases ?? []),
+  ]).map((v) => String(v || "").replace(/[^a-z0-9.-]/gi, "")).filter(Boolean);
+  const symbolCandidates = unique(symbolsRaw.map((s) => s.toUpperCase()).filter((s) => /^[A-Z0-9.-]{2,12}$/.test(s)));
+  const geckoIds = unique([context.targetSlug || "", ...(context.aliases ?? [])].map((v) => slugText(v)).filter(Boolean));
+  const debug: TokenRouteDebug = { tokenSymbolsTried: symbolCandidates, geckoIdsTried: geckoIds, tokenPagesTried: [], tokenIconsTried: [] };
+  const attempts: DefiLlamaDebugAttempt[] = [];
+  for (const geckoId of geckoIds) {
+    const icon = tokenIconUrl(geckoId);
+    debug.tokenIconsTried.push(icon);
+    const image = await hasImage(icon);
+    attempts.push(...image.attempts);
+    if (!image.ok) continue;
+    const symbol = symbolCandidates[0] || String(context.targetName || query).toUpperCase();
+    const page = tokenPageUrl(symbol);
+    debug.tokenPagesTried.push(page);
+    const sourceType: DefiLlamaSourceType = "token-icon";
+    const c: DefiLlamaCandidate = { id: geckoId, name: context.targetName || symbol, slug: geckoId, category: "protocol", sourceUrl: page, imageUrl: icon, confidence: "high", score: 93, recommended: true, sourceType, selectedImagePattern: "token-icon", reasons: ["defillama token route", "symbol + gecko id match"], debug: { selectedReason: "token route", aliasesTried: context.aliases ?? [], urlPatternsTried: [page, icon], attempts: image.attempts } };
+    return { candidate: c, debug, attempts };
+  }
+  return { candidate: null, debug, attempts };
 }
 
 async function resolveImageUrl(row: IndexRow) {
@@ -381,6 +416,11 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
       if (!resolved.imageUrl) continue;
       candidates.push({ id: row.slug, name: row.name, slug: row.slug, category: row.category, sourceUrl: row.sourceUrl, imageUrl: resolved.imageUrl, confidence, score, recommended: false, sourceType: resolved.sourceType, selectedImagePattern: resolved.selectedImagePattern, reasons: strict.reasons, debug: { selectedReason: strict.reasons.join(", "), aliasesTried: aliasContext, urlPatternsTried: resolved.urls, attempts: resolved.attempts } });
     }
+    const tokenRoute = await resolveTokenRoute(q, { ...context, aliases: aliasContext });
+    debug.attempts.push(...tokenRoute.attempts);
+    debug.notices.push(`tokenSymbolsTried=${tokenRoute.debug.tokenSymbolsTried.join(",") || "none"}`);
+    debug.notices.push(`geckoIdsTried=${tokenRoute.debug.geckoIdsTried.join(",") || "none"}`);
+    if (tokenRoute.candidate) candidates.unshift(tokenRoute.candidate);
     const recommended = candidates.find((candidate) => candidate.confidence === "high" && !candidate.reasons?.some((reason) => ["category_mismatch", "derivative_asset", "low_name_similarity", "stablecoin_only_category"].includes(reason)));
     if (recommended) {
       recommended.recommended = true;

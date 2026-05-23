@@ -1,3 +1,12 @@
+
+## v0.11.37 DefiLlama token route resolver (Blocker)
+
+- Added DefiLlama token route discovery as a first-class source family (`token-icon`) using `/token/{SYMBOL}` source pages and `token-icons.llamao.fi/icons/tokens/gecko/{coinGeckoId}?w=48&h=48` icon URLs.
+- Resolver now attempts token-symbol/gecko-id candidate construction from alias families and metadata and reports token diagnostics (`tokenSymbolsTried`, `geckoIdsTried`, token route attempts).
+- Validator accepts DefiLlama token-icon rows when source URL, image URL, and metadata (`defillamaV3/sourceType=token-icon`) match token-route rules and pass target-family checks.
+- Missing DefiLlama recovery and save paths now preserve token-icon `sourceType` metadata, enabling canonical DefiLlama REVIEW/OK parity and separate Vault copy postconditions.
+- Confirmed target examples documented: DIMO (`/token/DIMO` -> `.../gecko/dimo?w=48&h=48`) and Render (`/token/RENDER` -> `.../gecko/render-token?w=48&h=48`).
+
 ## v0.11.36 Provider coverage orchestrator blocker fix
 
 - Neutralized PR #120 local fallback detour for glow/eni/quai/render by removing static fallback wiring from `logoRegistry` and deleting unused static fallback SVG assets so local files cannot be misread as provider coverage.
