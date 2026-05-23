@@ -387,6 +387,7 @@ function DefiLlamaDiscoveryCard({ summary }: { summary: string }) {
       ...(Array.isArray(data.firstErrors) ? data.firstErrors.map(String).filter((item) => item.includes("DefiLlama")) : []),
       ...(Array.isArray(data.firstSkippedReasons) ? data.firstSkippedReasons.map(String).filter((item) => item.includes("DefiLlama")) : []),
     ].map(detailFromText);
+    const recoveryDetails = Array.isArray(data.details) ? data.details as any[] : [];
     return (
       <div className={`rounded-lg border p-2 text-xs font-bold ${summaryToneClass(errors, noReliable)}`}>
         <div className="flex items-center justify-between gap-2">
@@ -400,6 +401,21 @@ function DefiLlamaDiscoveryCard({ summary }: { summary: string }) {
           <summary className="cursor-pointer text-slate-500">Details</summary>
           <DetailList entries={details} empty="No DefiLlama details recorded" />
         </details>
+        {recoveryDetails.length ? (
+          <details className="mt-1">
+            <summary className="cursor-pointer text-slate-500">Dry-run / recovery details ({recoveryDetails.length})</summary>
+            <div className="mt-1 grid gap-1">
+              {recoveryDetails.slice(0, 200).map((row: any) => (
+                <div key={`${String(row.slug)}-${String(row.finalStatus)}`} className="rounded border border-slate-100 bg-white p-1.5 text-[11px] text-slate-700">
+                  <div className="font-black">{row.slug} — {row.finalStatus}</div>
+                  <div>aliases: {Array.isArray(row.aliasesTried) ? row.aliasesTried.slice(0, 8).join(", ") : "-"}</div>
+                  <div>candidate: {row.selectedCandidate?.name ?? row.selectedCandidate ?? "-"}</div>
+                  <div>reason: {row.rejectionReason ?? "-"}</div>
+                </div>
+              ))}
+            </div>
+          </details>
+        ) : null}
       </div>
     );
   } catch {

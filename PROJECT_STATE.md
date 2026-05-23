@@ -591,3 +591,11 @@
 - CMC helper now returns a non-fatal "No reliable CMC match" result when API queries succeed but no confident candidate exists.
 - Alias expansion now includes Monad ↔ MON, improving CMC uppercase short-symbol fallback attempts and DefiLlama/CMC alias parity.
 - Deterministic provider resolver verification script now covers Render/Render Network alias family, Monad MON alias fallback, CMC direct-ID path state, and Rootstock DefiLlama-to-Vault copy preconditions.
+
+## v0.11.32 DefiLlama recovery truth + dry-run detail diagnostics + CMC 400 resilience (Blocker)
+
+- DefiLlama auto-resolve now reports `fetched` only after source save + canonical DefiLlama REVIEW/OK postcondition verification; otherwise explicit failure statuses are emitted.
+- Missing DefiLlama dry-run/live recovery summaries now persist detailed per-logo diagnostics (aliases, candidates, selected candidate, validation result, canonical/vault simulation or outcome, rejection reason, final status).
+- Dry-run recovery summaries are persisted separately in `admin_settings.last_defillama_dry_run_recovery_summary` (live in `last_defillama_live_recovery_summary`) and include full `details` arrays.
+- Source Tools DefiLlama summary now renders expandable per-logo dry-run/recovery detail rows in admin UI.
+- CoinMarketCap search hardens alias query behavior by skipping invalid empty params and keeping alias attempts resilient; numeric-ID mode bypasses search.

@@ -583,3 +583,12 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Source Tools includes **Dry run missing DefiLlama recovery**: it runs the same live resolver pipeline for the current missing DefiLlama target set, stores full per-logo diagnostics, and performs no source writes.
 - Missing DefiLlama recovery persists DefiLlama candidate sources first and verifies canonical REVIEW/OK before attempting managed-vault copy; vault copy failures are reported separately and do not roll back source recovery.
 - Deterministic regression: `npm run verify:defillama-missing-set` covers the current visible missing set alias families plus mocked resolver/classifier and vault-copy behavior.
+
+
+## v0.11.32 DefiLlama recovery truth + dry-run details + CMC 400 resilience
+
+- DefiLlama `auto-resolved ... / fetched` output is now postcondition-gated: fetch messaging is emitted only when DB source + canonical DefiLlama REVIEW/OK checks pass.
+- Missing DefiLlama dry-run/live recovery now stores full per-logo diagnostics and summary counters (including rejection/no-candidate detail) for admin inspection.
+- Dry-run details are stored under `last_defillama_dry_run_recovery_summary`; live recovery under `last_defillama_live_recovery_summary`.
+- Source Tools now shows expandable per-logo dry-run/recovery details including aliases, candidate, rejection reason and final status.
+- CoinMarketCap resolver skips invalid empty query params and supports numeric-ID bypass path to avoid unnecessary failing search attempts.
