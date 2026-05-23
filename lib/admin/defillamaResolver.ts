@@ -91,6 +91,8 @@ const TRUSTED_NATIVE_CHAIN_MAPPINGS: Array<{ name: string; slug: string; aliases
   { name: "Cosmos Hub", slug: "cosmos", aliases: ["cosmos", "cosmos-hub", "atom"] },
   { name: "Noble", slug: "noble", aliases: ["noble", "noble-chain", "noble network", "noble-network"] },
   { name: "Quai Network", slug: "quai", aliases: ["quai", "quai-network", "quai network"] },
+  { name: "ENI", slug: "eni", aliases: ["eni", "eni-chain", "eni network", "eni-network"] },
+  { name: "Provenance", slug: "provenance", aliases: ["provenance", "provenance blockchain", "provenance-blockchain", "hash"] },
 ];
 
 const KNOWN_ALIAS_GROUPS = [
@@ -162,9 +164,15 @@ function imageSlugCandidates(row: Pick<IndexRow, "name" | "slug" | "aliases" | "
 function chainIconUrl(value: string) {
   return `https://icons.llama.fi/chains/${encodeURIComponent(value)}.jpg`;
 }
+function llamaoChainIconUrl(value: string) {
+  return `https://icons.llamao.fi/icons/chains/${encodeURIComponent(value)}?w=48&h=48`;
+}
 
 function resizedChainIconUrl(value: string) {
   return `https://icons.llama.fi/chains/rsz_${encodeURIComponent(value)}.jpg`;
+}
+function llamaoResizedChainIconUrl(value: string) {
+  return `https://icons.llamao.fi/icons/chains/rsz_${encodeURIComponent(value)}?w=48&h=48`;
 }
 
 function protocolIconUrl(value: string) {
@@ -181,6 +189,8 @@ function trustedRows(): IndexRow[] {
     sourceUrl: `https://defillama.com/chain/${slugText(mapping.slug)}`,
     aliases: chainAliases(mapping.name, mapping.slug).concat(mapping.aliases),
     imageUrls: unique([mapping.slug, ...mapping.aliases, ...expandKnownAliases(mapping.slug, ...mapping.aliases)]).flatMap((alias) => [
+      llamaoResizedChainIconUrl(alias),
+      llamaoChainIconUrl(alias),
       resizedChainIconUrl(alias),
       chainIconUrl(alias),
     ]),
@@ -220,7 +230,7 @@ async function defillamaIndex() {
         imageUrls: [
           String(chain.logo || ""),
           String(chain.logoUrl || ""),
-          ...imageSlugCandidates({ name, slug, aliases: chainAliases(name, slug), imageSlugs: [slug, name] }).flatMap((alias) => [resizedChainIconUrl(alias), chainIconUrl(alias), protocolIconUrl(alias)]),
+          ...imageSlugCandidates({ name, slug, aliases: chainAliases(name, slug), imageSlugs: [slug, name] }).flatMap((alias) => [llamaoResizedChainIconUrl(alias), llamaoChainIconUrl(alias), resizedChainIconUrl(alias), chainIconUrl(alias), protocolIconUrl(alias)]),
         ].filter(Boolean),
         imageSlugs: [slug, name, ...expandKnownAliases(name, slug)],
       });

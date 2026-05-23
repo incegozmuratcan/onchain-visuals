@@ -5,11 +5,11 @@ const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","pl
 const slugText=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const uniq=(arr)=>[...new Set(arr.filter(Boolean))];
 const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");if(n.some((s)=>["xrp","xrpl","xrp-ledger","ripple","ripple-network","xrpl-mainnet"].includes(s)))n.push("xrp","xrpl","xrp-ledger","xrp-ledger","ripple","ripple-network","xrpl-mainnet");return uniq(n)};
-const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
+const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u)||/https?:\/\/icons\.llamao\.fi\/icons\/chains\/(?:rsz_)?[^/?#.]+(?:\?w=48&h=48)?/i.test(u);
 const isGuessedProtocolRow=(s,i)=>/defillama\.com\/protocol\//i.test(s)&&/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(i);
 const isExternalProtocolIcon=(u)=>/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
 const isTokenIconUrl=(u)=>/^https?:\/\/token-icons\.llamao\.fi\/icons\/tokens\/gecko\/[a-z0-9-]+\?w=48&h=48/i.test(u);
-const slugFromUrl=(v)=>{v=String(v||'').toLowerCase();const m1=v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);if(m1?.[1])return slugText(m1[1]);const m2=v.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);return m2?.[1]?slugText(m2[1]):''};
+const slugFromUrl=(v)=>{v=String(v||'').toLowerCase();const m1=v.match(/defillama\.com\/(?:protocol|chain|stablecoin)\/([^/?#]+)/i);if(m1?.[1])return slugText(m1[1]);const m2=v.match(/icons\.llama\.fi\/(?:chains\/)?(?:rsz_)?([^/?#.]+)\.[a-z0-9]+/i);if(m2?.[1])return slugText(m2[1]);const m3=v.match(/icons\.llamao\.fi\/icons\/chains\/(?:rsz_)?([^/?#.&]+)/i);return m3?.[1]?slugText(m3[1]):''};
 function classify({logoName,logoSlug,source,knownAliases=[]}){
  const meta=source.metadata||{};const imageUrl=source.image_url||'';const sourceUrl=source.source_url||'';const combined=[imageUrl,sourceUrl,JSON.stringify(meta)].join(' ').toLowerCase();
  if(PLACEHOLDER_PATTERNS.some((p)=>combined.includes(p))) return {valid:false,sourceType:'invalid',reason:'placeholder_image'};
@@ -80,6 +80,12 @@ const dimoToken = classify({logoName:'DIMO',logoSlug:'dimo',source:{provider:'de
 assert.equal(dimoToken.valid,true);assert.equal(dimoToken.sourceType,'token-icon');
 const renderToken = classify({logoName:'Render',logoSlug:'render',knownAliases:['render-network'],source:{provider:'defillama',id:'13',source_url:'https://defillama.com/token/RENDER',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/render-token?w=48&h=48',status:'candidate',metadata:{slug:'render-token',defillamaV3:'token-icon',sourceType:'token-icon'}}});
 assert.equal(renderToken.valid,true);assert.equal(renderToken.sourceType,'token-icon');
+const eniChain = classify({logoName:'ENI',logoSlug:'eni',knownAliases:['eni-chain','eni-network'],source:{provider:'defillama',id:'14',source_url:'https://defillama.com/chain/eni',image_url:'https://icons.llamao.fi/icons/chains/rsz_eni?w=48&h=48',status:'candidate',metadata:{slug:'eni',defillamaV3:'chain-icon',sourceType:'chain-icon'}}});
+assert.equal(eniChain.valid,true);assert.equal(eniChain.sourceType,'chain-icon');
+const provenanceChain = classify({logoName:'Provenance',logoSlug:'provenance',knownAliases:['hash'],source:{provider:'defillama',id:'15',source_url:'https://defillama.com/chain/provenance',image_url:'https://icons.llamao.fi/icons/chains/rsz_provenance?w=48&h=48',status:'candidate',metadata:{slug:'provenance',defillamaV3:'chain-icon',sourceType:'chain-icon'}}});
+assert.equal(provenanceChain.valid,true);assert.equal(provenanceChain.sourceType,'chain-icon');
+const bsvToken = classify({logoName:'BSV Blockchain',logoSlug:'bsv-blockchain',knownAliases:['bsv','bitcoin-sv','bitcoin-cash-sv'],source:{provider:'defillama',id:'16',source_url:'https://defillama.com/token/BSV',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/bitcoin-cash-sv?w=48&h=48',status:'candidate',metadata:{slug:'bsv',coinGeckoId:'bitcoin-cash-sv',defillamaV3:'token-icon',sourceType:'token-icon'}}});
+assert.equal(bsvToken.valid,true);assert.equal(bsvToken.sourceType,'token-icon');
 const failureDiagnostic = { tokenSymbolsTried:['IO','IO.NET','IONET','IO-NET'], geckoIdsTried:['io','io-net','ionet'], sourceUrlsTried:['https://defillama.com/token/IONET'], imageUrlsTried:['https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48'], perAttemptReason:['IONET:io:resolve'] };
 assert.equal(Array.isArray(failureDiagnostic.tokenSymbolsTried),true);assert.equal(Array.isArray(failureDiagnostic.geckoIdsTried),true);assert.equal(Array.isArray(failureDiagnostic.sourceUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.imageUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.perAttemptReason),true);
 
