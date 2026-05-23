@@ -1,3 +1,11 @@
+## v0.11.40 DefiLlama token Use+Fetch fallback completion (Blocker)
+
+- DefiLlama token-route save now enforces token symbol fallback priority for Use + Fetch: explicit preview token symbol, CoinGecko symbol, CoinMarketCap symbol, provider alias symbols, uppercase short aliases, and only then normalized slug variants.
+- IO.NET fallback is deterministic in save flow with ordered symbol attempts `IO`, `IO.NET`, `IONET`, then `IO-NET`, ensuring `/token/IO` is attempted before `/token/IO-NET`.
+- Save flow now iterates all token symbol + gecko-id pairs instead of stopping after the first invalid pair and records full failure diagnostics (`tokenSymbolsTried`, `geckoIdsTried`, `sourceUrlsTried`, `imageUrlsTried`, `perAttemptReason`) when all attempts fail.
+- For token-icon candidates, route-probe failures are treated as non-terminal fallback signals during pair iteration; successful fallback saves preserve `sourceType=token-icon` and annotate `metadata.routeProbeStatus=route_probe_failed` when earlier route probes failed.
+
+
 ## v0.11.39 Source Tools cleanup + DefiLlama token-route save self-healing (Blocker)
 
 - `/admin/logos` Source Tools was reduced to productized actions only: **Complete logo coverage**, **Retry failed**, **Backfill alias-equivalent sources**, **Backup approved to vault**, **Force discover all**, **Apply safe CG**, and **Scan metric entities**. Experimental/dry-run/provider-coverage/hard-reset debug controls and summary cards were removed from normal Source Tools UI wiring.
