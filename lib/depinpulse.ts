@@ -19,6 +19,22 @@ export type DepinPulseLeaderboardRow = {
 
 const DEPIN_PULSE_SOURCE_URL = "https://depinpulse.app/";
 const LEADERBOARD_ROW_LIMIT = 15;
+const SOURCE_SAMPLE_MAX_CHARS = 2000;
+
+type ParseContext = {
+  sourceUrl: string;
+  fetchedAt: string;
+};
+
+type ParseDiagnostics = {
+  sourceUrl: string;
+  sourceLength: number;
+  sample: string;
+  contains: Record<string, boolean>;
+  pipeLines: number;
+  rankLines: number;
+  parsedRows: number;
+};
 
 function slugify(input: string) {
   return input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -50,58 +66,163 @@ async function fetchDepinPulseText(timeoutMs = 12_000) {
   }
 }
 
-function parseMoney(value: string) {
-  const match = value.replace(/,/g, "").match(/\$?\s*([0-9]+(?:\.[0-9]+)?)([KMB])?/i);
-  if (!match) return 0;
-  const raw = Number(match[1]);
-  if (!Number.isFinite(raw)) return 0;
+function parseMoney(value: string): number | null {
+  const raw = value.trim();
+  if (!raw || raw === "-" || /^n\/?a$/i.test(raw)) return null;
+  const normalized = raw.replace(/[,$\s]/g, "");
+  const match = normalized.match(/^(-?\d+(?:\.\d+)?)([KMB])?$/i);
+  if (!match) return null;
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return null;
   const suffix = match[2]?.toUpperCase();
   const multiplier = suffix === "B" ? 1e9 : suffix === "M" ? 1e6 : suffix === "K" ? 1e3 : 1;
-  return raw * multiplier;
+  return amount * multiplier;
 }
 
-function parseLeaderboardRows(sourceText: string, fetchedAt: string): DepinPulseLeaderboardRow[] {
+function parseRatio(value: string): number | null {
+  const match = value.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const out = Number(match[0]);
+  return Number.isFinite(out) ? out : null;
+}
+
+function cleanProjectName(value: string) {
+  return value
+    .replace(/^\s*\d+\s*/, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/\[\s*image\s*:[^\]]*\]/gi, " ")
+    .replace(/\bimage\s*:/gi, " ")
+    .replace(/\blogo\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function createDiagnostics(sourceText: string, sourceUrl: string, parsedRows: number): ParseDiagnostics {
+  const lines = sourceText.split(/\r?\n/);
+  return {
+    sourceUrl,
+    sourceLength: sourceText.length,
+    sample: sourceText.slice(0, SOURCE_SAMPLE_MAX_CHARS),
+    contains: {
+      "DePIN Revenue Leaderboard": sourceText.includes("DePIN Revenue Leaderboard"),
+      "30d": sourceText.includes("30d"),
+      "Annualized": sourceText.includes("Annualized"),
+      "Project": sourceText.includes("Project"),
+      "Market Cap": sourceText.includes("Market Cap"),
+      "Helium": sourceText.includes("Helium"),
+      "IO.NET": sourceText.includes("IO.NET"),
+      "Glow": sourceText.includes("Glow"),
+    },
+    pipeLines: lines.filter((line) => line.includes("|")).length,
+    rankLines: lines.filter((line) => /^\s*\d+\b/.test(line)).length,
+    parsedRows,
+  };
+}
+
+function formatDiagnostics(diag: ParseDiagnostics) {
+  return [
+    `sourceUrl=${diag.sourceUrl}`,
+    `sourceLength=${diag.sourceLength}`,
+    ...Object.entries(diag.contains).map(([key, value]) => `contains${key.replace(/[^a-zA-Z0-9]/g, "") }=${value}`),
+    `pipeLines=${diag.pipeLines}`,
+    `rankLines=${diag.rankLines}`,
+    `parsedRows=${diag.parsedRows}`,
+    `sample=${JSON.stringify(diag.sample)}`,
+  ].join("\n");
+}
+
+function detectHeaderIndexes(headerCells: string[]) {
+  const normalized = headerCells.map((h) => h.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ").replace(/\s+/g, " ").trim());
+  const findIdx = (patterns: RegExp[]) => normalized.findIndex((h) => patterns.some((pattern) => pattern.test(h)));
+  return {
+    project: findIdx([/\bproject\b/, /\bname\b/]),
+    annualized30d: findIdx([/30d annualized revenue/, /30d arr/, /annualized revenue/]),
+    revenue24h: findIdx([/24h revenue/]),
+    marketCap: findIdx([/market cap/, /\bmcap\b/]),
+    mcToArr: findIdx([/mc\s*\/\s*(30d\s*)?arr/]),
+    volume24h: findIdx([/24h vol/, /\bvolume\b/]),
+    chain: findIdx([/\bchain\b/, /\bnetwork\b/]),
+  };
+}
+
+function parseLeaderboardRows(sourceText: string, context: ParseContext): DepinPulseLeaderboardRow[] {
   const lines = sourceText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const out: DepinPulseLeaderboardRow[] = [];
+  let headerIndexes: ReturnType<typeof detectHeaderIndexes> | null = null;
+
   for (const line of lines) {
-    if (!/^\d+\s+Image:/i.test(line) || !line.includes("|")) continue;
-    const cells = line.split("|").map((cell) => cell.trim());
-    if (cells.length < 7) continue;
-    const rank = Number(cells[0].match(/^(\d+)/)?.[1] ?? 0);
-    const projectName = cells[0].replace(/^\d+\s+Image:\s*/i, "").replace(/logo\s*/i, "").trim();
+    if (line.includes("|") && /^\|/.test(line) && !/^\|[-: ]+\|?$/.test(line)) {
+      const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
+      if (!cells.length) continue;
+      const looksHeader = cells.some((c) => /(project|annualized|market|chain|network|revenue|arr|vol)/i.test(c));
+      if (looksHeader && !/^\d+$/.test(cells[0])) {
+        headerIndexes = detectHeaderIndexes(cells);
+        continue;
+      }
+    }
+
+    let cells: string[] | null = null;
+    if (line.includes("|")) {
+      cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
+    } else if (/^\d+\s+/.test(line) && /\$/i.test(line)) {
+      cells = line.split(/\s{2,}/).map((cell) => cell.trim()).filter(Boolean);
+      if (cells.length < 2) {
+        const parsed = line.match(/^(\d+\s+.+?)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|\d+(?:\.\d+)?[KMB]?)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+([^\s]+)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+(.+)$/i);
+        if (parsed) cells = [parsed[1], parsed[2], parsed[3], parsed[4], parsed[5], parsed[6], parsed[7]];
+      }
+    }
+    if (!cells || cells.length < 2) continue;
+    if (/^#?$/.test(cells[0]) || /^-+$/.test(cells[0])) continue;
+
+    const defaultIdx = { project: 0, annualized30d: 1, revenue24h: 2, marketCap: 3, mcToArr: 4, volume24h: 5, chain: 6 };
+    const idx = headerIndexes && headerIndexes.project >= 0 && headerIndexes.annualized30d >= 0 ? headerIndexes : defaultIdx;
+
+    const projectCell = cells[idx.project] ?? cells[0];
+    const projectName = cleanProjectName(projectCell);
+    const annualized = parseMoney(cells[idx.annualized30d] ?? "");
+    if (!projectName || !annualized || annualized <= 0) continue;
+
     const projectSlug = slugify(projectName);
-    const annualized30dRevenueUsd = parseMoney(cells[1]);
-    const revenue24hUsd = parseMoney(cells[2]);
-    const marketCapUsd = parseMoney(cells[3]) || null;
-    const mcToArr = Number(cells[4].replace(/[^0-9.]/g, "")) || null;
-    const volume24hUsd = parseMoney(cells[5]) || null;
-    const chain = cells[6]?.replace(/\s+/g, " ").trim() ?? "";
-    if (!projectName || !chain || annualized30dRevenueUsd <= 0) continue;
-    out.push({
-      rank: rank || out.length + 1,
+    const row: DepinPulseLeaderboardRow = {
+      rank: Number((cells[0] ?? "").match(/^(\d+)/)?.[1] ?? out.length + 1),
       projectName,
       projectSlug,
       logoKey: mapProjectSlugToLogoKey(projectSlug),
-      annualized30dRevenueUsd,
-      revenue24hUsd,
-      marketCapUsd,
-      mcToArr,
-      volume24hUsd,
-      chain,
-      sourceUrl: DEPIN_PULSE_SOURCE_URL,
+      annualized30dRevenueUsd: annualized,
+      revenue24hUsd: parseMoney(cells[idx.revenue24h] ?? "") ?? 0,
+      marketCapUsd: parseMoney(cells[idx.marketCap] ?? ""),
+      mcToArr: parseRatio(cells[idx.mcToArr] ?? ""),
+      volume24hUsd: parseMoney(cells[idx.volume24h] ?? ""),
+      chain: (cells[idx.chain] ?? "").replace(/\s+/g, " ").trim(),
+      sourceUrl: context.sourceUrl,
       sourceUpdatedAt: null,
-      fetchedAt,
-    });
+      fetchedAt: context.fetchedAt,
+    };
+    if (!row.chain) row.chain = "Unknown";
+    out.push(row);
   }
-  return out.sort((a, b) => b.annualized30dRevenueUsd - a.annualized30dRevenueUsd).map((row, index) => ({ ...row, rank: index + 1 }));
+
+  const sorted = out.sort((a, b) => b.annualized30dRevenueUsd - a.annualized30dRevenueUsd).map((row, index) => ({ ...row, rank: index + 1 }));
+  return sorted;
 }
 
 export async function getDepinPulseRevenueLeaderboard(): Promise<DepinPulseLeaderboardRow[]> {
   const fetchedAt = formatDateTime();
   const sourceText = await fetchDepinPulseText();
-  const rows = parseLeaderboardRows(sourceText, fetchedAt);
-  if (!rows.length) throw new Error("Data unavailable: DePIN Pulse leaderboard parse returned zero rows");
+  const rows = parseLeaderboardRows(sourceText, { fetchedAt, sourceUrl: DEPIN_PULSE_SOURCE_URL });
+  if (!rows.length) {
+    const diagnostics = createDiagnostics(sourceText, DEPIN_PULSE_SOURCE_URL, rows.length);
+    throw new Error(`Data unavailable: DePIN Pulse leaderboard parse returned zero rows.\n${formatDiagnostics(diagnostics)}`);
+  }
   return rows;
+}
+
+export function getDepinPulseParseDiagnostics(sourceText: string, sourceUrl = DEPIN_PULSE_SOURCE_URL, parsedRows = 0) {
+  return createDiagnostics(sourceText, sourceUrl, parsedRows);
+}
+
+export function formatDepinPulseParseDiagnostics(diag: ParseDiagnostics) {
+  return formatDiagnostics(diag);
 }
 
 function toChainRows(rows: DepinPulseLeaderboardRow[], timeframe: "24h" | "30d", rowLimit: number): ChainRevenueRow[] {
@@ -143,4 +264,4 @@ export async function getDepinRevenue(limit: number, timeframe: "24h" | "30d"): 
   };
 }
 
-export const __depinPulseTestUtils = { parseLeaderboardRows, parseMoney, mapProjectSlugToLogoKey };
+export const __depinPulseTestUtils = { parseLeaderboardRows, parseMoney, mapProjectSlugToLogoKey, cleanProjectName, detectHeaderIndexes };
