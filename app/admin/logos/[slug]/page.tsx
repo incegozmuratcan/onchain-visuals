@@ -1022,7 +1022,7 @@ export default async function LogoDetailPage({
                   {row.source?.status === "rejected" ? <RestoreButtons source={row.source} slug={logoSlug} /> : row.action}
                   {row.source &&
                   row.source.status !== "rejected" &&
-                  (row.allowCopyToVault ?? true) && !["managed-vault", "manual"].includes(row.key) ? (
+                  (row.allowCopyToVault ?? true) && row.key !== "managed-vault" ? (
                     <CopyVaultButton
                       source={row.source}
                       logoId={logo.id}

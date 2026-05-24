@@ -82,26 +82,20 @@ export default async function AdminIndex() {
     <AdminShell active="dashboard" title="Dashboard" max="max-w-6xl">
       <AdminDbErrorPanel errors={dbErrors} />
 
-      <section className="mt-3 grid gap-3 lg:grid-cols-[1.05fr_1fr_1fr]">
-        <AdminSection title="Logo Review" action={<Link href="/admin/logos" className="text-xs font-black text-slate-500">Open Logo Manager →</Link>}>
+      <section className="mt-3 grid gap-3 lg:grid-cols-[1.5fr_1fr]">
+        <AdminSection title="Logo Work Queue" action={<Link href="/admin/logos" className="text-xs font-black text-slate-500">Open Logo Manager →</Link>}>
           <p className="text-3xl font-black tracking-tight text-slate-950">
             {reviewed} / {counts.all} reviewed
           </p>
-          <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-bold">
-            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-800">New: {newlyDiscovered}</div>
-            <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-800">Needs review: {counts.needs_review}</div>
-            <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-rose-800">Visual issue: {visualIssues}</div>
-            <div className="rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-amber-900">Missing logo: {counts.missing_approved_logo}</div>
+          {counts.missing_approved_logo + newlyDiscovered + counts.needs_review === 0 ? (
+            <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-black text-emerald-800">No urgent logo work</div>
+          ) : null}
+          <div className="mt-2 grid grid-cols-1 gap-2 text-sm font-bold md:grid-cols-3">
+            <Link href="/admin/logos?filter=missing_approved_logo" className="rounded-lg border border-amber-300 bg-amber-100 px-3 py-2 text-amber-900">Missing logos: {counts.missing_approved_logo}</Link>
+            <Link href="/admin/logos?filter=newly_discovered_entity" className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-800">New / Unreviewed: {newlyDiscovered}</Link>
+            <Link href="/admin/logos?filter=needs_review" className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-800">Needs review: {counts.needs_review}</Link>
           </div>
-        </AdminSection>
-
-        <AdminSection title="Coverage Gaps">
-          <div className="grid gap-2 text-sm font-bold text-slate-700">
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing CG</span><span>{counts.missing_coingecko_id}</span></div>
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing CMC</span><span>{counts.missing_cmc_id}</span></div>
-            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing DefiLlama</span><span>{counts.missing_defillama_source}</span></div>
-            <div className="text-xs text-slate-400">Provider gaps are secondary when logo coverage is already resolved.</div>
-          </div>
+          <div className="mt-2 text-xs font-bold text-slate-500">Secondary: Visual issues {visualIssues} · Provider gaps CG {counts.missing_coingecko_id} · CMC {counts.missing_cmc_id} · DefiLlama {counts.missing_defillama_source}</div>
         </AdminSection>
 
         <AdminSection title="Recent Activity">

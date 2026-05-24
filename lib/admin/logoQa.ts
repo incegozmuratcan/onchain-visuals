@@ -169,6 +169,42 @@ function hasUsableReviewedPublicSource(logo: AdminLogo, sources: LogoSource[]) {
   return sources.some((source) => sourceIsPublicCandidate(source, logo));
 }
 
+function isManualUploadOrVault(provider: string) {
+  return ["manual", "upload", "managed-vault", "vault"].includes(provider);
+}
+
+function isReviewedSource(source: LogoSource) {
+  const meta = metadataObject(source.metadata);
+  return source.status === "approved" || meta.reviewStatus === "reviewed" || meta.approvalOrigin === "admin";
+}
+
+export function hasUsablePublicLogo(logo: AdminLogo, sources: LogoSource[]) {
+  return sources.some((source) => source.status !== "rejected" && sourceIsPublicCandidate(source, logo));
+}
+
+export function hasReviewedPrimaryLogo(logo: AdminLogo, sources: LogoSource[]) {
+  const primary = sources.find((source) => source.id === logo.approved_source_id);
+  return Boolean(primary && primary.status !== "rejected" && sourceIsPublicCandidate(primary, logo) && isReviewedSource(primary));
+}
+
+export function isLogoReviewedByAdmin(logo: AdminLogo, sources: LogoSource[]) {
+  if (hasReviewedPrimaryLogo(logo, sources)) return true;
+  return sources.some((source) => source.status !== "rejected" && sourceIsPublicCandidate(source, logo) && isReviewedSource(source) && isManualUploadOrVault(source.provider));
+}
+
+export function isLogoNewUnreviewed(logo: AdminLogo, sources: LogoSource[]) {
+  const newlyDiscovered = Boolean(logo.notes?.includes("newly_discovered_entity"));
+  return newlyDiscovered && !isLogoReviewedByAdmin(logo, sources);
+}
+
+export function isTrueMissingLogo(logo: AdminLogo, sources: LogoSource[]) {
+  return !hasUsablePublicLogo(logo, sources);
+}
+
+export function isTrueVisualIssue(logo: AdminLogo, sources: LogoSource[]) {
+  return visualRejected(logo, sources) && !isLogoReviewedByAdmin(logo, sources);
+}
+
 export function classifyLogoQa(
   logo: AdminLogo,
   sources: LogoSource[],
@@ -199,7 +235,7 @@ export function classifyLogoQa(
     hasCandidate
   )
     issues.push("needs_review");
-  if (logo.notes?.includes("newly_discovered_entity"))
+  if (isLogoNewUnreviewed(logo, sources))
     issues.push("newly_discovered_entity");
   if (logo.last_fetch_error?.includes("metric_scan_error"))
     issues.push("metric_scan_error");
@@ -235,7 +271,7 @@ export function classifyLogoQa(
   const defiLlamaCoverage = providerCoverageStatus(sources, "defillama", logo);
   const vaultCoverage = vaultCoverageStatus(sources, logo);
 
-  if (!hasUsableReviewedPublicSource(logo, sources)) issues.push("missing_approved_logo");
+  if (isTrueMissingLogo(logo, sources)) issues.push("missing_approved_logo");
   if (cgCoverage === "NO" || cgCoverage === "ERR") issues.push("missing_coingecko_id");
   if ([cgCoverage, cmcCoverage, defiLlamaCoverage, vaultCoverage].includes("REVIEW"))
     issues.push("needs_review");
@@ -300,7 +336,7 @@ export function classifyLogoQa(
     return source.status !== "rejected" && meta.migratedFrom === "local-static-manifest" && (meta.unsafe === true || meta.reviewStatus === "needs_review");
   }))
     issues.push("unsafe_migrated_candidate");
-  if (visualRejected(logo, sources)) {
+  if (isTrueVisualIssue(logo, sources)) {
     issues.push("visual_rejected");
     issues.push("skipped_visual_rejected");
   }

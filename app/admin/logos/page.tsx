@@ -60,12 +60,12 @@ const QUICK_FILTERS = [
 ] as const;
 
 const REVIEW_FILTERS = [
+  ["missing_approved_logo", "Missing logo"],
   ["needs_review", "Needs review"],
   ["visual_rejected", "Visual issue"],
 ] as const;
 
-const MISSING_FILTERS = [
-  ["missing_approved_logo", "Logo"],
+const PROVIDER_GAP_FILTERS = [
   ["missing_coingecko_id", "CG"],
   ["missing_cmc_id", "CMC"],
   ["missing_defillama_source", "DefiLlama"],
@@ -899,19 +899,19 @@ export default async function AdminLogosPage({
                 <Link
                   key={key}
                   href={qs({ filter: key, q: query, sort })}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : key === "needs_review" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : key === "missing_approved_logo" ? "border-amber-300 bg-amber-100 text-amber-900" : key === "needs_review" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}
                 >
                   {label}
                 </Link>
               ))}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Missing</span>
-              {MISSING_FILTERS.map(([key, label]) => (
+              <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Provider gaps</span>
+              {PROVIDER_GAP_FILTERS.map(([key, label]) => (
                 <Link
                   key={key}
                   href={qs({ filter: key, q: query, sort })}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : key === "missing_approved_logo" ? "border-amber-300 bg-amber-100 text-amber-900" : "border-amber-100 bg-amber-50 text-amber-700"}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-slate-50 text-slate-600"}`}
                 >
                   {label}
                 </Link>
