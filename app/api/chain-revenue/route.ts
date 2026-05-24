@@ -6,6 +6,7 @@ import { parsePrompt } from "@/lib/parser";
 import { approvedLogoCandidateOverlay, approvedLogoCandidateSlugs, logoSlug } from "@/lib/admin/logoDb";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   const rawPrompt = request.nextUrl.searchParams.get("prompt") || "Top 10 chains by stablecoin supply";
@@ -51,11 +52,11 @@ export async function GET(request: NextRequest) {
       ...data,
       rows,
       ...(process.env.NODE_ENV === "development" ? { _debug: { approvedLogoOverlayCount } } : {}),
-    });
+    }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   } catch (error) {
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unknown error", query: parsed },
-      { status: 500 }
+      { status: 500, headers: { "Cache-Control": "no-store, max-age=0" } }
     );
   }
 }
