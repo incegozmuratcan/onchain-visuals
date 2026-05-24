@@ -54,14 +54,21 @@ const ACTION_ISSUES = new Set([
   "rejected_source",
 ]);
 
-const PRIMARY_FILTERS = [
-  ["issues", "Needs action"],
-  ["missing_approved_logo", "Missing logo"],
-  ["missing_coingecko_id", "Missing CG"],
-  ["missing_cmc_id", "Missing CMC"],
-  ["missing_defillama_source", "Missing DefiLlama"],
-  ["needs_review", "Needs review"],
+const QUICK_FILTERS = [
+  ["all", "All"],
   ["newly_discovered_entity", "New"],
+] as const;
+
+const REVIEW_FILTERS = [
+  ["needs_review", "Needs review"],
+  ["visual_rejected", "Visual issue"],
+] as const;
+
+const MISSING_FILTERS = [
+  ["missing_approved_logo", "Logo"],
+  ["missing_coingecko_id", "CG"],
+  ["missing_cmc_id", "CMC"],
+  ["missing_defillama_source", "DefiLlama"],
 ] as const;
 
 const MORE_FILTERS = [
@@ -740,7 +747,7 @@ export default async function AdminLogosPage({
     classifyLogoQa(logo, sourcesByLogo.get(logo.id) ?? [], config.hasBlob),
   );
   const counts = summarizeLogoQa(qaRows);
-  const filter = firstParam(searchParams?.filter, "issues");
+  const filter = firstParam(searchParams?.filter, "all");
   const query = firstParam(searchParams?.q, "").trim();
   const sort = firstParam(searchParams?.sort, "issues");
   const candidateApplySummary = firstParam(searchParams?.candidateApply)
@@ -751,24 +758,25 @@ export default async function AdminLogosPage({
     counts.cmc_fetch_failed +
     counts.defillama_no_reliable_source +
     counts.coingecko_id_needs_review;
-  const urgentRows = qaRows.filter((row) => row.issues.some((issue) => ["missing_approved_logo", "missing_coingecko_id", "missing_cmc_id", "missing_defillama_source", "coingecko_id_needs_review", "coingecko_fetch_failed", "cmc_fetch_failed", "defillama_no_reliable_source", "visual_rejected", "unsafe_migrated_candidate"].includes(issue)));
-  const needsAction = urgentRows.length;
-  const reviewLater = qaRows.filter((row) => row.issues.some((issue) => ["needs_review", "newly_discovered_entity", "coingecko_candidate_waiting", "metric_scan_candidate_added"].includes(issue)) && !urgentRows.includes(row)).length;
   const newlyDiscovered = qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length;
+  const reviewed = Math.max(
+    counts.all - newlyDiscovered - counts.needs_review,
+    0,
+  );
   const visualIssues = counts.visual_rejected + counts.unsafe_migrated_candidate;
-  const coverageMetrics = [
-    ["Needs action", needsAction],
+  const reviewMetrics = [
+    ["Reviewed", reviewed],
+    ["New / Unreviewed", newlyDiscovered],
+    ["Needs review", counts.needs_review],
+    ["Visual issue", visualIssues],
     ["Missing logo", counts.missing_approved_logo],
+  ];
+  const providerGapMetrics = [
     ["Missing CG", counts.missing_coingecko_id],
     ["Missing CMC", counts.missing_cmc_id],
     ["Missing DefiLlama", counts.missing_defillama_source],
-  ];
-  const reviewMetrics = [
-    ["Needs review", counts.needs_review],
-    ["Visual / unsafe", visualIssues],
-    ["Newly discovered", newlyDiscovered],
     ["Provider review", providerErrors],
-  ].filter(([, value]) => Number(value) > 0);
+  ];
   const allMatchingRows = sortRows(qaRows, sort);
   const missingMappingRows = qaRows.filter((row) => !row.coinGeckoId);
   const clientRows: LogoResultRow[] = allMatchingRows.map((row) => ({
@@ -849,38 +857,61 @@ export default async function AdminLogosPage({
                 Logo Search + Results
               </h2>
               <p className="text-xs font-bold text-slate-400">
-                Total logos: {counts.all} · Approved: {counts.approved} · Needs
-                attention: {needsAction}{reviewLater ? ` · Review later: ${reviewLater}` : ""}
+                Total logos: {counts.all} · Reviewed: {reviewed} · New / Unreviewed:{" "}
+                {newlyDiscovered} · Needs review: {counts.needs_review}
               </p>
             </div>
             <div className="mt-2 grid gap-1.5">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="mr-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Coverage</span>
-                {coverageMetrics.map(([label, value]) => (
-                  <div key={label} className="rounded-full border border-amber-100 bg-amber-50 px-2.5 py-1">
+                <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Review</span>
+                {reviewMetrics.map(([label, value]) => (
+                  <div key={label} className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
                     <span className="text-xs font-black text-slate-950">{value}</span>
-                    <span className="ml-1 text-[10px] font-black uppercase tracking-[0.08em] text-amber-800">{label}</span>
+                    <span className="ml-1 text-[10px] font-bold text-slate-600">{label}</span>
                   </div>
                 ))}
               </div>
-              {reviewMetrics.length ? (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="mr-1 text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Review</span>
-                  {reviewMetrics.map(([label, value]) => (
-                    <div key={label} className="rounded-full border border-slate-100 bg-slate-50 px-2.5 py-1">
-                      <span className="text-xs font-black text-slate-950">{value}</span>
-                      <span className="ml-1 text-[10px] font-black uppercase tracking-[0.08em] text-slate-500">{label}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Provider gaps</span>
+                {providerGapMetrics.map(([label, value]) => (
+                  <div key={label} className="rounded-full border border-slate-200 bg-white px-2.5 py-1">
+                    <span className="text-xs font-black text-slate-900">{value}</span>
+                    <span className="ml-1 text-[10px] font-bold text-slate-500">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {PRIMARY_FILTERS.map(([key, label]) => (
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Quick</span>
+              {QUICK_FILTERS.map(([key, label]) => (
                 <Link
                   key={key}
                   href={qs({ filter: key, q: query, sort })}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : "border-slate-200 bg-white text-slate-600"}`}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : label === "New" ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-700"}`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Review</span>
+              {REVIEW_FILTERS.map(([key, label]) => (
+                <Link
+                  key={key}
+                  href={qs({ filter: key, q: query, sort })}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : key === "needs_review" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Missing</span>
+              {MISSING_FILTERS.map(([key, label]) => (
+                <Link
+                  key={key}
+                  href={qs({ filter: key, q: query, sort })}
+                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : key === "missing_approved_logo" ? "border-amber-300 bg-amber-100 text-amber-900" : "border-amber-100 bg-amber-50 text-amber-700"}`}
                 >
                   {label}
                 </Link>
