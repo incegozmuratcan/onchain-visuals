@@ -674,3 +674,10 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - Provider source actions must load existing logos by exact `logoId` (or exact slug fallback) and must never upsert/create by `name/category`.
 - `upsertLogoSource` dedupe/update scope must remain per-logo (`logo_id` + provider/source identity); cross-logo duplicates such as `io-net` and `ionet` are allowed and required.
 - DefiLlama save success requires explicit `didWriteToCurrentLogo` and canonical post-save state of REVIEW/OK; otherwise actions must fail loudly.
+
+## DePIN Pulse source-of-truth (v0.11.44)
+- DePIN revenue visual now uses `getDepinPulseRevenueLeaderboard()` in `lib/depinpulse.ts` as the single normalized source path.
+- Row policy: render top 15 with explicit title `Top {displayed} of {total} ...` when source has more rows.
+- Timestamp semantics are explicit in the payload (`Fetched: ...` or `Source updated: ...`).
+- Production path must not use mock/fallback data while labeled DePIN Pulse; source fetch/parse failures return unavailable errors.
+- Verify command: `npm run verify:depin-pulse-data`.

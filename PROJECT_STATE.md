@@ -676,3 +676,10 @@
 - IO.NET fallback behavior now accepts token-icon pairs such as `/token/IONET` + `gecko/io` as REVIEW when alias family is strong, and persists `metadata.routeProbeStatus=route_probe_failed` instead of hard failing save.
 - DefiLlama token fallback/save metadata now records `originalPreviewSourceUrl`, `selectedTokenSourceUrl`, `selectedTokenImageUrl`, `tokenSymbolsTried`, and `geckoIdsTried` for post-save traceability.
 - DefiLlama token candidate failure UX now stores full fallback diagnostics in fetch-state details (`originalSourceUrl`, `tokenSymbolsTried`, `geckoIdsTried`, `sourceUrlsTried`, `imageUrlsTried`, `perAttemptReason`, `selectedAttempt`) while keeping the redirect banner short.
+
+## v0.11.44 DePIN Pulse revenue pipeline blocker fix
+- Added canonical `getDepinPulseRevenueLeaderboard()` in `lib/depinpulse.ts` as the source-of-truth normalization layer for DePIN leaderboard rows.
+- Removed static verified-row fallback from production DePIN revenue path; source fetch/parse failures now fail loudly.
+- Enforced explicit row-count policy title (`Top N of total`) when rendered rows are limited.
+- Timestamp semantics are explicit (`Fetched` vs `Source updated`) in DePIN card payload output.
+- Added `npm run verify:depin-pulse-data` for row-count/title/source parity checks and diff-table output.
