@@ -7,6 +7,7 @@ import {
   type ConfidenceLabel,
 } from "@/lib/admin/providerScoring";
 import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
+import { findVerifiedMappings } from "@/lib/admin/verifiedProviderSourceMappings";
 
 export type DefiLlamaDebugAttempt = {
   url: string;
@@ -419,6 +420,22 @@ export async function searchDefiLlamaSources(query: string, context: ResolverCon
       .sort((a, b) => Number(b.row.trusted) - Number(a.row.trusted) || Number(b.strict.ok) - Number(a.strict.ok) || b.score - a.score)
       .slice(0, 10);
     const candidates: DefiLlamaCandidate[] = [];
+    for (const mapping of findVerifiedMappings("defillama", q, context.targetSlug, context.targetName)) {
+      candidates.push({
+        id: mapping.key,
+        name: mapping.targetNames[0] || mapping.key,
+        slug: mapping.targetSlugs[0] || mapping.key,
+        category: mapping.sourceType === "chain-icon" ? "chain" : "protocol",
+        sourceUrl: mapping.sourceUrl,
+        imageUrl: mapping.imageUrl,
+        confidence: "high",
+        score: 100,
+        recommended: true,
+        sourceType: mapping.sourceType as DefiLlamaSourceType,
+        selectedImagePattern: mapping.sourceType === "token-icon" ? "token-icon" : "chains-rsz",
+        reasons: ["verified source mapping"],
+      });
+    }
     for (const { row, score, confidence, strict } of scored) {
       const resolved = await resolveImageUrl(row);
       debug.urlPatternsTried.push(...resolved.urls);

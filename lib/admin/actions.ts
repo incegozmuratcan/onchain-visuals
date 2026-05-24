@@ -2592,8 +2592,21 @@ export async function useCoinGeckoIdAction(formData: FormData) {
   await updateLogoProviderId(slug, "coingecko", coinId);
   const useAsReviewCandidate =
     String(formData.get("useAsReviewCandidate") || "").trim() === "1";
+  const mappedSourceUrl = String(formData.get("sourceUrl") || "").trim();
+  const mappedImageUrl = String(formData.get("imageUrl") || "").trim();
+  const mappedSourceType = String(formData.get("sourceType") || "").trim();
   const candidateName = String(formData.get("candidateName") || "").trim();
   const candidateSymbol = String(formData.get("candidateSymbol") || "").trim();
+  if (useAsReviewCandidate && mappedSourceUrl && mappedImageUrl && mappedSourceType) {
+    const created = await upsertLogoSource({
+      logoId: logo.id, provider: "coingecko", imageUrl: mappedImageUrl, sourceUrl: mappedSourceUrl,
+      metadata: { sourceType: mappedSourceType, reviewStatus: "needs_review", approvalOrigin: "verified_source_mapping", coinGeckoId: coinId, candidateName, candidateSymbol },
+      status: "candidate", reviveRejected: true,
+    });
+    await updateLogoFetchState(logo.slug, "coingecko", null);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "success", `CoinGecko review candidate saved. sourceId=${created.id}`);
+  }
   const form = new FormData();
   form.set("slug", logo.slug);
   form.set("logoId", logo.id);
@@ -2615,7 +2628,11 @@ export async function useCoinMarketCapIdAction(formData: FormData) {
   await requireAdmin();
   const slug = String(formData.get("slug") || "");
   const cmcId = String(formData.get("coinMarketCapId") || "").trim();
-  if (!isNumericCoinMarketCapId(cmcId))
+  const mappedSourceUrl = String(formData.get("sourceUrl") || "").trim();
+  const mappedImageUrl = String(formData.get("imageUrl") || "").trim();
+  const mappedSourceType = String(formData.get("sourceType") || "").trim();
+  const reviewOnly = String(formData.get("useAsReviewCandidate") || "").trim() === "1";
+  if (!reviewOnly && !isNumericCoinMarketCapId(cmcId))
     redirectLogoNotice(
       slug,
       "warning",
@@ -2623,6 +2640,16 @@ export async function useCoinMarketCapIdAction(formData: FormData) {
     );
   const logo = await getLogo(slug);
   if (!logo) redirectLogoNotice(slug, "error", "Logo was not found.");
+  if (reviewOnly && mappedSourceUrl && mappedImageUrl && mappedSourceType) {
+    const created = await upsertLogoSource({
+      logoId: logo.id, provider: "coinmarketcap", imageUrl: mappedImageUrl, sourceUrl: mappedSourceUrl,
+      metadata: { sourceType: mappedSourceType, reviewStatus: "needs_review", approvalOrigin: "verified_source_mapping", coinMarketCapId: cmcId || null },
+      status: "candidate", reviveRejected: true,
+    });
+    await updateLogoFetchState(logo.slug, "coinmarketcap", null);
+    revalidatePath(`/admin/logos/${logo.slug}`);
+    redirectLogoNotice(logo.slug, "success", `CoinMarketCap review candidate saved. sourceId=${created.id}`);
+  }
   await updateLogoProviderId(slug, "coinmarketcap", cmcId);
   const form = new FormData();
   form.set("logoId", logo.id);

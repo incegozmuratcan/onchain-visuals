@@ -1,6 +1,7 @@
 import "server-only";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 import { scoreProviderCandidate, type ConfidenceLabel } from "@/lib/admin/providerScoring";
+import { findVerifiedMappings } from "@/lib/admin/verifiedProviderSourceMappings";
 
 export type CoinGeckoSearchCandidate = {
   id: string;
@@ -11,6 +12,10 @@ export type CoinGeckoSearchCandidate = {
   confidence: ConfidenceLabel;
   score: number;
   recommended: boolean;
+  sourceType?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  reviewOnly?: boolean;
 };
 
 export type CoinGeckoSearchResult = {
@@ -54,8 +59,22 @@ export async function searchCoinGeckoIds(query: string, context: SearchContext =
       .filter((item: { coin: Record<string, unknown>; score: number }) => String(item.coin.id || "") && String(item.coin.name || "") && item.score > 0)
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, 8);
+    const verified = findVerifiedMappings("coingecko", clean, context.targetSlug, context.targetName).map((m) => ({
+      id: m.targetSlugs[0] || m.key,
+      name: m.targetNames[0] || m.key,
+      symbol: "",
+      thumb: m.imageUrl,
+      large: m.imageUrl,
+      confidence: "high" as ConfidenceLabel,
+      score: 100,
+      recommended: true,
+      sourceType: m.sourceType,
+      sourceUrl: m.sourceUrl,
+      imageUrl: m.imageUrl,
+      reviewOnly: true,
+    }));
     return {
-      candidates: scored.map(({ coin, confidence, score }, index: number) => ({
+      candidates: [...verified, ...scored.map(({ coin, confidence, score }, index: number) => ({
         id: String(coin.id || ""),
         name: String(coin.name || ""),
         symbol: String(coin.symbol || ""),
@@ -64,7 +83,7 @@ export async function searchCoinGeckoIds(query: string, context: SearchContext =
         confidence,
         score,
         recommended: index === 0 && confidence === "high",
-      })),
+      }))],
       error: null,
     };
   } catch (error) {
