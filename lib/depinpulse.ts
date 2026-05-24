@@ -40,6 +40,21 @@ function slugify(input: string) {
   return input.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
+function slugToDisplayName(slug: string) {
+  const tokenMap: Record<string, string> = {
+    io: "IO",
+    ioo: "IOO",
+    net: "NET",
+    geodnet: "GEODNET",
+  };
+  return slug
+    .split("-")
+    .filter(Boolean)
+    .map((part) => tokenMap[part.toLowerCase()] ?? part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ")
+    .trim();
+}
+
 function mapProjectSlugToLogoKey(slug: string) {
   const known: Record<string, string> = {
     "io-net": "io-net",
@@ -80,21 +95,49 @@ function parseMoney(value: string): number | null {
 }
 
 function parseRatio(value: string): number | null {
-  const match = value.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
+  const raw = value.trim();
+  if (!raw || raw === "-" || /^n\/?a$/i.test(raw)) return null;
+  const match = raw.replace(/,/g, "").match(/-?\d+(?:\.\d+)?/);
   if (!match) return null;
   const out = Number(match[0]);
   return Number.isFinite(out) ? out : null;
 }
 
+function extractProjectSlugFromUrl(value: string) {
+  const match = value.match(/https?:\/\/depinpulse\.app\/projects\/([a-z0-9-]+)/i);
+  return match?.[1]?.toLowerCase() ?? null;
+}
+
 function cleanProjectName(value: string) {
-  return value
-    .replace(/^\s*\d+\s*/, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[\s*image\s*:[^\]]*\]/gi, " ")
-    .replace(/\bimage\s*:/gi, " ")
-    .replace(/\blogo\b/gi, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  let cleaned = value;
+  cleaned = cleaned.replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^)]*\)/g, "$1");
+  cleaned = cleaned.replace(/\bimage\s*\d*\s*:\s*/gi, " ");
+  cleaned = cleaned.replace(/\blogo\b/gi, " ");
+  cleaned = cleaned.replace(/[\[\]]/g, " ");
+  return cleaned.replace(/\s+/g, " ").trim();
+}
+
+function splitMarkdownRow(line: string) {
+  const cells: string[] = [];
+  let cell = "";
+  let bracketDepth = 0;
+  let parenDepth = 0;
+  for (let i = 0; i < line.length; i += 1) {
+    const ch = line[i];
+    if (ch === "[" && parenDepth === 0) bracketDepth += 1;
+    if (ch === "]" && bracketDepth > 0 && parenDepth === 0) bracketDepth -= 1;
+    if (ch === "(" && bracketDepth > 0) parenDepth += 1;
+    if (ch === ")" && parenDepth > 0) parenDepth -= 1;
+    if (ch === "|" && bracketDepth === 0 && parenDepth === 0) {
+      cells.push(cell.trim());
+      cell = "";
+      continue;
+    }
+    cell += ch;
+  }
+  cells.push(cell.trim());
+  return cells.filter((c, idx) => !(idx === 0 && !c) && !(idx === cells.length - 1 && !c));
 }
 
 function createDiagnostics(sourceText: string, sourceUrl: string, parsedRows: number): ParseDiagnostics {
@@ -135,13 +178,13 @@ function detectHeaderIndexes(headerCells: string[]) {
   const normalized = headerCells.map((h) => h.toLowerCase().replace(/[^a-z0-9/ ]+/g, " ").replace(/\s+/g, " ").trim());
   const findIdx = (patterns: RegExp[]) => normalized.findIndex((h) => patterns.some((pattern) => pattern.test(h)));
   return {
-    project: findIdx([/\bproject\b/, /\bname\b/]),
-    annualized30d: findIdx([/30d annualized revenue/, /30d arr/, /annualized revenue/]),
-    revenue24h: findIdx([/24h revenue/]),
-    marketCap: findIdx([/market cap/, /\bmcap\b/]),
-    mcToArr: findIdx([/mc\s*\/\s*(30d\s*)?arr/]),
-    volume24h: findIdx([/24h vol/, /\bvolume\b/]),
-    chain: findIdx([/\bchain\b/, /\bnetwork\b/]),
+    project: findIdx([/^project$/]),
+    annualized30d: findIdx([/^30d annualized revenue$/, /30d arr/, /annualized revenue/]),
+    revenue24h: findIdx([/^24h revenue$/]),
+    marketCap: findIdx([/^market cap$/, /\bmcap\b/]),
+    mcToArr: findIdx([/^mc\s*\/\s*30d arr$/, /mc\s*\/\s*(30d\s*)?arr/]),
+    volume24h: findIdx([/^24h vol$/, /^24h volume$/, /\bvolume\b/]),
+    chain: findIdx([/^chain$/, /\bnetwork\b/]),
   };
 }
 
@@ -151,40 +194,32 @@ function parseLeaderboardRows(sourceText: string, context: ParseContext): DepinP
   let headerIndexes: ReturnType<typeof detectHeaderIndexes> | null = null;
 
   for (const line of lines) {
-    if (line.includes("|") && /^\|/.test(line) && !/^\|[-: ]+\|?$/.test(line)) {
-      const cells = line.split("|").map((c) => c.trim()).filter(Boolean);
-      if (!cells.length) continue;
-      const looksHeader = cells.some((c) => /(project|annualized|market|chain|network|revenue|arr|vol)/i.test(c));
-      if (looksHeader && !/^\d+$/.test(cells[0])) {
-        headerIndexes = detectHeaderIndexes(cells);
+    if (!line.includes("|")) continue;
+    const cells = splitMarkdownRow(line);
+    if (!cells.length) continue;
+    const isSeparator = cells.every((cell) => /^:?-{2,}:?$/.test(cell));
+    if (isSeparator) continue;
+
+    const looksHeader = cells.some((c) => /(project|annualized|market|chain|network|revenue|arr|vol)/i.test(c));
+    if (looksHeader && (!headerIndexes || /project/i.test(cells.join(" ")))) {
+      const detected = detectHeaderIndexes(cells);
+      if (detected.project >= 0 && detected.annualized30d >= 0) {
+        headerIndexes = detected;
         continue;
       }
     }
 
-    let cells: string[] | null = null;
-    if (line.includes("|")) {
-      cells = line.split("|").map((cell) => cell.trim()).filter(Boolean);
-    } else if (/^\d+\s+/.test(line) && /\$/i.test(line)) {
-      cells = line.split(/\s{2,}/).map((cell) => cell.trim()).filter(Boolean);
-      if (cells.length < 2) {
-        const parsed = line.match(/^(\d+\s+.+?)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|\d+(?:\.\d+)?[KMB]?)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+([^\s]+)\s+(\$?\d[\d,]*(?:\.\d+)?[KMB]?|-)\s+(.+)$/i);
-        if (parsed) cells = [parsed[1], parsed[2], parsed[3], parsed[4], parsed[5], parsed[6], parsed[7]];
-      }
-    }
-    if (!cells || cells.length < 2) continue;
-    if (/^#?$/.test(cells[0]) || /^-+$/.test(cells[0])) continue;
-
-    const defaultIdx = { project: 0, annualized30d: 1, revenue24h: 2, marketCap: 3, mcToArr: 4, volume24h: 5, chain: 6 };
-    const idx = headerIndexes && headerIndexes.project >= 0 && headerIndexes.annualized30d >= 0 ? headerIndexes : defaultIdx;
-
-    const projectCell = cells[idx.project] ?? cells[0];
-    const projectName = cleanProjectName(projectCell);
+    if (!headerIndexes) continue;
+    const idx = headerIndexes;
+    const projectCell = cells[idx.project] ?? "";
+    const projectSlugFromUrl = extractProjectSlugFromUrl(projectCell);
+    const projectName = cleanProjectName(projectCell) || (projectSlugFromUrl ? slugToDisplayName(projectSlugFromUrl) : "");
     const annualized = parseMoney(cells[idx.annualized30d] ?? "");
     if (!projectName || !annualized || annualized <= 0) continue;
 
-    const projectSlug = slugify(projectName);
+    const projectSlug = projectSlugFromUrl ?? slugify(projectName);
     const row: DepinPulseLeaderboardRow = {
-      rank: Number((cells[0] ?? "").match(/^(\d+)/)?.[1] ?? out.length + 1),
+      rank: out.length + 1,
       projectName,
       projectSlug,
       logoKey: mapProjectSlugToLogoKey(projectSlug),
@@ -193,17 +228,15 @@ function parseLeaderboardRows(sourceText: string, context: ParseContext): DepinP
       marketCapUsd: parseMoney(cells[idx.marketCap] ?? ""),
       mcToArr: parseRatio(cells[idx.mcToArr] ?? ""),
       volume24hUsd: parseMoney(cells[idx.volume24h] ?? ""),
-      chain: (cells[idx.chain] ?? "").replace(/\s+/g, " ").trim(),
+      chain: (cells[idx.chain] ?? "").replace(/\s+/g, " ").trim() || "Unknown",
       sourceUrl: context.sourceUrl,
       sourceUpdatedAt: null,
       fetchedAt: context.fetchedAt,
     };
-    if (!row.chain) row.chain = "Unknown";
     out.push(row);
   }
 
-  const sorted = out.sort((a, b) => b.annualized30dRevenueUsd - a.annualized30dRevenueUsd).map((row, index) => ({ ...row, rank: index + 1 }));
-  return sorted;
+  return out.sort((a, b) => b.annualized30dRevenueUsd - a.annualized30dRevenueUsd).map((row, index) => ({ ...row, rank: index + 1 }));
 }
 
 export async function getDepinPulseRevenueLeaderboard(): Promise<DepinPulseLeaderboardRow[]> {
