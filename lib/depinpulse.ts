@@ -18,8 +18,8 @@ export type DepinPulseLeaderboardRow = {
 };
 
 const DEPIN_PULSE_SOURCE_URL = "https://depinpulse.app/";
-const LEADERBOARD_ROW_LIMIT = 15;
 const SOURCE_SAMPLE_MAX_CHARS = 2000;
+const DEPIN_PULSE_CACHE_POLICY = "revalidate:300";
 
 type ParseContext = {
   sourceUrl: string;
@@ -72,7 +72,7 @@ async function fetchDepinPulseText(timeoutMs = 12_000) {
     const response = await fetch(`https://r.jina.ai/${DEPIN_PULSE_SOURCE_URL}`, {
       headers: { accept: "text/plain,text/html,*/*", "user-agent": "Mozilla/5.0 learnDeFi" },
       signal: controller.signal,
-      next: { revalidate: 3600 },
+      next: { revalidate: 300 },
     });
     if (!response.ok) throw new Error(`DePIN Pulse request failed: ${response.status}`);
     return await response.text();
@@ -275,7 +275,8 @@ function toChainRows(rows: DepinPulseLeaderboardRow[], timeframe: "24h" | "30d",
 export async function getDepinRevenue(limit: number, timeframe: "24h" | "30d"): Promise<ChainMetricResult> {
   const sourceRows = await getDepinPulseRevenueLeaderboard();
   const totalRowsFromSource = sourceRows.length;
-  const rowLimit = Math.min(limit, LEADERBOARD_ROW_LIMIT);
+  const requestedLimit = Number.isFinite(limit) ? Math.max(1, Math.floor(limit)) : 10;
+  const rowLimit = Math.min(requestedLimit, totalRowsFromSource);
   const rows = toChainRows(sourceRows, timeframe, rowLimit);
   const displayedRows = rows.length;
   const is24h = timeframe === "24h";
@@ -287,11 +288,28 @@ export async function getDepinRevenue(limit: number, timeframe: "24h" | "30d"): 
     source: "DePIN Pulse",
     updatedAt: `${sourceRows[0]?.sourceUpdatedAt ? `Source updated: ${sourceRows[0].sourceUpdatedAt}` : `Fetched: ${sourceRows[0]?.fetchedAt ?? formatDateTime()}`}`,
     endpoint: DEPIN_PULSE_SOURCE_URL,
-    title: usesTopNPolicy ? `Top ${displayedRows} of ${totalRowsFromSource} DePIN projects by ${metricLabel}` : `Top DePIN projects by ${metricLabel}`,
+    title: usesTopNPolicy ? `Top ${displayedRows} of ${totalRowsFromSource} DePIN projects by ${metricLabel}` : `Top ${displayedRows} DePIN projects by ${metricLabel}`,
     eyebrow: "DePIN Revenue",
     description: is24h ? "Shows DePIN projects ranked by revenue generated in the last 24 hours." : "Shows DePIN projects ranked by annualized revenue based on the last 30 days.",
     insight: is24h ? "24H revenue shows recent demand for DePIN services, but it can be noisy and should be compared with longer-term revenue." : "30D annualized revenue estimates yearly revenue by annualizing the last 30 days of project revenue.",
-    methodology: `Methodology: ${is24h ? "24H" : "30D annualized"} DePIN project revenue from DePIN Pulse leaderboard. totalRowsFromSource=${totalRowsFromSource}, displayedRows=${displayedRows}, rowLimit=${rowLimit}.`,
+    methodology: `Methodology: ${is24h ? "24H" : "30D annualized"} DePIN project revenue from DePIN Pulse leaderboard. totalRowsFromSource=${totalRowsFromSource}, displayedRows=${displayedRows}, rowLimit=${rowLimit}, requestedLimit=${requestedLimit}, cachePolicy=${DEPIN_PULSE_CACHE_POLICY}.`,
+    debug: {
+      sourceUrl: DEPIN_PULSE_SOURCE_URL,
+      fetchedAt: sourceRows[0]?.fetchedAt ?? formatDateTime(),
+      sourceUpdatedAt: sourceRows[0]?.sourceUpdatedAt ?? null,
+      totalRowsFromSource,
+      displayedRows,
+      rowLimit,
+      requestedLimit,
+      cachePolicy: DEPIN_PULSE_CACHE_POLICY,
+      topParsedRows: sourceRows.slice(0, 3).map((row) => ({
+        rank: row.rank,
+        projectName: row.projectName,
+        chain: row.chain,
+        annualized30dRevenueUsd: row.annualized30dRevenueUsd,
+        revenue24hUsd: row.revenue24hUsd,
+      })),
+    },
     valueFormat: "usd",
     valueDirection: "higher",
   };

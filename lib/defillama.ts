@@ -28,6 +28,7 @@ export type ChainMetricResult = {
   valueFormat?: "usd" | "number";
   valueSuffix?: string;
   valueDirection?: "higher" | "lower";
+  debug?: Record<string, unknown>;
 };
 
 type AssetSnapshot = Record<string, number>;

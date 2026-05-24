@@ -683,3 +683,6 @@
 - Enforced explicit row-count policy title (`Top N of total`) when rendered rows are limited.
 - Timestamp semantics are explicit (`Fetched` vs `Source updated`) in DePIN card payload output.
 - Added `npm run verify:depin-pulse-data` for row-count/title/source parity checks and diff-table output.
+- DePIN Pulse row policy: no hard cap in data layer; displayed rows = `min(requestedLimit, totalRowsFromSource)`, with titles using `Top N of total` only when rows are truncated.
+- DePIN freshness policy: DePIN Pulse source fetch revalidates every 300s and `/api/chain-revenue` responds with `Cache-Control: no-store` (`dynamic = force-dynamic`, `revalidate = 0`) to prevent stale rendered visuals.
+- `verify:depin-pulse-data` now checks limit/title/source parity for limits 15/20/25/30 and includes a stale-data regression fixture (Helium source A→B change).
