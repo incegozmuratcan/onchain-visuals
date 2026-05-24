@@ -2,6 +2,7 @@ import "server-only";
 import { resolveApiSecret } from "@/lib/admin/apiSecrets";
 import { normalizeProviderText, scoreProviderCandidate, slugText, type ConfidenceLabel } from "@/lib/admin/providerScoring";
 import { buildProviderAliasSet } from "@/lib/admin/providerAliases";
+import { findVerifiedMappings } from "@/lib/admin/verifiedProviderSourceMappings";
 
 export type CoinMarketCapCandidate = {
   id: string;
@@ -12,6 +13,10 @@ export type CoinMarketCapCandidate = {
   confidence: ConfidenceLabel;
   score: number;
   recommended: boolean;
+  sourceType?: string;
+  sourceUrl?: string;
+  imageUrl?: string;
+  reviewOnly?: boolean;
 };
 
 const CMC_ALIAS_GROUPS = [
@@ -125,6 +130,20 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
   const q = query.trim();
   if (!q) return { candidates: [], error: null };
   try {
+    const verified = findVerifiedMappings("coinmarketcap", q, context.targetSlug, context.targetName).map((m) => ({
+      id: "",
+      name: m.targetNames[0] || m.key,
+      symbol: "",
+      slug: m.targetSlugs[0] || m.key,
+      logo: m.imageUrl,
+      confidence: "high" as ConfidenceLabel,
+      score: 100,
+      recommended: true,
+      sourceType: m.sourceType,
+      sourceUrl: m.sourceUrl,
+      imageUrl: m.imageUrl,
+      reviewOnly: true,
+    }));
     const headers = await cmcHeaders();
     const shared = buildProviderAliasSet({ name: context.targetName, slug: context.targetSlug, knownAliases: context.aliases });
     const aliasTokens = unique([...expandCmcAliases(q, context.targetName, context.targetSlug, ...(context.aliases ?? []), ...shared.aliases), ...(context.aliases ?? []), ...shared.aliases]);
@@ -180,7 +199,7 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
     }
     const noReliable = scored.length === 0;
     return {
-      candidates: scored.map(({ row, score, confidence }, index) => ({
+      candidates: [...verified, ...scored.map(({ row, score, confidence }, index) => ({
         id: String(row.id),
         name: clean(row.name),
         symbol: clean(row.symbol),
@@ -189,7 +208,7 @@ export async function searchCoinMarketCapIds(query: string, context: SearchConte
         confidence,
         score,
         recommended: index === 0 && confidence === "high" && score >= 78,
-      })),
+      }))],
       error: noReliable ? `No reliable CMC match. tried: ${symbols.slice(0, 3).join(", ") || "-"}, ${slugTokens.slice(0, 3).join(", ") || "-"}` : null,
     };
   } catch (error) {

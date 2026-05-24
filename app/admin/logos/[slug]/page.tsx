@@ -1182,7 +1182,7 @@ export default async function LogoDetailPage({
                   (candidate.recommended && candidate.confidence === "high") ||
                   (candidate.confidence === "medium" &&
                     isActionableRelatedMatch(logoName, logoSlug, candidate.name, candidate.id, candidate.symbol));
-                const canOverride = !canUse;
+                const canOverride = !canUse || Boolean((candidate as any).reviewOnly);
                 const row = (
                   <>
                     <Img src={candidate.thumb || candidate.large} size={30} />
@@ -1207,7 +1207,10 @@ export default async function LogoDetailPage({
                     <input type="hidden" name="coinMarketCapId" value={safeString(coinMarketCapId) || ""} />
                     <input type="hidden" name="candidateName" value={candidate.name} />
                     <input type="hidden" name="candidateSymbol" value={candidate.symbol} />
-                    <input type="hidden" name="useAsReviewCandidate" value={canUse ? "0" : "1"} />
+                    <input type="hidden" name="useAsReviewCandidate" value={canUse && !(candidate as any).reviewOnly ? "0" : "1"} />
+                    <input type="hidden" name="sourceUrl" value={(candidate as any).sourceUrl || ""} />
+                    <input type="hidden" name="imageUrl" value={(candidate as any).imageUrl || ""} />
+                    <input type="hidden" name="sourceType" value={(candidate as any).sourceType || ""} />
                     {row}
                   </form>
                 ) : (
@@ -1263,6 +1266,7 @@ export default async function LogoDetailPage({
                     (candidate.recommended && candidate.confidence === "high") ||
                     (candidate.confidence === "medium" &&
                       isActionableRelatedMatch(logoName, logoSlug, candidate.name, candidate.slug, candidate.symbol));
+                  const reviewOnly = Boolean((candidate as any).reviewOnly);
                   const row = (
                     <>
                       <Img src={candidate.logo} size={30} />
@@ -1275,17 +1279,21 @@ export default async function LogoDetailPage({
                           {candidate.recommended ? "Recommended · " : "Other match · "}{candidate.confidence} confidence · ID {candidate.id} · slug {candidate.slug}
                         </div>
                       </div>
-                      {canUse ? (
-                        <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">Use + Fetch</button>
+                      {canUse || reviewOnly ? (
+                        <button className="rounded-lg bg-slate-950 px-2 py-1.5 font-black text-white">{reviewOnly ? "Use as review" : "Use + Fetch"}</button>
                       ) : (
                         <span className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 font-black text-slate-400">Details only</span>
                       )}
                     </>
                   );
-                  return canUse ? (
+                  return canUse || reviewOnly ? (
                     <form key={candidate.id} action={useCoinMarketCapIdAction} className="grid grid-cols-[34px_1fr_auto] items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 p-2 text-xs">
                       <input type="hidden" name="slug" value={logoSlug} />
                       <input type="hidden" name="coinMarketCapId" value={candidate.id} />
+                      <input type="hidden" name="useAsReviewCandidate" value={reviewOnly ? "1" : "0"} />
+                      <input type="hidden" name="sourceUrl" value={(candidate as any).sourceUrl || ""} />
+                      <input type="hidden" name="imageUrl" value={(candidate as any).imageUrl || ""} />
+                      <input type="hidden" name="sourceType" value={(candidate as any).sourceType || ""} />
                       {row}
                     </form>
                   ) : (
