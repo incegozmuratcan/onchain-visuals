@@ -79,6 +79,31 @@ async function ensureLogoFromForm(formData: FormData) {
   return upsertLogo(name, category);
 }
 
+async function ensureExistingLogoFromForm(formData: FormData) {
+  await requireAdmin();
+  const logoId = String(formData.get("logoId") || "").trim();
+  const currentSlug = String(formData.get("currentSlug") || "").trim();
+  const logoSlug = String(formData.get("logoSlug") || "").trim();
+  const expectedSlug = currentSlug || logoSlug;
+
+  if (logoId) {
+    const logoById = (await listLogos()).rows.find((row) => row.id === logoId) ?? null;
+    if (!logoById) throw new Error(`Logo not found for logoId=${logoId}`);
+    if (expectedSlug && logoById.slug !== expectedSlug) {
+      throw new Error(`Logo identity mismatch: logoId=${logoId} expectedSlug=${expectedSlug} actualSlug=${logoById.slug}`);
+    }
+    return logoById;
+  }
+
+  if (expectedSlug) {
+    const logoBySlug = await getLogo(expectedSlug);
+    if (!logoBySlug) throw new Error(`Logo not found for slug=${expectedSlug}`);
+    return logoBySlug;
+  }
+
+  throw new Error("Logo identity missing: require logoId or logoSlug/currentSlug.");
+}
+
 type CoinGeckoRefreshMode = "smart" | "retry-errors" | "force-all";
 
 function adminNotice(
@@ -786,7 +811,7 @@ export async function addManualUrlAction(formData: FormData) {
 }
 
 export async function addDefiLlamaAction(formData: FormData) {
-  const logo = await ensureLogoFromForm(formData);
+  const logo = await ensureExistingLogoFromForm(formData);
   const requestedSlug = String(formData.get("providerSlug") || logo.slug).trim();
   const exactSourceUrl = String(formData.get("sourceUrl") || "").trim();
   const exactImageUrl = String(formData.get("imageUrl") || "").trim();
@@ -1136,6 +1161,38 @@ export async function addDefiLlamaAction(formData: FormData) {
       );
     }
 
+    const currentPageSlug = String(formData.get("currentSlug") || formData.get("logoSlug") || logo.slug || "").trim();
+    const reloadedSource = (await getLogoSource(created.id)) ?? created;
+    const savedSourceLogo = (await listLogos()).rows.find((row) => row.id === reloadedSource.logo_id) ?? null;
+    const siblingDuplicateSlugsFound = (await listLogos()).rows
+      .filter((row) => row.id !== logo.id && row.name === logo.name && row.category === logo.category)
+      .map((row) => row.slug);
+    const postSaveDebug = {
+      currentPageSlug,
+      loadedLogoId: logo.id,
+      loadedLogoSlug: logo.slug,
+      savedSourceId: reloadedSource.id,
+      savedSourceLogoId: reloadedSource.logo_id,
+      savedSourceLogoSlug: savedSourceLogo?.slug ?? null,
+      savedProvider: reloadedSource.provider,
+      savedSourceUrl: reloadedSource.source_url,
+      savedImageUrl: reloadedSource.image_url,
+      savedHiddenFlag: Boolean((sourceMetadata(reloadedSource) as any).hidden),
+      savedSupersededFlag: Boolean((sourceMetadata(reloadedSource) as any).superseded),
+      canonicalStateAfterSave: canonical.state,
+      canonicalSourceId: canonical.source?.id ?? null,
+      siblingDuplicateSlugsFound,
+      didWriteToCurrentLogo: reloadedSource.logo_id === logo.id,
+    };
+    if (!postSaveDebug.didWriteToCurrentLogo) {
+      throw new Error(`Provider source saved to wrong logo row: ${JSON.stringify(postSaveDebug)}`);
+    }
+    if (!(postSaveDebug.canonicalStateAfterSave === "OK" || postSaveDebug.canonicalStateAfterSave === "REVIEW")) {
+      throw new Error(`Provider source saved but canonical state did not update: ${JSON.stringify(postSaveDebug)}`);
+    }
+    if (postSaveDebug.savedHiddenFlag || postSaveDebug.savedSupersededFlag) {
+      throw new Error(`Provider source saved but hidden/superseded incorrectly: ${JSON.stringify(postSaveDebug)}`);
+    }
     await updateLogoFetchState(logo.slug, "defillama", null);
     if (shouldSelect) {
       await selectSourceNeedsReview(
@@ -1201,7 +1258,7 @@ async function fetchCoinGeckoLogoSource(coinId: string, requireKey = false) {
 }
 
 export async function addCoinGeckoAction(formData: FormData) {
-  const logo = await ensureLogoFromForm(formData);
+  const logo = await ensureExistingLogoFromForm(formData);
   const coinId = String(formData.get("coinGeckoId") || "").trim();
   const forceReviewCandidate =
     String(formData.get("forceReviewCandidate") || "").trim() === "1";
@@ -2004,7 +2061,7 @@ async function copyAliasSiblingSourcesToLogo(logo: AdminLogo, allLogos: AdminLog
 }
 
 export async function addCoinMarketCapAction(formData: FormData) {
-  const logo = await ensureLogoFromForm(formData);
+  const logo = await ensureExistingLogoFromForm(formData);
   const cmcId = String(
     formData.get("coinMarketCapId") || logo.coinmarketcap_id || "",
   ).trim();
@@ -2474,7 +2531,7 @@ async function autoCopyPrimaryToVault(logo: AdminLogo, source: LogoSource, reaso
 
 export async function copySourceToVaultAction(formData: FormData) {
   await requireAdmin();
-  const logo = await ensureLogoFromForm(formData);
+  const logo = await ensureExistingLogoFromForm(formData);
   const sourceId = String(formData.get("sourceId") || "").trim();
   try {
     if (!sourceId) redirectLogoNotice(logo.slug, "warning", "Copy to Vault failed: source id missing");
@@ -2508,7 +2565,7 @@ export async function copySourceToVaultAction(formData: FormData) {
 
 export async function fetchAllLogoSourcesAction(formData: FormData) {
   await requireAdmin();
-  const logo = await ensureLogoFromForm(formData);
+  const logo = await ensureExistingLogoFromForm(formData);
   try {
     const summary = await discoverLogoSources(logo);
     revalidatePath(`/admin/logos/${logo.slug}`);
@@ -2539,6 +2596,9 @@ export async function useCoinGeckoIdAction(formData: FormData) {
   const candidateSymbol = String(formData.get("candidateSymbol") || "").trim();
   const form = new FormData();
   form.set("slug", logo.slug);
+  form.set("logoId", logo.id);
+  form.set("logoSlug", logo.slug);
+  form.set("currentSlug", logo.slug);
   form.set("name", logo.name);
   form.set("category", logo.category);
   form.set("coinGeckoId", coinId);
@@ -2565,6 +2625,9 @@ export async function useCoinMarketCapIdAction(formData: FormData) {
   if (!logo) redirectLogoNotice(slug, "error", "Logo was not found.");
   await updateLogoProviderId(slug, "coinmarketcap", cmcId);
   const form = new FormData();
+  form.set("logoId", logo.id);
+  form.set("logoSlug", logo.slug);
+  form.set("currentSlug", logo.slug);
   form.set("name", logo.name);
   form.set("category", logo.category);
   form.set("coinMarketCapId", cmcId);

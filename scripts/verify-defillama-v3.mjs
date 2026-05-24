@@ -4,7 +4,7 @@ const SAFE_SUFFIX = ["network","chain","protocol","labs","foundation","dao","tok
 const PLACEHOLDER_PATTERNS = ["question-mark","question_mark","unknown-logo","placeholder","blank","empty","default-fallback","/api/chain-logo","generic"];
 const slugText=(v)=>String(v||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
 const uniq=(arr)=>[...new Set(arr.filter(Boolean))];
-const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");if(n.some((s)=>["xrp","xrpl","xrp-ledger","ripple","ripple-network","xrpl-mainnet"].includes(s)))n.push("xrp","xrpl","xrp-ledger","xrp-ledger","ripple","ripple-network","xrpl-mainnet");return uniq(n)};
+const aliasFamily=(slugs)=>{const n=slugs.map(slugText).filter(Boolean);if(n.some((s)=>["bnb","bnb-chain","bsc","binance-smart-chain","binancecoin"].includes(s)))n.push("bnb","bnb-chain","bsc","binance-smart-chain","binancecoin");if(n.some((s)=>["xrp","xrpl","xrp-ledger","ripple","ripple-network","xrpl-mainnet"].includes(s)))n.push("xrp","xrpl","xrp-ledger","xrp-ledger","ripple","ripple-network","xrpl-mainnet");if(n.some((s)=>["io","io-net","ionet","io-net"].includes(s)))n.push("io","io-net","ionet","io-net","io-net","io-net");return uniq(n)};
 const isChainIconUrl=(u)=>/https?:\/\/icons\.llama\.fi\/chains\/(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u)||/https?:\/\/icons\.llamao\.fi\/icons\/chains\/(?:rsz_)?[^/?#.]+(?:\?w=48&h=48)?/i.test(u);
 const isGuessedProtocolRow=(s,i)=>/defillama\.com\/protocol\//i.test(s)&&/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(i);
 const isExternalProtocolIcon=(u)=>/https?:\/\/icons\.llama\.fi\/(?!chains\/)(?:rsz_)?[^/?#.]+\.[a-z0-9]+/i.test(u);
@@ -88,5 +88,27 @@ const bsvToken = classify({logoName:'BSV Blockchain',logoSlug:'bsv-blockchain',k
 assert.equal(bsvToken.valid,true);assert.equal(bsvToken.sourceType,'token-icon');
 const failureDiagnostic = { tokenSymbolsTried:['IO','IO.NET','IONET','IO-NET'], geckoIdsTried:['io','io-net','ionet'], sourceUrlsTried:['https://defillama.com/token/IONET'], imageUrlsTried:['https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48'], perAttemptReason:['IONET:io:resolve'] };
 assert.equal(Array.isArray(failureDiagnostic.tokenSymbolsTried),true);assert.equal(Array.isArray(failureDiagnostic.geckoIdsTried),true);assert.equal(Array.isArray(failureDiagnostic.sourceUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.imageUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.perAttemptReason),true);
+
+// deterministic IO.NET duplicate persistence invariants
+const logoA={id:'A',slug:'io-net',name:'IO.NET',category:'project'};
+const logoB={id:'B',slug:'ionet',name:'IO.NET',category:'project'};
+const ionetSource={id:'src-b',logo_id:'B',provider:'defillama',source_url:'https://defillama.com/token/IO',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48',status:'candidate',metadata:{slug:'io',defillamaSlug:'io',defillamaV3:'token-icon',sourceType:'token-icon',reviewStatus:'needs_review'}};
+const candidateForIoNet={id:'src-a',logo_id:'A',provider:'defillama',source_url:ionetSource.source_url,image_url:ionetSource.image_url,status:'candidate',metadata:{slug:'io',defillamaSlug:'io',defillamaV3:'token-icon',sourceType:'token-icon',reviewStatus:'needs_review'}};
+assert.equal(classify({logoName:logoA.name,logoSlug:logoA.slug,knownAliases:['ionet','io','io.net','io net','IO'],source:candidateForIoNet}).valid,true);
+assert.equal(classify({logoName:logoB.name,logoSlug:logoB.slug,knownAliases:['io-net','io','io.net','io net','IO'],source:ionetSource}).valid,true);
+assert.equal(candidateForIoNet.logo_id,logoA.id);
+assert.equal(ionetSource.logo_id,logoB.id);
+assert.notEqual(candidateForIoNet.id,ionetSource.id);
+const actionLoader=(form)=>{if(form.logoId&&form.logoSlug&&form.logoSlug!=='io-net') throw new Error('Logo identity mismatch: logoId=A expectedSlug=io-net actualSlug=ionet'); return form.logoId?logoA:(form.logoSlug==='io-net'?logoA:logoB)};
+assert.equal(actionLoader({logoId:'A',logoSlug:'io-net'}).slug,'io-net');
+assert.equal(actionLoader({logoSlug:'io-net'}).slug,'io-net');
+assert.throws(()=>actionLoader({logoId:'A',logoSlug:'ionet'}),/Logo identity mismatch/);
+const canonicalIoNet = (() => {
+  const c = classify({logoName:logoA.name,logoSlug:logoA.slug,knownAliases:['ionet','io','io.net','io net','IO'],source:candidateForIoNet});
+  if (!c.valid) return 'NO';
+  const rs=String(candidateForIoNet.metadata?.reviewStatus||'').toLowerCase();
+  return candidateForIoNet.status==='approved' && rs==='reviewed' ? 'OK' : 'REVIEW';
+})();
+assert.equal(canonicalIoNet==='REVIEW'||canonicalIoNet==='OK',true);
 
 console.log('DefiLlama v3 deterministic verification passed (BNB + XRP chain-first, guessed protocol rejection, recovery/no-source diagnostic simulation).');

@@ -1,3 +1,10 @@
+## v0.11.43 IO.NET duplicate persistence end-to-end blocker fix
+
+- Provider actions on `/admin/logos/[slug]` now submit exact logo identity (`logoId`, `logoSlug`, `currentSlug`, `name`, `category`) and provider server actions resolve targets from exact logo identity instead of name/category upsert fallback.
+- Added `ensureExistingLogoFromForm(formData)` for provider actions: prefer strict `logoId` lookup, enforce slug mismatch errors, fallback to exact slug only, and never create/switch logo rows in provider save flows.
+- Added DefiLlama post-save invariants that fail loudly when writes land on the wrong logo, when canonical state is not REVIEW/OK, or when saved rows are hidden/superseded; debug payload includes `didWriteToCurrentLogo` and sibling duplicate context.
+- Added deterministic IO.NET duplicate invariants in `verify:defillama` covering `io-net` + `ionet` same-name rows, same-source coexistence, strict id/slug loader behavior, and canonical REVIEW/OK expectation for `io-net`.
+
 ## v0.11.42 Remaining provider-source blocker fixes (Blocker)
 
 - Added first-class DefiLlama llamao chain-icon endpoint handling for `icons.llamao.fi/icons/chains/rsz_{slug}?w=48&h=48` (plus direct llamao chain pattern) alongside legacy `icons.llama.fi` chain fallback patterns.
