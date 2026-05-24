@@ -1,3 +1,14 @@
+## v0.11.47 BLOCKER: Logo Work Queue logic + dashboard priority fix
+
+- Centralized review-state logic in `lib/admin/logoQa.ts` so manual/upload/managed-vault reviewed sources count as **reviewed/resolved** even when provider gaps remain.
+- `New / Unreviewed` now only includes truly newly discovered entities with no reviewed usable source; provider gaps alone no longer inflate this queue.
+- `Missing logo` now means true missing public logo coverage (no usable public source), not provider absence.
+- `Visual issue` now only appears for unresolved visual problems; reviewed manual/upload/vault/provider alternatives clear it.
+- `/admin` dashboard is now a **Logo Work Queue** card prioritizing Missing logos → New / Unreviewed → Needs review, with calm `No urgent logo work` state when all are zero.
+- Provider gaps are now secondary context on dashboard and in `/admin/logos` filter hierarchy.
+- `/admin/logos/[slug]` provider rows now allow **Copy to Vault** for manual/upload sources (managed-vault excluded only), preserving manual/upload primary while enabling managed-vault backup workflows.
+- No DB schema changes, no seed changes, no provider resolver logic changes, and no debug tool reintroduction.
+
 ## v0.11.46 Logo Manager review-first dashboard and filter IA cleanup (Blocker)
 
 - `/admin/logos` filter header is now grouped around daily review workflow: **Quick** (All, New), **Review** (Needs review, Visual issue), **Missing** (Logo, CG, CMC, DefiLlama), with remaining filters moved under **More filters**.
