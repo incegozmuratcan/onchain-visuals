@@ -86,6 +86,18 @@ const provenanceChain = classify({logoName:'Provenance',logoSlug:'provenance',kn
 assert.equal(provenanceChain.valid,true);assert.equal(provenanceChain.sourceType,'chain-icon');
 const bsvToken = classify({logoName:'BSV Blockchain',logoSlug:'bsv-blockchain',knownAliases:['bsv','bitcoin-sv','bitcoin-cash-sv'],source:{provider:'defillama',id:'16',source_url:'https://defillama.com/token/BSV',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/bitcoin-cash-sv?w=48&h=48',status:'candidate',metadata:{slug:'bsv',coinGeckoId:'bitcoin-cash-sv',defillamaV3:'token-icon',sourceType:'token-icon'}}});
 assert.equal(bsvToken.valid,true);assert.equal(bsvToken.sourceType,'token-icon');
+
+const verifiedTokenCases = [
+  {logoName:'ROVR',logoSlug:'rovr-network',knownAliases:['rovr','rovr-network'],source_url:'https://defillama.com/token/ROVR',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/rovr-network?w=48&h=48',coinGeckoId:'rovr-network'},
+  {logoName:'NATIX',logoSlug:'natix-network',knownAliases:['natix','natix-network'],source_url:'https://defillama.com/token/NATIX',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/natix-network?w=48&h=48',coinGeckoId:'natix-network'},
+  {logoName:'XNET Mobile',logoSlug:'xnet-mobile',knownAliases:['xnet','xnet-mobile','xnet mobile'],source_url:'https://defillama.com/token/XNET',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/xnet-mobile-2?w=48&h=48',coinGeckoId:'xnet-mobile-2'},
+  {logoName:'Arkreen',logoSlug:'arkreen',knownAliases:['arkreen','arkreen-token'],source_url:'https://defillama.com/token/ARKREEN',image_url:'https://token-icons.llamao.fi/icons/tokens/gecko/arkreen-token?w=48&h=48',coinGeckoId:'arkreen-token'},
+];
+for (const [i,t] of verifiedTokenCases.entries()) {
+  const row = classify({logoName:t.logoName,logoSlug:t.logoSlug,knownAliases:t.knownAliases,source:{provider:'defillama',id:`tok-${i}`,source_url:t.source_url,image_url:t.image_url,status:'candidate',metadata:{slug:t.logoSlug,coinGeckoId:t.coinGeckoId,defillamaV3:'token-icon',sourceType:'token-icon',reviewStatus:'needs_review'}}});
+  assert.equal(row.valid,true);assert.equal(row.sourceType,'token-icon');
+}
+
 const failureDiagnostic = { tokenSymbolsTried:['IO','IO.NET','IONET','IO-NET'], geckoIdsTried:['io','io-net','ionet'], sourceUrlsTried:['https://defillama.com/token/IONET'], imageUrlsTried:['https://token-icons.llamao.fi/icons/tokens/gecko/io?w=48&h=48'], perAttemptReason:['IONET:io:resolve'] };
 assert.equal(Array.isArray(failureDiagnostic.tokenSymbolsTried),true);assert.equal(Array.isArray(failureDiagnostic.geckoIdsTried),true);assert.equal(Array.isArray(failureDiagnostic.sourceUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.imageUrlsTried),true);assert.equal(Array.isArray(failureDiagnostic.perAttemptReason),true);
 

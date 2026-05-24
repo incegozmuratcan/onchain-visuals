@@ -117,4 +117,25 @@ if(!(createdVault.image_url||createdVault.blob_url)) throw new Error('actualVaul
 // 12 canonical mismatch should report canonical mismatch not provider none
 const canonicalPicked={id:'vault-old',provider:'managed-vault',image_url:'https://blob/old.png',metadata:{copiedFromProvider:'defillama',copiedFromSourceId:'old'}};
 if(canonicalPicked.id===createdVault.id) throw new Error('canonical mismatch setup broken');
+
+// 13 CoinGecko asset-platform chain candidates are review-only
+const cgAssetPlatforms=[
+  ['eni','https://www.coingecko.com/en/chains/eni','https://assets.coingecko.com/asset_platforms/images/32278/small/eni.png?1768464731'],
+  ['ink','https://www.coingecko.com/en/chains/ink','https://assets.coingecko.com/asset_platforms/images/22194/small/ink.jpg?1737600222'],
+  ['abstract','https://www.coingecko.com/en/chains/abstract','https://assets.coingecko.com/asset_platforms/images/22196/small/abstract.jpg?1735611808'],
+  ['morph-l2','https://www.coingecko.com/en/chains/morph-l2','https://assets.coingecko.com/asset_platforms/images/22185/small/morph.jpg?1729659940'],
+];
+for (const [slug,sourceUrl,imageUrl] of cgAssetPlatforms){
+  const meta={sourceType:'asset-platform',reviewStatus:'needs_review',approvalOrigin:'admin_selected_asset_platform'};
+  if(!sourceUrl.endsWith(slug)) throw new Error(`CG chain route mismatch ${slug}`);
+  if(!/assets\.coingecko\.com\/asset_platforms\/images\//.test(imageUrl)) throw new Error(`CG asset-platform image mismatch ${slug}`);
+  if(meta.reviewStatus!=='needs_review'||meta.approvalOrigin==='auto') throw new Error(`CG candidate must remain review ${slug}`);
+}
+
+// 14 CMC static-gravity review-only rootstock candidate
+const rootstockStatic={provider:'coinmarketcap-static-image',sourceType:'static-gravity-image',status:'candidate',sourceUrl:'https://s3.coinmarketcap.com/static-gravity/image/23fc47a412724b3c94917411735a9716.jpg',imageUrl:'https://s3.coinmarketcap.com/static-gravity/image/23fc47a412724b3c94917411735a9716.jpg',metadata:{reviewStatus:'needs_review',approvalOrigin:'admin_selected_static_cmc_image'}};
+if(!/static-gravity\/image\//.test(rootstockStatic.imageUrl)) throw new Error('Rootstock static gravity URL missing');
+if(rootstockStatic.status!=='candidate'||rootstockStatic.metadata.reviewStatus!=='needs_review') throw new Error('Rootstock static gravity must be review candidate');
+if(rootstockStatic.metadata.approvalOrigin==='auto') throw new Error('Rootstock static gravity must not auto approve');
+
 console.log('verify:provider-resolvers passed');

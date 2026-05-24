@@ -1,3 +1,10 @@
+## v0.11.45 Remaining provider-source blocker coverage
+
+- DePIN Pulse leaderboard title now always uses `Top N DePIN projects by 30D annualized revenue` (no `of total` suffix); displayed row count still clamps to source row count.
+- Added deterministic verification coverage for DefiLlama token-icon review candidates: ROVR, NATIX, XNET Mobile, Arkreen, and BSV (`bitcoin-cash-sv`) plus Provenance chain-icon candidate handling.
+- Added deterministic resolver-policy coverage for CoinGecko chain/asset-platform review candidates (ENI, Ink, Abstract, Morph L2) and CMC Rootstock static-gravity review-only candidate semantics.
+- Non-standard/manual-selected provider candidates remain review-only (`status=candidate`, `reviewStatus=needs_review`) and are never auto-approved.
+
 ## v0.11.43 IO.NET duplicate persistence end-to-end blocker fix
 
 - Provider actions on `/admin/logos/[slug]` now submit exact logo identity (`logoId`, `logoSlug`, `currentSlug`, `name`, `category`) and provider server actions resolve targets from exact logo identity instead of name/category upsert fallback.
