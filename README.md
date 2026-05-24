@@ -1,3 +1,12 @@
+## v0.11.46 Logo Manager review-first dashboard and filter IA cleanup (Blocker)
+
+- `/admin/logos` filter header is now grouped around daily review workflow: **Quick** (All, New), **Review** (Needs review, Visual issue), **Missing** (Logo, CG, CMC, DefiLlama), with remaining filters moved under **More filters**.
+- Removed the ambiguous top-level **Needs action** concept from primary filter/navigation emphasis; counts now present review-first metrics (Total, Reviewed approximation, New/Unreviewed, Needs review, Visual issue, Missing logo) with provider gaps shown as secondary context.
+- `/admin` dashboard now prioritizes a **Logo Review** card (Reviewed/Total plus New, Needs review, Visual issue, Missing logo) and a secondary **Coverage Gaps** card for missing CG/CMC/DefiLlama counts.
+- **API Status** remains present and prominent, while old dashboard wording like **Action Required** / old **Logo Health** urgency strip has been replaced with calmer review-first hierarchy.
+- Source Tools remain minimal/productized only; no removed debug/orchestrator/hard-reset buttons were reintroduced.
+- No DB schema changes, no seed script changes, and no provider resolver/source-save backend logic changes.
+
 ## v0.11.45 Remaining provider-source blocker coverage
 
 - DePIN Pulse leaderboard title now always uses `Top N DePIN projects by 30D annualized revenue` (no `of total` suffix); displayed row count still clamps to source row count.

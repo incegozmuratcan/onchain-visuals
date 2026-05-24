@@ -33,19 +33,6 @@ function metricLine(label: string, value: number) {
   return value > 0 ? `${value} ${label}` : null;
 }
 
-const DASHBOARD_ACTION_ISSUES = new Set([
-  "missing_approved_logo",
-  "coingecko_id_needs_review",
-  "coingecko_fetch_failed",
-  "cmc_fetch_failed",
-  "visual_rejected",
-  "unsafe_migrated_candidate",
-  "metric_scan_error",
-  "metric_scan_candidate_added",
-  "metric_scan_missing_coingecko_id",
-  "rejected_source",
-]);
-
 export default async function AdminIndex() {
   await requireAdmin();
   const config = adminConfigState();
@@ -71,7 +58,8 @@ export default async function AdminIndex() {
   const counts = summarizeLogoQa(qaRows);
   const providerErrors = counts.coingecko_fetch_failed + counts.cmc_fetch_failed + counts.coingecko_id_needs_review;
   const visualIssues = counts.visual_rejected + counts.unsafe_migrated_candidate;
-  const needsAction = qaRows.filter((row) => row.issues.some((issue) => DASHBOARD_ACTION_ISSUES.has(issue))).length;
+  const newlyDiscovered = qaRows.filter((row) => row.issues.includes("newly_discovered_entity")).length;
+  const reviewed = Math.max(counts.all - newlyDiscovered - counts.needs_review, 0);
 
   const providerById = new Map(providers.map((provider) => [provider.id, provider]));
   const statusStrip = [
@@ -82,25 +70,6 @@ export default async function AdminIndex() {
     { label: "Blob", tone: config.hasBlob ? "green" as AdminTone : "amber" as AdminTone },
     { label: "Brand", tone: (brand.primaryLogo || brand.headerLogo) && brand.favicon ? "green" as AdminTone : "amber" as AdminTone },
   ];
-
-  const actionItems = [
-    !config.hasDatabase ? "DATABASE_URL missing" : null,
-    providerById.get("coinmarketcap")?.status === "missing key" ? "CMC API key missing" : null,
-    providerById.get("chainspect")?.status === "missing key" ? "TPS API key missing" : null,
-    counts.missing_approved_logo ? `${counts.missing_approved_logo} logos need a source` : null,
-    counts.missing_coingecko_id ? `${counts.missing_coingecko_id} logos missing CoinGecko ID` : null,
-    providerErrors ? `${providerErrors} provider reviews` : null,
-    visualIssues ? `${visualIssues} visual / unsafe reviews` : null,
-    scanSummary?.errors.length ? `${scanSummary.errors.length} metric scan errors` : null,
-    !(brand.primaryLogo || brand.headerLogo) ? "primary / hero logo missing" : null,
-    !brand.favicon ? "favicon missing" : null,
-  ].filter(Boolean).slice(0, 5) as string[];
-
-  const logoHealth = [
-    metricLine("missing CG", counts.missing_coingecko_id),
-    metricLine("provider reviews", providerErrors),
-    metricLine("visual issues", visualIssues),
-  ].filter(Boolean);
 
   const coingeckoSummary = summaries.coingecko;
   const recentActivity = [
@@ -113,22 +82,26 @@ export default async function AdminIndex() {
     <AdminShell active="dashboard" title="Dashboard" max="max-w-6xl">
       <AdminDbErrorPanel errors={dbErrors} />
 
-      <section className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-soft">
-        <div className="text-sm font-black text-slate-950">{needsAction || dbErrors.length ? "Needs attention" : "System OK"}</div>
-        <div className="flex flex-wrap gap-x-4 gap-y-2">{statusStrip.map((item) => <AdminStatusDot key={item.label} tone={item.tone} label={item.label} />)}</div>
-      </section>
-
       <section className="mt-3 grid gap-3 lg:grid-cols-[1.05fr_1fr_1fr]">
-        <AdminSection title="Action Required" action={<Link href="/admin/logos" className="text-xs font-black text-slate-500">Open Logo Tools →</Link>}>
-          <div className="grid gap-1.5">
-            {actionItems.length ? actionItems.map((item) => <div key={item} className="flex items-center gap-2 text-sm font-bold text-slate-700"><span className="h-1.5 w-1.5 rounded-full bg-amber-400" />{item}</div>) : <div className="flex items-center gap-2 text-sm font-bold text-emerald-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />No urgent issues</div>}
+        <AdminSection title="Logo Review" action={<Link href="/admin/logos" className="text-xs font-black text-slate-500">Open Logo Manager →</Link>}>
+          <p className="text-3xl font-black tracking-tight text-slate-950">
+            {reviewed} / {counts.all} reviewed
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2 text-sm font-bold">
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-indigo-800">New: {newlyDiscovered}</div>
+            <div className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2 text-amber-800">Needs review: {counts.needs_review}</div>
+            <div className="rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-rose-800">Visual issue: {visualIssues}</div>
+            <div className="rounded-lg border border-amber-200 bg-amber-100 px-3 py-2 text-amber-900">Missing logo: {counts.missing_approved_logo}</div>
           </div>
         </AdminSection>
 
-        <AdminSection title="Logo Health">
-          <p className="text-3xl font-black tracking-tight text-slate-950">{needsAction} need review</p>
-          {logoHealth.length ? <p className="mt-2 text-sm font-bold leading-6 text-slate-600">{logoHealth.join(" · ")}</p> : <p className="mt-2 text-sm font-bold text-emerald-700">No logo actions</p>}
-          <p className="mt-2 text-xs font-bold text-slate-400">Total {counts.all} · Approved {counts.approved}</p>
+        <AdminSection title="Coverage Gaps">
+          <div className="grid gap-2 text-sm font-bold text-slate-700">
+            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing CG</span><span>{counts.missing_coingecko_id}</span></div>
+            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing CMC</span><span>{counts.missing_cmc_id}</span></div>
+            <div className="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2"><span>Missing DefiLlama</span><span>{counts.missing_defillama_source}</span></div>
+            <div className="text-xs text-slate-400">Provider gaps are secondary when logo coverage is already resolved.</div>
+          </div>
         </AdminSection>
 
         <AdminSection title="Recent Activity">
@@ -154,6 +127,9 @@ export default async function AdminIndex() {
             <AdminStatusPill tone={config.hasBlob ? "green" : "gray"}>Upload {config.hasBlob ? "enabled" : "disabled"}</AdminStatusPill>
           </div>
         </AdminSection>
+      </section>
+      <section className="mt-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-soft">
+        <div className="flex flex-wrap gap-x-4 gap-y-2">{statusStrip.map((item) => <AdminStatusDot key={item.label} tone={item.tone} label={item.label} />)}</div>
       </section>
     </AdminShell>
   );
