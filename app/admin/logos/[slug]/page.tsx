@@ -264,11 +264,13 @@ function ApproveButton({
 
 function CopyVaultButton({
   source,
+  logoId,
   slug,
   name,
   category,
 }: {
   source: LogoSource;
+  logoId: string;
   slug: string;
   name: string;
   category: string;
@@ -276,6 +278,9 @@ function CopyVaultButton({
   return (
     <form action={copySourceToVaultAction}>
       <input type="hidden" name="sourceId" value={source.id} />
+      <input type="hidden" name="logoId" value={logoId} />
+      <input type="hidden" name="logoSlug" value={slug} />
+      <input type="hidden" name="currentSlug" value={slug} />
       <input type="hidden" name="name" value={name} />
       <input type="hidden" name="category" value={category} />
       <SmallButton>Copy to Vault</SmallButton>
@@ -450,6 +455,9 @@ export default async function LogoDetailPage({
 
   const hiddenLogoFields = (
     <>
+      <input type="hidden" name="logoId" value={logo.id} />
+      <input type="hidden" name="logoSlug" value={logoSlug} />
+      <input type="hidden" name="currentSlug" value={logoSlug} />
       <input type="hidden" name="name" value={logoName} />
       <input type="hidden" name="category" value={logoCategory} />
     </>
@@ -770,6 +778,7 @@ export default async function LogoDetailPage({
         ) : primarySource ? (
           <CopyVaultButton
             source={primarySource}
+            logoId={logo.id}
             slug={logoSlug}
             name={logoName}
             category={logoCategory}
@@ -959,6 +968,7 @@ export default async function LogoDetailPage({
                 {primarySource ? (
                   <CopyVaultButton
                     source={primarySource}
+                    logoId={logo.id}
                     slug={logoSlug}
                     name={logoName}
                     category={logoCategory}
@@ -1015,6 +1025,7 @@ export default async function LogoDetailPage({
                   (row.allowCopyToVault ?? true) && !["managed-vault", "manual"].includes(row.key) ? (
                     <CopyVaultButton
                       source={row.source}
+                      logoId={logo.id}
                       slug={logoSlug}
                       name={logoName}
                       category={logoCategory}

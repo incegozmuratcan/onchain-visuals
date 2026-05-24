@@ -667,3 +667,10 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - IO.NET fallback behavior now accepts token-icon pairs such as `/token/IONET` + `gecko/io` as REVIEW when alias family is strong, and persists `metadata.routeProbeStatus=route_probe_failed` instead of hard failing save.
 - DefiLlama token fallback/save metadata now records `originalPreviewSourceUrl`, `selectedTokenSourceUrl`, `selectedTokenImageUrl`, `tokenSymbolsTried`, and `geckoIdsTried` for post-save traceability.
 - DefiLlama token candidate failure UX now stores full fallback diagnostics in fetch-state details (`originalSourceUrl`, `tokenSymbolsTried`, `geckoIdsTried`, `sourceUrlsTried`, `imageUrlsTried`, `perAttemptReason`, `selectedAttempt`) while keeping the redirect banner short.
+
+## Provider action identity invariants (blocker)
+
+- Detail-page provider forms must submit exact logo identity fields: `logoId`, `logoSlug`, `currentSlug`, `name`, `category`.
+- Provider source actions must load existing logos by exact `logoId` (or exact slug fallback) and must never upsert/create by `name/category`.
+- `upsertLogoSource` dedupe/update scope must remain per-logo (`logo_id` + provider/source identity); cross-logo duplicates such as `io-net` and `ionet` are allowed and required.
+- DefiLlama save success requires explicit `didWriteToCurrentLogo` and canonical post-save state of REVIEW/OK; otherwise actions must fail loudly.
