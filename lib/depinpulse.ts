@@ -288,7 +288,7 @@ export async function getDepinRevenue(limit: number, timeframe: "24h" | "30d"): 
     source: "DePIN Pulse",
     updatedAt: `${sourceRows[0]?.sourceUpdatedAt ? `Source updated: ${sourceRows[0].sourceUpdatedAt}` : `Fetched: ${sourceRows[0]?.fetchedAt ?? formatDateTime()}`}`,
     endpoint: DEPIN_PULSE_SOURCE_URL,
-    title: usesTopNPolicy ? `Top ${displayedRows} of ${totalRowsFromSource} DePIN projects by ${metricLabel}` : `Top ${displayedRows} DePIN projects by ${metricLabel}`,
+    title: `Top ${displayedRows} DePIN projects by ${metricLabel}`,
     eyebrow: "DePIN Revenue",
     description: is24h ? "Shows DePIN projects ranked by revenue generated in the last 24 hours." : "Shows DePIN projects ranked by annualized revenue based on the last 30 days.",
     insight: is24h ? "24H revenue shows recent demand for DePIN services, but it can be noisy and should be compared with longer-term revenue." : "30D annualized revenue estimates yearly revenue by annualizing the last 30 days of project revenue.",
