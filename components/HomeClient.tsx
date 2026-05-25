@@ -82,10 +82,10 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
       setSource(json.source || "DefiLlama");
       setUpdatedAt(json.updatedAt || "-");
       setTitle(json.title || "Market card");
-      setEyebrow(json.eyebrow || "learnDeFi Metric");
+      setEyebrow(json.eyebrow || "Onchain Visuals Metric");
       setDescription(json.description || "A clean visual created from supported DeFi datasets.");
       setMethodology(json.methodology || "Methodology: Source attribution is kept on every export.");
-      setInsight(json.insight || "Created from supported learnDeFi data sources.");
+      setInsight(json.insight || "Created from supported Onchain Visuals data sources.");
       setValueFormat(json.valueFormat || "usd");
       setValueSuffix(json.valueSuffix || "");
       setValueDirection(json.valueDirection || "higher");
@@ -115,7 +115,7 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
     });
 
     const link = document.createElement("a");
-    link.download = `learndefi-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
+    link.download = `onchain-visuals-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}.png`;
     link.href = dataUrl;
     link.click();
   }

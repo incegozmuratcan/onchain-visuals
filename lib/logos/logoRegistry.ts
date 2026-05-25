@@ -72,7 +72,7 @@ const common = {
   fit: "contain" as LogoFit,
   scale: 1.08,
   padding: 1,
-  notes: "Curated local logo for active learnDeFi card outputs; verify official brand guidelines before reuse outside identification.",
+  notes: "Curated local logo for active Onchain Visuals card outputs; verify official brand guidelines before reuse outside identification.",
   requiredActive: true,
 };
 

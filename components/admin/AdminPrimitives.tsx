@@ -12,7 +12,7 @@ const navItems: Array<{ key: AdminPage; label: string; href: string }> = [
   { key: "brand", label: "Brand", href: "/admin/brand" },
 ];
 
-export function AdminShell({ active, title, eyebrow = "learnDeFi admin", subtitle, children, max = "max-w-7xl", sticky = false, headerExtra }: { active: AdminPage; title: string; eyebrow?: string; subtitle?: string; children: ReactNode; max?: string; sticky?: boolean; headerExtra?: ReactNode }) {
+export function AdminShell({ active, title, eyebrow = "Onchain Visuals admin", subtitle, children, max = "max-w-7xl", sticky = false, headerExtra }: { active: AdminPage; title: string; eyebrow?: string; subtitle?: string; children: ReactNode; max?: string; sticky?: boolean; headerExtra?: ReactNode }) {
   return <main className={`mx-auto min-h-screen ${max} px-4 py-4 md:px-6`}>
     <header className={`${sticky ? "sticky top-0 z-20 -mx-4 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6" : ""} flex flex-wrap items-center justify-between gap-3`}>
       <div className="min-w-0">

@@ -9,6 +9,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: brand.siteName,
     description: brand.metaDescription,
+    openGraph: {
+      title: brand.siteName,
+      description: brand.metaDescription,
+      siteName: brand.siteName,
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: brand.siteName,
+      description: brand.metaDescription,
+    },
     icons: {
       ...(brand.favicon ? { icon: brand.favicon } : {}),
       ...(brand.appleTouchIcon ? { apple: brand.appleTouchIcon } : {}),

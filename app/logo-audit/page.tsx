@@ -105,7 +105,7 @@ export default function LogoAuditPage({ searchParams }: { searchParams?: { filte
   return (
     <main className="mx-auto min-h-screen max-w-7xl px-4 py-8 md:px-8">
       <header className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-soft">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">learnDeFi QA</p>
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-slate-400">Onchain Visuals QA</p>
         <h1 className="mt-2 text-4xl font-black tracking-[-0.06em] text-slate-950 md:text-6xl">Logo audit</h1>
         <p className="mt-3 max-w-3xl text-base font-semibold leading-7 text-slate-500">
           Source-backed local logo vault review. Required active entities must have matching registry config, source manifest provenance and checksum-verified local files.
