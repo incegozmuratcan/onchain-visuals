@@ -1,26 +1,23 @@
-export const safeChange = (current?: number | null, previous?: number | null) =>
-  current == null || previous == null ? null : current - previous;
-
-export const safeChangePct = (current?: number | null, previous?: number | null) => {
-  if (current == null || previous == null || previous === 0) return null;
-  return (current - previous) / Math.abs(previous);
-};
-
-export const rollingSum = (values: Array<number | null | undefined>, window: number) => {
-  const clean = values.slice(-window).filter((v): v is number => typeof v === 'number' && Number.isFinite(v));
-  return clean.length ? clean.reduce((a, b) => a + b, 0) : null;
-};
-
-export const cumulativeSum = (values: Array<number | null | undefined>) => {
-  let acc = 0;
-  return values.map((value) => {
-    if (typeof value === 'number' && Number.isFinite(value)) acc += value;
-    return acc;
-  });
-};
-
-export const marketShares = (rows: Array<{ value: number }>) => {
-  const total = rows.reduce((acc, row) => acc + (Number.isFinite(row.value) ? row.value : 0), 0);
-  if (!total) return rows.map(() => 0);
-  return rows.map((row) => row.value / total);
-};
+export const safeChange = (current?: number | null, previous?: number | null) => current == null || previous == null ? null : current - previous;
+export const safeChangePct = (current?: number | null, previous?: number | null) => current == null || previous == null || previous === 0 ? null : (current - previous) / Math.abs(previous);
+export const daily_change = safeChange; export const daily_change_pct = safeChangePct; export const weekly_change = safeChange; export const weekly_change_pct = safeChangePct; export const monthly_change = safeChange; export const monthly_change_pct = safeChangePct; export const mom_change_pct = safeChangePct; export const yoy_change_pct = safeChangePct;
+export const rolling = (values: Array<number | null | undefined>, window: number) => { const valid = values.slice(-window).filter((v): v is number => typeof v === 'number' && Number.isFinite(v)); return valid.length ? valid.reduce((a,b)=>a+b,0) : null; };
+export const rolling_5d = (v:Array<number|null|undefined>)=>rolling(v,5); export const rolling_7d=(v:Array<number|null|undefined>)=>rolling(v,7); export const rolling_20d=(v:Array<number|null|undefined>)=>rolling(v,20); export const rolling_30d=(v:Array<number|null|undefined>)=>rolling(v,30);
+export const cumulative_sum = (values: Array<number | null | undefined>) => { let a=0; return values.map(v=>{ if(typeof v==='number'&&Number.isFinite(v)) a+=v; return a; }); };
+export const market_share = (value?: number | null, total?: number | null) => value == null || total == null || total === 0 ? null : value / total;
+export const market_share_change = (c?: number | null, p?: number | null) => safeChange(c,p);
+export const rank = <T>(rows:T[], get:(x:T)=>number) => [...rows].sort((a,b)=>get(b)-get(a)).map((row,i)=>({row, rank:i+1}));
+export const rank_change = (currentRank?: number | null, previousRank?: number | null) => currentRank == null || previousRank == null ? null : previousRank - currentRank;
+export const dominance = market_share;
+export const largest_inflow = <T>(rows:T[], get:(x:T)=>number)=> [...rows].sort((a,b)=>get(b)-get(a))[0] ?? null;
+export const largest_outflow = <T>(rows:T[], get:(x:T)=>number)=> [...rows].sort((a,b)=>get(a)-get(b))[0] ?? null;
+export const top_gainer = largest_inflow; export const top_loser = largest_outflow;
+export const streak_count = (values: Array<number | null | undefined>) => { let s=0; const dir = (values.at(-1) ?? 0) >= 0 ? 1 : -1; for(let i=values.length-1;i>=0;i--){ const v=values[i]; if(typeof v!=='number') break; if((v>=0?1:-1)===dir)s++; else break; } return s; };
+export const ath_flag = (value:number, series:number[]) => value >= Math.max(...series); export const atl_flag=(value:number, series:number[])=> value <= Math.min(...series);
+export const contribution_to_total = market_share;
+export const flow_as_percent_of_aum = (flow?: number|null, aum?: number|null)=> market_share(flow,aum);
+export const supply_pressure_score = (unlock?: number|null, avgVol?: number|null)=>unlock==null||avgVol==null||avgVol===0?null:unlock/avgVol;
+export const long_short_imbalance = (longValue?: number|null, shortValue?: number|null)=>{ const t=(longValue??0)+(shortValue??0); return t===0?null:((longValue??0)-(shortValue??0))/t; };
+export const normalize_timeseries = (rows:Array<{date:string,value:number|null|undefined}>)=>rows.map(r=>({date:r.date,value:typeof r.value==='number'&&Number.isFinite(r.value)?r.value:0}));
+export const sort_top_n = <T>(rows:T[], get:(x:T)=>number, n=10)=> [...rows].sort((a,b)=>get(b)-get(a)).slice(0,n);
+export const marketShares = (rows: Array<{ value: number }>) => { const total = rows.reduce((acc, row) => acc + (Number.isFinite(row.value) ? row.value : 0), 0); if (!total) return rows.map(() => 0); return rows.map((row) => row.value / total); };
