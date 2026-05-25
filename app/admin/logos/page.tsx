@@ -57,6 +57,7 @@ const ACTION_ISSUES = new Set([
 const QUICK_FILTERS = [
   ["all", "All"],
   ["newly_discovered_entity", "New"],
+  ["manual", "Manual"],
 ] as const;
 
 const REVIEW_FILTERS = [
@@ -90,6 +91,27 @@ function firstParam(value: string | string[] | undefined, fallback = "") {
   return Array.isArray(value) ? (value[0] ?? fallback) : (value ?? fallback);
 }
 
+
+function isManualLikeProvider(provider: string | null | undefined) {
+  return provider === "manual" || provider === "upload";
+}
+
+function isManualQuickMatch(row: LogoQaRow) {
+  const approvedSource = row.sources.find((source) => source.id === row.logo.approved_source_id);
+  if (isManualLikeProvider(approvedSource?.provider)) return true;
+
+  for (const source of row.sources) {
+    if (source.status === "rejected") continue;
+    if (isManualLikeProvider(source.provider)) return true;
+    if (source.provider === "managed-vault" || source.provider === "vault") {
+      const metadata = (source.metadata && typeof source.metadata === "object") ? source.metadata as Record<string, unknown> : null;
+      const copiedFromProvider = typeof metadata?.copiedFromProvider === "string" ? metadata.copiedFromProvider : "";
+      if (isManualLikeProvider(copiedFromProvider)) return true;
+    }
+  }
+
+  return false;
+}
 function hasAction(row: LogoQaRow) {
   return row.issues.some((issue) => ACTION_ISSUES.has(issue));
 }
@@ -111,6 +133,7 @@ function filterRows(rows: LogoQaRow[], filter: string) {
         row.logo.status === "approved" &&
         !row.issues.includes("missing_approved_logo"),
     );
+  if (filter === "manual") return rows.filter(isManualQuickMatch);
   return rows.filter((row) => row.issues.includes(filter as any));
 }
 
@@ -883,15 +906,18 @@ export default async function AdminLogosPage({
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Quick</span>
-              {QUICK_FILTERS.map(([key, label]) => (
-                <Link
-                  key={key}
-                  href={qs({ filter: key, q: query, sort })}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : label === "New" ? "border-indigo-200 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-white text-slate-700"}`}
-                >
-                  {label}
-                </Link>
-              ))}
+              {QUICK_FILTERS.map(([key, label]) => {
+                const count = filterRows(qaRows, key).length;
+                return (
+                  <Link
+                    key={key}
+                    href={qs({ filter: key, q: query, sort })}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] font-black ${filter === key ? "border-slate-950 bg-slate-950 text-white" : label === "New" ? "border-indigo-200 bg-indigo-50 text-indigo-700" : label === "Manual" ? "border-slate-300 bg-slate-100 text-slate-700" : "border-slate-200 bg-white text-slate-700"}`}
+                  >
+                    {label} <span className="ml-1 opacity-80">{count}</span>
+                  </Link>
+                );
+              })}
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Review</span>
