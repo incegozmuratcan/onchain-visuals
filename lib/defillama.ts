@@ -410,7 +410,7 @@ async function getStableAssetValueByNetwork(
     eyebrow: displayName === "BUIDL" ? "Build" : displayName,
     description: `A chain-level view of where ${displayName}'s onchain marketcap is distributed.`,
     insight: `${displayName} is a tokenized fund. This chart shows where its token supply value is present onchain across supported chains.`,
-    methodology: `Methodology: ${displayName} onchain marketcap distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, learnDeFi uses the latest bundled public snapshot.`,
+    methodology: `Methodology: ${displayName} onchain marketcap distribution from DefiLlama RWA asset pages. If the public page is unavailable at request time, Onchain Visuals uses the latest bundled public snapshot.`,
     valueFormat: "usd",
     valueDirection: "higher",
   };

@@ -94,6 +94,6 @@ export async function getRwaValueByNetwork(limit: number): Promise<ChainMetricRe
     eyebrow: "RWA Value",
     description: "Distributed tokenized real-world asset value by network, excluding stablecoins.",
     insight: `${leader} leads distributed tokenized real-world asset value among supported networks.`,
-    methodology: "Methodology: Distributed RWA value by network from RWA.xyz Networks. If the public table is unavailable at request time, learnDeFi uses the latest bundled public snapshot.",
+    methodology: "Methodology: Distributed RWA value by network from RWA.xyz Networks. If the public table is unavailable at request time, Onchain Visuals uses the latest bundled public snapshot.",
   };
 }

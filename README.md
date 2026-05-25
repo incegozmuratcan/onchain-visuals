@@ -119,7 +119,7 @@
 - Existing vault rows copied from manual/upload are protected from overwrite by provider copy actions and return a clear replace-blocked message.
 - Render alias family now includes `render`, `render-network`, `render network`, `render-network-token`, and `rndr` for DefiLlama resolver matching and alias sibling reuse/backfill between Render and Render Network.
 
-# learnDeFi
+# Onchain Visuals
 
 
 ## v0.11.26 DefiLlama Vault Force-Replace Postcondition (Blocker)
@@ -147,7 +147,7 @@
 
 Make DeFi data share-ready.
 
-learnDeFi creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
+Onchain Visuals creates clean, source-backed market cards from trusted crypto data. It is built for project teams, chain teams, ecosystem and growth teams, community managers, analysts and creators who want simple DeFi visuals they can share on X.
 
 ## v0.11.19 DefiLlama v3 Reset + Rediscovery (Blocker)
 
@@ -183,7 +183,7 @@ learnDeFi creates clean, source-backed market cards from trusted crypto data. It
 - Export PNG cards for sharing.
 - Copy a deterministic caption generated from the current card data.
 
-learnDeFi v0.11.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.11.0 turns admin into a compact operations console, makes CoinGecko the safe primary auto-approval source, adds metric-driven logo discovery, enables real Blob-backed brand asset uploads, and simplifies the public hero/header while preserving public card generation and fallbacks.
+Onchain Visuals v0.11.0 is not an AI product, not a paid SaaS and not a crypto data terminal. Public card creation still has no user accounts, payments, paid plans, alerts or scheduled reports. This version expands the internal admin panel into an operations dashboard for API health, logo QA, source tools and brand-settings groundwork while preserving the public card UX. v0.11.0 turns admin into a compact operations console, makes CoinGecko the safe primary auto-approval source, adds metric-driven logo discovery, enables real Blob-backed brand asset uploads, and simplifies the public hero/header while preserving public card generation and fallbacks.
 
 
 
@@ -494,7 +494,7 @@ The internal admin surface now uses `/admin` as the main operations dashboard in
 
 Bulk CoinGecko and CoinMarketCap refresh results are stored in `admin_settings` as `last_coingecko_bulk_refresh_summary` and `last_cmc_bulk_refresh_summary` with timestamp, refreshed count, missing mapping count, error count and first errors. Partial failures are displayed as warnings/notices in admin instead of making public cards fail.
 
-`/admin/api` centralizes provider status for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources. `/admin/brand` stores brand text/asset URL candidates in `admin_settings`; saved values now feed public copy, metadata and card footer while defaults remain learnDeFi if DB is unavailable.
+`/admin/api` centralizes provider status for CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources. `/admin/brand` stores brand text/asset URL candidates in `admin_settings`; saved values now feed public copy, metadata and card footer while defaults remain Onchain Visuals if DB is unavailable.
 
 ## Logo ingestion and QA
 
@@ -541,7 +541,7 @@ The internal `/logo-audit` route is the visual decision tool. It shows canonical
 - Bulk CoinGecko/CoinMarketCap refreshes store partial-success summaries in `admin_settings`, revalidate admin pages and translate 429/404/401/403/network failures into operator guidance instead of crashing pages.
 - Provider ID rule: DB provider ID > mapping file provider ID > missing mapping. DB values override code mappings so mapping fixes do not require code changes.
 - Public DB logo overlay order remains DB-approved logo URL first, then generated fallback; Local Static Manifest is not a normal public fallback. DB failures log safe server warnings and do not break public cards; alias matching covers Polygon, BNB Chain, OP Mainnet, XRP Ledger, Render Network, Filecoin, Hyperliquid L1, MegaETH, ENI and BSV Blockchain variants.
-- Brand Settings remain connected to public site text/metadata/share-card footer with learnDeFi defaults for empty fields. Save feedback confirms “Brand settings saved,” “Public site is using these values,” and Blob-disabled asset upload status.
+- Brand Settings remain connected to public site text/metadata/share-card footer with Onchain Visuals defaults for empty fields. Save feedback confirms “Brand settings saved,” “Public site is using these values,” and Blob-disabled asset upload status.
 - API Settings shows CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized source state, key presence yes/no, last success/error, metrics, exact missing env vars and docs links without exposing secrets.
 - Blob/upload behavior is explicit: without `BLOB_READ_WRITE_TOKEN`, uploads are disabled but URL candidates, manual URL save and brand text save still work. SVG upload remains disabled until sanitization exists; raster upload is constrained by type and size.
 
@@ -560,7 +560,7 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 
 - Turns `/admin` into an operations dashboard with API provider status cards, logo health totals, action-required inbox items and quick actions.
 - Adds `/admin/api` for server-side API/key health across CoinGecko, CoinMarketCap, DefiLlama, Chainspect/TPS, DePIN Pulse and RWA/tokenized asset sources.
-- Adds `/admin/brand` as the brand settings foundation; v0.10.1 now connects explicitly saved values to public copy/metadata/card footer while preserving learnDeFi defaults when absent.
+- Adds `/admin/brand` as the brand settings foundation; v0.10.1 now connects explicitly saved values to public copy/metadata/card footer while preserving Onchain Visuals defaults when absent.
 - Upgrades `/admin/logos` with a Logo QA Inbox, issue classification, search, filter tabs, sorting and a compact add-logo/source-tools layout.
 - Persists latest CoinGecko and CoinMarketCap bulk refresh summaries in `admin_settings` and displays partial successes as admin warnings instead of public-runtime failures.
 - Adds CoinMarketCap provider foundation through server-only `COINMARKETCAP_API_KEY`, optional logo record ID metadata and disabled UI states when the key is absent.

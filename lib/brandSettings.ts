@@ -4,13 +4,13 @@ import { query, hasDatabaseConfig } from "@/lib/server/postgres";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
 
 export const defaultBrandSettings: PublicBrandSettings = {
-  siteName: "learnDeFi",
-  shortName: "learnDeFi",
+  siteName: "Onchain Visuals",
+  shortName: "Onchain Visuals",
   mainSlogan: "Clean onchain visuals. Simple explanations. Share-ready cards.",
   heroSubtitle: "",
   supportingCopy: "Source-backed market cards from trusted crypto data.",
   cardFooterText: "Source-backed DeFi market card",
-  createdWithText: "Created with learnDeFi",
+  createdWithText: "Created with Onchain Visuals",
   metaDescription: "Create clean, source-backed market cards from trusted crypto data.",
   primaryLogo: "",
   darkLogo: "",
