@@ -711,3 +711,6 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 - DePIN Pulse row policy: no hard cap in data layer; displayed rows = `min(requestedLimit, totalRowsFromSource)`, with titles using `Top N of total` only when rows are truncated.
 - DePIN freshness policy: DePIN Pulse source fetch revalidates every 300s and `/api/chain-revenue` responds with `Cache-Control: no-store` (`dynamic = force-dynamic`, `revalidate = 0`) to prevent stale rendered visuals.
 - `verify:depin-pulse-data` now checks limit/title/source parity for limits 15/20/25/30 and includes a stale-data regression fixture (Helium source A→B change).
+
+## Onchain Visuals
+See `docs/onchain-env-vars.md` and `docs/dune/stablecoin-net-transfers-by-chain.md` for source config, refresh, and no-fake-data policy.
