@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { safeChangePct, rolling_7d, cumulative_sum, market_share, rank_change, streak_count, supply_pressure_score, long_short_imbalance } from '../tests/testlib.mjs';
+import { safeChangePct, rolling_7d, cumulative_sum, market_share, rank_change, streak_count, supply_pressure_score, long_short_imbalance } from '../lib/metrics.mjs';
 
 test('safeChangePct handles zero previous', () => assert.equal(safeChangePct(100, 0), null));
 test('rolling_7d computes sum', () => assert.equal(rolling_7d([1,2,3,4,5,6,7]), 28));

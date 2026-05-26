@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { formatSignedPercent, formatCompactUsd, formatSignedUsd, formatAddress, formatTxHash, formatTimeAgo } from '../tests/testlib.mjs';
+import { formatSignedPercent, formatCompactUsd, formatSignedUsd, formatAddress, formatTxHash, formatTimeAgo } from '../lib/formatters.mjs';
 
 test('formatSignedPercent shows sign', () => assert.equal(formatSignedPercent(0.124), '+12.4%'));
 test('formatCompactUsd supports null', () => assert.equal(formatCompactUsd(null), 'N/A'));
