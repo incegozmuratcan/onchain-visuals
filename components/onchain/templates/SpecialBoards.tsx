@@ -1,0 +1,8 @@
+"use client";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { MetricCard, SourceConfigRequiredState } from "../ChartShell";
+export function StablecoinFlowBoard({ data }: { data:any }) { if(data.status==='source_config_required') return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>; return <><div className="grid grid-cols-3 gap-4">{(data.headlineMetrics||[]).slice(0,3).map((m:any)=><MetricCard key={m.label} label={m.label} value={m.formattedValue}/>)}</div><div className="mt-8 h-[500px] rounded-3xl border bg-white p-6"><ResponsiveContainer width="100%" height="100%"><BarChart data={data.series?.bars||[]} layout="vertical"><XAxis type="number" hide/><YAxis type="category" dataKey="name" width={160}/><Tooltip/><Bar dataKey="value" fill="#10b981" radius={[0,12,12,0]}/></BarChart></ResponsiveContainer></div></>; }
+export function UnlockCalendar({ data }: { data:any }) { return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>; }
+export function LiquidationPulse({ data }: { data:any }) { return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>; }
+export function HolderConcentration({ data }: { data:any }) { return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>; }
+export function WhaleTransferCards({ data }: { data:any }) { return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>; }

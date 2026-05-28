@@ -1,0 +1,4 @@
+"use client";
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { MetricCard } from "../ChartShell";
+export function BtcEthEtfComparison({ data }: { data:any }) { return <><div className="grid grid-cols-3 gap-4">{(data.headlineMetrics||[]).slice(0,3).map((m:any)=><MetricCard key={m.label} label={m.label} value={m.formattedValue}/>)}</div><div className="mt-8 h-[520px] rounded-3xl bg-zinc-950 p-8 text-white"><h3 className="text-sm uppercase tracking-[0.2em] text-zinc-400">Rolling ETF flow battle</h3><ResponsiveContainer width="100%" height="90%"><BarChart data={data.series?.bars || []}><XAxis dataKey="name" tick={{fill:'#e4e4e7'}}/><YAxis tick={{fill:'#e4e4e7'}}/><Tooltip/><Bar dataKey="value" fill="#f97316" radius={[12,12,0,0]}/></BarChart></ResponsiveContainer></div></>; }

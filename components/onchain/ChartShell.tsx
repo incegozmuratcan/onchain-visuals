@@ -2,28 +2,23 @@
 import { ReactNode, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 
-export function ChartShell({ title, subtitle, sourceLabel, children, insights }: { title: string; subtitle: string; sourceLabel: string; insights: string[]; children: ReactNode }) {
+export function ExportFormatSelector({ value, onChange }: { value: '1600x900'|'1200x1200'|'1080x1350'; onChange: (value: '1600x900'|'1200x1200'|'1080x1350') => void }) {
+  return <select value={value} onChange={(e)=>onChange(e.target.value as any)} className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-sm"><option>1600x900</option><option>1200x1200</option><option>1080x1350</option></select>;
+}
+export function ExportButton({ onClick }: { onClick: () => void }) { return <button onClick={onClick} className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm">Export PNG</button>; }
+export function FreshnessBadge({ status }: { status: string }) { const color = status === 'fresh' ? 'bg-emerald-100 text-emerald-800' : status === 'source_config_required' ? 'bg-amber-100 text-amber-800' : 'bg-zinc-100 text-zinc-700'; return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${color}`}>{status.replaceAll('_',' ')}</span>; }
+export function DatasetStatusBadge({ status }: { status: string }) { return <span className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600">{status.replaceAll('_',' ')}</span>; }
+export function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string | null }) { return <div className="rounded-2xl border border-zinc-200 bg-white/80 p-4 shadow-sm"><div className="text-xs uppercase tracking-[0.18em] text-zinc-500">{label}</div><div className="mt-2 text-2xl font-semibold text-zinc-950">{value}</div>{sub ? <div className="mt-1 text-xs text-zinc-500">{sub}</div> : null}</div>; }
+export function InsightChips({ insights }: { insights: string[] }) { return <div className="flex flex-wrap gap-2">{insights.slice(0,4).map((i)=><span key={i} className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">{i}</span>)}</div>; }
+export function SourceFooter({ sourceLabel, sourceUrl }: { sourceLabel: string; sourceUrl?: string | null }) { return <footer className="mt-8 flex items-center justify-between border-t border-zinc-200 pt-4 text-xs text-zinc-500"><span>{sourceUrl ? <a href={sourceUrl} className="underline">{sourceLabel}</a> : sourceLabel}</span><span className="font-semibold text-zinc-700">Onchain Visuals</span></footer>; }
+export function StaleDataNotice({ message }: { message?: string | null }) { if(!message) return null; return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{message}</div>; }
+export function SourceConfigRequiredState({ missingConfig, message }: { missingConfig: string[]; message?: string | null }) { return <div className="rounded-3xl border border-dashed border-amber-300 bg-amber-50 p-8 text-amber-950"><h2 className="text-xl font-semibold">Source configuration required</h2><p className="mt-2 text-sm">{message || 'Configure the missing environment variables and run a refresh. No fake data is shown.'}</p><div className="mt-4 flex flex-wrap gap-2">{missingConfig.map((k)=><code key={k} className="rounded bg-white px-2 py-1 text-xs">{k}</code>)}</div></div>; }
+export function PeriodSwitcher({ periods, current }: { periods?: string[]; current: string }) { return <div className="flex gap-2">{(periods || [current]).map((p)=><span key={p} className={`rounded-full px-3 py-1 text-xs ${p===current?'bg-zinc-950 text-white':'bg-zinc-100 text-zinc-600'}`}>{p.toUpperCase()}</span>)}</div>; }
+
+export function ChartShell({ data, children }: { data: any; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [format, setFormat] = useState<'1600x900'|'1200x1200'|'1080x1350'>('1600x900');
   const style = useMemo(() => ({'1600x900': { width: 1600, minHeight: 900 }, '1200x1200': { width: 1200, minHeight: 1200 }, '1080x1350': { width: 1080, minHeight: 1350 }}[format]), [format]);
-  const onExport = async () => {
-    if (!ref.current) return;
-    const dataUrl = await toPng(ref.current, { cacheBust: true, pixelRatio: 2 });
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = `onchain-visual-${format}.png`;
-    a.click();
-  };
-
-  return <section className="space-y-4">
-    <div className="flex items-center justify-between gap-3">
-      <div><h1 className="text-3xl font-semibold tracking-tight">{title}</h1><p className="text-zinc-600">{subtitle}</p></div>
-      <div className="flex items-center gap-2"><select value={format} onChange={(e)=>setFormat(e.target.value as any)} className="rounded border px-2 py-1 text-sm"><option>1600x900</option><option>1200x1200</option><option>1080x1350</option></select><button onClick={onExport} className="rounded bg-black px-3 py-1.5 text-sm text-white">Export PNG</button></div>
-    </div>
-    <div ref={ref} className="rounded-2xl border bg-white p-6" style={style as any}>
-      {children}
-      <div className="mt-6 flex flex-wrap gap-2">{insights.slice(0,3).map((i) => <span key={i} className="rounded-full bg-zinc-100 px-3 py-1 text-xs">{i}</span>)}</div>
-      <footer className="mt-6 text-xs text-zinc-500">{sourceLabel} · Onchain Visuals</footer>
-    </div>
-  </section>;
+  const onExport = async () => { if (!ref.current) return; const dataUrl = await toPng(ref.current, { cacheBust: true, pixelRatio: 2, backgroundColor: '#ffffff' }); const a = document.createElement('a'); a.href = dataUrl; a.download = `${data.datasetSlug}-${format}.png`; a.click(); };
+  return <section className="space-y-5"><div className="flex flex-wrap items-start justify-between gap-4"><div className="space-y-2"><div className="flex flex-wrap gap-2"><FreshnessBadge status={data?.freshness?.status || data.status} /><DatasetStatusBadge status={data.status} /></div><h1 className="text-4xl font-semibold tracking-tight text-zinc-950">{data.title}</h1><p className="max-w-3xl text-zinc-600">{data.subtitle}</p></div><div className="flex items-center gap-2"><ExportFormatSelector value={format} onChange={setFormat}/><ExportButton onClick={onExport}/></div></div><div ref={ref} className="overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm" style={style as any}><div className="mb-8 flex items-start justify-between gap-6"><div><div className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500">Onchain Visuals</div><h2 className="mt-3 text-5xl font-semibold tracking-tight">{data.title}</h2><p className="mt-3 max-w-3xl text-lg text-zinc-600">{data.subtitle}</p></div><PeriodSwitcher current={data.period}/></div><StaleDataNotice message={data?.freshness?.fallbackUsed ? data?.freshness?.message : null}/>{children}<div className="mt-8"><InsightChips insights={data.insights || []}/></div><SourceFooter sourceLabel={data.sourceLabel} sourceUrl={data.sourceUrl}/></div></section>;
 }

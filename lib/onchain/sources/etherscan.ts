@@ -1,0 +1,2 @@
+export const largeHolderMissingConfig = () => ['ETHERSCAN_API_KEY'].filter((key) => !process.env[key]);
+export async function fetchLargeHolders() { return { ok:false as const, source:'Etherscan', url:null, status:'source_config_required' as const, message:'Large holder snapshots require a configured explorer ingestion job; no page request fetches holder data.', missingConfig: largeHolderMissingConfig() }; }

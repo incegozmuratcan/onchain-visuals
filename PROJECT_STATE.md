@@ -713,3 +713,8 @@
 - DePIN Pulse row policy: no hard cap in data layer; displayed rows = `min(requestedLimit, totalRowsFromSource)`, with titles using `Top N of total` only when rows are truncated.
 - DePIN freshness policy: DePIN Pulse source fetch revalidates every 300s and `/api/chain-revenue` responds with `Cache-Control: no-store` (`dynamic = force-dynamic`, `revalidate = 0`) to prevent stale rendered visuals.
 - `verify:depin-pulse-data` now checks limit/title/source parity for limits 15/20/25/30 and includes a stale-data regression fixture (Helium source A→B change).
+
+## Onchain Visuals production data layer
+
+The onchain product now enforces honest dataset states: active datasets must have real connectors and chart snapshots, while credentialed or unavailable sources render `source_config_required`/`disabled` with exact missing configuration and no fake data. Public connectors cover DefiLlama, Farside ETF flows, Binance price context, Dune latest-result reads, source-health, refresh routes, and snapshot persistence with Postgres or local dev fallback. See `docs/onchain-visuals-data.md`, `docs/onchain-env-vars.md`, and `docs/onchain-refresh-and-snapshots.md`.
+
