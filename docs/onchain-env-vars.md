@@ -12,4 +12,18 @@ Required for configured sources:
 - `TOKEN_UNLOCKS_SOURCE_URL`: provider URL for token unlock data when licensed/configured.
 - `DATABASE_URL`: optional Neon/Postgres persistence. Without it, local development uses `.onchain-cache` JSON files.
 
+## Onchain storage initialization
+
+When `DATABASE_URL` points at Neon/Postgres, initialize the onchain snapshot/source-run tables before relying on persisted source health:
+
+```bash
+npm run onchain:init-db
+# or initialize the full schema:
+npm run db:push
+```
+
+`storage_not_initialized` in `/api/onchain/source-health` means `DATABASE_URL` is configured but at least one required onchain table, such as `onchain_source_runs` or `onchain_chart_snapshots`, is missing. The response includes `storageReady: false`, `missingTables`, and a message with the init commands.
+
+Vercel deploy note: onchain API routes are dynamic and use `revalidate = 0`, so builds must not prerender DB/source-health state. A missing optional onchain storage table should not block `npm run build`; initialize the tables after or before deploy with the commands above.
+
 Missing source env vars produce `source_config_required` snapshots with the exact missing keys visible in the UI and source-health responses.
