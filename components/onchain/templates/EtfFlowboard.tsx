@@ -1,11 +1,22 @@
 "use client";
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { MetricCard } from "../ChartShell";
 
 const usd = (v: any) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", notation: "compact", maximumFractionDigits: 2 }).format(Number(v) || 0);
 const signedUsd = (v: any) => `${Number(v) >= 0 ? "+" : ""}${usd(v)}`;
 const shortDate = (date: string) => new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" });
 const toneClass = (value: any) => Number(value) >= 0 ? "text-emerald-700" : "text-rose-700";
+
+function BtcMetricCard({ label, value, sub, hero = false }: { label: string; value: string; sub?: string | null; hero?: boolean }) {
+  return (
+    <div className={`flex min-h-[112px] flex-col justify-between rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm ${hero ? "min-h-[230px] p-6" : ""}`}>
+      <div className="min-h-[28px] text-[10px] font-semibold uppercase leading-4 tracking-[0.18em] text-zinc-500">{label}</div>
+      <div>
+        <div className={`${hero ? "text-6xl tracking-[-0.06em]" : "text-2xl tracking-[-0.04em]"} font-semibold text-zinc-950`}>{value}</div>
+        {sub ? <div className="mt-2 text-sm font-medium text-zinc-500">{sub}</div> : null}
+      </div>
+    </div>
+  );
+}
 
 function FlowBars({ rows, compact = false }: { rows: any[]; compact?: boolean }) {
   const data = rows.map((row) => ({ ...row, label: shortDate(row.date || row.name) }));
@@ -15,7 +26,7 @@ function FlowBars({ rows, compact = false }: { rows: any[]; compact?: boolean })
         <CartesianGrid stroke="#eceff3" vertical={false} />
         <XAxis dataKey="label" interval={0} tick={{ fill: "#71717a", fontSize: compact ? 10 : 11 }} tickLine={false} axisLine={false} />
         <YAxis tickFormatter={usd as any} tick={{ fill: "#a1a1aa", fontSize: 10 }} tickLine={false} axisLine={false} width={54} />
-        <Bar dataKey="value" radius={[10, 10, 10, 10]} isAnimationActive={false} activeBar={false as any}>
+        <Bar dataKey="value" radius={[10, 10, 10, 10]} isAnimationActive={false} activeBar={false as any} label={{ position: "top", formatter: usd as any, fill: "#52525b", fontSize: compact ? 10 : 11 }}>
           {data.map((entry: any, index: number) => (
             <Cell key={`flow-${index}`} fill={Number(entry.value) >= 0 ? "#10b981" : "#ef4444"} fillOpacity={entry.opacity ?? (entry.isLatest ? 1 : 0.7)} />
           ))}
@@ -72,7 +83,7 @@ function IssuerImpact({ cards, rows }: { cards: any[]; rows: any[] }) {
           </div>
         ))}
       </div>
-      <Leaderboard rows={rows} maxRows={5} title="Top issuer contributors" description="Largest signed contributors on the latest completed day." showRank={false} />
+      <Leaderboard rows={rows} maxRows={5} title="Latest Issuer Flows" description="Largest signed issuer moves on the latest completed row." showRank={false} />
     </div>
   );
 }
@@ -84,72 +95,62 @@ export function EtfFlowboard({ data }: { data: any }) {
   const monthly = view === "monthly";
   const metrics = data.headlineMetrics || [];
   const hero = metrics[0];
-  const contextMetrics = daily ? metrics.slice(1, 4) : metrics.slice(0, 5);
+  const supportMetrics = daily ? metrics.slice(1, 4) : metrics.slice(1, 4);
+  const sinceLaunch = metrics.find((metric: any) => metric.label === "Since Launch");
   const bars = data.series?.bars || [];
   const issuerRows = data.series?.tables || [];
-  const hiddenIssuerCount = Number(data.metadata?.hiddenIssuerCount || data.series?.cards?.find((card: any) => card.label === "Hidden issuer count")?.value || 0);
+  const hiddenIssuerCount = monthly ? Number(data.metadata?.hiddenIssuerCount || data.series?.cards?.find((card: any) => card.label === "Hidden issuer count")?.value || 0) : 0;
 
   return (
     <div className="space-y-5">
       {daily ? (
-        <div className="grid gap-5 lg:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">Latest Net Flow</div>
+        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="rounded-[2rem] border border-zinc-200 bg-zinc-50/70 p-6 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.24em] text-zinc-500">{hero?.label}</div>
             <div className={`mt-3 text-6xl font-semibold tracking-[-0.06em] ${toneClass(hero?.value)}`}>{hero?.formattedValue}</div>
-            {data.metadata?.latestCompletedDate ? <div className="mt-3 text-sm font-medium text-zinc-500">Latest completed row: <span className="font-semibold text-zinc-800">{data.metadata.latestCompletedDate}</span></div> : null}
+            <div className="mt-3 text-sm font-medium text-zinc-500">Latest completed row{data.metadata?.latestCompletedDate ? <>: <span className="font-semibold text-zinc-800">{data.metadata.latestCompletedDate}</span></> : null}</div>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {contextMetrics.map((metric: any) => <MetricCard key={metric.label} label={metric.label} value={metric.formattedValue} />)}
+              {supportMetrics.map((metric: any) => <BtcMetricCard key={metric.label} label={metric.label} value={metric.formattedValue} />)}
             </div>
           </div>
-          <div className="rounded-[2rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <div>
-                <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">5-day context</h3>
-                <p className="mt-1 text-sm text-zinc-500">Latest completed day highlighted; prior sessions muted.</p>
-              </div>
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-500">5 completed days</span>
-            </div>
-            <div className="h-[260px]"><FlowBars rows={bars} compact /></div>
-          </div>
+          <Leaderboard rows={issuerRows} maxRows={5} title="Latest Issuer Flows" description="Largest signed issuer moves on the latest completed row." showRank={false} />
         </div>
-      ) : (
-        <div className="grid gap-3 md:grid-cols-5">
-          {contextMetrics.map((metric: any) => {
-            const card = data.series?.cards?.find((item: any) => item.label.toLowerCase().startsWith(metric.label.toLowerCase().split(" ")[0]));
-            return <MetricCard key={metric.label} label={metric.label} value={metric.formattedValue} sub={card?.date || null} />;
-          })}
-        </div>
-      )}
-
-      {daily ? <IssuerImpact cards={data.series?.cards || []} rows={issuerRows} /> : null}
+      ) : null}
 
       {weekly ? (
-        <div className="grid gap-5 lg:grid-cols-[1fr_0.92fr]">
-          <div className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Five completed trading days</h3>
-            <p className="mt-1 text-sm text-zinc-500">Daily net flow over the latest completed Farside rows.</p>
-            <div className="mt-4 h-[300px]"><FlowBars rows={bars} /></div>
+        <>
+          <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr]">
+            <BtcMetricCard label={hero?.label || "Weekly Net Flow"} value={hero?.formattedValue || "Pending"} sub="Last five completed sessions" hero />
+            {supportMetrics.map((metric: any) => {
+              const card = data.series?.cards?.find((item: any) => item.label === metric.label);
+              return <BtcMetricCard key={metric.label} label={metric.label} value={metric.formattedValue} sub={card?.date || (metric.label === "Top Issuer" ? "This week" : null)} />;
+            })}
           </div>
-          <Leaderboard rows={issuerRows} maxRows={8} title="Weekly issuer net flow" description="Largest issuer sums across the five completed days." />
-        </div>
+          {sinceLaunch ? <div className="rounded-[1.35rem] border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-500"><span className="font-semibold uppercase tracking-[0.16em] text-zinc-400">Since Launch</span> <span className="ml-2 font-semibold text-zinc-950">{sinceLaunch.formattedValue}</span></div> : null}
+          <div className="grid gap-5 lg:grid-cols-[1fr_0.92fr]">
+            <div className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">Five completed days</h3>
+              <p className="mt-1 text-sm text-zinc-500">Daily net flow with readable signed values.</p>
+              <div className="mt-4 h-[300px]"><FlowBars rows={bars} /></div>
+            </div>
+            <Leaderboard rows={issuerRows} maxRows={8} title="Weekly issuer net flow" description="Largest issuer sums across the five completed days." />
+          </div>
+        </>
       ) : null}
 
       {monthly ? (
-        <div className="grid gap-5 lg:grid-cols-[1fr_0.72fr]">
-          <Leaderboard rows={issuerRows} maxRows={8} title="Issuer monthly net-flow leaderboard" description={`Current month-to-date completed rows${data.metadata?.month ? ` · ${data.metadata.month}` : ""}.`} />
-          <div className="grid content-start gap-3">
-            {(data.series?.cards || []).filter((card: any) => card.label !== "Hidden issuer count").slice(0, 3).map((card: any) => (
-              <div key={card.label} className="rounded-[1.5rem] border border-zinc-200 bg-white p-5 shadow-sm">
-                <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">{card.label}</div>
-                <div className="mt-2 truncate text-2xl font-semibold text-zinc-950">{card.ticker || card.value}</div>
-                {card.amount != null ? <div className={`mt-1 text-sm font-semibold ${toneClass(card.amount)}`}>{signedUsd(card.amount)}</div> : null}
-              </div>
-            ))}
+        <>
+          <div className="grid gap-3 md:grid-cols-4">
+            {metrics.slice(0, 4).map((metric: any) => {
+              const card = data.series?.cards?.find((item: any) => item.label === metric.label);
+              return <BtcMetricCard key={metric.label} label={metric.label} value={metric.formattedValue} sub={card?.ticker || null} />;
+            })}
           </div>
-        </div>
+          <Leaderboard rows={issuerRows} maxRows={8} title="Issuer Monthly Flows" description={`Month-to-date issuer leaderboard${data.metadata?.month ? ` · ${data.metadata.month}` : ""}.`} />
+        </>
       ) : null}
 
-      {hiddenIssuerCount > 0 ? <div className="text-xs font-medium text-zinc-400">+{hiddenIssuerCount} more issuers omitted for clarity.</div> : null}
+      {hiddenIssuerCount > 0 ? <div className="text-xs font-medium text-zinc-400">{hiddenIssuerCount} smaller issuers omitted.</div> : null}
     </div>
   );
 }
