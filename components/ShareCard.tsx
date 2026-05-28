@@ -45,14 +45,21 @@ function signedUsd(value: number | string | null | undefined) {
 
 function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: ChartSnapshot }) {
   const view = data.metadata?.view || "daily";
-  const issuerRows = (view === "daily" ? data.series.bars : data.series.tables).slice(0, 10);
-  const flowRows = (view === "daily" ? data.series.lines.slice(-20) : data.series.bars).slice(-20);
-  const maxAbs = Math.max(1, ...issuerRows.map((row: any) => Math.abs(Number(row.value) || 0)));
+  const daily = view === "daily";
+  const weekly = view === "weekly";
+  const monthly = view === "monthly";
+  const issuerRows = (data.series.tables || []).slice(0, daily ? 5 : 8);
+  const flowRows = (data.series.bars || []).slice(0, 5);
+  const maxAbsIssuer = Math.max(1, ...issuerRows.map((row: any) => Math.abs(Number(row.value) || 0)));
+  const maxAbsFlow = Math.max(1, ...flowRows.map((row: any) => Math.abs(Number(row.value) || 0)));
   const cleanSource = data.sourceLabel.replace(/^Source:\s*/i, "");
+  const hero = data.headlineMetrics[0];
+  const supportMetrics = daily ? data.headlineMetrics.slice(1, 4) : data.headlineMetrics.slice(0, 4);
+  const hiddenIssuerCount = Number(data.metadata?.hiddenIssuerCount || 0);
 
   return (
-    <div id="share-card" className="relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
-      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-300 via-slate-950 to-emerald-300" />
+    <div id="share-card" className="relative rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
+      <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
       <div className="flex items-start justify-between gap-6">
         <div className="max-w-[76%]">
           <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">Capital Flows · BTC ETF</p>
@@ -63,37 +70,65 @@ function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: Ch
         <div className="rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">{brand.shortName}</div>
       </div>
 
-      <div className="mt-8 grid gap-3 md:grid-cols-4">
-        {data.headlineMetrics.slice(0, 4).map((metric) => (
-          <div key={metric.label} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
-            <div className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">{metric.formattedValue}</div>
+      {daily ? (
+        <div className="mt-8 grid gap-5 md:grid-cols-[1.08fr_0.92fr]">
+          <div className="rounded-[28px] border border-slate-200 bg-slate-50/70 p-6">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Latest Net Flow</div>
+            <div className={`mt-3 text-6xl font-black tracking-[-0.065em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{hero?.formattedValue}</div>
+            <div className="mt-5 grid grid-cols-3 gap-2">
+              {supportMetrics.map((metric) => (
+                <div key={metric.label} className="rounded-[18px] bg-white p-3">
+                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{metric.label}</div>
+                  <div className="mt-1 text-base font-black tracking-[-0.03em] text-slate-950">{metric.formattedValue}</div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
-
-      <div className="mt-8 grid gap-6 md:grid-cols-[1fr_0.9fr]">
-        <div className="rounded-[26px] border border-slate-200 bg-white p-5">
-          <div className="mb-5 flex items-center justify-between text-xs font-black uppercase tracking-[0.18em] text-slate-400"><span>{view === "daily" ? "Net flow path" : view === "weekly" ? "Five completed days" : "Month-to-date sessions"}</span><span>Completed rows only</span></div>
-          <div className="flex h-52 items-end gap-2">
-            {flowRows.map((row: any) => {
-              const value = Number(row.value) || 0;
-              const maxFlow = Math.max(1, ...flowRows.map((r: any) => Math.abs(Number(r.value) || 0)));
-              return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxFlow * 190)}px`, opacity: 0.78 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
-            })}
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+            <div className="mb-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.18em] text-slate-400"><span>5-day context</span><span>Latest highlighted</span></div>
+            <div className="flex h-44 items-end gap-2">
+              {flowRows.map((row: any) => {
+                const value = Number(row.value) || 0;
+                return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxAbsFlow * 164)}px`, opacity: row.isLatest ? 1 : 0.28 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
+              })}
+            </div>
           </div>
         </div>
+      ) : (
+        <div className="mt-8 grid gap-3 md:grid-cols-4">
+          {supportMetrics.map((metric) => (
+            <div key={metric.label} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
+              <div className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">{metric.formattedValue}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-        <div className="rounded-[26px] border border-slate-200 bg-slate-950 p-5 text-white">
-          <div className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">{view === "daily" ? "Issuer latest day" : view === "weekly" ? "Weekly issuer net flow" : "Issuer leaderboard"}</div>
+      <div className={monthly ? "mt-7 rounded-[28px] border border-slate-200 bg-white p-5" : "mt-7 grid gap-5 md:grid-cols-[1fr_0.95fr]"}>
+        {!monthly && weekly ? (
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+            <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Five completed days</div>
+            <div className="flex h-40 items-end gap-2">
+              {flowRows.map((row: any) => {
+                const value = Number(row.value) || 0;
+                return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxAbsFlow * 150)}px`, opacity: 0.78 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className={monthly ? "" : "rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white"}>
+          <div className={`mb-4 text-xs font-black uppercase tracking-[0.18em] ${monthly ? "text-slate-400" : "text-slate-400"}`}>{daily ? "Issuer impact" : weekly ? "Weekly issuer net flow" : "Issuer monthly leaderboard"}</div>
           <div className="grid gap-3">
-            {issuerRows.map((row: any) => (
-              <div key={row.ticker || row.name}>
-                <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className="truncate font-black">{row.ticker || row.name} <span className="font-medium text-slate-400">{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-300" : "text-rose-300"}>{signedUsd(row.value)}</span></div>
-                <div className="h-1.5 rounded-full bg-white/10"><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-300" : "bg-rose-300"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbs * 100)}%` }} /></div>
+            {issuerRows.map((row: any, index: number) => (
+              <div key={`${row.ticker || row.name}-${index}`}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className={`truncate font-black ${monthly ? "text-slate-950" : "text-white"}`}>{monthly ? `${index + 1}. ` : ""}{row.ticker || row.name} <span className={monthly ? "font-medium text-slate-400" : "font-medium text-slate-400"}>{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-500" : "text-rose-500"}>{signedUsd(row.value)}</span></div>
+                <div className={monthly ? "h-1.5 rounded-full bg-slate-100" : "h-1.5 rounded-full bg-white/10"}><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbsIssuer * 100)}%` }} /></div>
               </div>
             ))}
           </div>
+          {hiddenIssuerCount > 0 ? <div className={monthly ? "mt-3 text-xs font-bold text-slate-400" : "mt-3 text-xs font-bold text-slate-400"}>+{hiddenIssuerCount} more issuers omitted for clarity.</div> : null}
         </div>
       </div>
 

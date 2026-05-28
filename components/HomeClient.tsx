@@ -19,8 +19,6 @@ const tryCards = [
   "Top 10 DePIN projects by 30D annualized revenue",
   "Top 10 chains by real-time TPS",
   "BTC ETF Daily Flowboard",
-  "BTC ETF Weekly Flowboard",
-  "BTC ETF Monthly Issuer Report",
 ];
 
 const activeDataset = {

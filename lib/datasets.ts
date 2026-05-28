@@ -25,6 +25,23 @@ export type DatasetGroup = {
 
 export const datasetGroups: DatasetGroup[] = [
   {
+    id: "capital_flows",
+    name: "Capital Flows",
+    description: "Institutional capital movement visuals ready for public cards.",
+    metrics: [
+      {
+        id: "btc_etf",
+        label: "BTC ETF",
+        status: "active",
+        queries: [
+          { id: "btc_etf_daily_flowboard", label: "BTC ETF Daily Flowboard", prompt: "BTC ETF Daily Flowboard", status: "active", source: "Farside Investors", chip: "Daily" },
+          { id: "btc_etf_weekly_flowboard", label: "BTC ETF Weekly Flowboard", prompt: "BTC ETF Weekly Flowboard", status: "active", source: "Farside Investors", chip: "Weekly" },
+          { id: "btc_etf_monthly_issuer_report", label: "BTC ETF Monthly Issuer Report", prompt: "BTC ETF Monthly Issuer Report", status: "active", source: "Farside Investors", chip: "Monthly" },
+        ],
+      },
+    ],
+  },
+  {
     id: "chains",
     name: "Chains",
     description: "Network-level metrics for chain comparisons.",
@@ -81,23 +98,6 @@ export const datasetGroups: DatasetGroup[] = [
       },
       { id: "protocol_revenue", label: "Revenue", status: "coming_soon", queries: [{ id: "protocol_revenue_30d", label: "Protocol revenue", prompt: "Top 10 protocols by 30D revenue", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
       { id: "protocol_fees", label: "Fees", status: "coming_soon", queries: [{ id: "protocol_fees_30d", label: "Protocol fees", prompt: "Top 10 protocols by 30D fees", status: "coming_soon", source: "DefiLlama", chip: "Soon" }] },
-    ],
-  },
-  {
-    id: "capital_flows",
-    name: "Capital Flows",
-    description: "Institutional capital movement visuals ready for public cards.",
-    metrics: [
-      {
-        id: "btc_etf",
-        label: "BTC ETF",
-        status: "active",
-        queries: [
-          { id: "btc_etf_daily_flowboard", label: "BTC ETF Daily Flowboard", prompt: "BTC ETF Daily Flowboard", status: "active", source: "Farside Investors", chip: "Daily" },
-          { id: "btc_etf_weekly_flowboard", label: "BTC ETF Weekly Flowboard", prompt: "BTC ETF Weekly Flowboard", status: "active", source: "Farside Investors", chip: "Weekly" },
-          { id: "btc_etf_monthly_issuer_report", label: "BTC ETF Monthly Issuer Report", prompt: "BTC ETF Monthly Issuer Report", status: "active", source: "Farside Investors", chip: "Monthly" },
-        ],
-      },
     ],
   },
   {
