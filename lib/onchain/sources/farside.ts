@@ -3,10 +3,10 @@ import type { SourceResult } from '../types';
 
 export type EtfAsset = 'BTC' | 'ETH';
 export type EtfFlowRow = { date: string; asset: EtfAsset; issuer: string; ticker: string; flowUsd: number | null; isTotal: boolean; rawValue: string; };
-const URLS = { BTC: 'https://farside.co.uk/btc/', ETH: 'https://farside.co.uk/eth/' } as const;
+const URLS = { BTC: 'https://farside.co.uk/btc/', ETH: 'https://farside.co.uk/ethereum-etf-flow-all-data/' } as const;
 const issuerMap: Record<string, string> = { ibit:'BlackRock', fbTC:'Fidelity', fbtc:'Fidelity', bitb:'Bitwise', arkb:'ARK 21Shares', btco:'Invesco Galaxy', ezbc:'Franklin', brtc:'Valkyrie', hodl:'VanEck', btcw:'WisdomTree', gbtc:'Grayscale GBTC', btc:'Grayscale BTC', mini:'Grayscale Mini', ethA:'BlackRock', etha:'BlackRock', feth:'Fidelity', ethw:'Bitwise', ceth:'21Shares', ethv:'VanEck', qeth:'Invesco Galaxy', ezet:'Franklin', ethe:'Grayscale ETHE', eth:'Grayscale Mini' };
 export function normalizeEtfIssuer(value: string) { const key = value.trim().replace(/\s+/g, '').toLowerCase(); return issuerMap[key] || value.trim().replace(/\*+$/, '') || 'Unknown issuer'; }
-function decode(s: string) { return s.replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&#8211;|&ndash;|—|–/g,'-').replace(/<[^>]+>/g,'').trim(); }
+function decode(s: string) { return s.replace(/&nbsp;|&#160;/g,' ').replace(/&amp;/g,'&').replace(/&#8211;|&ndash;|—|–/g,'-').replace(/<br\s*\/?\s*>/gi,' ').replace(/<[^>]+>/g,'').replace(/\s+/g,' ').trim(); }
 function parseDate(input: string): string | null {
   const cleaned = input.replace(/\*/g,'').trim();
   const parsed = new Date(`${cleaned} UTC`);
@@ -28,10 +28,15 @@ export function parseFarsideEtfTable(html: string, asset: EtfAsset): { rows: Etf
   const table = html.match(/<table[\s\S]*?<\/table>/i)?.[0] || html;
   const tr = [...table.matchAll(/<tr[\s\S]*?<\/tr>/gi)].map((m) => m[0]);
   if (!tr.length) return { rows: [], warnings: ['No table rows found in Farside HTML.'] };
-  const headerCells = [...tr[0].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((m) => decode(m[1]));
-  const issuers = headerCells.slice(1).map((h) => h || 'Total');
+  let headerIndex = tr.findIndex((rowHtml) => {
+    const cells = [...rowHtml.matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((m) => decode(m[1]));
+    return cells.length > 2 && /date/i.test(cells[0]) && cells.some((c) => /total|ibit|gbtc|etha|feth|ethw/i.test(c));
+  });
+  if (headerIndex < 0) headerIndex = 0;
+  const headerCells = [...tr[headerIndex].matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((m) => decode(m[1]));
+  const issuers = headerCells.slice(1).map((h, i) => /net flow|total/i.test(h || '') || i === headerCells.length - 2 ? 'Total' : (h || `col_${i + 1}`));
   const rows: EtfFlowRow[] = [];
-  for (const rowHtml of tr.slice(1)) {
+  for (const rowHtml of tr.slice(headerIndex + 1)) {
     const cells = [...rowHtml.matchAll(/<t[hd][^>]*>([\s\S]*?)<\/t[hd]>/gi)].map((m) => decode(m[1]));
     if (cells.length < 2) continue;
     const date = parseDate(cells[0]);
@@ -40,7 +45,7 @@ export function parseFarsideEtfTable(html: string, asset: EtfAsset): { rows: Etf
       const ticker = issuers[i-1] || `col_${i}`;
       const isTotal = /total/i.test(ticker);
       const flowUsd = parseFlowValue(cells[i]);
-      if (flowUsd == null && cells[i] && !/^(-|n\/?a)$/i.test(cells[i])) warnings.push(`Blank/unknown ETF value for ${ticker} on ${date}`);
+      if (flowUsd == null && cells[i] && !/^(-|n\/?a|pending|awaiting)$/i.test(cells[i])) warnings.push(`Blank/unknown ETF value for ${ticker} on ${date}`);
       rows.push({ date, asset, issuer: isTotal ? 'Total' : normalizeEtfIssuer(ticker), ticker, flowUsd, isTotal, rawValue: cells[i] });
     }
   }
@@ -48,7 +53,7 @@ export function parseFarsideEtfTable(html: string, asset: EtfAsset): { rows: Etf
 }
 export async function fetchEtfFlows(asset: EtfAsset): Promise<SourceResult<{ rows: EtfFlowRow[]; warnings: string[] }>> {
   const url = URLS[asset];
-  try { const html = await fetchText(url); const parsed = parseFarsideEtfTable(html, asset); if (!parsed.rows.some((r)=>r.flowUsd !== null)) throw new Error(`No ${asset} ETF flow values parsed`); return { ok:true, data:parsed, source:'Farside Investors', url, rowsFetched: parsed.rows.length, warnings: parsed.warnings }; }
+  try { const html = await fetchText(url, { timeoutMs: 10000, retries: 2, headers: { 'user-agent': 'Mozilla/5.0 OnchainVisuals/1.0 (+https://onchain-visuals.local)' } }); const parsed = parseFarsideEtfTable(html, asset); if (!parsed.rows.some((r)=>r.flowUsd !== null)) throw new Error(`No ${asset} ETF flow values parsed`); return { ok:true, data:parsed, source:'Farside Investors', url, rowsFetched: parsed.rows.length, warnings: parsed.warnings }; }
   catch(error:any){ return { ok:false, source:'Farside Investors', url, status:'source_error', message:error?.message || `${asset} Farside fetch failed` }; }
 }
 export const fetchBtcEtfFlows = () => fetchEtfFlows('BTC');

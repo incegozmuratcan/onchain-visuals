@@ -42,3 +42,7 @@ Onchain API routes that read live source health, refresh state, or DB snapshots 
 - `scripts/collect-binance-liquidations.mjs`
 
 Debug stale/source-error states by checking source health, latest source runs, missing env vars, and whether a cached successful snapshot exists.
+
+## Export preview vs export dimensions
+
+Share visuals preserve exact export canvases (`1600x900`, `1200x1200`, `1080x1350`) for PNG generation, but the browser preview is wrapped in a responsive frame so the selected canvas scales down to fit the page. Static export/share mode disables chart tooltips, active hover bars, and animation so PNG captures are deterministic.

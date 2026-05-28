@@ -27,3 +27,7 @@ npm run db:push
 Vercel deploy note: onchain API routes are dynamic and use `revalidate = 0`, so builds must not prerender DB/source-health state. A missing optional onchain storage table should not block `npm run build`; initialize the tables after or before deploy with the commands above.
 
 Missing source env vars produce `source_config_required` snapshots with the exact missing keys visible in the UI and source-health responses.
+
+## Dataset state behavior
+
+Missing credentials or unavailable licensed sources keep affected datasets in `source_config_required` or `disabled` states. The chart UI renders a state card with missing env keys and never emits fake placeholder data. The Onchain Data Lab groups these datasets away from active visuals until a real source/configured collector is available.
