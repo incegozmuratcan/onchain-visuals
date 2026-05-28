@@ -10,35 +10,55 @@ const chainApi = await readFile(new URL('../app/api/chain-revenue/route.ts', imp
 const snapshots = await readFile(new URL('../lib/onchain/snapshots.ts', import.meta.url), 'utf8');
 const chartShell = await readFile(new URL('../components/onchain/ChartShell.tsx', import.meta.url), 'utf8');
 
-test('public dataset library exposes only BTC ETF under Capital Flows', () => {
-  assert.match(datasets, /name: "Capital Flows"/);
-  assert.match(datasets, /label: "BTC ETF"/);
-  const publicCapitalFlows = datasets.match(/id: "capital_flows"[\s\S]*?\n  },\n  \{/)?.[0] || '';
+function blockFor(id) {
+  const marker = `id: "${id}"`;
+  const start = datasets.indexOf(marker);
+  assert.notEqual(start, -1, `${id} exists`);
+  const next = datasets.indexOf('\n  {\n    id:', start + marker.length);
+  return datasets.slice(start, next === -1 ? datasets.length : next);
+}
+
+test('Capital Flows appears first and public dataset library exposes only BTC ETF there', () => {
+  assert.ok(datasets.indexOf('id: "capital_flows"') < datasets.indexOf('id: "chains"'));
+  assert.ok(datasets.indexOf('id: "chains"') < datasets.indexOf('id: "protocols"'));
+  assert.ok(datasets.indexOf('id: "protocols"') < datasets.indexOf('id: "assets"'));
+  assert.ok(datasets.indexOf('id: "assets"') < datasets.indexOf('id: "infrastructure"'));
+  const publicCapitalFlows = blockFor('capital_flows');
+  assert.match(publicCapitalFlows, /name: "Capital Flows"/);
+  assert.match(publicCapitalFlows, /label: "BTC ETF"/);
   assert.match(publicCapitalFlows, /BTC ETF Daily Flowboard/);
   assert.match(publicCapitalFlows, /BTC ETF Weekly Flowboard/);
   assert.match(publicCapitalFlows, /BTC ETF Monthly Issuer Report/);
   assert.doesNotMatch(publicCapitalFlows, /ETH ETF|BTC vs ETH|Whale|Liquidation|config/i);
 });
 
-test('BTC ETF presets are wired through public try-card prompts and API periods', () => {
-  for (const preset of ['BTC ETF Daily Flowboard', 'BTC ETF Weekly Flowboard', 'BTC ETF Monthly Issuer Report']) assert.match(homeClient, new RegExp(preset));
+test('BTC ETF presets appear only under Capital Flows in public menus and API search still accepts all periods', () => {
+  const nonCapital = datasets.replace(blockFor('capital_flows'), '');
+  assert.doesNotMatch(nonCapital, /BTC ETF Daily Flowboard|BTC ETF Weekly Flowboard|BTC ETF Monthly Issuer Report/);
+  assert.match(homeClient, /"BTC ETF Daily Flowboard"/);
+  assert.doesNotMatch(homeClient, /"BTC ETF Weekly Flowboard"[\s\S]*tryCards|"BTC ETF Monthly Issuer Report"[\s\S]*tryCards/);
+  assert.match(chainApi, /monthly\|issuer\\s\+report/);
+  assert.match(chainApi, /weekly\|week/);
   assert.match(chainApi, /buildChartSnapshot\("btc-etf-flowboard", btcEtfPeriod\)/);
-  assert.match(chainApi, /monthly[\s\S]*weekly[\s\S]*daily/);
   assert.match(chainApi, /visualType: "btc_etf_card"/);
   assert.match(chainApi, /Capital Flows/);
   assert.match(datasetLibrary, /query\.chip/);
   assert.match(datasetLibrary, /onSelectPrompt\(query\.prompt\)/);
 });
 
-test('BTC ETF completed-row builders skip pending rows and expose daily weekly monthly chart-ready cards', () => {
+test('BTC ETF completed-row builders power daily weekly monthly cards without awkward missing-issuer strings', () => {
   assert.match(snapshots, /completedEtfDays/);
   assert.match(snapshots, /entry\.total && entry\.issuers\.length/);
   assert.match(snapshots, /getLatestCompletedBtcEtfRow/);
+  assert.match(snapshots, /getLatestCompletedBtcEtfDays/);
+  assert.match(snapshots, /getIssuerBreadth/);
+  assert.match(snapshots, /getTopIssuerContributors/);
+  assert.match(snapshots, /formatIssuerFlow/);
   assert.match(snapshots, /buildBtcEtfDailyCard/);
   assert.match(snapshots, /buildBtcEtfWeeklyCard/);
   assert.match(snapshots, /buildBtcEtfMonthlyIssuerCard/);
-  assert.match(snapshots, /Latest completed row/);
-  assert.match(snapshots, /slice\(-5\)/);
+  assert.match(snapshots, /latestCompletedDate/);
+  assert.match(snapshots, /getLatestCompletedBtcEtfDays\(flowResult\.data\.rows, 5\)/);
   assert.doesNotMatch(snapshots, /No issuer had/);
 });
 
@@ -46,7 +66,8 @@ test('public BTC ETF card has clean static export UI and source footer behavior'
   assert.match(shareCard, /BtcEtfShareCard/);
   assert.match(shareCard, /Source: \{cleanSource\}/);
   assert.match(shareCard, /sourceLabel\.replace\(\/\^Source/);
-  assert.doesNotMatch(shareCard, /ExportFormatSelector|1600x900|1200x1200|1080x1350|<Tooltip\b|overflow-x-auto/);
+  assert.doesNotMatch(shareCard, /ExportFormatSelector|1600x900|1080x1350|<Tooltip\b|overflow-x-auto/);
   assert.match(chartShell, /cleanSource = sourceLabel\.replace/);
+  assert.match(chartShell, /singleFormat \? null : <ExportFormatSelector/);
   assert.doesNotMatch(chartShell, /Source: Source:/);
 });
