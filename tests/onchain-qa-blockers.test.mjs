@@ -48,10 +48,12 @@ test('chain and protocol builders use different DefiLlama methods', () => {
 });
 
 test('static export preview has exact dimensions and responsive frame', () => {
-  for (const fmt of ['1600x900','1200x1200','1080x1350']) assert.match(chartShell, new RegExp(fmt));
+  for (const fmt of ['1600x900','1200x1200','1080x1350','1440x1080']) assert.match(chartShell, new RegExp(fmt));
   assert.match(chartShell, /data-export-width/);
   assert.match(chartShell, /data-testid="responsive-preview-frame"/);
   assert.match(chartShell, /data-static-share="true"/);
+  assert.match(chartShell, /datasetSlug === 'btc-etf-flowboard'/);
+  assert.match(chartShell, /singleFormat \? null : <ExportFormatSelector/);
 });
 
 test('non-active snapshots render state cards before chart templates', () => {
@@ -61,10 +63,11 @@ test('non-active snapshots render state cards before chart templates', () => {
   assert.match(client, /Empty chart panels are suppressed/);
 });
 
-test('static chart templates disable tooltips and active hover bars', () => {
+test('static chart templates disable tooltips and active hover bars', async () => {
   assert.equal(/<Tooltip\b/.test(templates), false);
   assert.match(templates, /activeBar=\{false as any\}/);
   assert.match(templates, /isAnimationActive=\{false\}/);
+  assert.equal(/<Tooltip\b/.test(await readFile(new URL('../components/onchain/templates/EtfFlowboard.tsx', import.meta.url), 'utf8')), false);
 });
 
 test('registry keeps config/disabled datasets out of active promotion', () => {
