@@ -8,6 +8,7 @@ import { PromptPanel } from "@/components/PromptPanel";
 import { ShareCard } from "@/components/ShareCard";
 import { datasetGroups } from "@/lib/datasets";
 import type { ChainRevenueRow } from "@/lib/defillama";
+import type { ChartSnapshot } from "@/lib/onchain/types";
 
 const DEFAULT_CARD_INPUT = "Top 10 chains by stablecoin supply";
 
@@ -17,6 +18,9 @@ const tryCards = [
   "Top 10 chains by DeFi TVL",
   "Top 10 DePIN projects by 30D annualized revenue",
   "Top 10 chains by real-time TPS",
+  "BTC ETF Daily Flowboard",
+  "BTC ETF Weekly Flowboard",
+  "BTC ETF Monthly Issuer Report",
 ];
 
 const activeDataset = {
@@ -39,6 +43,8 @@ type ApiResult = {
   valueSuffix?: string;
   valueDirection?: "higher" | "lower";
   query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
+  visualType?: "leaderboard_card" | "btc_etf_card";
+  chart?: ChartSnapshot;
   error?: string;
 };
 
@@ -56,6 +62,7 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
   const [valueSuffix, setValueSuffix] = useState("");
   const [valueDirection, setValueDirection] = useState<"higher" | "lower">("higher");
   const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Stablecoin Supply", "Top 10", "Current"]);
+  const [etfSnapshot, setEtfSnapshot] = useState<ChartSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -78,7 +85,8 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
         throw new Error(json.error || "Failed to load data");
       }
 
-      setRows(json.rows);
+      setRows(json.rows || []);
+      setEtfSnapshot(json.chart || null);
       setSource(json.source || "DefiLlama");
       setUpdatedAt(json.updatedAt || "-");
       setTitle(json.title || "Market card");
@@ -92,6 +100,7 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
       setQueryLabels(json.query?.labels || []);
       setHasGenerated(true);
     } catch (err) {
+      setEtfSnapshot(null);
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
@@ -129,7 +138,7 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
     const lines = [
       `${title}.`,
       "",
-      ...rows.slice(0, 10).map((row) => `${row.rank}. ${row.name} — ${valueFormat === "number" ? `${row.value}${valueSuffix ? ` ${valueSuffix}` : ""}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(row.value)}`),
+      ...(etfSnapshot ? etfSnapshot.headlineMetrics.map((metric) => `${metric.label}: ${metric.formattedValue}`) : rows.slice(0, 10).map((row) => `${row.rank}. ${row.name} — ${valueFormat === "number" ? `${row.value}${valueSuffix ? ` ${valueSuffix}` : ""}` : new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(row.value)}`)),
       "",
       `Data: ${source}`,
       `${brand.createdWithText}.`,
@@ -174,14 +183,16 @@ export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").Public
 
           {(hasGenerated || loading) && (
             <div className="grid gap-4">
-              <ShareCard brand={brand} rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} valueFormat={valueFormat} valueSuffix={valueSuffix} valueDirection={valueDirection} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <button onClick={downloadCard} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
+              <ShareCard brand={brand} rows={rows} title={title} eyebrow={eyebrow} description={description} insight={insight} updatedAt={updatedAt} source={source} valueFormat={valueFormat} valueSuffix={valueSuffix} valueDirection={valueDirection} etfSnapshot={etfSnapshot} />
+              <div className={etfSnapshot ? "grid gap-3" : "grid gap-3 md:grid-cols-2"}>
+                <button onClick={downloadCard} disabled={!rows.length && !etfSnapshot} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-4 font-black text-white transition hover:bg-slate-800 disabled:opacity-60">
                   <Download size={18} /> Download PNG
                 </button>
-                <button onClick={copyCaption} disabled={!rows.length} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-950 transition hover:border-slate-950 disabled:opacity-60">
-                  {captionCopied ? <Check size={18} /> : <Copy size={18} />} {captionCopied ? "Copied" : "Copy caption"}
-                </button>
+                {!etfSnapshot && (
+                  <button onClick={copyCaption} disabled={!rows.length && !etfSnapshot} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-4 font-black text-slate-950 transition hover:border-slate-950 disabled:opacity-60">
+                    {captionCopied ? <Check size={18} /> : <Copy size={18} />} {captionCopied ? "Copied" : "Copy caption"}
+                  </button>
+                )}
               </div>
               <div className="rounded-2xl border border-slate-200 bg-white p-4 text-xs font-bold leading-6 text-slate-500 shadow-soft">
                 {methodology}
