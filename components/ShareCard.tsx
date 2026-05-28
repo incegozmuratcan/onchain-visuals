@@ -5,6 +5,7 @@ import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
+import type { ChartSnapshot } from "@/lib/onchain/types";
 
 function rowLayoutClass(count: number) {
   if (count > 15) return "mt-6 grid gap-2";
@@ -34,6 +35,78 @@ function formatNumber(value: number, suffix?: string) {
     maximumFractionDigits: value >= 100 ? 0 : value >= 10 ? 1 : 2,
   }).format(value);
   return suffix ? `${formatted} ${suffix}` : formatted;
+}
+
+
+function signedUsd(value: number | string | null | undefined) {
+  const numberValue = Number(value) || 0;
+  return `${numberValue >= 0 ? "+" : ""}${formatUsd(numberValue)}`;
+}
+
+function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: ChartSnapshot }) {
+  const view = data.metadata?.view || "daily";
+  const issuerRows = (view === "daily" ? data.series.bars : data.series.tables).slice(0, 10);
+  const flowRows = (view === "daily" ? data.series.lines.slice(-20) : data.series.bars).slice(-20);
+  const maxAbs = Math.max(1, ...issuerRows.map((row: any) => Math.abs(Number(row.value) || 0)));
+  const cleanSource = data.sourceLabel.replace(/^Source:\s*/i, "");
+
+  return (
+    <div id="share-card" className="relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-orange-300 via-slate-950 to-emerald-300" />
+      <div className="flex items-start justify-between gap-6">
+        <div className="max-w-[76%]">
+          <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">Capital Flows · BTC ETF</p>
+          <h2 className="mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">{data.title}</h2>
+          <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">{data.subtitle}</p>
+          {data.metadata?.latestCompletedDate ? <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-slate-400">Latest completed row: <span className="text-slate-700">{data.metadata.latestCompletedDate}</span></p> : null}
+        </div>
+        <div className="rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">{brand.shortName}</div>
+      </div>
+
+      <div className="mt-8 grid gap-3 md:grid-cols-4">
+        {data.headlineMetrics.slice(0, 4).map((metric) => (
+          <div key={metric.label} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
+            <div className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">{metric.formattedValue}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-8 grid gap-6 md:grid-cols-[1fr_0.9fr]">
+        <div className="rounded-[26px] border border-slate-200 bg-white p-5">
+          <div className="mb-5 flex items-center justify-between text-xs font-black uppercase tracking-[0.18em] text-slate-400"><span>{view === "daily" ? "Net flow path" : view === "weekly" ? "Five completed days" : "Month-to-date sessions"}</span><span>Completed rows only</span></div>
+          <div className="flex h-52 items-end gap-2">
+            {flowRows.map((row: any) => {
+              const value = Number(row.value) || 0;
+              const maxFlow = Math.max(1, ...flowRows.map((r: any) => Math.abs(Number(r.value) || 0)));
+              return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxFlow * 190)}px`, opacity: 0.78 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-[26px] border border-slate-200 bg-slate-950 p-5 text-white">
+          <div className="mb-4 text-xs font-black uppercase tracking-[0.18em] text-slate-400">{view === "daily" ? "Issuer latest day" : view === "weekly" ? "Weekly issuer net flow" : "Issuer leaderboard"}</div>
+          <div className="grid gap-3">
+            {issuerRows.map((row: any) => (
+              <div key={row.ticker || row.name}>
+                <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className="truncate font-black">{row.ticker || row.name} <span className="font-medium text-slate-400">{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-300" : "text-rose-300"}>{signedUsd(row.value)}</span></div>
+                <div className="h-1.5 rounded-full bg-white/10"><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-300" : "bg-rose-300"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbs * 100)}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-7 rounded-[24px] bg-slate-50 p-5 text-slate-700">
+        <p className="text-sm font-medium leading-7 md:text-base"><span className="font-black text-slate-950">Learn note:</span> {data.insights.slice(0, 3).join(" ")}</p>
+      </div>
+
+      <div className="mt-7 grid gap-3 text-xs font-bold text-slate-400 md:grid-cols-[1fr_2fr] md:items-end">
+        <span>{brand.cardFooterText} · <span className="font-black text-slate-950">{brand.createdWithText}</span></span>
+        <span className="md:text-right">Source: {cleanSource} · Updated: <span className="font-black text-slate-700">{data.freshness.lastUpdatedAt ? new Date(data.freshness.lastUpdatedAt).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }) : "-"}</span></span>
+      </div>
+    </div>
+  );
 }
 
 function ChainLogo({ name, logo, logoCandidates }: { name: string; logo?: string | null; logoCandidates?: string[]; compact: boolean }) {
@@ -70,6 +143,7 @@ export function ShareCard({
   valueFormat = "usd",
   valueSuffix = "",
   valueDirection = "higher",
+  etfSnapshot,
 }: {
   brand: PublicBrandSettings;
   rows: ChainRevenueRow[];
@@ -82,7 +156,10 @@ export function ShareCard({
   valueFormat?: "usd" | "number";
   valueSuffix?: string;
   valueDirection?: "higher" | "lower";
+  etfSnapshot?: ChartSnapshot | null;
 }) {
+  if (etfSnapshot) return <BtcEtfShareCard brand={brand} data={etfSnapshot} />;
+
   const leader = rows[0];
   const count = rows.length;
   const hasChainColumn = rows.some((row) => Boolean(row.chain));
