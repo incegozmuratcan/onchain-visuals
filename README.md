@@ -714,3 +714,8 @@ Required env names: `DATABASE_URL`, `ADMIN_SESSION_SECRET`, `ADMIN_SETUP_TOKEN`,
 
 ## Onchain Visuals
 See `docs/onchain-env-vars.md` and `docs/dune/stablecoin-net-transfers-by-chain.md` for source config, refresh, and no-fake-data policy.
+
+## Onchain Visuals production data layer
+
+The onchain product now enforces honest dataset states: active datasets must have real connectors and chart snapshots, while credentialed or unavailable sources render `source_config_required`/`disabled` with exact missing configuration and no fake data. Public connectors cover DefiLlama, Farside ETF flows, Binance price context, Dune latest-result reads, source-health, refresh routes, and snapshot persistence with Postgres or local dev fallback. See `docs/onchain-visuals-data.md`, `docs/onchain-env-vars.md`, and `docs/onchain-refresh-and-snapshots.md`.
+

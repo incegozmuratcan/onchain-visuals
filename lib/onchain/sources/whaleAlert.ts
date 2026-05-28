@@ -1,0 +1,2 @@
+export const whaleTransferMissingConfig = () => ['WHALE_ALERT_API_KEY'].filter((key) => !process.env[key]);
+export async function fetchWhaleTransfers() { return { ok:false as const, source:'Whale Alert', url:null, status:'source_config_required' as const, message:'Whale transfer snapshots require Whale Alert or explorer collector credentials; no fake transfers are emitted.', missingConfig: whaleTransferMissingConfig() }; }

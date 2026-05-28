@@ -1,13 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-
-const datasetRegistry = [
-  {slug:'chain-revenue-league',category:'chains',sources:['defillama']},
-  {slug:'chain-stablecoin-supply',category:'chains',sources:['defillama']},
-  {slug:'stablecoin-net-transfers-by-chain',category:'chains',sources:['dune']},
-  {slug:'binance-liquidation-pulse',category:'markets',sources:['binance']},
-];
-
-test('unique slugs', () => { const s = datasetRegistry.map(d=>d.slug); assert.equal(new Set(s).size, s.length); });
-test('categories constrained', () => datasetRegistry.forEach(d=>assert.ok(['chains','protocols','capital-flows','markets'].includes(d.category))));
-test('no coinglass', () => datasetRegistry.forEach(d=>assert.equal(d.sources.includes('coinglass'), false)));
+import { readFile } from 'node:fs/promises';
+const text = await readFile(new URL('../lib/onchain/registry.ts', import.meta.url), 'utf8');
+const slugs = [...text.matchAll(/slug:'([^']+)'/g)].map((m)=>m[1]);
+const categories = [...text.matchAll(/category:'([^']+)'/g)].map((m)=>m[1]);
+test('unique slugs', () => assert.equal(new Set(slugs).size, slugs.length));
+test('required datasets exist', () => ['chain-revenue-league','chain-stablecoin-supply','stablecoin-net-transfers-by-chain','dex-volume-by-chain','protocol-revenue-league','dex-protocol-volume','perp-protocol-volume-oi','btc-etf-flowboard','eth-etf-flowboard','btc-vs-eth-etf-flow-battle','etf-issuer-monthly-report','cex-transparency','digital-asset-treasuries','monthly-unlock-watch','large-holders-board','whale-transfers','binance-liquidation-pulse'].forEach((s)=>assert.ok(slugs.includes(s), s)));
+test('categories constrained', () => categories.forEach((c)=>assert.ok(['chains','protocols','capital-flows','markets'].includes(c))));
+test('no CoinGlass or Risk/L2 top-level categories', () => { assert.equal(/coinglass/i.test(text), false); assert.equal(/Risk|L2|Stablecoins as top-level/i.test(text), false); });
+test('stablecoin datasets under Chains and Binance under Markets', () => { assert.match(text, /stablecoin-net-transfers-by-chain[\s\S]*category:'chains'/); assert.match(text, /chain-stablecoin-supply[\s\S]*category:'chains'/); assert.match(text, /binance-liquidation-pulse[\s\S]*category:'markets'/); });
+test('no active dataset text uses generic stub phrases', () => { assert.equal(text.includes('Connector stub' + ' present'), false); assert.equal(text.includes('snapshot refresh' + ' required'), false); });

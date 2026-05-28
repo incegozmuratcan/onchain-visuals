@@ -1,27 +1,22 @@
 "use client";
-import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ChartShell } from "./ChartShell";
-
+import { ChartShell, SourceConfigRequiredState } from "./ChartShell";
+import { LeaderboardBarChart } from "./templates/LeaderboardBarChart";
+import { EtfFlowboard } from "./templates/EtfFlowboard";
+import { BtcEthEtfComparison } from "./templates/BtcEthEtfComparison";
+import { HolderConcentration, LiquidationPulse, StablecoinFlowBoard, UnlockCalendar, WhaleTransferCards } from "./templates/SpecialBoards";
 export default function DatasetChartClient({ data }: { data: any }) {
-  const bars = (data?.series?.bars ?? []).slice(0, 12);
-  return (
-    <ChartShell title={data.title} subtitle={data.subtitle} sourceLabel={data.sourceLabel} insights={data.insights ?? []}>
-      <div className="grid md:grid-cols-3 gap-3 mb-6">
-        {(data.headlineMetrics ?? []).slice(0, 3).map((m: any) => (
-          <div className="rounded-xl border p-4" key={m.label}><div className="text-xs text-zinc-500">{m.label}</div><div className="mt-1 text-2xl font-semibold">{m.formattedValue}</div></div>
-        ))}
-      </div>
-      <div className="h-[420px] w-full rounded-xl border p-4">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={bars} layout="vertical" margin={{ left: 24, right: 16, top: 8, bottom: 8 }}>
-            <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12 }} />
-            <Tooltip />
-            <Bar dataKey="value" fill="#111827" radius={[0, 8, 8, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div className="mt-4 text-xs text-zinc-500">Last updated: {data?.freshness?.lastUpdatedAt ?? 'N/A'} · Status: {data?.freshness?.status}</div>
-    </ChartShell>
-  );
+  const template = data?.metadata?.chartType || data?.series?.metadata?.chartType;
+  const slug = data?.datasetSlug;
+  const render = () => {
+    if (data.status === 'source_config_required' && !['stablecoin-net-transfers-by-chain'].includes(slug)) return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>;
+    if (template === 'etf_flowboard') return <EtfFlowboard data={data}/>;
+    if (template === 'btc_eth_comparison') return <BtcEthEtfComparison data={data}/>;
+    if (template === 'stablecoin_flow_board' || slug === 'chain-stablecoin-supply' || slug === 'stablecoin-net-transfers-by-chain') return <StablecoinFlowBoard data={data}/>;
+    if (template === 'unlock_calendar') return <UnlockCalendar data={data}/>;
+    if (template === 'liquidation_pulse') return <LiquidationPulse data={data}/>;
+    if (template === 'holder_concentration') return <HolderConcentration data={data}/>;
+    if (template === 'whale_transfer_cards') return <WhaleTransferCards data={data}/>;
+    return <LeaderboardBarChart data={data}/>;
+  };
+  return <ChartShell data={data}>{render()}</ChartShell>;
 }
