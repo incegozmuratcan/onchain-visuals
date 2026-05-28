@@ -54,8 +54,20 @@ function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: Ch
   const maxAbsFlow = Math.max(1, ...flowRows.map((row: any) => Math.abs(Number(row.value) || 0)));
   const cleanSource = data.sourceLabel.replace(/^Source:\s*/i, "");
   const hero = data.headlineMetrics[0];
-  const supportMetrics = daily ? data.headlineMetrics.slice(1, 4) : data.headlineMetrics.slice(0, 4);
-  const hiddenIssuerCount = Number(data.metadata?.hiddenIssuerCount || 0);
+  const supportMetrics = daily ? data.headlineMetrics.slice(1, 4) : data.headlineMetrics.slice(1, 4);
+  const monthlyMetrics = data.headlineMetrics.slice(0, 4);
+  const sinceLaunch = data.headlineMetrics.find((metric) => metric.label === "Since Launch");
+  const hiddenIssuerCount = monthly ? Number(data.metadata?.hiddenIssuerCount || 0) : 0;
+
+  const MiniMetric = ({ metric, sub }: { metric: any; sub?: string | null }) => (
+    <div className="flex min-h-[92px] flex-col justify-between rounded-[18px] border border-slate-200 bg-white p-3.5">
+      <div className="min-h-[24px] text-[9px] font-black uppercase leading-3 tracking-[0.16em] text-slate-400">{metric.label}</div>
+      <div>
+        <div className="text-xl font-black tracking-[-0.04em] text-slate-950">{metric.formattedValue}</div>
+        {sub ? <div className="mt-1 text-[11px] font-bold text-slate-400">{sub}</div> : null}
+      </div>
+    </div>
+  );
 
   return (
     <div id="share-card" className="relative rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10">
@@ -71,66 +83,70 @@ function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: Ch
       </div>
 
       {daily ? (
-        <div className="mt-8 grid gap-5 md:grid-cols-[1.08fr_0.92fr]">
+        <div className="mt-8 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[28px] border border-slate-200 bg-slate-50/70 p-6">
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Latest Net Flow</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{hero?.label}</div>
             <div className={`mt-3 text-6xl font-black tracking-[-0.065em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{hero?.formattedValue}</div>
+            <div className="mt-2 text-sm font-bold text-slate-400">Latest completed row</div>
             <div className="mt-5 grid grid-cols-3 gap-2">
-              {supportMetrics.map((metric) => (
-                <div key={metric.label} className="rounded-[18px] bg-white p-3">
-                  <div className="text-[9px] font-black uppercase tracking-[0.16em] text-slate-400">{metric.label}</div>
-                  <div className="mt-1 text-base font-black tracking-[-0.03em] text-slate-950">{metric.formattedValue}</div>
+              {supportMetrics.map((metric) => <MiniMetric key={metric.label} metric={metric} />)}
+            </div>
+          </div>
+          <div className="rounded-[28px] border border-slate-200 bg-white p-5">
+            <div className="mb-4 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Latest Issuer Flows</div>
+            <div className="grid gap-3">
+              {issuerRows.map((row: any, index: number) => (
+                <div key={`${row.ticker || row.name}-${index}`}>
+                  <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className="truncate font-black text-slate-950">{row.ticker || row.name} <span className="font-medium text-slate-400">{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-600" : "text-rose-600"}>{signedUsd(row.value)}</span></div>
+                  <div className="h-1.5 rounded-full bg-slate-100"><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbsIssuer * 100)}%` }} /></div>
                 </div>
               ))}
             </div>
           </div>
+        </div>
+      ) : null}
+
+      {weekly ? (
+        <>
+          <div className="mt-8 grid gap-3 md:grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr]">
+            <div className="flex min-h-[170px] flex-col justify-between rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
+              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{hero?.label}</div>
+              <div><div className={`text-5xl font-black tracking-[-0.06em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}>{hero?.formattedValue}</div><div className="mt-2 text-xs font-bold text-slate-400">Last five completed sessions</div></div>
+            </div>
+            {supportMetrics.map((metric) => {
+              const card = (data.series.cards || []).find((item: any) => item.label === metric.label);
+              return <MiniMetric key={metric.label} metric={metric} sub={card?.date || (metric.label === "Top Issuer" ? "This week" : null)} />;
+            })}
+          </div>
+          {sinceLaunch ? <div className="mt-3 rounded-[18px] bg-slate-50 px-4 py-3 text-xs font-bold text-slate-400"><span className="font-black uppercase tracking-[0.16em]">Since Launch</span><span className="ml-2 text-slate-950">{sinceLaunch.formattedValue}</span></div> : null}
+        </>
+      ) : null}
+
+      {monthly ? (
+        <div className="mt-8 grid gap-3 md:grid-cols-4">
+          {monthlyMetrics.map((metric) => {
+            const card = (data.series.cards || []).find((item: any) => item.label === metric.label);
+            return <MiniMetric key={metric.label} metric={metric} sub={card?.ticker || null} />;
+          })}
+        </div>
+      ) : null}
+
+      {!daily && weekly ? (
+        <div className="mt-7 grid gap-5 md:grid-cols-[1fr_0.95fr]">
           <div className="rounded-[28px] border border-slate-200 bg-white p-5">
-            <div className="mb-3 flex items-center justify-between text-[10px] font-black uppercase tracking-[0.18em] text-slate-400"><span>5-day context</span><span>Latest highlighted</span></div>
+            <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Five completed days</div>
             <div className="flex h-44 items-end gap-2">
               {flowRows.map((row: any) => {
                 const value = Number(row.value) || 0;
-                return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxAbsFlow * 164)}px`, opacity: row.isLatest ? 1 : 0.28 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
+                return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><span className="text-[10px] font-black text-slate-500">{row.valueLabel || signedUsd(value)}</span><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxAbsFlow * 130)}px`, opacity: row.isLatest ? 1 : 0.74 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
               })}
             </div>
           </div>
+          <IssuerList title="Weekly issuer net flow" monthly={false} />
         </div>
-      ) : (
-        <div className="mt-8 grid gap-3 md:grid-cols-4">
-          {supportMetrics.map((metric) => (
-            <div key={metric.label} className="rounded-[22px] border border-slate-200 bg-slate-50/70 p-4">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">{metric.label}</div>
-              <div className="mt-2 text-2xl font-black tracking-[-0.04em] text-slate-950">{metric.formattedValue}</div>
-            </div>
-          ))}
-        </div>
-      )}
+      ) : null}
 
-      <div className={monthly ? "mt-7 rounded-[28px] border border-slate-200 bg-white p-5" : "mt-7 grid gap-5 md:grid-cols-[1fr_0.95fr]"}>
-        {!monthly && weekly ? (
-          <div className="rounded-[28px] border border-slate-200 bg-white p-5">
-            <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Five completed days</div>
-            <div className="flex h-40 items-end gap-2">
-              {flowRows.map((row: any) => {
-                const value = Number(row.value) || 0;
-                return <div key={row.date || row.name} className="flex flex-1 flex-col items-center gap-2"><div className={`w-full rounded-t-xl ${value >= 0 ? "bg-emerald-500" : "bg-rose-500"}`} style={{ height: `${Math.max(8, Math.abs(value) / maxAbsFlow * 150)}px`, opacity: 0.78 }} /><span className="text-[10px] font-bold text-slate-400">{String(row.date || row.name).slice(5)}</span></div>;
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        <div className={monthly ? "" : "rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white"}>
-          <div className={`mb-4 text-xs font-black uppercase tracking-[0.18em] ${monthly ? "text-slate-400" : "text-slate-400"}`}>{daily ? "Issuer impact" : weekly ? "Weekly issuer net flow" : "Issuer monthly leaderboard"}</div>
-          <div className="grid gap-3">
-            {issuerRows.map((row: any, index: number) => (
-              <div key={`${row.ticker || row.name}-${index}`}>
-                <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className={`truncate font-black ${monthly ? "text-slate-950" : "text-white"}`}>{monthly ? `${index + 1}. ` : ""}{row.ticker || row.name} <span className={monthly ? "font-medium text-slate-400" : "font-medium text-slate-400"}>{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-500" : "text-rose-500"}>{signedUsd(row.value)}</span></div>
-                <div className={monthly ? "h-1.5 rounded-full bg-slate-100" : "h-1.5 rounded-full bg-white/10"}><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbsIssuer * 100)}%` }} /></div>
-              </div>
-            ))}
-          </div>
-          {hiddenIssuerCount > 0 ? <div className={monthly ? "mt-3 text-xs font-bold text-slate-400" : "mt-3 text-xs font-bold text-slate-400"}>+{hiddenIssuerCount} more issuers omitted for clarity.</div> : null}
-        </div>
-      </div>
+      {monthly ? <div className="mt-7 rounded-[28px] border border-slate-200 bg-white p-5"><IssuerList title="Issuer Monthly Flows" monthly /></div> : null}
 
       <div className="mt-7 rounded-[24px] bg-slate-50 p-5 text-slate-700">
         <p className="text-sm font-medium leading-7 md:text-base"><span className="font-black text-slate-950">Learn note:</span> {data.insights.slice(0, 3).join(" ")}</p>
@@ -142,6 +158,23 @@ function BtcEtfShareCard({ brand, data }: { brand: PublicBrandSettings; data: Ch
       </div>
     </div>
   );
+
+  function IssuerList({ title, monthly }: { title: string; monthly: boolean }) {
+    return (
+      <div className={monthly ? "" : "rounded-[28px] border border-slate-200 bg-slate-950 p-5 text-white"}>
+        <div className={`mb-4 text-xs font-black uppercase tracking-[0.18em] ${monthly ? "text-slate-400" : "text-slate-400"}`}>{title}</div>
+        <div className="grid gap-3">
+          {issuerRows.map((row: any, index: number) => (
+            <div key={`${row.ticker || row.name}-${index}`}>
+              <div className="mb-1 flex items-center justify-between gap-3 text-sm"><span className={`truncate font-black ${monthly ? "text-slate-950" : "text-white"}`}>{monthly ? `${index + 1}. ` : ""}{row.ticker || row.name} <span className="font-medium text-slate-400">{row.name}</span></span><span className={Number(row.value) >= 0 ? "text-emerald-500" : "text-rose-500"}>{signedUsd(row.value)}</span></div>
+              <div className={monthly ? "h-1.5 rounded-full bg-slate-100" : "h-1.5 rounded-full bg-white/10"}><div className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-400" : "bg-rose-400"}`} style={{ width: `${Math.max(5, Math.abs(Number(row.value) || 0) / maxAbsIssuer * 100)}%` }} /></div>
+            </div>
+          ))}
+        </div>
+        {hiddenIssuerCount > 0 ? <div className="mt-3 text-xs font-bold text-slate-400">{hiddenIssuerCount} smaller issuers omitted.</div> : null}
+      </div>
+    );
+  }
 }
 
 function ChainLogo({ name, logo, logoCandidates }: { name: string; logo?: string | null; logoCandidates?: string[]; compact: boolean }) {
