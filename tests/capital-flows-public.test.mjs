@@ -28,15 +28,16 @@ test('Capital Flows appears first and public dataset library exposes only BTC ET
   assert.match(publicCapitalFlows, /label: "BTC ETF"/);
   assert.match(publicCapitalFlows, /BTC ETF Daily Flowboard/);
   assert.match(publicCapitalFlows, /BTC ETF Weekly Flowboard/);
-  assert.match(publicCapitalFlows, /BTC ETF Monthly Issuer Report/);
+  assert.match(publicCapitalFlows, /BTC ETF Monthly Flow Report/);
+  assert.match(publicCapitalFlows, /source: "Farside"/);
   assert.doesNotMatch(publicCapitalFlows, /ETH ETF|BTC vs ETH|Whale|Liquidation|config/i);
 });
 
 test('BTC ETF presets appear only under Capital Flows in public menus and API search still accepts all periods', () => {
   const nonCapital = datasets.replace(blockFor('capital_flows'), '');
-  assert.doesNotMatch(nonCapital, /BTC ETF Daily Flowboard|BTC ETF Weekly Flowboard|BTC ETF Monthly Issuer Report/);
+  assert.doesNotMatch(nonCapital, /BTC ETF Daily Flowboard|BTC ETF Weekly Flowboard|BTC ETF Monthly Flow Report/);
   assert.match(homeClient, /"BTC ETF Daily Flowboard"/);
-  assert.doesNotMatch(homeClient, /"BTC ETF Weekly Flowboard"[\s\S]*tryCards|"BTC ETF Monthly Issuer Report"[\s\S]*tryCards/);
+  assert.doesNotMatch(homeClient, /"BTC ETF Weekly Flowboard"[\s\S]*tryCards|"BTC ETF Monthly Flow Report"[\s\S]*tryCards/);
   assert.match(chainApi, /monthly\|issuer\\s\+report/);
   assert.match(chainApi, /weekly\|week/);
   assert.match(chainApi, /buildChartSnapshot\("btc-etf-flowboard", btcEtfPeriod\)/);
@@ -44,6 +45,8 @@ test('BTC ETF presets appear only under Capital Flows in public menus and API se
   assert.match(chainApi, /Capital Flows/);
   assert.match(datasetLibrary, /query\.chip/);
   assert.match(datasetLibrary, /onSelectPrompt\(query\.prompt\)/);
+  assert.match(datasetLibrary, /flex-nowrap/);
+  assert.match(datasetLibrary, /text-\[11px\]/);
 });
 
 test('BTC ETF completed-row builders power daily weekly monthly cards without awkward missing-issuer strings', () => {
@@ -60,12 +63,13 @@ test('BTC ETF completed-row builders power daily weekly monthly cards without aw
   assert.match(snapshots, /latestCompletedDate/);
   assert.match(snapshots, /getLatestCompletedBtcEtfDays\(flowResult\.data\.rows, 5\)/);
   assert.doesNotMatch(snapshots, /No issuer had/);
+  assert.match(snapshots, /d.slug === ["\']btc-etf-flowboard["\'][\s\S]*["\']Farside["\']/);
 });
 
 test('public BTC ETF card has clean static export UI and source footer behavior', () => {
   assert.match(shareCard, /BtcEtfShareCard/);
   assert.match(shareCard, /Source: \{cleanSource\}/);
-  assert.match(shareCard, /sourceLabel\.replace\(\/\^Source/);
+  assert.match(shareCard, /data.datasetSlug === "btc-etf-flowboard"[\s\S]*"Farside"/);
   assert.doesNotMatch(shareCard, /ExportFormatSelector|1600x900|1080x1350|<Tooltip\b|overflow-x-auto/);
   assert.match(chartShell, /cleanSource = sourceLabel\.replace/);
   assert.match(chartShell, /singleFormat \? null : <ExportFormatSelector/);
