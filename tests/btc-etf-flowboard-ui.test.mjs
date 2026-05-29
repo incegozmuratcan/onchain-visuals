@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
 
 const chartShell = await readFile(new URL('../components/onchain/ChartShell.tsx', import.meta.url), 'utf8');
@@ -22,7 +25,11 @@ async function importSnapshotBuilders() {
     .replace(/import \{ whaleTransferMissingConfig \} from ["']\.\/sources\/whaleAlert["'];/, "const whaleTransferMissingConfig = ()=>[];")
     .replace(/import \{[\s\S]*?loadLatestChartSnapshot[\s\S]*?\} from ["']\.\/storage["'];/, "const loadLatestChartSnapshot = async()=>null; const markSnapshotStale = (snapshot)=>snapshot; const saveChartSnapshot = async()=>{}; const sourceRun = async()=>{};");
   const js = ts.transpileModule(source, { compilerOptions:{ module:ts.ModuleKind.ES2022, target:ts.ScriptTarget.ES2022 }}).outputText;
-  return import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+  assert.doesNotMatch(js, /from [\"']\.{1,2}\//, 'snapshot builder fixture must be self-contained before importing');
+  const tempDir = await mkdtemp(join(tmpdir(), 'btc-etf-snapshot-builders-'));
+  const modulePath = join(tempDir, 'snapshots.mjs');
+  await writeFile(modulePath, js, 'utf8');
+  return import(pathToFileURL(modulePath).href);
 }
 
 const snapshotBuilders = await importSnapshotBuilders();
@@ -149,6 +156,7 @@ test('BTC ETF snapshot builders emit semantic card contracts for public daily we
   assert.ok(weekly.headlineMetrics.some((metric) => metric.label === 'Since Launch'));
   assert.equal(weekly.series.lines.length, 0);
   assert.equal(weekly.series.bars.length, 5);
+  assert.ok(weekly.series.bars.some((bar) => bar.value < 0), 'weekly outflows stay negative for zero-baseline rendering');
   for (const bar of weekly.series.bars) {
     assert.equal(bar.magnitude, Math.abs(bar.value));
     assert.match(bar.valueLabel, /^[+-]/);
@@ -164,8 +172,11 @@ test('BTC ETF snapshot builders emit semantic card contracts for public daily we
   assert.equal(monthly.headlineMetrics[0].label, 'MONTHLY NET FLOW');
   assert.equal(monthly.metadata.monthlyVisual, 'mtd_signed_daily_flow_chart');
   assert.equal(monthly.metadata.signedZeroBaseline, true);
+  assert.ok(monthly.metadata.keyDays.largestInflowDay);
+  assert.ok(monthly.metadata.keyDays.largestOutflowDay);
   assert.ok(monthly.metadata.keyDays.latestCompletedDay);
   assert.equal(monthly.series.bars.length, 5);
+  assert.ok(monthly.series.bars.some((bar) => bar.value < 0), 'monthly outflows stay negative for zero-baseline rendering');
   assert.ok(monthly.series.bars.every((bar) => bar.valueLabel));
   assert.equal(monthly.series.lines.length, 0);
   assert.ok(monthly.headlineMetrics.some((metric) => metric.label === 'Since Launch'));
