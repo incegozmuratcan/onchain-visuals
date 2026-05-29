@@ -30,31 +30,31 @@ const labelParts = (label?: string) => {
   };
 };
 
-function BtcLogoMark({ className = "h-16 w-16" }: { className?: string }) {
+function BtcLogoWatermark() {
   const [candidateIndex, setCandidateIndex] = useState(0);
   const candidates = useMemo(() => getChainLogoCandidates("Bitcoin"), []);
   const candidate = candidates[candidateIndex];
 
+  if (!candidate) return null;
+
   return (
     <div
       data-testid="btc-logo-treatment"
-      className={`${className} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white text-xs font-black text-zinc-500 shadow-sm`}
+      data-logo-mode="watermark"
+      className="pointer-events-none absolute -right-8 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.075] mix-blend-multiply"
+      aria-hidden="true"
     >
-      {candidate ? (
-        <img
-          src={candidate.src}
-          alt="Bitcoin logo"
-          className="h-full w-full"
-          style={{
-            objectFit: candidate.fit,
-            padding: candidate.padding,
-            transform: `scale(${candidate.scale})`,
-          }}
-          onError={() => setCandidateIndex((index) => index + 1)}
-        />
-      ) : (
-        "BTC"
-      )}
+      <img
+        src={candidate.src}
+        alt=""
+        className="h-full w-full"
+        style={{
+          objectFit: candidate.fit,
+          padding: candidate.padding,
+          transform: `scale(${candidate.scale}) rotate(-10deg)`,
+        }}
+        onError={() => setCandidateIndex((index) => index + 1)}
+      />
     </div>
   );
 }
@@ -91,8 +91,8 @@ function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero?.label);
   return (
     <div className="relative min-h-[190px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-50/80 p-6 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <BtcLogoMark className="h-[4.25rem] w-[4.25rem] opacity-95" />
+      <BtcLogoWatermark />
+      <div className="relative z-10 flex items-start justify-end gap-4">
         <div className="min-w-0 text-right">
           <div className="text-xl font-semibold uppercase tracking-[-0.02em] text-zinc-950">
             {heroLabel.date}
@@ -103,7 +103,7 @@ function BtcHeroMetric({ hero }: { hero: any }) {
         </div>
       </div>
       <div
-        className={`mt-7 truncate text-6xl font-semibold tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-7 truncate text-6xl font-semibold tracking-[-0.06em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
@@ -118,73 +118,171 @@ function SignedFlowChart({
   rows: any[];
   monthly?: boolean;
 }) {
+  const width = monthly ? 760 : 620;
+  const height = monthly ? 312 : 260;
+  const margin = monthly
+    ? { top: 42, right: 16, bottom: 34, left: 30 }
+    : { top: 38, right: 16, bottom: 34, left: 30 };
+  const plotWidth = width - margin.left - margin.right;
+  const plotHeight = height - margin.top - margin.bottom;
   const maxAbs = Math.max(
     1,
     ...rows.map((row) => Math.abs(Number(row.value) || 0)),
   );
-  const chartHeight = monthly ? 276 : 232;
-  const halfHeight = monthly ? 118 : 96;
+  const paddedMax = maxAbs * (monthly ? 1.18 : 1.12);
+  const zeroY = margin.top + plotHeight / 2;
+  const slot = rows.length ? plotWidth / rows.length : plotWidth;
+  const barWidth = Math.max(
+    monthly ? 7 : 34,
+    Math.min(monthly ? 24 : 64, slot * (monthly ? 0.58 : 0.54)),
+  );
+  const valueToY = (value: number) =>
+    margin.top + ((paddedMax - value) / (paddedMax * 2)) * plotHeight;
+  const labeledIndexes = rows
+    .map((row, index) => (row.showLabel ? index : -1))
+    .filter((index) => index >= 0);
+  const labelPositions = new Map<number, number>();
+  if (monthly) {
+    let previousX = -Infinity;
+    for (const index of labeledIndexes) {
+      const naturalX = margin.left + slot * index + slot / 2;
+      const nextX = Math.max(naturalX, previousX + 72);
+      const clampedX = Math.min(width - margin.right - 24, nextX);
+      labelPositions.set(index, clampedX);
+      previousX = clampedX;
+    }
+  }
+  const labelTone = (value: number, marked: boolean) =>
+    marked ? "#18181b" : value >= 0 ? "#047857" : "#be123c";
+
   return (
-    <div className="relative" data-chart="signed-zero-baseline">
-      <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-px bg-zinc-300" />
-      <div className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-zinc-400">
-        $0
-      </div>
-      <div
-        className={`flex items-stretch ${monthly ? "gap-1" : "gap-3"}`}
-        style={{ height: chartHeight }}
+    <svg
+      className="block h-auto w-full overflow-visible"
+      data-chart="signed-zero-baseline"
+      data-scale-mode="signed-symmetric"
+      data-bar-direction="positive-up-negative-down"
+      viewBox={`0 0 ${width} ${height}`}
+      role="img"
+      aria-label={
+        monthly
+          ? "This Month signed BTC ETF flows"
+          : "Last 5 Days signed BTC ETF flows"
+      }
+    >
+      {[0.25, 0.75].map((ratio) => (
+        <line
+          key={ratio}
+          x1={margin.left}
+          x2={width - margin.right}
+          y1={margin.top + plotHeight * ratio}
+          y2={margin.top + plotHeight * ratio}
+          stroke="#f1f5f9"
+          strokeWidth="1"
+        />
+      ))}
+      <line
+        x1={margin.left}
+        x2={width - margin.right}
+        y1={zeroY}
+        y2={zeroY}
+        stroke="#a1a1aa"
+        strokeWidth="1.25"
+      />
+      <text
+        x={margin.left - 8}
+        y={zeroY + 4}
+        textAnchor="end"
+        className="fill-zinc-400 text-[10px] font-semibold"
       >
-        {rows.map((row) => {
-          const value = Number(row.value) || 0;
-          const positive = value >= 0;
-          const height = Math.max(
-            monthly ? 10 : 16,
-            (Math.abs(value) / maxAbs) * halfHeight,
-          );
-          const marked =
-            row.isLargest || row.isLargestInflow || row.isLargestOutflow;
-          const showLabel = !monthly || row.showLabel;
-          return (
-            <div
-              key={row.date || row.name}
-              className="flex min-w-0 flex-1 flex-col items-center"
-            >
-              <div className="flex h-9 items-end justify-center">
-                <span
-                  className={`${showLabel ? (marked ? "text-zinc-950" : toneClass(value)) : "text-transparent"} text-[10px] font-semibold tabular-nums`}
-                >
-                  {showLabel ? row.valueLabel || signedUsd(value) : "·"}
-                </span>
-              </div>
-              <div className="flex flex-1 flex-col items-center justify-end">
-                {positive ? (
-                  <div
-                    className={`w-full rounded-t-2xl ${marked ? "bg-emerald-600 shadow-[0_0_0_2px_rgba(16,185,129,0.14)]" : "bg-emerald-400/75"}`}
-                    style={{ height }}
-                  />
-                ) : null}
-              </div>
-              <div className="h-px w-full bg-zinc-300" />
-              <div className="flex flex-1 flex-col items-center justify-start">
-                {!positive ? (
-                  <div
-                    className={`w-full rounded-b-2xl ${marked ? "bg-rose-600 shadow-[0_0_0_2px_rgba(244,63,94,0.14)]" : "bg-rose-400/75"}`}
-                    style={{ height }}
-                  />
-                ) : null}
-              </div>
-              <span
-                className={`mt-2 truncate text-[10px] font-semibold ${row.isLatest ? "text-zinc-900" : "text-zinc-400"}`}
+        $0
+      </text>
+      {rows.map((row, index) => {
+        const value = Number(row.value) || 0;
+        const positive = value >= 0;
+        const y = valueToY(value);
+        const x = margin.left + slot * index + slot / 2 - barWidth / 2;
+        const barY = positive ? y : zeroY;
+        const rawHeight = Math.abs(zeroY - y);
+        const barHeight = Math.max(monthly ? 8 : 18, rawHeight);
+        const marked =
+          row.isLargest || row.isLargestInflow || row.isLargestOutflow;
+        const showLabel = !monthly || row.showLabel;
+        const labelY = positive
+          ? Math.max(14, barY - 8)
+          : Math.min(height - margin.bottom - 2, barY + barHeight + 14);
+        const naturalLabelX = x + barWidth / 2;
+        const labelX = monthly
+          ? (labelPositions.get(index) ?? naturalLabelX)
+          : naturalLabelX;
+
+        return (
+          <g key={row.date || row.name}>
+            <rect
+              x={x}
+              y={barY}
+              width={barWidth}
+              height={barHeight}
+              rx={monthly ? 6 : 10}
+              fill={
+                positive
+                  ? marked
+                    ? "#059669"
+                    : "#34d399"
+                  : marked
+                    ? "#e11d48"
+                    : "#fb7185"
+              }
+              opacity={marked ? 1 : 0.82}
+            />
+            {marked ? (
+              <rect
+                x={x - 2}
+                y={barY - (positive ? 2 : 0)}
+                width={barWidth + 4}
+                height={barHeight + 4}
+                rx={monthly ? 8 : 12}
+                fill="none"
+                stroke={
+                  positive ? "rgba(16,185,129,0.22)" : "rgba(244,63,94,0.22)"
+                }
+                strokeWidth="3"
+              />
+            ) : null}
+            {showLabel && monthly && Math.abs(labelX - naturalLabelX) > 1 ? (
+              <line
+                x1={naturalLabelX}
+                x2={labelX}
+                y1={positive ? Math.max(18, barY - 4) : barY + barHeight + 4}
+                y2={labelY + (positive ? 3 : -3)}
+                stroke="#d4d4d8"
+                strokeWidth="1"
+              />
+            ) : null}
+            {showLabel ? (
+              <text
+                x={labelX}
+                y={labelY}
+                textAnchor="middle"
+                className="fill-current text-[10px] font-semibold tabular-nums"
+                style={{ color: labelTone(value, Boolean(marked)) }}
               >
-                {monthly
-                  ? String(row.date || row.name).slice(8)
-                  : shortDate(row.date || row.name)}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
+                {row.valueLabel || signedUsd(value)}
+              </text>
+            ) : null}
+            <text
+              x={x + barWidth / 2}
+              y={height - 10}
+              textAnchor="middle"
+              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-400"} text-[10px] font-semibold tabular-nums`}
+            >
+              {monthly
+                ? String(row.date || row.name).slice(8)
+                : shortDate(row.date || row.name)}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
   );
 }
 
@@ -225,19 +323,21 @@ function Leaderboard({
             className="rounded-2xl border border-zinc-100 bg-white px-3.5 py-3"
           >
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="min-w-0 text-sm font-semibold text-zinc-950">
+              <div className="min-w-0 truncate text-sm font-semibold text-zinc-950">
                 {showRank ? (
                   <span className="mr-2 text-zinc-400">{index + 1}</span>
                 ) : null}
-                <span>{row.ticker || row.name}</span>
+                <span className="whitespace-nowrap">
+                  {row.ticker || row.name}
+                </span>
                 {row.name && row.ticker ? (
-                  <span className="ml-1 font-medium text-zinc-400">
+                  <span className="ml-1 truncate font-medium text-zinc-400">
                     {row.name}
                   </span>
                 ) : null}
               </div>
               <div
-                className={`shrink-0 text-sm font-semibold tabular-nums ${toneClass(row.value)}`}
+                className={`shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums ${toneClass(row.value)}`}
               >
                 {signedUsd(row.value)}
               </div>
