@@ -74,7 +74,7 @@ export function DatasetLibrary({
                       return (
                         <div
                           key={metric.id}
-                          className="flex min-w-0 flex-nowrap items-center gap-1.5"
+                          className="flex min-w-0 flex-nowrap items-center gap-1"
                         >
                           <button
                             onClick={() =>
@@ -95,7 +95,7 @@ export function DatasetLibrary({
                                 <button
                                   key={query.id}
                                   onClick={() => onSelectPrompt(query.prompt)}
-                                  className="whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-black text-slate-500 transition hover:border-slate-950 hover:text-slate-950"
+                                  className="whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-2 py-0.5 text-[10px] font-black text-slate-500 transition hover:border-slate-950 hover:text-slate-950"
                                 >
                                   {query.chip}
                                 </button>

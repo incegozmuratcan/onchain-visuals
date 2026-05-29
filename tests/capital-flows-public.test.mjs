@@ -46,7 +46,8 @@ test('BTC ETF presets appear only under Capital Flows in public menus and API se
   assert.match(datasetLibrary, /query\.chip/);
   assert.match(datasetLibrary, /onSelectPrompt\(query\.prompt\)/);
   assert.match(datasetLibrary, /flex-nowrap/);
-  assert.match(datasetLibrary, /text-\[11px\]/);
+  assert.match(datasetLibrary, /text-\[10px\]/);
+  assert.match(datasetLibrary, /px-2 py-0\.5/);
 });
 
 test('BTC ETF completed-row builders power daily weekly monthly cards without awkward missing-issuer strings', () => {
