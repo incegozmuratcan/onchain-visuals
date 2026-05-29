@@ -1,11 +1,51 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
 
 const chartShell = await readFile(new URL('../components/onchain/ChartShell.tsx', import.meta.url), 'utf8');
 const etfFlowboard = await readFile(new URL('../components/onchain/templates/EtfFlowboard.tsx', import.meta.url), 'utf8');
 const shareCard = await readFile(new URL('../components/ShareCard.tsx', import.meta.url), 'utf8');
 const snapshots = await readFile(new URL('../lib/onchain/snapshots.ts', import.meta.url), 'utf8');
+
+async function importSnapshotBuilders() {
+  let source = await readFile(new URL('../lib/onchain/snapshots.ts', import.meta.url), 'utf8');
+  source = source
+    .replace("import { datasetRegistry } from './registry';", "const datasetRegistry = [];")
+    .replace("import type { ChartSnapshot, DatasetRegistryItem, HeadlineMetric, DatasetStatus } from './types';", "")
+    .replace("import { formatCompactUsd, formatSignedPercent, formatSignedUsd } from '../formatters';", "const formatCompactUsd = (value)=>String(value); const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}$${Math.abs(Number(value) || 0)}`;")
+    .replace("import { cumulative_sum, long_short_imbalance, marketShares, rolling_20d, safeChangePct, streak_count, supply_pressure_score } from '../metrics';", "const cumulative_sum = (values)=>values.reduce((out,value,index)=>(out.push((out[index-1] || 0) + value), out), []); const rolling_20d = (values)=>values.slice(-20).reduce((a,b)=>a+b,0); const streak_count = (values)=>values.length; const long_short_imbalance = ()=>null; const marketShares = ()=>[]; const safeChangePct = ()=>null; const supply_pressure_score = ()=>null;")
+    .replace("import { fetchChainRevenue, fetchStablecoinSupplyByChain, fetchDexVolumeByChain, fetchProtocolRevenue, fetchDexProtocols, fetchPerpProtocols, fetchCexTransparency } from './sources/defillama';", "const fetchChainRevenue = async()=>({ok:false}); const fetchStablecoinSupplyByChain = async()=>({ok:false}); const fetchDexVolumeByChain = async()=>({ok:false}); const fetchProtocolRevenue = async()=>({ok:false}); const fetchDexProtocols = async()=>({ok:false}); const fetchPerpProtocols = async()=>({ok:false}); const fetchCexTransparency = async()=>({ok:false});")
+    .replace("import { fetchBtcEtfFlows, fetchEthEtfFlows, type EtfFlowRow } from './sources/farside';", "const fetchBtcEtfFlows = async()=>({ok:false}); const fetchEthEtfFlows = async()=>({ok:false});")
+    .replace("import { fetchStablecoinNetTransfersLatest } from './sources/dune';", "const fetchStablecoinNetTransfersLatest = async()=>({ok:false});")
+    .replace("import { largeHolderMissingConfig } from './sources/etherscan';", "const largeHolderMissingConfig = ()=>[];")
+    .replace("import { whaleTransferMissingConfig } from './sources/whaleAlert';", "const whaleTransferMissingConfig = ()=>[];")
+    .replace("import { loadLatestChartSnapshot, markSnapshotStale, saveChartSnapshot, sourceRun } from './storage';", "const loadLatestChartSnapshot = async()=>null; const markSnapshotStale = (snapshot)=>snapshot; const saveChartSnapshot = async()=>{}; const sourceRun = async()=>{};");
+  const js = ts.transpileModule(source, { compilerOptions:{ module:ts.ModuleKind.ES2022, target:ts.ScriptTarget.ES2022 }}).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(js).toString('base64')}`);
+}
+
+const snapshotBuilders = await importSnapshotBuilders();
+const btcDataset = { id:'btc-etf-flowboard', slug:'btc-etf-flowboard', name:'BTC ETF Flowboard', description:'BTC ETF flows', category:'capital-flows', status:'active', requiredEnv:[], primarySource:'farside', sourceLabel:'Source: Farside Investors + Binance', chartTemplates:['etf_flowboard'] };
+const fixtureMonth = new Date().toISOString().slice(0, 7);
+const latestFixtureDate = `${fixtureMonth}-28`;
+const latestFixtureLabel = `${new Date(`${latestFixtureDate}T00:00:00Z`).toLocaleDateString('en-US', { timeZone:'UTC', month:'short', day:'numeric' }).toUpperCase()} NET FLOW`;
+const btcFlowResult = {
+  url: 'https://farside.co.uk/bitcoin-etf-flow-all-data/',
+  data: {
+    warnings: [],
+    rows: [
+      [`${fixtureMonth}-24`, 10, [['BlackRock','IBIT',10], ['Fidelity','FBTC',0]]],
+      [`${fixtureMonth}-25`, -20, [['BlackRock','IBIT',-20], ['Fidelity','FBTC',0]]],
+      [`${fixtureMonth}-26`, 40, [['BlackRock','IBIT',35], ['Fidelity','FBTC',5], ['Bitwise','BITB',0]]],
+      [`${fixtureMonth}-27`, 100, [['BlackRock','IBIT',95], ['Fidelity','FBTC',5], ['Grayscale GBTC','GBTC',0]]],
+      [`${fixtureMonth}-28`, -50, [['BlackRock','IBIT',-80], ['Fidelity','FBTC',30], ['Bitwise','BITB',0], ['ARK 21Shares','ARKB',0], ['Grayscale GBTC','GBTC',-5], ['VanEck','HODL',5], ['Franklin','EZBC',1], ['WisdomTree','BTCW',-1], ['Valkyrie','BRRR',0]]],
+    ].flatMap(([date, total, issuers]) => [
+      { date, asset:'BTC', issuer:'Total', ticker:'Total', flowUsd:total, isTotal:true, rawValue:String(total) },
+      ...issuers.map(([issuer, ticker, flowUsd]) => ({ date, asset:'BTC', issuer, ticker, flowUsd, isTotal:false, rawValue:String(flowUsd) })),
+    ]),
+  },
+};
 
 function functionBlock(name) {
   const start = snapshots.indexOf(`export function ${name}`);
@@ -83,4 +123,47 @@ test('Monthly BTC ETF card is an MTD flow report with compact issuer summary', (
   assert.match(etfFlowboard, /MTD daily flow chart/);
   assert.match(etfFlowboard, /Issuer Summary/);
   assert.doesNotMatch(etfFlowboard, /Issuer Monthly Flows|Latest completed row/);
+});
+
+
+test('BTC ETF snapshot builders emit semantic card contracts for public daily weekly and monthly views', () => {
+  const daily = snapshotBuilders.buildBtcEtfDailyCard(btcDataset, 'daily', btcFlowResult);
+  assert.equal(daily.sourceLabel, 'Farside');
+  assert.equal(daily.subtitle.includes('Farside'), false);
+  assert.deepEqual(daily.headlineMetrics.map((metric) => metric.label), [latestFixtureLabel, 'Top Driver', 'Since Launch']);
+  assert.match(daily.headlineMetrics[1].formattedValue, /%/);
+  assert.equal(daily.series.lines.length, 0);
+  assert.equal(daily.series.bars.length, 0);
+  assert.ok(daily.series.tables.length <= 5);
+  assert.equal(daily.series.tables.some((row) => Number(row.value) === 0), false);
+  assert.equal(JSON.stringify(daily).includes('Cumulative Flow'), false);
+  assert.equal(JSON.stringify(daily).includes('5D Flow'), false);
+  assert.equal(JSON.stringify(daily).includes('20D Flow'), false);
+
+  const weekly = snapshotBuilders.buildBtcEtfWeeklyCard(btcDataset, 'weekly', btcFlowResult);
+  assert.equal(weekly.headlineMetrics[0].label, 'Weekly Net Flow');
+  assert.ok(weekly.headlineMetrics.some((metric) => metric.label === 'Since Launch'));
+  assert.equal(weekly.series.lines.length, 0);
+  assert.equal(weekly.series.bars.length, 5);
+  for (const bar of weekly.series.bars) {
+    assert.equal(bar.magnitude, Math.abs(bar.value));
+    assert.match(bar.valueLabel, /^[+-]/);
+    assert.match(bar.sign, /^(positive|negative)$/);
+  }
+  assert.ok(weekly.series.tables.length <= 5);
+  assert.equal(weekly.series.tables.some((row) => Number(row.value) === 0), false);
+  assert.equal(JSON.stringify(weekly).includes('Cumulative Flow'), false);
+  assert.equal(JSON.stringify(weekly).includes('Last five completed sessions'), false);
+
+  const monthly = snapshotBuilders.buildBtcEtfMonthlyIssuerCard(btcDataset, 'monthly', btcFlowResult);
+  assert.equal(monthly.title, 'BTC ETF Monthly Flow Report');
+  assert.equal(monthly.metadata.monthlyVisual, 'mtd_daily_flow_chart');
+  assert.equal(monthly.series.bars.length, 5);
+  assert.ok(monthly.series.bars.every((bar) => bar.valueLabel));
+  assert.equal(monthly.series.lines.length, 0);
+  assert.ok(monthly.headlineMetrics.some((metric) => metric.label === 'Since Launch'));
+  assert.ok(monthly.series.tables.length <= 5);
+  assert.equal(monthly.series.tables.some((row) => Number(row.value) === 0), false);
+  assert.equal(JSON.stringify(monthly).includes('Cumulative Flow'), false);
+  assert.notEqual(monthly.metadata.monthlyVisual, 'issuer_leaderboard');
 });
