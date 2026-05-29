@@ -38,7 +38,7 @@ function BtcLogoMark({ className = "h-16 w-16" }: { className?: string }) {
   return (
     <div
       data-testid="btc-logo-treatment"
-      className={`${className} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200/70 bg-gradient-to-br from-amber-100 via-orange-50 to-white text-lg font-black text-amber-600 shadow-sm`}
+      className={`${className} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-white text-xs font-black text-zinc-500 shadow-sm`}
     >
       {candidate ? (
         <img
@@ -92,7 +92,8 @@ function BtcHeroMetric({ hero }: { hero: any }) {
   return (
     <div className="relative min-h-[190px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-50/80 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
-        <div className="min-w-0">
+        <BtcLogoMark className="h-[4.25rem] w-[4.25rem] opacity-95" />
+        <div className="min-w-0 text-right">
           <div className="text-xl font-semibold uppercase tracking-[-0.02em] text-zinc-950">
             {heroLabel.date}
           </div>
@@ -100,7 +101,6 @@ function BtcHeroMetric({ hero }: { hero: any }) {
             {heroLabel.suffix}
           </div>
         </div>
-        <BtcLogoMark className="h-16 w-16 opacity-90" />
       </div>
       <div
         className={`mt-7 truncate text-6xl font-semibold tracking-[-0.06em] ${toneClass(hero?.value)}`}
@@ -122,8 +122,8 @@ function SignedFlowChart({
     1,
     ...rows.map((row) => Math.abs(Number(row.value) || 0)),
   );
-  const chartHeight = monthly ? 260 : 224;
-  const halfHeight = monthly ? 104 : 88;
+  const chartHeight = monthly ? 276 : 232;
+  const halfHeight = monthly ? 118 : 96;
   return (
     <div className="relative" data-chart="signed-zero-baseline">
       <div className="pointer-events-none absolute left-0 right-0 top-1/2 h-px bg-zinc-300" />
@@ -131,14 +131,14 @@ function SignedFlowChart({
         $0
       </div>
       <div
-        className={`flex items-stretch ${monthly ? "gap-1.5" : "gap-3"}`}
+        className={`flex items-stretch ${monthly ? "gap-1" : "gap-3"}`}
         style={{ height: chartHeight }}
       >
         {rows.map((row) => {
           const value = Number(row.value) || 0;
           const positive = value >= 0;
           const height = Math.max(
-            monthly ? 8 : 14,
+            monthly ? 10 : 16,
             (Math.abs(value) / maxAbs) * halfHeight,
           );
           const marked =

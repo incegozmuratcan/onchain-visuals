@@ -117,7 +117,7 @@ function BtcEtfShareCard({
   const BtcLogoMark = ({ size = "h-14 w-14" }: { size?: string }) => (
     <div
       data-testid="btc-logo-treatment"
-      className={`${size} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200/70 bg-gradient-to-br from-amber-100 via-orange-50 to-white text-sm font-black text-amber-600 shadow-sm`}
+      className={`${size} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-white text-xs font-black text-slate-500 shadow-sm`}
     >
       <ChainLogo name="Bitcoin" compact={false} />
     </div>
@@ -126,7 +126,8 @@ function BtcEtfShareCard({
   const HeroMetric = () => (
     <div className="relative flex min-h-[170px] flex-col justify-between overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
       <div className="flex items-start justify-between gap-4">
-        <div>
+        <BtcLogoMark size="h-16 w-16" />
+        <div className="text-right">
           <div className="text-xl font-black uppercase tracking-[-0.02em] text-slate-950">
             {heroParts.date}
           </div>
@@ -134,7 +135,6 @@ function BtcEtfShareCard({
             {heroParts.suffix}
           </div>
         </div>
-        <BtcLogoMark />
       </div>
       <div
         className={`truncate text-5xl font-black tracking-[-0.06em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}
@@ -151,13 +151,13 @@ function BtcEtfShareCard({
         $0
       </div>
       <div
-        className={`flex items-stretch ${monthly ? "h-52 gap-1.5" : "h-44 gap-2"}`}
+        className={`flex items-stretch ${monthly ? "h-56 gap-1" : "h-48 gap-2"}`}
       >
         {flowRows.map((row: any) => {
           const value = Number(row.value) || 0;
           const height = Math.max(
-            monthly ? 8 : 12,
-            (Math.abs(value) / maxAbsFlow) * (monthly ? 76 : 64),
+            monthly ? 10 : 16,
+            (Math.abs(value) / maxAbsFlow) * (monthly ? 94 : 78),
           );
           const positive = value >= 0;
           const marked =
@@ -216,15 +216,15 @@ function BtcEtfShareCard({
           {issuerRows.map((row: any, index: number) => (
             <div key={`${row.ticker || row.name}-${index}`}>
               <div className="mb-1 flex items-center justify-between gap-3 text-sm">
-                <span className="truncate font-black text-slate-950">
+                <span className="min-w-0 truncate font-black text-slate-950">
                   {row.ticker || row.name}{" "}
                   <span className="font-medium text-slate-400">{row.name}</span>
                 </span>
                 <span
                   className={
                     Number(row.value) >= 0
-                      ? "text-emerald-600"
-                      : "text-rose-600"
+                      ? "shrink-0 whitespace-nowrap text-right font-black tabular-nums text-emerald-600"
+                      : "shrink-0 whitespace-nowrap text-right font-black tabular-nums text-rose-600"
                   }
                 >
                   {signedUsd(row.value)}
@@ -256,10 +256,10 @@ function BtcEtfShareCard({
           <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">
             Capital Flows · BTC ETF
           </p>
-          <h2 className="mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">
+          <h2 className="mt-2 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">
             {data.title}
           </h2>
-          <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">
+          <p className="mt-3 max-w-xl text-base font-medium leading-7 text-slate-500">
             {data.subtitle}
           </p>
         </div>
@@ -269,7 +269,7 @@ function BtcEtfShareCard({
       </div>
 
       {daily ? (
-        <div className="mt-8 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
+        <div className="mt-6 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
           <div>
             <HeroMetric />
             <div className="mt-3 grid grid-cols-2 gap-2">
@@ -284,7 +284,7 @@ function BtcEtfShareCard({
 
       {weekly ? (
         <>
-          <div className="mt-8 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
+          <div className="mt-6 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
             <HeroMetric />
             {supportMetrics.map((metric) => {
               const card = (data.series.cards || []).find(
@@ -313,7 +313,7 @@ function BtcEtfShareCard({
 
       {monthly ? (
         <>
-          <div className="mt-8 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
+          <div className="mt-6 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
             <HeroMetric />
             {supportMetrics.map((metric) => (
               <MiniMetric key={metric.label} metric={metric} />

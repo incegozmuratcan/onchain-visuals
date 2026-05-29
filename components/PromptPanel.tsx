@@ -12,6 +12,23 @@ const depinTimeframeOptions = ["24H", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
+  const isBtcEtf = /btc\s*etf|bitcoin\s*etf/.test(text);
+  if (isBtcEtf) {
+    const period = /monthly|month|flow report/.test(text)
+      ? "Monthly"
+      : /weekly|week/.test(text)
+        ? "Weekly"
+        : "Daily";
+    return {
+      scope: "BTC ETF",
+      metric: period === "Monthly" ? "Flow Report" : "Flow",
+      limit: 10,
+      timeframe: period,
+      isCurrentOnly: true,
+      isDepin: false,
+      isBtcEtf: true,
+    };
+  }
   const isDepin = /(depin|physical infrastructure|infrastructure network)/.test(text);
   const isDevelopers = /(developers|developer|devs|dev count|geliştirici|gelistirici)/.test(text);
   const isTxFee = /(avg tx fee|average tx fee|average transaction fee|tx fee|transaction fee)/.test(text);
@@ -33,7 +50,7 @@ function parsePromptLabels(prompt: string) {
 
   const scope = isDepin ? "Protocols" : isDevelopers || isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
   const metric = isDepin ? "DePIN" : isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
-  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin };
+  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin, isBtcEtf: false };
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -86,7 +103,7 @@ export function PromptPanel({
             if (event.key === "Enter") onRun();
           }}
           className="min-h-16 flex-1 rounded-3xl border border-slate-200 bg-slate-50/60 px-5 text-base font-semibold text-slate-950 outline-none transition placeholder:text-slate-300 focus:border-slate-950 focus:bg-white"
-          placeholder="Top 10 chains by stablecoin supply"
+          placeholder="BTC ETF Daily Flowboard"
           maxLength={240}
         />
         <button
@@ -101,35 +118,45 @@ export function PromptPanel({
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Card settings</div>
         <div className="flex flex-wrap gap-2">
-          <select
-            aria-label="Select result count"
-            value={currentLimit}
-            onChange={(event) => setPrompt(replaceLimit(prompt, Number(event.target.value)))}
-            className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
-          >
-            {limitOptions.map((limit) => (
-              <option key={limit} value={String(limit)}>Top {limit}</option>
-            ))}
-          </select>
+          {detected.isBtcEtf ? (
+            <>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">BTC ETF</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">{currentTimeframe}</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">{detected.metric}</span>
+            </>
+          ) : (
+            <>
+              <select
+                aria-label="Select result count"
+                value={currentLimit}
+                onChange={(event) => setPrompt(replaceLimit(prompt, Number(event.target.value)))}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
+              >
+                {limitOptions.map((limit) => (
+                  <option key={limit} value={String(limit)}>Top {limit}</option>
+                ))}
+              </select>
 
-          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
-            {detected.scope}
-          </span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
+                {detected.scope}
+              </span>
 
-          {!isCurrentOnly && (
-            <select
-              aria-label="Select timeframe"
-              value={currentTimeframe}
-              onChange={(event) => setPrompt(replaceTimeframe(prompt, event.target.value))}
-              className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
-            >
-              {availableTimeframes.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
-            </select>
+              {!isCurrentOnly && (
+                <select
+                  aria-label="Select timeframe"
+                  value={currentTimeframe}
+                  onChange={(event) => setPrompt(replaceTimeframe(prompt, event.target.value))}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm outline-none"
+                >
+                  {availableTimeframes.map((timeframe) => <option key={timeframe} value={timeframe}>{timeframe}</option>)}
+                </select>
+              )}
+
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
+                {detected.metric}
+              </span>
+            </>
           )}
-
-          <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">
-            {detected.metric}
-          </span>
         </div>
       </div>
     </div>
