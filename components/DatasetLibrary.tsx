@@ -15,53 +15,92 @@ export function DatasetLibrary({
   const [closedGroups, setClosedGroups] = useState<Record<string, boolean>>({});
 
   function toggleGroup(groupId: string) {
-    setClosedGroups((current) => ({ ...current, [groupId]: !current[groupId] }));
+    setClosedGroups((current) => ({
+      ...current,
+      [groupId]: !current[groupId],
+    }));
   }
 
   return (
     <aside className="rounded-[30px] border border-slate-200 bg-white p-5 shadow-soft">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black tracking-[-0.03em] text-slate-950">Data library</h2>
-          <p className="mt-1 text-sm font-medium text-slate-500">Pick a metric.</p>
+          <h2 className="text-lg font-black tracking-[-0.03em] text-slate-950">
+            Data library
+          </h2>
+          <p className="mt-1 text-sm font-medium text-slate-500">
+            Pick a metric.
+          </p>
         </div>
-        <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">{APP_VERSION_BADGE}</div>
+        <div className="rounded-full bg-slate-950 px-3 py-1 text-xs font-black text-white">
+          {APP_VERSION_BADGE}
+        </div>
       </div>
 
       <div className="mt-5 grid gap-3">
         {groups.map((group) => {
           const isClosed = !!closedGroups[group.id];
           return (
-            <div key={group.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-              <button onClick={() => toggleGroup(group.id)} className="flex w-full items-baseline justify-between gap-3 text-left">
-                <div className="text-2xl font-black tracking-[-0.05em] text-slate-950">{group.name}</div>
+            <div
+              key={group.id}
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+            >
+              <button
+                onClick={() => toggleGroup(group.id)}
+                className="flex w-full items-baseline justify-between gap-3 text-left"
+              >
+                <div className="text-2xl font-black tracking-[-0.05em] text-slate-950">
+                  {group.name}
+                </div>
                 <div className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
                   {group.metrics.length} metrics
-                  <ChevronDown size={14} className={`transition ${isClosed ? "-rotate-90" : "rotate-0"}`} />
+                  <ChevronDown
+                    size={14}
+                    className={`transition ${isClosed ? "-rotate-90" : "rotate-0"}`}
+                  />
                 </div>
               </button>
               {!isClosed && (
                 <>
-                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">{group.description}</p>
+                  <p className="mt-1 text-xs font-semibold leading-5 text-slate-500">
+                    {group.description}
+                  </p>
 
                   <div className="mt-4 flex flex-wrap gap-2">
                     {group.metrics.map((metric) => {
                       const defaultQuery = metric.queries[0];
-                      const active = metric.status === "active" && !!defaultQuery;
+                      const active =
+                        metric.status === "active" && !!defaultQuery;
                       return (
-                        <div key={metric.id} className="flex flex-wrap items-center gap-2">
+                        <div
+                          key={metric.id}
+                          className="flex min-w-0 flex-nowrap items-center gap-1.5"
+                        >
                           <button
-                            onClick={() => active && onSelectPrompt(defaultQuery.prompt)}
+                            onClick={() =>
+                              active && onSelectPrompt(defaultQuery.prompt)
+                            }
                             disabled={!active}
-                            className={active ? "rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:border-slate-950 hover:bg-slate-50" : "cursor-not-allowed rounded-full border border-slate-200 bg-white/60 px-4 py-2 text-sm font-black text-slate-400 opacity-70"}
+                            className={
+                              active
+                                ? "rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-950 transition hover:border-slate-950 hover:bg-slate-50"
+                                : "cursor-not-allowed rounded-full border border-slate-200 bg-white/60 px-4 py-2 text-sm font-black text-slate-400 opacity-70"
+                            }
                           >
-                            {metric.label}{metric.status !== "active" ? " soon" : ""}
+                            {metric.label}
+                            {metric.status !== "active" ? " soon" : ""}
                           </button>
-                          {active && metric.queries.length > 1 ? metric.queries.map((query) => (
-                            <button key={query.id} onClick={() => onSelectPrompt(query.prompt)} className="rounded-full border border-slate-200 bg-white/80 px-3 py-1.5 text-xs font-black text-slate-500 transition hover:border-slate-950 hover:text-slate-950">
-                              {query.chip}
-                            </button>
-                          )) : null}
+                          {active && metric.queries.length > 1
+                            ? metric.queries.map((query) => (
+                                <button
+                                  key={query.id}
+                                  onClick={() => onSelectPrompt(query.prompt)}
+                                  className="whitespace-nowrap rounded-full border border-slate-200 bg-white/80 px-2.5 py-1 text-[11px] font-black text-slate-500 transition hover:border-slate-950 hover:text-slate-950"
+                                >
+                                  {query.chip}
+                                </button>
+                              ))
+                            : null}
                         </div>
                       );
                     })}

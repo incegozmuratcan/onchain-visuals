@@ -35,51 +35,52 @@ test('BTC ETF visual avoids tooltip artifacts, scroll classes, and horizontal ov
   assert.match(chartShell, /max-w-full overflow-hidden/);
 });
 
-test('Daily BTC ETF snapshot is latest-completed-day first with compact issuer impact', () => {
+test('Daily BTC ETF snapshot is latest-completed-day first with only Top Driver and Since Launch support', () => {
   assert.match(snapshots, /dateNetFlowLabel\(summary\.latestCompletedDate\)/);
-  assert.doesNotMatch(dailyBlock, /Latest Net Flow|Today/);
+  assert.doesNotMatch(dailyBlock, /Latest Net Flow|Today|Latest completed row/);
   assert.match(dailyBlock, /Latest capital movement across US spot Bitcoin ETFs\./);
-  assert.doesNotMatch(dailyBlock, /subtitle[\s\S]*Farside|Daily spot Bitcoin ETF net flows from completed Farside issuer rows/);
-  assert.match(dailyBlock, /5D Flow/);
-  assert.match(dailyBlock, /20D Flow/);
-  assert.match(dailyBlock, /Since Launch/);
-  assert.doesNotMatch(dailyBlock, /Cumulative Flow/);
-  assert.match(dailyBlock, /series:\{\.\.\.emptySeries\(\), bars:\[\], lines:\[\]/);
+  assert.match(dailyBlock, /driverMetric\(driver, share\)/);
+  assert.match(dailyBlock, /["\']Since Launch["\']/);
+  assert.doesNotMatch(dailyBlock, /5D Flow|20D Flow|Cumulative Flow/);
+  assert.match(dailyBlock, /bars:[\s\S]*\[\]/);
+  assert.match(dailyBlock, /lines:[\s\S]*\[\]/);
   assert.match(dailyBlock, /getTopIssuerContributors\(summary\.issuerLatest, 5\)/);
-  assert.match(snapshots, /Number\(r\.flowUsd\) !== 0/);
-  assert.match(dailyBlock, /getIssuerBreadth\(summary\.issuerLatest\)/);
-  assert.match(dailyBlock, /maxIssuerContributors:contributors\.length/);
-  assert.doesNotMatch(dailyBlock, /No issuer had/);
+  assert.match(dailyBlock, /No issuer posted inflows\./);
+  assert.doesNotMatch(dailyBlock, /Issuer inflow detail is pending/);
+  assert.match(etfFlowboard, /metrics\.slice\(1, 3\)/);
   assert.match(etfFlowboard, /Latest Issuer Flows/);
-  assert.doesNotMatch(etfFlowboard, /5-day context|Top issuer contributors/);
+  assert.doesNotMatch(etfFlowboard, /5-day context|Top issuer contributors|Latest completed row/);
 });
 
-test('Weekly BTC ETF snapshot elevates weekly net flow and labels five completed days', () => {
+test('Weekly BTC ETF snapshot elevates weekly net flow and renders five upward magnitude bars', () => {
   assert.match(weeklyBlock, /const weekDays = getLatestCompletedBtcEtfDays\(flowResult\.data\.rows, 5\)/);
-  assert.match(weeklyBlock, /const issuers = allIssuers\.slice\(0,8\)/);
-  assert.match(weeklyBlock, /weeklyPrimaryMetric:'Weekly Net Flow'/);
-  assert.match(weeklyBlock, /valueLabel:formatSignedUsd/);
-  assert.match(weeklyBlock, /dayMetricLabel\(bestDay\?\.total\.flowUsd, 'Best Inflow', 'Smallest Outflow'\)/);
-  assert.match(weeklyBlock, /dayMetricLabel\(worstDay\?\.total\.flowUsd, 'Smallest Inflow', 'Largest Outflow'\)/);
-  assert.doesNotMatch(weeklyBlock, /Best Inflow Day|Worst Outflow Day|Top Issuer This Week|Cumulative Flow/);
-  assert.match(weeklyBlock, /Since Launch/);
-  assert.match(weeklyBlock, /Number\(row\.value\) !== 0/);
-  assert.doesNotMatch(weeklyBlock, /\+\$0/);
-  assert.match(etfFlowboard, /BtcMetricCard/);
-  assert.match(etfFlowboard, /Five completed days/);
+  assert.match(weeklyBlock, /const issuers = allIssuers\.slice\(0,\s*5\)/);
+  assert.match(weeklyBlock, /weeklyPrimaryMetric:[\s\S]*["\']Weekly Net Flow["\']/);
+  assert.match(weeklyBlock, /valueLabel:[\s\S]*formatSignedUsd/);
+  assert.match(weeklyBlock, /magnitude:[\s\S]*Math\.abs/);
+  assert.match(weeklyBlock, /isLargest:/);
+  assert.match(weeklyBlock, /sign:[\s\S]*Number/);
+  assert.match(weeklyBlock, /["\']Since Launch["\']/);
+  assert.doesNotMatch(weeklyBlock, /Latest completed row|Last five completed sessions|Cumulative Flow/);
+  assert.doesNotMatch(weeklyBlock, /Best Inflow Day|Worst Outflow Day|Top Issuer This Week/);
+  assert.match(etfFlowboard, /5-session flow strip/);
+  assert.match(etfFlowboard, /height = Math\.max/);
   assert.match(etfFlowboard, /Weekly issuer net flow/);
+  assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
 });
 
-test('Monthly BTC ETF card is an issuer report, not a broken-axis chart', () => {
-  assert.match(monthlyBlock, /monthlyVisual:'issuer_leaderboard'/);
-  assert.match(monthlyBlock, /const issuers = allIssuers\.slice\(0,8\)/);
-  assert.match(monthlyBlock, /series:\{\.\.\.emptySeries\(\), bars:\[\], lines:\[\]/);
-  assert.match(monthlyBlock, /Month-to-date issuer flows across US spot Bitcoin ETFs\./);
-  assert.match(monthlyBlock, /Top Inflow/);
-  assert.match(monthlyBlock, /Largest Outflow/);
-  assert.match(monthlyBlock, /Since Launch/);
-  assert.doesNotMatch(monthlyBlock, /Cumulative Flow|Current month-to-date Bitcoin ETF issuer flows using completed Farside rows/);
-  assert.match(monthlyBlock, /Number\(row\.value\) !== 0/);
-  assert.match(etfFlowboard, /Issuer Monthly Flows/);
-  assert.doesNotMatch(etfFlowboard, /Month-to-date sessions/);
+test('Monthly BTC ETF card is an MTD flow report with compact issuer summary', () => {
+  assert.match(monthlyBlock, /BTC ETF Monthly Flow Report/);
+  assert.match(monthlyBlock, /Month-to-date capital movement across US spot Bitcoin ETFs\./);
+  assert.match(monthlyBlock, /const issuers = allIssuers\.slice\(0,\s*5\)/);
+  assert.match(monthlyBlock, /bars:[\s\S]*monthDays\.map/);
+  assert.match(monthlyBlock, /lines:[\s\S]*\[\]/);
+  assert.match(monthlyBlock, /monthlyVisual:[\s\S]*["\']mtd_daily_flow_chart["\']/);
+  assert.match(monthlyBlock, /Largest Inflow Day|Smallest Outflow/);
+  assert.match(monthlyBlock, /Largest Outflow Day/);
+  assert.match(monthlyBlock, /["\']Since Launch["\']/);
+  assert.doesNotMatch(monthlyBlock, /Cumulative Flow|Current month-to-date Bitcoin ETF issuer flows using completed Farside rows|issuer_leaderboard/);
+  assert.match(etfFlowboard, /MTD daily flow chart/);
+  assert.match(etfFlowboard, /Issuer Summary/);
+  assert.doesNotMatch(etfFlowboard, /Issuer Monthly Flows|Latest completed row/);
 });

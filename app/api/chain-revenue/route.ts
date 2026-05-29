@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
         title: chart.title,
         eyebrow: "Capital Flows · BTC ETF",
         description: chart.subtitle,
-        methodology: `Methodology: ${chart.title} uses completed Farside BTC ETF rows only. Pending rows without total and issuer values are skipped.`,
+        methodology: `${chart.title} shows completed BTC ETF capital flow data with issuer detail when available.`,
         insight: chart.insights.join(" "),
         query: { timeframe: btcEtfPeriod, limit: 0, labels: ["Capital Flows", "BTC ETF", btcEtfPeriod[0].toUpperCase() + btcEtfPeriod.slice(1)], metric: "btc_etf" },
       }, { headers: { "Cache-Control": "no-store, max-age=0" } });
