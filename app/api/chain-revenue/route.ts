@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
-  const rawPrompt = request.nextUrl.searchParams.get("prompt") || "Top 10 chains by stablecoin supply";
+  const rawPrompt = request.nextUrl.searchParams.get("prompt") || "BTC ETF Daily Flowboard";
   const prompt = rawPrompt.slice(0, 240);
   const parsed = parsePrompt(prompt);
   const btcEtfPeriod = /btc\s*etf/i.test(prompt)

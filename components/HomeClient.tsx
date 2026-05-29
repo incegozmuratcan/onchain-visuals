@@ -10,15 +10,15 @@ import { datasetGroups } from "@/lib/datasets";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { ChartSnapshot } from "@/lib/onchain/types";
 
-const DEFAULT_CARD_INPUT = "Top 10 chains by stablecoin supply";
+const DEFAULT_CARD_INPUT = "BTC ETF Daily Flowboard";
 
 const tryCards = [
+  "BTC ETF Daily Flowboard",
   "Top 10 chains by 30D revenue",
   "Top 10 chains by stablecoin supply",
   "Top 10 chains by DeFi TVL",
   "Top 10 DePIN projects by 30D annualized revenue",
   "Top 10 chains by real-time TPS",
-  "BTC ETF Daily Flowboard",
 ];
 
 const activeDataset = {
@@ -49,17 +49,17 @@ type ApiResult = {
 export function HomeClient({ brand }: { brand: import("@/lib/brandTypes").PublicBrandSettings }) {
   const [prompt, setPrompt] = useState(DEFAULT_CARD_INPUT);
   const [rows, setRows] = useState<ChainRevenueRow[]>([]);
-  const [source, setSource] = useState("DefiLlama");
+  const [source, setSource] = useState("Farside");
   const [updatedAt, setUpdatedAt] = useState("-");
-  const [title, setTitle] = useState("Top 10 chains by stablecoin supply");
-  const [eyebrow, setEyebrow] = useState("Stablecoin Supply");
-  const [description, setDescription] = useState("Current stablecoin supply by chain from a trusted market data source.");
-  const [methodology, setMethodology] = useState("Methodology: Current stablecoin supply by chain. Source attribution is kept on every export.");
-  const [insight, setInsight] = useState("Stablecoin supply shows where dollar-denominated liquidity is issued and circulating across crypto networks.");
+  const [title, setTitle] = useState("BTC ETF Daily Flowboard");
+  const [eyebrow, setEyebrow] = useState("Capital Flows · BTC ETF");
+  const [description, setDescription] = useState("Latest capital movement across US spot Bitcoin ETFs.");
+  const [methodology, setMethodology] = useState("BTC ETF Daily Flowboard shows completed BTC ETF capital flow data with issuer detail when available.");
+  const [insight, setInsight] = useState("Latest BTC ETF flowboard powered by Farside completed rows.");
   const [valueFormat, setValueFormat] = useState<"usd" | "number">("usd");
   const [valueSuffix, setValueSuffix] = useState("");
   const [valueDirection, setValueDirection] = useState<"higher" | "lower">("higher");
-  const [queryLabels, setQueryLabels] = useState<string[]>(["Chains", "Stablecoin Supply", "Top 10", "Current"]);
+  const [queryLabels, setQueryLabels] = useState<string[]>(["Capital Flows", "BTC ETF", "Daily"]);
   const [etfSnapshot, setEtfSnapshot] = useState<ChartSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
