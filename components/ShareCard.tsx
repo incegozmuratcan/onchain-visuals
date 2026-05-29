@@ -78,7 +78,6 @@ function BtcEtfShareCard({
   const supportMetrics = daily
     ? data.headlineMetrics.slice(1, 3)
     : data.headlineMetrics.slice(1, 4);
-  const monthlyMetrics = data.headlineMetrics.slice(0, 4);
 
   const heroParts = (() => {
     const parts = String(hero?.label || "NET FLOW").split(" ");
@@ -115,45 +114,95 @@ function BtcEtfShareCard({
     </div>
   );
 
-  const FlowStrip = ({ monthly = false }: { monthly?: boolean }) => (
+  const BtcLogoMark = ({ size = "h-14 w-14" }: { size?: string }) => (
     <div
-      className={`flex items-end ${monthly ? "h-52 gap-1.5" : "h-44 gap-2"}`}
+      data-testid="btc-logo-treatment"
+      className={`${size} flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-amber-200/70 bg-gradient-to-br from-amber-100 via-orange-50 to-white text-sm font-black text-amber-600 shadow-sm`}
     >
-      {flowRows.map((row: any) => {
-        const value = Number(row.value) || 0;
-        const height = Math.max(
-          monthly ? 9 : 14,
-          (Math.abs(value) / maxAbsFlow) * (monthly ? 132 : 120),
-        );
-        const positive = value >= 0;
-        const marked =
-          row.isLargest || row.isLargestInflow || row.isLargestOutflow;
-        return (
-          <div
-            key={row.date || row.name}
-            className="flex min-w-0 flex-1 flex-col items-center gap-1.5"
-          >
-            <span
-              className={`${monthly && !row.showLabel ? "text-transparent" : marked ? "text-slate-950" : "text-slate-500"} h-4 text-[9px] font-black tabular-nums`}
-            >
-              {monthly && !row.showLabel
-                ? "·"
-                : row.valueLabel || signedUsd(value)}
-            </span>
-            <div
-              className={`w-full rounded-t-xl ${positive ? "bg-emerald-500" : "bg-rose-500"} ${marked ? "ring-2 ring-slate-900/10" : ""}`}
-              style={{ height, opacity: row.isLatest || marked ? 1 : 0.68 }}
-            />
-            <span
-              className={`truncate text-[9px] font-bold ${row.isLatest ? "text-slate-900" : "text-slate-400"}`}
-            >
-              {monthly
-                ? String(row.date || row.name).slice(8)
-                : String(row.date || row.name).slice(5)}
-            </span>
+      <ChainLogo name="Bitcoin" compact={false} />
+    </div>
+  );
+
+  const HeroMetric = () => (
+    <div className="relative flex min-h-[170px] flex-col justify-between overflow-hidden rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <div className="text-xl font-black uppercase tracking-[-0.02em] text-slate-950">
+            {heroParts.date}
           </div>
-        );
-      })}
+          <div className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+            {heroParts.suffix}
+          </div>
+        </div>
+        <BtcLogoMark />
+      </div>
+      <div
+        className={`truncate text-5xl font-black tracking-[-0.06em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}
+      >
+        {hero?.formattedValue}
+      </div>
+    </div>
+  );
+
+  const FlowStrip = ({ monthly = false }: { monthly?: boolean }) => (
+    <div className="relative" data-chart="signed-zero-baseline">
+      <div className="absolute left-0 right-0 top-1/2 h-px bg-slate-300" />
+      <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-400">
+        $0
+      </div>
+      <div
+        className={`flex items-stretch ${monthly ? "h-52 gap-1.5" : "h-44 gap-2"}`}
+      >
+        {flowRows.map((row: any) => {
+          const value = Number(row.value) || 0;
+          const height = Math.max(
+            monthly ? 8 : 12,
+            (Math.abs(value) / maxAbsFlow) * (monthly ? 76 : 64),
+          );
+          const positive = value >= 0;
+          const marked =
+            row.isLargest || row.isLargestInflow || row.isLargestOutflow;
+          const showLabel = !monthly || row.showLabel;
+          return (
+            <div
+              key={row.date || row.name}
+              className="flex min-w-0 flex-1 flex-col items-center"
+            >
+              <div className="flex h-7 items-end justify-center">
+                <span
+                  className={`${showLabel ? (marked ? "text-slate-950" : Number(value) >= 0 ? "text-emerald-700" : "text-rose-700") : "text-transparent"} text-[9px] font-black tabular-nums`}
+                >
+                  {showLabel ? row.valueLabel || signedUsd(value) : "·"}
+                </span>
+              </div>
+              <div className="flex flex-1 flex-col items-center justify-end">
+                {positive ? (
+                  <div
+                    className={`w-full rounded-t-xl ${marked ? "bg-emerald-600" : "bg-emerald-400/75"}`}
+                    style={{ height }}
+                  />
+                ) : null}
+              </div>
+              <div className="h-px w-full bg-slate-300" />
+              <div className="flex flex-1 flex-col items-center justify-start">
+                {!positive ? (
+                  <div
+                    className={`w-full rounded-b-xl ${marked ? "bg-rose-600" : "bg-rose-400/75"}`}
+                    style={{ height }}
+                  />
+                ) : null}
+              </div>
+              <span
+                className={`mt-1.5 truncate text-[9px] font-bold ${row.isLatest ? "text-slate-900" : "text-slate-400"}`}
+              >
+                {monthly
+                  ? String(row.date || row.name).slice(8)
+                  : String(row.date || row.name).slice(5)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 
@@ -221,19 +270,9 @@ function BtcEtfShareCard({
 
       {daily ? (
         <div className="mt-8 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[28px] border border-slate-200 bg-slate-50/70 p-6">
-            <div className="text-xl font-black uppercase tracking-[-0.02em] text-slate-950">
-              {heroParts.date}
-            </div>
-            <div className="mt-1 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              {heroParts.suffix}
-            </div>
-            <div
-              className={`mt-4 text-6xl font-black tracking-[-0.065em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}
-            >
-              {hero?.formattedValue}
-            </div>
-            <div className="mt-5 grid grid-cols-2 gap-2">
+          <div>
+            <HeroMetric />
+            <div className="mt-3 grid grid-cols-2 gap-2">
               {supportMetrics.map((metric) => (
                 <MiniMetric key={metric.label} metric={metric} />
               ))}
@@ -246,16 +285,7 @@ function BtcEtfShareCard({
       {weekly ? (
         <>
           <div className="mt-8 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
-            <div className="flex min-h-[170px] flex-col justify-between rounded-[24px] border border-slate-200 bg-slate-50/70 p-5">
-              <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                {hero?.label}
-              </div>
-              <div
-                className={`truncate text-5xl font-black tracking-[-0.06em] ${Number(hero?.value) >= 0 ? "text-emerald-700" : "text-rose-700"}`}
-              >
-                {hero?.formattedValue}
-              </div>
-            </div>
+            <HeroMetric />
             {supportMetrics.map((metric) => {
               const card = (data.series.cards || []).find(
                 (item: any) => item.label === metric.label,
@@ -272,30 +302,31 @@ function BtcEtfShareCard({
           <div className="mt-7 grid gap-5 md:grid-cols-[1fr_0.78fr]">
             <div className="rounded-[28px] border border-slate-200 bg-white p-5">
               <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                5-session flow strip
+                Last 5 Days
               </div>
               <FlowStrip />
             </div>
-            <IssuerList title="Weekly issuer net flow" />
+            <IssuerList title="Top Issuer Flows" />
           </div>
         </>
       ) : null}
 
       {monthly ? (
         <>
-          <div className="mt-8 grid gap-3 md:grid-cols-4">
-            {monthlyMetrics.map((metric) => (
+          <div className="mt-8 grid gap-3 md:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
+            <HeroMetric />
+            {supportMetrics.map((metric) => (
               <MiniMetric key={metric.label} metric={metric} />
             ))}
           </div>
           <div className="mt-7 grid gap-5 md:grid-cols-[1fr_0.72fr]">
             <div className="rounded-[28px] border border-slate-200 bg-white p-5">
               <div className="mb-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">
-                MTD daily flow chart
+                This Month
               </div>
               <FlowStrip monthly />
             </div>
-            <IssuerList title="Issuer Summary" />
+            <IssuerList title="Top Issuer Flows" />
           </div>
         </>
       ) : null}
