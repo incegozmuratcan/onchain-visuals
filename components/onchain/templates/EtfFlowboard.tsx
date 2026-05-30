@@ -57,7 +57,7 @@ function BtcLogoWatermark() {
     <div
       data-testid="btc-logo-treatment"
       data-logo-mode="watermark"
-      className="pointer-events-none absolute -right-8 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.105] mix-blend-multiply saturate-150"
+      className="pointer-events-none absolute -right-7 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.18] saturate-[1.35] contrast-[1.04]"
       aria-hidden="true"
     >
       <img
@@ -85,16 +85,16 @@ function BtcMetricCard({
   sub?: string | null;
 }) {
   return (
-    <div className="flex min-h-[78px] flex-col justify-start rounded-[1.25rem] border border-zinc-200 bg-zinc-50/80 p-3.5 shadow-sm">
+    <div className="flex min-h-[70px] self-start flex-col justify-start rounded-[1.15rem] border border-zinc-200 bg-zinc-100/70 px-3.5 py-3 shadow-sm">
       <div className="text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
         {label}
       </div>
-      <div className="mt-3 min-w-0">
+      <div className="mt-2 min-w-0">
         <div className="truncate text-[1.35rem] font-semibold leading-none tracking-[-0.05em] text-zinc-950">
           {value}
         </div>
         {sub ? (
-          <div className="mt-1.5 truncate text-xs font-medium text-zinc-500">
+          <div className="mt-1 truncate text-[11px] font-medium text-zinc-500">
             {sub}
           </div>
         ) : null}
@@ -106,7 +106,7 @@ function BtcMetricCard({
 function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero?.label);
   return (
-    <div className="relative min-h-[142px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/75 p-5 shadow-sm">
+    <div className="relative min-h-[132px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/85 p-5 shadow-sm">
       <BtcLogoWatermark />
       <div className="relative z-10 min-w-0">
         <div
@@ -123,7 +123,7 @@ function BtcHeroMetric({ hero }: { hero: any }) {
         </div>
       </div>
       <div
-        className={`relative z-10 mt-7 truncate text-5xl font-semibold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-6 truncate text-5xl font-semibold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
@@ -138,23 +138,23 @@ function SignedFlowChart({
   rows: any[];
   monthly?: boolean;
 }) {
-  const width = monthly ? 840 : 760;
-  const height = monthly ? 382 : 326;
+  const width = monthly ? 860 : 780;
+  const height = monthly ? 460 : 380;
   const margin = monthly
-    ? { top: 40, right: 12, bottom: 34, left: 34 }
-    : { top: 38, right: 12, bottom: 36, left: 34 };
+    ? { top: 58, right: 16, bottom: 42, left: 38 }
+    : { top: 56, right: 16, bottom: 44, left: 38 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maxAbs = Math.max(
     1,
     ...rows.map((row) => Math.abs(Number(row.value) || 0)),
   );
-  const paddedMax = maxAbs * (monthly ? 1.08 : 1.08);
+  const paddedMax = maxAbs * (monthly ? 1.04 : 1.05);
   const zeroY = margin.top + plotHeight / 2;
   const slot = rows.length ? plotWidth / rows.length : plotWidth;
   const barWidth = Math.max(
-    monthly ? 14 : 52,
-    Math.min(monthly ? 36 : 92, slot * (monthly ? 0.72 : 0.68)),
+    monthly ? 22 : 78,
+    Math.min(monthly ? 48 : 122, slot * (monthly ? 0.76 : 0.78)),
   );
   const valueToY = (value: number) =>
     margin.top + ((paddedMax - value) / (paddedMax * 2)) * plotHeight;
@@ -166,8 +166,8 @@ function SignedFlowChart({
     let previousX = -Infinity;
     for (const index of labeledIndexes) {
       const naturalX = margin.left + slot * index + slot / 2;
-      const nextX = Math.max(naturalX, previousX + 72);
-      const clampedX = Math.min(width - margin.right - 24, nextX);
+      const nextX = Math.max(naturalX, previousX + 108);
+      const clampedX = Math.min(width - margin.right - 36, nextX);
       labelPositions.set(index, clampedX);
       previousX = clampedX;
     }
@@ -212,7 +212,7 @@ function SignedFlowChart({
         x={margin.left - 8}
         y={zeroY + 4}
         textAnchor="end"
-        className="fill-zinc-400 text-[10px] font-semibold"
+        className="fill-zinc-400 text-[12px] font-semibold"
       >
         $0
       </text>
@@ -223,13 +223,13 @@ function SignedFlowChart({
         const x = margin.left + slot * index + slot / 2 - barWidth / 2;
         const barY = positive ? y : zeroY;
         const rawHeight = Math.abs(zeroY - y);
-        const barHeight = Math.max(monthly ? 12 : 24, rawHeight);
+        const barHeight = Math.max(monthly ? 16 : 30, rawHeight);
         const marked =
           row.isLargest || row.isLargestInflow || row.isLargestOutflow;
         const showLabel = !monthly || row.showLabel;
         const labelY = positive
-          ? Math.max(14, barY - 8)
-          : Math.min(height - margin.bottom - 2, barY + barHeight + 14);
+          ? Math.max(22, barY - 12)
+          : Math.min(height - margin.bottom - 6, barY + barHeight + 22);
         const naturalLabelX = x + barWidth / 2;
         const labelX = monthly
           ? (labelPositions.get(index) ?? naturalLabelX)
@@ -272,7 +272,7 @@ function SignedFlowChart({
               <line
                 x1={naturalLabelX}
                 x2={labelX}
-                y1={positive ? Math.max(18, barY - 4) : barY + barHeight + 4}
+                y1={positive ? Math.max(24, barY - 6) : barY + barHeight + 6}
                 y2={labelY + (positive ? 3 : -3)}
                 stroke="#d4d4d8"
                 strokeWidth="1"
@@ -283,7 +283,8 @@ function SignedFlowChart({
                 x={labelX}
                 y={labelY}
                 textAnchor="middle"
-                className={`fill-current ${monthly ? "text-[11px]" : "text-[13px]"} font-semibold tabular-nums`}
+                data-label-size={monthly ? "x-readable-key" : "x-readable-daily"}
+                className={`fill-current ${monthly ? "text-[15px]" : "text-[17px]"} font-bold tabular-nums`}
                 style={{ color: labelTone(value, Boolean(marked)) }}
               >
                 {row.valueLabel || signedUsd(value)}
@@ -293,7 +294,7 @@ function SignedFlowChart({
               x={x + barWidth / 2}
               y={height - 10}
               textAnchor="middle"
-              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-400"} ${monthly ? "text-[11px]" : "text-[12px]"} font-semibold tabular-nums`}
+              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-500"} ${monthly ? "text-[13px]" : "text-[15px]"} font-semibold tabular-nums`}
             >
               {monthly
                 ? String(row.date || row.name).slice(8)
@@ -327,7 +328,7 @@ function Leaderboard({
     ...visible.map((row: any) => Math.abs(Number(row.value) || 0)),
   );
   return (
-    <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-5 shadow-sm">
+    <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-100/70 p-5 shadow-sm">
       <div className="mb-4">
         <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
           {title}
@@ -340,7 +341,7 @@ function Leaderboard({
         {visible.map((row: any, index: number) => (
           <div
             key={`${row.ticker || row.name}-${index}`}
-            className="rounded-2xl border border-zinc-100 bg-white px-3.5 py-3"
+            className="rounded-2xl border border-zinc-200/70 bg-white/88 px-3.5 py-3"
           >
             <div className="mb-2 flex items-center justify-between gap-3">
               <div className="min-w-0 truncate text-sm font-semibold text-zinc-950">
@@ -417,31 +418,33 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {weekly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.06fr_0.72fr_0.72fr_0.72fr]">
+          <div className="grid gap-3 lg:grid-cols-[1.02fr_2fr] lg:items-center">
             <BtcHeroMetric hero={hero} />
-            {supportMetrics.map((metric: any) => {
-              const card = data.series?.cards?.find(
-                (item: any) => item.label === metric.label,
-              );
-              return (
-                <BtcMetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.formattedValue}
-                  sub={card?.date || null}
-                />
-              );
-            })}
+            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 lg:self-center">
+              {supportMetrics.map((metric: any) => {
+                const card = data.series?.cards?.find(
+                  (item: any) => item.label === metric.label,
+                );
+                return (
+                  <BtcMetricCard
+                    key={metric.label}
+                    label={metric.label}
+                    value={metric.formattedValue}
+                    sub={card?.date || null}
+                  />
+                );
+              })}
+            </div>
           </div>
           <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
+            <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
               <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
                 Last 5 Days
               </h3>
               <p className="mt-1 text-sm text-zinc-500">
                 Inflows rise above zero; outflows extend below.
               </p>
-              <div className="mt-5">
+              <div className="mt-3">
                 <SignedFlowChart rows={bars} />
               </div>
             </div>
@@ -456,31 +459,33 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {monthly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.06fr_0.72fr_0.72fr_0.72fr]">
+          <div className="grid gap-3 lg:grid-cols-[1.02fr_2fr] lg:items-center">
             <BtcHeroMetric hero={hero} />
-            {supportMetrics.map((metric: any) => {
-              const card = data.series?.cards?.find(
-                (item: any) => item.label === metric.label,
-              );
-              return (
-                <BtcMetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.formattedValue}
-                  sub={card?.date || null}
-                />
-              );
-            })}
+            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 lg:self-center">
+              {supportMetrics.map((metric: any) => {
+                const card = data.series?.cards?.find(
+                  (item: any) => item.label === metric.label,
+                );
+                return (
+                  <BtcMetricCard
+                    key={metric.label}
+                    label={metric.label}
+                    value={metric.formattedValue}
+                    sub={card?.date || null}
+                  />
+                );
+              })}
+            </div>
           </div>
-          <div className="grid gap-5 lg:grid-cols-[1.22fr_0.56fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[1.28fr_0.52fr]">
+            <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
               <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
                 This Month
               </h3>
               <p className="mt-1 text-sm text-zinc-500">
                 Completed month-to-date daily net flows.
               </p>
-              <div className="mt-5">
+              <div className="mt-3">
                 <SignedFlowChart rows={bars} monthly />
               </div>
             </div>

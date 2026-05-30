@@ -231,6 +231,9 @@ test("Daily BTC ETF snapshot is latest-completed-day first with only Top Driver 
   assert.match(etfFlowboard, /Latest Issuer Flows/);
   assert.match(etfFlowboard, /btc-logo-treatment/);
   assert.match(etfFlowboard, /data-logo-mode=\"watermark\"/);
+  assert.match(etfFlowboard, /opacity-\[0\.18\]/);
+  assert.match(etfFlowboard, /saturate-\[1\.35\]/);
+  assert.match(etfFlowboard, /bg-zinc-100\/85/);
   assert.match(shareCard, /data-logo-mode=\"watermark\"/);
   assert.doesNotMatch(
     etfFlowboard,
@@ -276,11 +279,14 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(etfFlowboard, /valueToY/);
   assert.match(etfFlowboard, /data-hero-label-primary=\{hero(?:Parts|Label)\.date\}/);
   assert.match(etfFlowboard, /data-hero-label-secondary=\{hero(?:Parts|Label)\.suffix\}/);
-  assert.match(etfFlowboard, /Math\.max\(monthly \? 12 : 24, rawHeight\)/);
-  assert.match(etfFlowboard, /width = monthly \? 840 : 760/);
-  assert.match(etfFlowboard, /height = monthly \? 382 : 326/);
-  assert.match(etfFlowboard, /monthly \? 14 : 52/);
-  assert.match(etfFlowboard, /monthly \? "text-\[11px\]" : "text-\[13px\]"/);
+  assert.match(etfFlowboard, /Math\.max\(monthly \? 16 : 30, rawHeight\)/);
+  assert.match(etfFlowboard, /width = monthly \? 860 : 780/);
+  assert.match(etfFlowboard, /height = monthly \? 460 : 380/);
+  assert.match(etfFlowboard, /monthly \? 22 : 78/);
+  assert.match(etfFlowboard, /data-label-size=\{monthly \? "x-readable-key" : "x-readable-daily"\}/);
+  assert.match(etfFlowboard, /monthly \? "text-\[15px\]" : "text-\[17px\]"/);
+  assert.match(etfFlowboard, /data-metric-row="compact"/);
+  assert.match(etfFlowboard, /bg-zinc-100\/70/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
   assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
 });
@@ -310,6 +316,9 @@ test("Monthly BTC ETF card is an MTD flow report with compact issuer summary", (
   assert.match(etfFlowboard, /row\.showLabel/);
   assert.match(etfFlowboard, /showLabel = !monthly \|\| row\.showLabel/);
   assert.match(etfFlowboard, /labelPositions/);
+  assert.match(etfFlowboard, /previousX \+ 108/);
+  assert.match(etfFlowboard, /monthly \? "text-\[15px\]" : "text-\[17px\]"/);
+  assert.match(etfFlowboard, /data-metric-row="compact"/);
   assert.match(etfFlowboard, /whitespace-nowrap/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
   assert.doesNotMatch(
