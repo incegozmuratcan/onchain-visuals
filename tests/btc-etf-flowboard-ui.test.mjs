@@ -257,7 +257,7 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(weeklyBlock, /const issuers = allIssuers\.slice\(0,\s*5\)/);
   assert.match(
     weeklyBlock,
-    /weeklyPrimaryMetric:[\s\S]*["\']WEEKLY NET FLOW["\']/,
+    /weeklyPrimaryMetricParts:[\s\S]*periodLabel: ["\']WEEKLY["\'][\s\S]*metricLabel: ["\']NET FLOW["\']/,
   );
   assert.match(weeklyBlock, /valueLabel:[\s\S]*formatSignedUsd/);
   assert.match(weeklyBlock, /magnitude:[\s\S]*Math\.abs/);
@@ -277,15 +277,26 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(etfFlowboard, /data-scale-mode="signed-symmetric"/);
   assert.match(etfFlowboard, /data-bar-direction="positive-up-negative-down"/);
   assert.match(etfFlowboard, /valueToY/);
-  assert.match(etfFlowboard, /data-hero-label-primary=\{hero(?:Parts|Label)\.date\}/);
-  assert.match(etfFlowboard, /data-hero-label-secondary=\{hero(?:Parts|Label)\.suffix\}/);
-  assert.match(etfFlowboard, /Math\.max\(monthly \? 16 : 30, rawHeight\)/);
-  assert.match(etfFlowboard, /width = monthly \? 860 : 780/);
-  assert.match(etfFlowboard, /height = monthly \? 460 : 380/);
-  assert.match(etfFlowboard, /monthly \? 22 : 78/);
-  assert.match(etfFlowboard, /data-label-size=\{monthly \? "x-readable-key" : "x-readable-daily"\}/);
-  assert.match(etfFlowboard, /monthly \? "text-\[15px\]" : "text-\[17px\]"/);
+  assert.match(
+    etfFlowboard,
+    /data-hero-label-primary=\{hero(?:Parts|Label)\.periodLabel\}/,
+  );
+  assert.match(
+    etfFlowboard,
+    /data-hero-label-secondary=\{hero(?:Parts|Label)\.metricLabel\}/,
+  );
+  assert.match(etfFlowboard, /Math\.max\(monthly \? 22 : 42, rawHeight\)/);
+  assert.match(etfFlowboard, /width = monthly \? 860 : 760/);
+  assert.match(etfFlowboard, /height = monthly \? 430 : 360/);
+  assert.match(etfFlowboard, /monthly \? 24 : 100/);
+  assert.match(
+    etfFlowboard,
+    /data-label-size=\{[\s\S]*monthly \? "x-readable-key" : "x-readable-daily"[\s\S]*\}/,
+  );
+  assert.match(etfFlowboard, /monthly \? "text-\[20px\]" : "text-\[22px\]"/);
   assert.match(etfFlowboard, /data-metric-row="compact"/);
+  assert.match(etfFlowboard, /data-metric-row-variant="monthly-equal"/);
+  assert.match(etfFlowboard, /data-metric-row-variant="weekly-equal"/);
   assert.match(etfFlowboard, /bg-zinc-100\/70/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
   assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
@@ -316,8 +327,8 @@ test("Monthly BTC ETF card is an MTD flow report with compact issuer summary", (
   assert.match(etfFlowboard, /row\.showLabel/);
   assert.match(etfFlowboard, /showLabel = !monthly \|\| row\.showLabel/);
   assert.match(etfFlowboard, /labelPositions/);
-  assert.match(etfFlowboard, /previousX \+ 108/);
-  assert.match(etfFlowboard, /monthly \? "text-\[15px\]" : "text-\[17px\]"/);
+  assert.match(etfFlowboard, /previousX \+ 142/);
+  assert.match(etfFlowboard, /monthly \? "text-\[20px\]" : "text-\[22px\]"/);
   assert.match(etfFlowboard, /data-metric-row="compact"/);
   assert.match(etfFlowboard, /whitespace-nowrap/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
@@ -338,6 +349,11 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
   assert.deepEqual(
     daily.headlineMetrics.map((metric) => metric.label),
     [latestFixtureLabel, "Top Driver", "Since Launch"],
+  );
+  assert.equal(daily.headlineMetrics[0].metricLabel, "NET FLOW");
+  assert.equal(
+    daily.headlineMetrics[0].periodLabel,
+    latestFixtureLabel.replace(/ NET FLOW$/, ""),
   );
   assert.match(daily.headlineMetrics[1].formattedValue, /%/);
   assert.equal(daily.series.lines.length, 0);
@@ -360,7 +376,11 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
     "weekly",
     btcFlowResult,
   );
-  assert.equal(weekly.headlineMetrics[0].label, "WEEKLY NET FLOW");
+  assert.equal(JSON.stringify(weekly).includes("WEEKLY NET"), false);
+  assert.equal(JSON.stringify(weekly).includes("MONTHLY NET"), false);
+  assert.equal(weekly.headlineMetrics[0].label, "Net Flow");
+  assert.equal(weekly.headlineMetrics[0].periodLabel, "WEEKLY");
+  assert.equal(weekly.headlineMetrics[0].metricLabel, "NET FLOW");
   assert.equal(weekly.headlineMetrics[1].label, "Largest Outflow");
   assert.equal(weekly.metadata.signedZeroBaseline, true);
   assert.ok(weekly.metadata.largestAbsoluteMoveDate);
@@ -396,8 +416,12 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
     "monthly",
     btcFlowResult,
   );
+  assert.equal(JSON.stringify(monthly).includes("WEEKLY NET"), false);
+  assert.equal(JSON.stringify(monthly).includes("MONTHLY NET"), false);
   assert.equal(monthly.title, "BTC ETF Monthly Flow Report");
-  assert.equal(monthly.headlineMetrics[0].label, "MONTHLY NET FLOW");
+  assert.equal(monthly.headlineMetrics[0].label, "Net Flow");
+  assert.equal(monthly.headlineMetrics[0].periodLabel, "MONTHLY");
+  assert.equal(monthly.headlineMetrics[0].metricLabel, "NET FLOW");
   assert.ok(
     ["Largest Inflow Day", "Smallest Outflow"].includes(
       monthly.headlineMetrics[1].label,

@@ -532,11 +532,18 @@ export function buildBtcEtfDailyCard(
       message: null,
     },
     headlineMetrics: [
-      metric(
-        dateNetFlowLabel(summary.latestCompletedDate),
-        summary.latest.flowUsd,
-        formatSignedUsd(summary.latest.flowUsd),
-      ),
+      {
+        ...metric(
+          dateNetFlowLabel(summary.latestCompletedDate),
+          summary.latest.flowUsd,
+          formatSignedUsd(summary.latest.flowUsd),
+        ),
+        periodLabel: dateNetFlowLabel(summary.latestCompletedDate).replace(
+          / NET FLOW$/,
+          "",
+        ),
+        metricLabel: "NET FLOW",
+      },
       driverMetric(driver, share),
       metric(
         "Since Launch",
@@ -650,7 +657,11 @@ export function buildBtcEtfWeeklyCard(
       message: null,
     },
     headlineMetrics: [
-      metric("WEEKLY NET FLOW", weeklyNet, formatSignedUsd(weeklyNet)),
+      {
+        ...metric("Net Flow", weeklyNet, formatSignedUsd(weeklyNet)),
+        periodLabel: "WEEKLY",
+        metricLabel: "NET FLOW",
+      },
       metric(
         largestLabel,
         largestMetricDay?.total.flowUsd ?? null,
@@ -719,7 +730,11 @@ export function buildBtcEtfWeeklyCard(
       latestCompletedDate: summary.latestCompletedDate,
       completedDayCount: weekDays.length,
       hiddenIssuerCount: Math.max(0, allIssuers.length - issuers.length),
-      weeklyPrimaryMetric: "WEEKLY NET FLOW",
+      weeklyPrimaryMetric: "WEEKLY / NET FLOW",
+      weeklyPrimaryMetricParts: {
+        periodLabel: "WEEKLY",
+        metricLabel: "NET FLOW",
+      },
       signedZeroBaseline: true,
       largestAbsoluteMoveDate: largestDay?.date || null,
       defaultExportFormat: "1200x1200",
@@ -804,7 +819,11 @@ export function buildBtcEtfMonthlyIssuerCard(
       message: null,
     },
     headlineMetrics: [
-      metric("MONTHLY NET FLOW", monthlyNet, formatSignedUsd(monthlyNet)),
+      {
+        ...metric("Net Flow", monthlyNet, formatSignedUsd(monthlyNet)),
+        periodLabel: "MONTHLY",
+        metricLabel: "NET FLOW",
+      },
       metric(
         inflowMetricLabel,
         inflowMetricDay?.total.flowUsd ?? null,
@@ -895,6 +914,10 @@ export function buildBtcEtfMonthlyIssuerCard(
       issuerSummaryRows: issuers.length,
       hiddenIssuerCount: Math.max(0, allIssuers.length - issuers.length),
       monthlyVisual: "mtd_signed_daily_flow_chart",
+      monthlyPrimaryMetricParts: {
+        periodLabel: "MONTHLY",
+        metricLabel: "NET FLOW",
+      },
       signedZeroBaseline: true,
       keyDays: {
         largestInflowDay: largestInflowDay?.date || null,
