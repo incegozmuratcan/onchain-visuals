@@ -1,11 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  getChainIdentity,
-  getChainLogoCandidates,
-  getInitials,
-} from "@/lib/chainLogos";
+import { getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
@@ -100,13 +96,21 @@ function BtcEtfShareCard({
   const MiniMetric = ({
     metric,
     sub,
+    watermark = false,
   }: {
     metric: any;
     sub?: string | null;
+    watermark?: boolean;
   }) => (
-    <div className="flex min-h-[70px] self-start flex-col justify-start rounded-[18px] border border-slate-200 bg-slate-100/70 px-3.5 py-3">
+    <div
+      className={`relative flex min-h-[70px] self-start flex-col justify-start overflow-hidden rounded-[18px] border border-slate-200 bg-slate-100/70 px-3.5 py-3 ${watermark ? "pr-20" : ""}`}
+    >
+      {watermark ? <BtcLogoWatermark compact /> : null}
       {metric.periodLabel && metric.metricLabel ? (
-        <div data-hero-label-parts="explicit" className="space-y-1">
+        <div
+          data-hero-label-parts="explicit"
+          className="relative z-10 space-y-1"
+        >
           <div
             data-hero-label-primary={metric.periodLabel}
             className="whitespace-nowrap text-[13px] font-black uppercase leading-none tracking-[0.04em] text-slate-950"
@@ -121,11 +125,11 @@ function BtcEtfShareCard({
           </div>
         </div>
       ) : (
-        <div className="text-[9px] font-black uppercase leading-3 tracking-[0.15em] text-slate-400">
+        <div className="relative z-10 text-[9px] font-black uppercase leading-3 tracking-[0.15em] text-slate-400">
           {metric.label}
         </div>
       )}
-      <div className="mt-2 min-w-0">
+      <div className="relative z-10 mt-2 min-w-0">
         <div className="truncate text-[1.35rem] font-black leading-none tracking-[-0.045em] text-slate-950">
           {metric.formattedValue}
         </div>
@@ -138,50 +142,69 @@ function BtcEtfShareCard({
     </div>
   );
 
-  const BtcLogoWatermark = () => {
-    const [hidden, setHidden] = useState(false);
-    const candidate = useMemo(() => {
-      const manifest = getChainIdentity("Bitcoin").manifest;
-
-      if (
-        !manifest?.localPath ||
-        manifest.quality !== "approved" ||
-        manifest.localPath.startsWith("/api/")
-      ) {
-        return null;
-      }
-
-      return {
-        src: manifest.localPath,
-        fit: manifest.fit,
-        padding: manifest.padding,
-        scale: manifest.scale,
-      };
-    }, []);
-
-    if (!candidate || hidden) return null;
-
-    return (
-      <div
-        data-testid="btc-logo-treatment"
-        data-logo-mode="watermark"
-        className="pointer-events-none absolute -right-7 top-1/2 h-40 w-40 -translate-y-1/2 opacity-[0.18] saturate-[1.35] contrast-[1.04]"
-        aria-hidden="true"
+  const BtcLogoWatermark = ({ compact = false }: { compact?: boolean }) => (
+    <div
+      data-testid="btc-logo-treatment"
+      data-logo-mode="restored-watermark"
+      data-logo-shape="warm-orange-blob"
+      data-logo-mandatory="true"
+      className={`pointer-events-none absolute ${compact ? "-right-5 top-1/2 h-24 w-28 -translate-y-1/2" : "-right-8 top-1/2 h-44 w-48 -translate-y-1/2"}`}
+      aria-hidden="true"
+    >
+      <svg
+        className="h-full w-full overflow-visible"
+        viewBox="0 0 180 160"
+        role="presentation"
+        focusable="false"
       >
-        <img
-          src={candidate.src}
-          alt=""
-          className="h-full w-full"
-          style={{
-            objectFit: candidate.fit,
-            padding: candidate.padding,
-            transform: `scale(${candidate.scale}) rotate(-10deg)`,
-          }}
-          onError={() => setHidden(true)}
+        <defs>
+          <radialGradient
+            id="share-btc-watermark-glow"
+            cx="42%"
+            cy="36%"
+            r="72%"
+          >
+            <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
+            <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
+          </radialGradient>
+          <filter
+            id="share-btc-watermark-shadow"
+            x="-20%"
+            y="-18%"
+            width="140%"
+            height="140%"
+          >
+            <feDropShadow
+              dx="-8"
+              dy="14"
+              stdDeviation="14"
+              floodColor="#f59e0b"
+              floodOpacity="0.2"
+            />
+          </filter>
+        </defs>
+        <path
+          d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
+          fill="url(#share-btc-watermark-glow)"
+          filter="url(#share-btc-watermark-shadow)"
         />
-      </div>
-    );
-  };
+        <text
+          x="91"
+          y="103"
+          textAnchor="middle"
+          className="fill-white font-black"
+          style={{
+            fontSize: compact ? 68 : 76,
+            fontFamily:
+              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          }}
+        >
+          ₿
+        </text>
+      </svg>
+    </div>
+  );
 
   const HeroMetric = () => (
     <div className="relative flex min-h-[132px] flex-col justify-start overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100/85 p-5">
@@ -293,8 +316,11 @@ function BtcEtfShareCard({
             row.isLargest || row.isLargestInflow || row.isLargestOutflow;
           const showLabel = !monthly || row.showLabel;
           const labelY = positive
-            ? Math.max(22, barY - 12)
-            : Math.min(height - margin.bottom - 6, barY + barHeight + 22);
+            ? Math.max(monthly ? 30 : 28, barY - 14)
+            : Math.min(
+                height - margin.bottom - 8,
+                barY + barHeight + (monthly ? 24 : 24),
+              );
           const naturalLabelX = x + barWidth / 2;
           const labelX = monthly
             ? (labelPositions.get(index) ?? naturalLabelX)
@@ -349,9 +375,9 @@ function BtcEtfShareCard({
                   y={labelY}
                   textAnchor="middle"
                   data-label-size={
-                    monthly ? "x-readable-key" : "x-readable-daily"
+                    monthly ? "x-readable-key-plus" : "x-readable-daily-plus"
                   }
-                  className={`${monthly ? "text-[20px]" : "text-[22px]"} font-black tabular-nums`}
+                  className={`${monthly ? "text-[22px]" : "text-[23px]"} font-black tabular-nums`}
                   style={{
                     fill: marked ? "#0f172a" : positive ? "#047857" : "#be123c",
                   }}
@@ -463,7 +489,7 @@ function BtcEtfShareCard({
             data-metric-row-variant="weekly-equal"
             className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-4"
           >
-            {data.headlineMetrics.map((metric: any) => {
+            {data.headlineMetrics.map((metric: any, index: number) => {
               const card = (data.series.cards || []).find(
                 (item: any) => item.label === metric.label,
               );
@@ -472,6 +498,7 @@ function BtcEtfShareCard({
                   key={metric.label}
                   metric={metric}
                   sub={card?.date || null}
+                  watermark={index === 0}
                 />
               );
             })}
@@ -495,7 +522,7 @@ function BtcEtfShareCard({
             data-metric-row-variant="monthly-equal"
             className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-4"
           >
-            {data.headlineMetrics.map((metric: any) => {
+            {data.headlineMetrics.map((metric: any, index: number) => {
               const card = (data.series.cards || []).find(
                 (item: any) => item.label === metric.label,
               );
@@ -504,6 +531,7 @@ function BtcEtfShareCard({
                   key={metric.label}
                   metric={metric}
                   sub={card?.date || null}
+                  watermark={index === 0}
                 />
               );
             })}
