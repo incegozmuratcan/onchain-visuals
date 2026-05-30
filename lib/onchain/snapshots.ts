@@ -626,12 +626,13 @@ export function buildBtcEtfWeeklyCard(
   const largestDay = [...weekDays].sort(
     (a, b) => Math.abs(b.total.flowUsd || 0) - Math.abs(a.total.flowUsd || 0),
   )[0];
-  const largestLabel =
-    Number(largestDay?.total.flowUsd || 0) < 0
-      ? "Largest Outflow"
-      : Number(largestDay?.total.flowUsd || 0) > 0
-        ? "Largest Inflow"
-        : "Largest Move";
+  const largestOutflowDay =
+    [...weekDays]
+      .filter((day) => Number(day.total.flowUsd) < 0)
+      .sort((a, b) => (a.total.flowUsd || 0) - (b.total.flowUsd || 0))[0] ||
+    null;
+  const largestMetricDay = largestOutflowDay || largestDay;
+  const largestLabel = largestOutflowDay ? "Largest Outflow" : "Largest Move";
   return {
     ...sourceSafeBase(
       d,
@@ -652,8 +653,10 @@ export function buildBtcEtfWeeklyCard(
       metric("WEEKLY NET FLOW", weeklyNet, formatSignedUsd(weeklyNet)),
       metric(
         largestLabel,
-        largestDay?.total.flowUsd ?? null,
-        largestDay ? formatSignedUsd(largestDay.total.flowUsd) : "Pending",
+        largestMetricDay?.total.flowUsd ?? null,
+        largestMetricDay
+          ? formatSignedUsd(largestMetricDay.total.flowUsd)
+          : "Pending",
       ),
       driverMetric(topIssuer, topIssuerShare),
       metric(
@@ -678,10 +681,10 @@ export function buildBtcEtfWeeklyCard(
       cards: [
         {
           label: largestLabel,
-          value: largestDay
-            ? formatSignedUsd(largestDay.total.flowUsd)
+          value: largestMetricDay
+            ? formatSignedUsd(largestMetricDay.total.flowUsd)
             : "Pending",
-          date: largestDay?.date || null,
+          date: largestMetricDay?.date || null,
         },
         {
           label: "Top Driver",
@@ -839,6 +842,14 @@ export function buildBtcEtfMonthlyIssuerCard(
       })),
       lines: [],
       cards: [
+        {
+          label: inflowMetricLabel,
+          date: inflowMetricDay?.date || null,
+        },
+        {
+          label: "Largest Outflow Day",
+          date: largestOutflowDay?.date || null,
+        },
         {
           label: "Top Inflow Issuer",
           value: topInflow?.name || "None",

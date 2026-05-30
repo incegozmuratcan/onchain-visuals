@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getChainLogoCandidates } from "@/lib/chainLogos";
+import { getChainIdentity } from "@/lib/chainLogos";
 
 const usd = (v: any) =>
   new Intl.NumberFormat("en-US", {
@@ -31,17 +31,33 @@ const labelParts = (label?: string) => {
 };
 
 function BtcLogoWatermark() {
-  const [candidateIndex, setCandidateIndex] = useState(0);
-  const candidates = useMemo(() => getChainLogoCandidates("Bitcoin"), []);
-  const candidate = candidates[candidateIndex];
+  const [hidden, setHidden] = useState(false);
+  const candidate = useMemo(() => {
+    const manifest = getChainIdentity("Bitcoin").manifest;
 
-  if (!candidate) return null;
+    if (
+      !manifest?.localPath ||
+      manifest.quality !== "approved" ||
+      manifest.localPath.startsWith("/api/")
+    ) {
+      return null;
+    }
+
+    return {
+      src: manifest.localPath,
+      fit: manifest.fit,
+      padding: manifest.padding,
+      scale: manifest.scale,
+    };
+  }, []);
+
+  if (!candidate || hidden) return null;
 
   return (
     <div
       data-testid="btc-logo-treatment"
       data-logo-mode="watermark"
-      className="pointer-events-none absolute -right-8 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.075] mix-blend-multiply"
+      className="pointer-events-none absolute -right-8 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.105] mix-blend-multiply saturate-150"
       aria-hidden="true"
     >
       <img
@@ -53,7 +69,7 @@ function BtcLogoWatermark() {
           padding: candidate.padding,
           transform: `scale(${candidate.scale}) rotate(-10deg)`,
         }}
-        onError={() => setCandidateIndex((index) => index + 1)}
+        onError={() => setHidden(true)}
       />
     </div>
   );
@@ -69,12 +85,12 @@ function BtcMetricCard({
   sub?: string | null;
 }) {
   return (
-    <div className="flex min-h-[104px] flex-col justify-between rounded-[1.25rem] border border-zinc-200 bg-white p-4 shadow-sm">
+    <div className="flex min-h-[78px] flex-col justify-start rounded-[1.25rem] border border-zinc-200 bg-zinc-50/80 p-3.5 shadow-sm">
       <div className="text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
         {label}
       </div>
-      <div className="min-w-0">
-        <div className="truncate text-[1.55rem] font-semibold tracking-[-0.05em] text-zinc-950">
+      <div className="mt-3 min-w-0">
+        <div className="truncate text-[1.35rem] font-semibold leading-none tracking-[-0.05em] text-zinc-950">
           {value}
         </div>
         {sub ? (
@@ -90,20 +106,24 @@ function BtcMetricCard({
 function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero?.label);
   return (
-    <div className="relative min-h-[190px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-50/80 p-6 shadow-sm">
+    <div className="relative min-h-[142px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/75 p-5 shadow-sm">
       <BtcLogoWatermark />
-      <div className="relative z-10 flex items-start justify-end gap-4">
-        <div className="min-w-0 text-right">
-          <div className="text-xl font-semibold uppercase tracking-[-0.02em] text-zinc-950">
-            {heroLabel.date}
-          </div>
-          <div className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
-            {heroLabel.suffix}
-          </div>
+      <div className="relative z-10 min-w-0">
+        <div
+          data-hero-label-primary={heroLabel.date}
+          className="text-xl font-semibold uppercase leading-none tracking-[-0.02em] text-zinc-950"
+        >
+          {heroLabel.date}
+        </div>
+        <div
+          data-hero-label-secondary={heroLabel.suffix}
+          className="mt-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-zinc-500"
+        >
+          {heroLabel.suffix}
         </div>
       </div>
       <div
-        className={`relative z-10 mt-7 truncate text-6xl font-semibold tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-7 truncate text-5xl font-semibold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
@@ -118,23 +138,23 @@ function SignedFlowChart({
   rows: any[];
   monthly?: boolean;
 }) {
-  const width = monthly ? 760 : 620;
-  const height = monthly ? 312 : 260;
+  const width = monthly ? 840 : 760;
+  const height = monthly ? 382 : 326;
   const margin = monthly
-    ? { top: 42, right: 16, bottom: 34, left: 30 }
-    : { top: 38, right: 16, bottom: 34, left: 30 };
+    ? { top: 40, right: 12, bottom: 34, left: 34 }
+    : { top: 38, right: 12, bottom: 36, left: 34 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maxAbs = Math.max(
     1,
     ...rows.map((row) => Math.abs(Number(row.value) || 0)),
   );
-  const paddedMax = maxAbs * (monthly ? 1.18 : 1.12);
+  const paddedMax = maxAbs * (monthly ? 1.08 : 1.08);
   const zeroY = margin.top + plotHeight / 2;
   const slot = rows.length ? plotWidth / rows.length : plotWidth;
   const barWidth = Math.max(
-    monthly ? 7 : 34,
-    Math.min(monthly ? 24 : 64, slot * (monthly ? 0.58 : 0.54)),
+    monthly ? 14 : 52,
+    Math.min(monthly ? 36 : 92, slot * (monthly ? 0.72 : 0.68)),
   );
   const valueToY = (value: number) =>
     margin.top + ((paddedMax - value) / (paddedMax * 2)) * plotHeight;
@@ -203,7 +223,7 @@ function SignedFlowChart({
         const x = margin.left + slot * index + slot / 2 - barWidth / 2;
         const barY = positive ? y : zeroY;
         const rawHeight = Math.abs(zeroY - y);
-        const barHeight = Math.max(monthly ? 8 : 18, rawHeight);
+        const barHeight = Math.max(monthly ? 12 : 24, rawHeight);
         const marked =
           row.isLargest || row.isLargestInflow || row.isLargestOutflow;
         const showLabel = !monthly || row.showLabel;
@@ -263,7 +283,7 @@ function SignedFlowChart({
                 x={labelX}
                 y={labelY}
                 textAnchor="middle"
-                className="fill-current text-[10px] font-semibold tabular-nums"
+                className={`fill-current ${monthly ? "text-[11px]" : "text-[13px]"} font-semibold tabular-nums`}
                 style={{ color: labelTone(value, Boolean(marked)) }}
               >
                 {row.valueLabel || signedUsd(value)}
@@ -273,7 +293,7 @@ function SignedFlowChart({
               x={x + barWidth / 2}
               y={height - 10}
               textAnchor="middle"
-              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-400"} text-[10px] font-semibold tabular-nums`}
+              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-400"} ${monthly ? "text-[11px]" : "text-[12px]"} font-semibold tabular-nums`}
             >
               {monthly
                 ? String(row.date || row.name).slice(8)
@@ -397,7 +417,7 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {weekly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
+          <div className="grid gap-3 lg:grid-cols-[1.06fr_0.72fr_0.72fr_0.72fr]">
             <BtcHeroMetric hero={hero} />
             {supportMetrics.map((metric: any) => {
               const card = data.series?.cards?.find(
@@ -413,8 +433,8 @@ export function EtfFlowboard({ data }: { data: any }) {
               );
             })}
           </div>
-          <div className="grid gap-5 lg:grid-cols-[1fr_0.78fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]">
+            <div className="rounded-[1.75rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
               <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
                 Last 5 Days
               </h3>
@@ -436,18 +456,24 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {monthly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.25fr_0.75fr_0.75fr_0.75fr]">
+          <div className="grid gap-3 lg:grid-cols-[1.06fr_0.72fr_0.72fr_0.72fr]">
             <BtcHeroMetric hero={hero} />
-            {supportMetrics.map((metric: any) => (
-              <BtcMetricCard
-                key={metric.label}
-                label={metric.label}
-                value={metric.formattedValue}
-              />
-            ))}
+            {supportMetrics.map((metric: any) => {
+              const card = data.series?.cards?.find(
+                (item: any) => item.label === metric.label,
+              );
+              return (
+                <BtcMetricCard
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.formattedValue}
+                  sub={card?.date || null}
+                />
+              );
+            })}
           </div>
-          <div className="grid gap-5 lg:grid-cols-[1fr_0.72fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-5 lg:grid-cols-[1.22fr_0.56fr]">
+            <div className="rounded-[1.75rem] border border-zinc-200 bg-white/90 p-4 shadow-sm">
               <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
                 This Month
               </h3>
