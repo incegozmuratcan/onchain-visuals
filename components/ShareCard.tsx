@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { getChainIdentity, getChainLogoCandidates, getInitials } from "@/lib/chainLogos";
+import {
+  getChainIdentity,
+  getChainLogoCandidates,
+  getInitials,
+} from "@/lib/chainLogos";
 import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
@@ -80,10 +84,13 @@ function BtcEtfShareCard({
     : data.headlineMetrics.slice(1, 4);
 
   const heroParts = (() => {
+    if (hero?.periodLabel && hero?.metricLabel) {
+      return { periodLabel: hero.periodLabel, metricLabel: hero.metricLabel };
+    }
     const parts = String(hero?.label || "NET FLOW").split(" ");
     return {
-      date: parts.length > 2 ? parts.slice(0, 2).join(" ") : parts[0],
-      suffix:
+      periodLabel: parts.length > 2 ? parts.slice(0, 2).join(" ") : parts[0],
+      metricLabel:
         parts.length > 2
           ? parts.slice(2).join(" ")
           : parts.slice(1).join(" ") || "NET FLOW",
@@ -98,9 +105,26 @@ function BtcEtfShareCard({
     sub?: string | null;
   }) => (
     <div className="flex min-h-[70px] self-start flex-col justify-start rounded-[18px] border border-slate-200 bg-slate-100/70 px-3.5 py-3">
-      <div className="text-[9px] font-black uppercase leading-3 tracking-[0.15em] text-slate-400">
-        {metric.label}
-      </div>
+      {metric.periodLabel && metric.metricLabel ? (
+        <div data-hero-label-parts="explicit" className="space-y-1">
+          <div
+            data-hero-label-primary={metric.periodLabel}
+            className="whitespace-nowrap text-[13px] font-black uppercase leading-none tracking-[0.04em] text-slate-950"
+          >
+            {metric.periodLabel}
+          </div>
+          <div
+            data-hero-label-secondary={metric.metricLabel}
+            className="whitespace-nowrap text-[10px] font-black uppercase leading-none tracking-[0.18em] text-slate-400"
+          >
+            {metric.metricLabel}
+          </div>
+        </div>
+      ) : (
+        <div className="text-[9px] font-black uppercase leading-3 tracking-[0.15em] text-slate-400">
+          {metric.label}
+        </div>
+      )}
       <div className="mt-2 min-w-0">
         <div className="truncate text-[1.35rem] font-black leading-none tracking-[-0.045em] text-slate-950">
           {metric.formattedValue}
@@ -164,16 +188,16 @@ function BtcEtfShareCard({
       <BtcLogoWatermark />
       <div className="relative z-10">
         <div
-          data-hero-label-primary={heroParts.date}
+          data-hero-label-primary={heroParts.periodLabel}
           className="text-xl font-black uppercase leading-none tracking-[-0.02em] text-slate-950"
         >
-          {heroParts.date}
+          {heroParts.periodLabel}
         </div>
         <div
-          data-hero-label-secondary={heroParts.suffix}
-          className="mt-1.5 text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400"
+          data-hero-label-secondary={heroParts.metricLabel}
+          className="mt-1.5 whitespace-nowrap text-[10px] font-black uppercase leading-none tracking-[0.2em] text-slate-400"
         >
-          {heroParts.suffix}
+          {heroParts.metricLabel}
         </div>
       </div>
       <div
@@ -185,19 +209,19 @@ function BtcEtfShareCard({
   );
 
   const FlowStrip = ({ monthly = false }: { monthly?: boolean }) => {
-    const width = monthly ? 860 : 780;
-    const height = monthly ? 460 : 380;
+    const width = monthly ? 860 : 760;
+    const height = monthly ? 430 : 360;
     const margin = monthly
-      ? { top: 58, right: 16, bottom: 42, left: 38 }
-      : { top: 56, right: 16, bottom: 44, left: 38 };
+      ? { top: 42, right: 12, bottom: 30, left: 32 }
+      : { top: 42, right: 12, bottom: 34, left: 32 };
     const plotWidth = width - margin.left - margin.right;
     const plotHeight = height - margin.top - margin.bottom;
     const paddedMax = maxAbsFlow * (monthly ? 1.04 : 1.05);
     const zeroY = margin.top + plotHeight / 2;
     const slot = flowRows.length ? plotWidth / flowRows.length : plotWidth;
     const barWidth = Math.max(
-      monthly ? 22 : 78,
-      Math.min(monthly ? 48 : 122, slot * (monthly ? 0.76 : 0.78)),
+      monthly ? 24 : 100,
+      Math.min(monthly ? 54 : 132, slot * (monthly ? 0.82 : 0.86)),
     );
     const valueToY = (value: number) =>
       margin.top + ((paddedMax - value) / (paddedMax * 2)) * plotHeight;
@@ -209,8 +233,8 @@ function BtcEtfShareCard({
       let previousX = -Infinity;
       for (const index of labeledIndexes) {
         const naturalX = margin.left + slot * index + slot / 2;
-        const nextX = Math.max(naturalX, previousX + 108);
-        const clampedX = Math.min(width - margin.right - 36, nextX);
+        const nextX = Math.max(naturalX, previousX + 142);
+        const clampedX = Math.min(width - margin.right - 54, nextX);
         labelPositions.set(index, clampedX);
         previousX = clampedX;
       }
@@ -264,7 +288,7 @@ function BtcEtfShareCard({
           const x = margin.left + slot * index + slot / 2 - barWidth / 2;
           const barY = positive ? y : zeroY;
           const rawHeight = Math.abs(zeroY - y);
-          const barHeight = Math.max(monthly ? 16 : 30, rawHeight);
+          const barHeight = Math.max(monthly ? 22 : 42, rawHeight);
           const marked =
             row.isLargest || row.isLargestInflow || row.isLargestOutflow;
           const showLabel = !monthly || row.showLabel;
@@ -324,8 +348,10 @@ function BtcEtfShareCard({
                   x={labelX}
                   y={labelY}
                   textAnchor="middle"
-                  data-label-size={monthly ? "x-readable-key" : "x-readable-daily"}
-                  className={`${monthly ? "text-[15px]" : "text-[17px]"} font-black tabular-nums`}
+                  data-label-size={
+                    monthly ? "x-readable-key" : "x-readable-daily"
+                  }
+                  className={`${monthly ? "text-[20px]" : "text-[22px]"} font-black tabular-nums`}
                   style={{
                     fill: marked ? "#0f172a" : positive ? "#047857" : "#be123c",
                   }}
@@ -337,7 +363,7 @@ function BtcEtfShareCard({
                 x={x + barWidth / 2}
                 y={height - 9}
                 textAnchor="middle"
-                className={`${row.isLatest ? "fill-slate-900" : "fill-slate-500"} ${monthly ? "text-[13px]" : "text-[15px]"} font-bold tabular-nums`}
+                className={`${row.isLatest ? "fill-slate-900" : "fill-slate-500"} ${monthly ? "text-[15px]" : "text-[17px]"} font-bold tabular-nums`}
               >
                 {monthly
                   ? String(row.date || row.name).slice(8)
@@ -432,22 +458,23 @@ function BtcEtfShareCard({
 
       {weekly ? (
         <>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.02fr_2fr] md:items-center">
-            <HeroMetric />
-            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 md:self-center">
-              {supportMetrics.map((metric) => {
-                const card = (data.series.cards || []).find(
-                  (item: any) => item.label === metric.label,
-                );
-                return (
-                  <MiniMetric
-                    key={metric.label}
-                    metric={metric}
-                    sub={card?.date || null}
-                  />
-                );
-              })}
-            </div>
+          <div
+            data-metric-row="compact"
+            data-metric-row-variant="weekly-equal"
+            className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-4"
+          >
+            {data.headlineMetrics.map((metric: any) => {
+              const card = (data.series.cards || []).find(
+                (item: any) => item.label === metric.label,
+              );
+              return (
+                <MiniMetric
+                  key={metric.label}
+                  metric={metric}
+                  sub={card?.date || null}
+                />
+              );
+            })}
           </div>
           <div className="mt-4 grid gap-5 md:grid-cols-[1.18fr_0.62fr]">
             <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-4">
@@ -463,22 +490,23 @@ function BtcEtfShareCard({
 
       {monthly ? (
         <>
-          <div className="mt-4 grid gap-3 md:grid-cols-[1.02fr_2fr] md:items-center">
-            <HeroMetric />
-            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 md:self-center">
-              {supportMetrics.map((metric) => {
-                const card = (data.series.cards || []).find(
-                  (item: any) => item.label === metric.label,
-                );
-                return (
-                  <MiniMetric
-                    key={metric.label}
-                    metric={metric}
-                    sub={card?.date || null}
-                  />
-                );
-              })}
-            </div>
+          <div
+            data-metric-row="compact"
+            data-metric-row-variant="monthly-equal"
+            className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-4"
+          >
+            {data.headlineMetrics.map((metric: any) => {
+              const card = (data.series.cards || []).find(
+                (item: any) => item.label === metric.label,
+              );
+              return (
+                <MiniMetric
+                  key={metric.label}
+                  metric={metric}
+                  sub={card?.date || null}
+                />
+              );
+            })}
           </div>
           <div className="mt-4 grid gap-5 md:grid-cols-[1.28fr_0.52fr]">
             <div className="rounded-[28px] border border-slate-200 bg-slate-50/80 p-4">

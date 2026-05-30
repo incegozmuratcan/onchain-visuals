@@ -19,11 +19,14 @@ const shortDate = (date: string) =>
   });
 const toneClass = (value: any) =>
   Number(value) >= 0 ? "text-emerald-700" : "text-rose-700";
-const labelParts = (label?: string) => {
-  const parts = String(label || "NET FLOW").split(" ");
+const labelParts = (metric?: any) => {
+  if (metric?.periodLabel && metric?.metricLabel) {
+    return { periodLabel: metric.periodLabel, metricLabel: metric.metricLabel };
+  }
+  const parts = String(metric?.label || "NET FLOW").split(" ");
   return {
-    date: parts.length > 2 ? parts.slice(0, 2).join(" ") : parts[0],
-    suffix:
+    periodLabel: parts.length > 2 ? parts.slice(0, 2).join(" ") : parts[0],
+    metricLabel:
       parts.length > 2
         ? parts.slice(2).join(" ")
         : parts.slice(1).join(" ") || "NET FLOW",
@@ -79,16 +82,37 @@ function BtcMetricCard({
   label,
   value,
   sub,
+  periodLabel,
+  metricLabel,
 }: {
   label: string;
   value: string;
   sub?: string | null;
+  periodLabel?: string;
+  metricLabel?: string;
 }) {
   return (
     <div className="flex min-h-[70px] self-start flex-col justify-start rounded-[1.15rem] border border-zinc-200 bg-zinc-100/70 px-3.5 py-3 shadow-sm">
-      <div className="text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
-        {label}
-      </div>
+      {periodLabel && metricLabel ? (
+        <div data-hero-label-parts="explicit" className="space-y-1">
+          <div
+            data-hero-label-primary={periodLabel}
+            className="whitespace-nowrap text-[13px] font-bold uppercase leading-none tracking-[0.04em] text-zinc-950"
+          >
+            {periodLabel}
+          </div>
+          <div
+            data-hero-label-secondary={metricLabel}
+            className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-zinc-500"
+          >
+            {metricLabel}
+          </div>
+        </div>
+      ) : (
+        <div className="text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
+          {label}
+        </div>
+      )}
       <div className="mt-2 min-w-0">
         <div className="truncate text-[1.35rem] font-semibold leading-none tracking-[-0.05em] text-zinc-950">
           {value}
@@ -104,22 +128,22 @@ function BtcMetricCard({
 }
 
 function BtcHeroMetric({ hero }: { hero: any }) {
-  const heroLabel = labelParts(hero?.label);
+  const heroLabel = labelParts(hero);
   return (
     <div className="relative min-h-[132px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/85 p-5 shadow-sm">
       <BtcLogoWatermark />
       <div className="relative z-10 min-w-0">
         <div
-          data-hero-label-primary={heroLabel.date}
+          data-hero-label-primary={heroLabel.periodLabel}
           className="text-xl font-semibold uppercase leading-none tracking-[-0.02em] text-zinc-950"
         >
-          {heroLabel.date}
+          {heroLabel.periodLabel}
         </div>
         <div
-          data-hero-label-secondary={heroLabel.suffix}
-          className="mt-1.5 text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-zinc-500"
+          data-hero-label-secondary={heroLabel.metricLabel}
+          className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-zinc-500"
         >
-          {heroLabel.suffix}
+          {heroLabel.metricLabel}
         </div>
       </div>
       <div
@@ -138,11 +162,11 @@ function SignedFlowChart({
   rows: any[];
   monthly?: boolean;
 }) {
-  const width = monthly ? 860 : 780;
-  const height = monthly ? 460 : 380;
+  const width = monthly ? 860 : 760;
+  const height = monthly ? 430 : 360;
   const margin = monthly
-    ? { top: 58, right: 16, bottom: 42, left: 38 }
-    : { top: 56, right: 16, bottom: 44, left: 38 };
+    ? { top: 42, right: 12, bottom: 30, left: 32 }
+    : { top: 42, right: 12, bottom: 34, left: 32 };
   const plotWidth = width - margin.left - margin.right;
   const plotHeight = height - margin.top - margin.bottom;
   const maxAbs = Math.max(
@@ -153,8 +177,8 @@ function SignedFlowChart({
   const zeroY = margin.top + plotHeight / 2;
   const slot = rows.length ? plotWidth / rows.length : plotWidth;
   const barWidth = Math.max(
-    monthly ? 22 : 78,
-    Math.min(monthly ? 48 : 122, slot * (monthly ? 0.76 : 0.78)),
+    monthly ? 24 : 100,
+    Math.min(monthly ? 54 : 132, slot * (monthly ? 0.82 : 0.86)),
   );
   const valueToY = (value: number) =>
     margin.top + ((paddedMax - value) / (paddedMax * 2)) * plotHeight;
@@ -166,8 +190,8 @@ function SignedFlowChart({
     let previousX = -Infinity;
     for (const index of labeledIndexes) {
       const naturalX = margin.left + slot * index + slot / 2;
-      const nextX = Math.max(naturalX, previousX + 108);
-      const clampedX = Math.min(width - margin.right - 36, nextX);
+      const nextX = Math.max(naturalX, previousX + 142);
+      const clampedX = Math.min(width - margin.right - 54, nextX);
       labelPositions.set(index, clampedX);
       previousX = clampedX;
     }
@@ -223,7 +247,7 @@ function SignedFlowChart({
         const x = margin.left + slot * index + slot / 2 - barWidth / 2;
         const barY = positive ? y : zeroY;
         const rawHeight = Math.abs(zeroY - y);
-        const barHeight = Math.max(monthly ? 16 : 30, rawHeight);
+        const barHeight = Math.max(monthly ? 22 : 42, rawHeight);
         const marked =
           row.isLargest || row.isLargestInflow || row.isLargestOutflow;
         const showLabel = !monthly || row.showLabel;
@@ -283,8 +307,10 @@ function SignedFlowChart({
                 x={labelX}
                 y={labelY}
                 textAnchor="middle"
-                data-label-size={monthly ? "x-readable-key" : "x-readable-daily"}
-                className={`fill-current ${monthly ? "text-[15px]" : "text-[17px]"} font-bold tabular-nums`}
+                data-label-size={
+                  monthly ? "x-readable-key" : "x-readable-daily"
+                }
+                className={`fill-current ${monthly ? "text-[20px]" : "text-[22px]"} font-bold tabular-nums`}
                 style={{ color: labelTone(value, Boolean(marked)) }}
               >
                 {row.valueLabel || signedUsd(value)}
@@ -294,7 +320,7 @@ function SignedFlowChart({
               x={x + barWidth / 2}
               y={height - 10}
               textAnchor="middle"
-              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-500"} ${monthly ? "text-[13px]" : "text-[15px]"} font-semibold tabular-nums`}
+              className={`${row.isLatest ? "fill-zinc-900" : "fill-zinc-500"} ${monthly ? "text-[15px]" : "text-[17px]"} font-semibold tabular-nums`}
             >
               {monthly
                 ? String(row.date || row.name).slice(8)
@@ -418,23 +444,26 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {weekly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.02fr_2fr] lg:items-center">
-            <BtcHeroMetric hero={hero} />
-            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 lg:self-center">
-              {supportMetrics.map((metric: any) => {
-                const card = data.series?.cards?.find(
-                  (item: any) => item.label === metric.label,
-                );
-                return (
-                  <BtcMetricCard
-                    key={metric.label}
-                    label={metric.label}
-                    value={metric.formattedValue}
-                    sub={card?.date || null}
-                  />
-                );
-              })}
-            </div>
+          <div
+            data-metric-row="compact"
+            data-metric-row-variant="weekly-equal"
+            className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {metrics.map((metric: any) => {
+              const card = data.series?.cards?.find(
+                (item: any) => item.label === metric.label,
+              );
+              return (
+                <BtcMetricCard
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.formattedValue}
+                  sub={card?.date || null}
+                  periodLabel={metric.periodLabel}
+                  metricLabel={metric.metricLabel}
+                />
+              );
+            })}
           </div>
           <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]">
             <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
@@ -459,23 +488,26 @@ export function EtfFlowboard({ data }: { data: any }) {
 
       {monthly ? (
         <>
-          <div className="grid gap-3 lg:grid-cols-[1.02fr_2fr] lg:items-center">
-            <BtcHeroMetric hero={hero} />
-            <div data-metric-row="compact" className="grid gap-2.5 sm:grid-cols-3 lg:self-center">
-              {supportMetrics.map((metric: any) => {
-                const card = data.series?.cards?.find(
-                  (item: any) => item.label === metric.label,
-                );
-                return (
-                  <BtcMetricCard
-                    key={metric.label}
-                    label={metric.label}
-                    value={metric.formattedValue}
-                    sub={card?.date || null}
-                  />
-                );
-              })}
-            </div>
+          <div
+            data-metric-row="compact"
+            data-metric-row-variant="monthly-equal"
+            className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            {metrics.map((metric: any) => {
+              const card = data.series?.cards?.find(
+                (item: any) => item.label === metric.label,
+              );
+              return (
+                <BtcMetricCard
+                  key={metric.label}
+                  label={metric.label}
+                  value={metric.formattedValue}
+                  sub={card?.date || null}
+                  periodLabel={metric.periodLabel}
+                  metricLabel={metric.metricLabel}
+                />
+              );
+            })}
           </div>
           <div className="grid gap-5 lg:grid-cols-[1.28fr_0.52fr]">
             <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
