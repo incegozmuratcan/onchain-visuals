@@ -1,8 +1,5 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { getChainIdentity } from "@/lib/chainLogos";
-
 const usd = (v: any) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -33,47 +30,63 @@ const labelParts = (metric?: any) => {
   };
 };
 
-function BtcLogoWatermark() {
-  const [hidden, setHidden] = useState(false);
-  const candidate = useMemo(() => {
-    const manifest = getChainIdentity("Bitcoin").manifest;
-
-    if (
-      !manifest?.localPath ||
-      manifest.quality !== "approved" ||
-      manifest.localPath.startsWith("/api/")
-    ) {
-      return null;
-    }
-
-    return {
-      src: manifest.localPath,
-      fit: manifest.fit,
-      padding: manifest.padding,
-      scale: manifest.scale,
-    };
-  }, []);
-
-  if (!candidate || hidden) return null;
-
+function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
   return (
     <div
       data-testid="btc-logo-treatment"
-      data-logo-mode="watermark"
-      className="pointer-events-none absolute -right-7 top-1/2 h-44 w-44 -translate-y-1/2 opacity-[0.18] saturate-[1.35] contrast-[1.04]"
+      data-logo-mode="restored-watermark"
+      data-logo-shape="warm-orange-blob"
+      data-logo-mandatory="true"
+      className={`pointer-events-none absolute ${compact ? "-right-5 top-1/2 h-24 w-28 -translate-y-1/2" : "-right-8 top-1/2 h-44 w-48 -translate-y-1/2"}`}
       aria-hidden="true"
     >
-      <img
-        src={candidate.src}
-        alt=""
-        className="h-full w-full"
-        style={{
-          objectFit: candidate.fit,
-          padding: candidate.padding,
-          transform: `scale(${candidate.scale}) rotate(-10deg)`,
-        }}
-        onError={() => setHidden(true)}
-      />
+      <svg
+        className="h-full w-full overflow-visible"
+        viewBox="0 0 180 160"
+        role="presentation"
+        focusable="false"
+      >
+        <defs>
+          <radialGradient id="btc-watermark-glow" cx="42%" cy="36%" r="72%">
+            <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
+            <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
+            <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
+          </radialGradient>
+          <filter
+            id="btc-watermark-shadow"
+            x="-20%"
+            y="-18%"
+            width="140%"
+            height="140%"
+          >
+            <feDropShadow
+              dx="-8"
+              dy="14"
+              stdDeviation="14"
+              floodColor="#f59e0b"
+              floodOpacity="0.2"
+            />
+          </filter>
+        </defs>
+        <path
+          d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
+          fill="url(#btc-watermark-glow)"
+          filter="url(#btc-watermark-shadow)"
+        />
+        <text
+          x="91"
+          y="103"
+          textAnchor="middle"
+          className="fill-white font-black"
+          style={{
+            fontSize: compact ? 68 : 76,
+            fontFamily:
+              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          }}
+        >
+          ₿
+        </text>
+      </svg>
     </div>
   );
 }
@@ -84,17 +97,25 @@ function BtcMetricCard({
   sub,
   periodLabel,
   metricLabel,
+  watermark = false,
 }: {
   label: string;
   value: string;
   sub?: string | null;
   periodLabel?: string;
   metricLabel?: string;
+  watermark?: boolean;
 }) {
   return (
-    <div className="flex min-h-[70px] self-start flex-col justify-start rounded-[1.15rem] border border-zinc-200 bg-zinc-100/70 px-3.5 py-3 shadow-sm">
+    <div
+      className={`relative flex min-h-[70px] self-start flex-col justify-start overflow-hidden rounded-[1.15rem] border border-zinc-200 bg-zinc-100/70 px-3.5 py-3 shadow-sm ${watermark ? "pr-20" : ""}`}
+    >
+      {watermark ? <BtcLogoWatermark compact /> : null}
       {periodLabel && metricLabel ? (
-        <div data-hero-label-parts="explicit" className="space-y-1">
+        <div
+          data-hero-label-parts="explicit"
+          className="relative z-10 space-y-1"
+        >
           <div
             data-hero-label-primary={periodLabel}
             className="whitespace-nowrap text-[13px] font-bold uppercase leading-none tracking-[0.04em] text-zinc-950"
@@ -109,11 +130,11 @@ function BtcMetricCard({
           </div>
         </div>
       ) : (
-        <div className="text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
+        <div className="relative z-10 text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
           {label}
         </div>
       )}
-      <div className="mt-2 min-w-0">
+      <div className="relative z-10 mt-2 min-w-0">
         <div className="truncate text-[1.35rem] font-semibold leading-none tracking-[-0.05em] text-zinc-950">
           {value}
         </div>
@@ -252,8 +273,11 @@ function SignedFlowChart({
           row.isLargest || row.isLargestInflow || row.isLargestOutflow;
         const showLabel = !monthly || row.showLabel;
         const labelY = positive
-          ? Math.max(22, barY - 12)
-          : Math.min(height - margin.bottom - 6, barY + barHeight + 22);
+          ? Math.max(monthly ? 30 : 28, barY - 14)
+          : Math.min(
+              height - margin.bottom - 8,
+              barY + barHeight + (monthly ? 24 : 24),
+            );
         const naturalLabelX = x + barWidth / 2;
         const labelX = monthly
           ? (labelPositions.get(index) ?? naturalLabelX)
@@ -308,9 +332,9 @@ function SignedFlowChart({
                 y={labelY}
                 textAnchor="middle"
                 data-label-size={
-                  monthly ? "x-readable-key" : "x-readable-daily"
+                  monthly ? "x-readable-key-plus" : "x-readable-daily-plus"
                 }
-                className={`fill-current ${monthly ? "text-[20px]" : "text-[22px]"} font-bold tabular-nums`}
+                className={`fill-current ${monthly ? "text-[22px]" : "text-[23px]"} font-extrabold tabular-nums`}
                 style={{ color: labelTone(value, Boolean(marked)) }}
               >
                 {row.valueLabel || signedUsd(value)}
@@ -449,7 +473,7 @@ export function EtfFlowboard({ data }: { data: any }) {
             data-metric-row-variant="weekly-equal"
             className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
           >
-            {metrics.map((metric: any) => {
+            {metrics.map((metric: any, index: number) => {
               const card = data.series?.cards?.find(
                 (item: any) => item.label === metric.label,
               );
@@ -461,6 +485,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                   sub={card?.date || null}
                   periodLabel={metric.periodLabel}
                   metricLabel={metric.metricLabel}
+                  watermark={index === 0}
                 />
               );
             })}
@@ -493,7 +518,7 @@ export function EtfFlowboard({ data }: { data: any }) {
             data-metric-row-variant="monthly-equal"
             className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
           >
-            {metrics.map((metric: any) => {
+            {metrics.map((metric: any, index: number) => {
               const card = data.series?.cards?.find(
                 (item: any) => item.label === metric.label,
               );
@@ -505,6 +530,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                   sub={card?.date || null}
                   periodLabel={metric.periodLabel}
                   metricLabel={metric.metricLabel}
+                  watermark={index === 0}
                 />
               );
             })}

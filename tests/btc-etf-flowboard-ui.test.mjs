@@ -230,18 +230,22 @@ test("Daily BTC ETF snapshot is latest-completed-day first with only Top Driver 
   assert.match(etfFlowboard, /metrics\.slice\(1, 3\)/);
   assert.match(etfFlowboard, /Latest Issuer Flows/);
   assert.match(etfFlowboard, /btc-logo-treatment/);
-  assert.match(etfFlowboard, /data-logo-mode=\"watermark\"/);
-  assert.match(etfFlowboard, /opacity-\[0\.18\]/);
-  assert.match(etfFlowboard, /saturate-\[1\.35\]/);
+  assert.match(etfFlowboard, /data-logo-mode="restored-watermark"/);
+  assert.match(etfFlowboard, /data-logo-shape="warm-orange-blob"/);
+  assert.match(etfFlowboard, /data-logo-mandatory="true"/);
+  assert.match(etfFlowboard, /#f7931a/);
+  assert.match(etfFlowboard, /₿/);
   assert.match(etfFlowboard, /bg-zinc-100\/85/);
-  assert.match(shareCard, /data-logo-mode=\"watermark\"/);
+  assert.match(shareCard, /data-logo-mode="restored-watermark"/);
+  assert.match(shareCard, /data-logo-shape="warm-orange-blob"/);
+  assert.match(shareCard, /data-logo-mandatory="true"/);
   assert.doesNotMatch(
     etfFlowboard,
-    /BtcLogoMark|>BTC<|₿|rounded-full[\s\S]{0,120}btc-logo-treatment|btc-logo-treatment[\s\S]{0,120}rounded-full/,
+    /BtcLogoMark|>BTC<|rounded-full[\s\S]{0,120}btc-logo-treatment|btc-logo-treatment[\s\S]{0,120}rounded-full/,
   );
   assert.doesNotMatch(
     shareCard,
-    /BtcLogoMark|>BTC<|₿|rounded-full[\s\S]{0,120}btc-logo-treatment|btc-logo-treatment[\s\S]{0,120}rounded-full/,
+    /BtcLogoMark|>BTC<|rounded-full[\s\S]{0,120}btc-logo-treatment|btc-logo-treatment[\s\S]{0,120}rounded-full/,
   );
   assert.doesNotMatch(
     etfFlowboard,
@@ -291,12 +295,14 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(etfFlowboard, /monthly \? 24 : 100/);
   assert.match(
     etfFlowboard,
-    /data-label-size=\{[\s\S]*monthly \? "x-readable-key" : "x-readable-daily"[\s\S]*\}/,
+    /data-label-size=\{[\s\S]*monthly \? "x-readable-key-plus" : "x-readable-daily-plus"[\s\S]*\}/,
   );
-  assert.match(etfFlowboard, /monthly \? "text-\[20px\]" : "text-\[22px\]"/);
+  assert.match(etfFlowboard, /monthly \? "text-\[22px\]" : "text-\[23px\]"/);
   assert.match(etfFlowboard, /data-metric-row="compact"/);
   assert.match(etfFlowboard, /data-metric-row-variant="monthly-equal"/);
   assert.match(etfFlowboard, /data-metric-row-variant="weekly-equal"/);
+  assert.match(etfFlowboard, /watermark=\{index === 0\}/);
+  assert.match(etfFlowboard, /<BtcLogoWatermark compact \/>/);
   assert.match(etfFlowboard, /bg-zinc-100\/70/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
   assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
@@ -328,7 +334,7 @@ test("Monthly BTC ETF card is an MTD flow report with compact issuer summary", (
   assert.match(etfFlowboard, /showLabel = !monthly \|\| row\.showLabel/);
   assert.match(etfFlowboard, /labelPositions/);
   assert.match(etfFlowboard, /previousX \+ 142/);
-  assert.match(etfFlowboard, /monthly \? "text-\[20px\]" : "text-\[22px\]"/);
+  assert.match(etfFlowboard, /monthly \? "text-\[22px\]" : "text-\[23px\]"/);
   assert.match(etfFlowboard, /data-metric-row="compact"/);
   assert.match(etfFlowboard, /whitespace-nowrap/);
   assert.match(etfFlowboard, /Top Issuer Flows/);
