@@ -142,69 +142,184 @@ function BtcEtfShareCard({
     </div>
   );
 
-  const BtcLogoWatermark = ({ compact = false }: { compact?: boolean }) => (
-    <div
-      data-testid="btc-logo-treatment"
-      data-logo-mode="restored-watermark"
-      data-logo-shape="warm-orange-blob"
-      data-logo-mandatory="true"
-      className={`pointer-events-none absolute ${compact ? "-right-5 top-1/2 h-24 w-28 -translate-y-1/2" : "-right-8 top-1/2 h-44 w-48 -translate-y-1/2"}`}
-      aria-hidden="true"
-    >
-      <svg
-        className="h-full w-full overflow-visible"
-        viewBox="0 0 180 160"
-        role="presentation"
-        focusable="false"
-      >
-        <defs>
-          <radialGradient
-            id="share-btc-watermark-glow"
-            cx="42%"
-            cy="36%"
-            r="72%"
-          >
-            <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
-            <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
-            <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
-          </radialGradient>
-          <filter
-            id="share-btc-watermark-shadow"
-            x="-20%"
-            y="-18%"
-            width="140%"
-            height="140%"
-          >
-            <feDropShadow
-              dx="-8"
-              dy="14"
-              stdDeviation="14"
-              floodColor="#f59e0b"
-              floodOpacity="0.2"
-            />
-          </filter>
-        </defs>
-        <path
-          d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
-          fill="url(#share-btc-watermark-glow)"
-          filter="url(#share-btc-watermark-shadow)"
-        />
-        <text
-          x="91"
-          y="103"
-          textAnchor="middle"
-          className="fill-white font-black"
-          style={{
-            fontSize: compact ? 68 : 76,
-            fontFamily:
-              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          }}
+  const BtcLogoWatermark = ({ compact = false }: { compact?: boolean }) => {
+    if (compact) {
+      return (
+        <div
+          data-testid="btc-logo-treatment"
+          data-logo-mode="restored-watermark"
+          data-logo-shape="warm-orange-blob"
+          data-logo-mandatory="true"
+          className="pointer-events-none absolute -right-5 top-1/2 h-24 w-28 -translate-y-1/2"
+          aria-hidden="true"
         >
-          ₿
-        </text>
-      </svg>
-    </div>
-  );
+          <svg
+            className="h-full w-full overflow-visible"
+            viewBox="0 0 180 160"
+            role="presentation"
+            focusable="false"
+          >
+            <defs>
+              <radialGradient
+                id="share-btc-watermark-glow"
+                cx="42%"
+                cy="36%"
+                r="72%"
+              >
+                <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
+                <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
+                <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
+              </radialGradient>
+              <filter
+                id="share-btc-watermark-shadow"
+                x="-20%"
+                y="-18%"
+                width="140%"
+                height="140%"
+              >
+                <feDropShadow
+                  dx="-8"
+                  dy="14"
+                  stdDeviation="14"
+                  floodColor="#f59e0b"
+                  floodOpacity="0.2"
+                />
+              </filter>
+            </defs>
+            <path
+              d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
+              fill="url(#share-btc-watermark-glow)"
+              filter="url(#share-btc-watermark-shadow)"
+            />
+            <text
+              x="91"
+              y="103"
+              textAnchor="middle"
+              className="fill-white font-black"
+              style={{
+                fontSize: 68,
+                fontFamily:
+                  'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              }}
+            >
+              ₿
+            </text>
+          </svg>
+        </div>
+      );
+    }
+
+    return (
+      <div
+        data-testid="btc-logo-treatment"
+        data-logo-mode="restored-watermark"
+        data-logo-shape="warm-rounded-side-panel"
+        data-logo-mandatory="true"
+        className="pointer-events-none absolute inset-y-0 right-0 w-[41%] overflow-hidden"
+        aria-hidden="true"
+      >
+        <svg
+          className="h-full w-full"
+          viewBox="0 0 220 160"
+          role="presentation"
+          focusable="false"
+          preserveAspectRatio="none"
+        >
+          <defs>
+            <linearGradient
+              id="share-btc-daily-panel-fill"
+              x1="24"
+              x2="218"
+              y1="76"
+              y2="76"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.52" />
+              <stop offset="56%" stopColor="#f8d9b3" stopOpacity="0.64" />
+              <stop offset="100%" stopColor="#f7931a" stopOpacity="0.2" />
+            </linearGradient>
+            <radialGradient
+              id="share-btc-daily-panel-warmth"
+              cx="72%"
+              cy="36%"
+              r="78%"
+            >
+              <stop offset="0%" stopColor="#fffaf1" stopOpacity="0.86" />
+              <stop offset="58%" stopColor="#f6c98e" stopOpacity="0.32" />
+              <stop offset="100%" stopColor="#e58a1f" stopOpacity="0.14" />
+            </radialGradient>
+            <filter
+              id="share-btc-daily-panel-shadow"
+              x="-14%"
+              y="-12%"
+              width="128%"
+              height="124%"
+            >
+              <feDropShadow
+                dx="-8"
+                dy="10"
+                stdDeviation="12"
+                floodColor="#f59e0b"
+                floodOpacity="0.08"
+              />
+            </filter>
+            <filter
+              id="share-btc-daily-panel-symbol-shadow"
+              x="-30%"
+              y="-30%"
+              width="160%"
+              height="160%"
+            >
+              <feDropShadow
+                dx="0"
+                dy="1"
+                stdDeviation="0.8"
+                floodColor="#d97706"
+                floodOpacity="0.12"
+              />
+            </filter>
+          </defs>
+          <path
+            d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
+            fill="url(#share-btc-daily-panel-fill)"
+            filter="url(#share-btc-daily-panel-shadow)"
+          />
+          <path
+            d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
+            fill="url(#share-btc-daily-panel-warmth)"
+          />
+          <text
+            x="158"
+            y="58"
+            textAnchor="middle"
+            className="fill-slate-400 font-black"
+            style={{
+              fontSize: 20,
+              letterSpacing: 12,
+              fontFamily:
+                'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            FLOW
+          </text>
+          <text
+            x="154"
+            y="110"
+            textAnchor="middle"
+            className="fill-white font-black"
+            filter="url(#share-btc-daily-panel-symbol-shadow)"
+            style={{
+              fontSize: 76,
+              fontFamily:
+                'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            ₿
+          </text>
+        </svg>
+      </div>
+    );
+  };
 
   const HeroMetric = () => (
     <div className="relative flex min-h-[132px] flex-col justify-start overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100/85 p-5">
