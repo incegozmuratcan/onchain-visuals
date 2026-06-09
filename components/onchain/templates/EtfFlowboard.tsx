@@ -95,110 +95,70 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
   return (
     <div
       data-testid="btc-logo-treatment"
-      data-logo-mode="restored-watermark"
-      data-logo-shape="warm-rounded-side-panel"
+      data-logo-mode="premium-circular-coin"
+      data-logo-shape="circular-btc-coin"
       data-logo-mandatory="true"
-      className="pointer-events-none absolute inset-y-0 right-0 w-[41%] overflow-hidden"
+      className="pointer-events-none absolute -right-5 top-1/2 h-32 w-32 -translate-y-1/2"
       aria-hidden="true"
     >
       <svg
-        className="h-full w-full"
-        viewBox="0 0 220 160"
+        className="h-full w-full overflow-visible"
+        viewBox="0 0 140 140"
         role="presentation"
         focusable="false"
-        preserveAspectRatio="none"
       >
         <defs>
-          <linearGradient
-            id="btc-daily-panel-fill"
-            x1="24"
-            x2="218"
-            y1="76"
-            y2="76"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.52" />
-            <stop offset="56%" stopColor="#f8d9b3" stopOpacity="0.64" />
-            <stop offset="100%" stopColor="#f7931a" stopOpacity="0.2" />
-          </linearGradient>
-          <radialGradient
-            id="btc-daily-panel-warmth"
-            cx="72%"
-            cy="36%"
-            r="78%"
-          >
-            <stop offset="0%" stopColor="#fffaf1" stopOpacity="0.86" />
-            <stop offset="58%" stopColor="#f6c98e" stopOpacity="0.32" />
-            <stop offset="100%" stopColor="#e58a1f" stopOpacity="0.14" />
+          <radialGradient id="btc-daily-coin-fill" cx="34%" cy="26%" r="74%">
+            <stop offset="0%" stopColor="#ffd37a" />
+            <stop offset="42%" stopColor="#f7931a" />
+            <stop offset="100%" stopColor="#d97706" />
           </radialGradient>
-          <filter
-            id="btc-daily-panel-shadow"
-            x="-14%"
-            y="-12%"
-            width="128%"
-            height="124%"
-          >
+          <linearGradient id="btc-daily-coin-rim" x1="24" x2="112" y1="20" y2="120">
+            <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.95" />
+            <stop offset="38%" stopColor="#fbbf24" stopOpacity="0.72" />
+            <stop offset="100%" stopColor="#b45309" stopOpacity="0.68" />
+          </linearGradient>
+          <filter id="btc-daily-coin-shadow" x="-35%" y="-28%" width="170%" height="170%">
             <feDropShadow
-              dx="-8"
-              dy="10"
+              dx="-10"
+              dy="16"
               stdDeviation="12"
-              floodColor="#f59e0b"
-              floodOpacity="0.08"
-            />
-          </filter>
-          <filter
-            id="btc-daily-panel-symbol-shadow"
-            x="-30%"
-            y="-30%"
-            width="160%"
-            height="160%"
-          >
-            <feDropShadow
-              dx="0"
-              dy="1"
-              stdDeviation="0.8"
-              floodColor="#d97706"
-              floodOpacity="0.12"
+              floodColor="#92400e"
+              floodOpacity="0.18"
             />
           </filter>
         </defs>
-        <path
-          d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
-          fill="url(#btc-daily-panel-fill)"
-          filter="url(#btc-daily-panel-shadow)"
+        <circle cx="70" cy="74" r="55" fill="#fed7aa" opacity="0.24" />
+        <circle
+          cx="70"
+          cy="68"
+          r="54"
+          fill="url(#btc-daily-coin-fill)"
+          filter="url(#btc-daily-coin-shadow)"
+        />
+        <circle
+          cx="70"
+          cy="68"
+          r="54"
+          fill="none"
+          stroke="url(#btc-daily-coin-rim)"
+          strokeWidth="5"
+        />
+        <circle
+          cx="51"
+          cy="43"
+          r="15"
+          fill="#fff7ed"
+          opacity="0.28"
         />
         <path
-          d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
-          fill="url(#btc-daily-panel-warmth)"
+          d="M52 36v11m21-11v11M44 47h29c14 0 18 17 5 22 16 4 12 25-4 25H44m0-47h-8m8 22h-8m8 25h-8"
+          stroke="#fff"
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
         />
-        <text
-          x="158"
-          y="58"
-          textAnchor="middle"
-          className="fill-zinc-400 font-semibold"
-          style={{
-            fontSize: 20,
-            letterSpacing: 12,
-            fontFamily:
-              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          }}
-        >
-          FLOW
-        </text>
-        <text
-          x="154"
-          y="110"
-          textAnchor="middle"
-          className="fill-white font-black"
-          filter="url(#btc-daily-panel-symbol-shadow)"
-          style={{
-            fontSize: 76,
-            fontFamily:
-              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          }}
-        >
-          ₿
-        </text>
       </svg>
     </div>
   );
@@ -264,7 +224,7 @@ function BtcMetricCard({
 function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative min-h-[132px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/85 p-5 shadow-sm">
+    <div className="relative min-h-[132px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/85 p-5 pr-32 shadow-sm">
       <BtcLogoWatermark />
       <div className="relative z-10 min-w-0">
         <div
