@@ -31,55 +31,138 @@ const labelParts = (metric?: any) => {
 };
 
 function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
+  if (compact) {
+    return (
+      <div
+        data-testid="btc-logo-treatment"
+        data-logo-mode="restored-watermark"
+        data-logo-shape="warm-orange-blob"
+        data-logo-mandatory="true"
+        className="pointer-events-none absolute -right-5 top-1/2 h-24 w-28 -translate-y-1/2"
+        aria-hidden="true"
+      >
+        <svg
+          className="h-full w-full overflow-visible"
+          viewBox="0 0 180 160"
+          role="presentation"
+          focusable="false"
+        >
+          <defs>
+            <radialGradient id="btc-watermark-glow" cx="42%" cy="36%" r="72%">
+              <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
+              <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
+              <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
+            </radialGradient>
+            <filter
+              id="btc-watermark-shadow"
+              x="-20%"
+              y="-18%"
+              width="140%"
+              height="140%"
+            >
+              <feDropShadow
+                dx="-8"
+                dy="14"
+                stdDeviation="14"
+                floodColor="#f59e0b"
+                floodOpacity="0.2"
+              />
+            </filter>
+          </defs>
+          <path
+            d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
+            fill="url(#btc-watermark-glow)"
+            filter="url(#btc-watermark-shadow)"
+          />
+          <text
+            x="91"
+            y="103"
+            textAnchor="middle"
+            className="fill-white font-black"
+            style={{
+              fontSize: 68,
+              fontFamily:
+                'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            }}
+          >
+            ₿
+          </text>
+        </svg>
+      </div>
+    );
+  }
+
   return (
     <div
       data-testid="btc-logo-treatment"
       data-logo-mode="restored-watermark"
       data-logo-shape="warm-orange-blob"
       data-logo-mandatory="true"
-      className={`pointer-events-none absolute ${compact ? "-right-5 top-1/2 h-24 w-28 -translate-y-1/2" : "-right-8 top-1/2 h-44 w-48 -translate-y-1/2"}`}
+      className="pointer-events-none absolute -right-10 top-1/2 h-36 w-52 -translate-y-1/2"
       aria-hidden="true"
     >
       <svg
         className="h-full w-full overflow-visible"
-        viewBox="0 0 180 160"
+        viewBox="0 0 220 160"
         role="presentation"
         focusable="false"
+        preserveAspectRatio="xMidYMid meet"
       >
         <defs>
-          <radialGradient id="btc-watermark-glow" cx="42%" cy="36%" r="72%">
-            <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
-            <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
-            <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
+          <radialGradient
+            id="btc-daily-watermark-fill"
+            cx="46%"
+            cy="34%"
+            r="78%"
+          >
+            <stop offset="0%" stopColor="#f8c979" stopOpacity="0.36" />
+            <stop offset="58%" stopColor="#f59e32" stopOpacity="0.27" />
+            <stop offset="100%" stopColor="#e58a1f" stopOpacity="0.2" />
           </radialGradient>
           <filter
-            id="btc-watermark-shadow"
-            x="-20%"
-            y="-18%"
-            width="140%"
-            height="140%"
+            id="btc-daily-watermark-soft-shadow"
+            x="-12%"
+            y="-14%"
+            width="124%"
+            height="128%"
           >
             <feDropShadow
-              dx="-8"
-              dy="14"
-              stdDeviation="14"
+              dx="-5"
+              dy="10"
+              stdDeviation="10"
               floodColor="#f59e0b"
-              floodOpacity="0.2"
+              floodOpacity="0.1"
+            />
+          </filter>
+          <filter
+            id="btc-daily-watermark-symbol-shadow"
+            x="-30%"
+            y="-30%"
+            width="160%"
+            height="160%"
+          >
+            <feDropShadow
+              dx="0"
+              dy="1"
+              stdDeviation="0.8"
+              floodColor="#d97706"
+              floodOpacity="0.1"
             />
           </filter>
         </defs>
         <path
-          d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
-          fill="url(#btc-watermark-glow)"
-          filter="url(#btc-watermark-shadow)"
+          d="M116.5 2.8c31.7-.9 68.2 4.3 87.5 25.8 17.3 19.3 14.1 46.7 14.1 72.3 0 24.7 1.2 40.8-16.2 50.3-18.3 10-53.3 6.6-86 6.6-31.9 0-57.1 1.4-73.5-12.7-17-14.6-21.5-45.4-17.7-71.9 3.7-25.9 15.6-47.1 33-58.5C73.7 4.2 94.3 3.5 116.5 2.8Z"
+          fill="url(#btc-daily-watermark-fill)"
+          filter="url(#btc-daily-watermark-soft-shadow)"
         />
         <text
-          x="91"
-          y="103"
+          x="139"
+          y="101"
           textAnchor="middle"
           className="fill-white font-black"
+          filter="url(#btc-daily-watermark-symbol-shadow)"
           style={{
-            fontSize: compact ? 68 : 76,
+            fontSize: 72,
             fontFamily:
               'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           }}
