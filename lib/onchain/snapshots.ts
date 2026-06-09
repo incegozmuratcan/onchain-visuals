@@ -480,12 +480,25 @@ function issuerShare(driver: any, rows: EtfFlowRow[]) {
     (Math.abs(Number(driver?.flowUsd ?? driver?.value ?? 0)) / denom) * 100,
   );
 }
-function driverMetric(row: any, share: number) {
+function directionalIssuerDriver(rows: EtfFlowRow[], netFlow: number | null | undefined) {
+  const wantsInflow = Number(netFlow) >= 0;
+  const signedRows = rows.filter((row) =>
+    wantsInflow ? Number(row.flowUsd) > 0 : Number(row.flowUsd) < 0,
+  );
+  return (
+    signedRows.sort((a, b) =>
+      wantsInflow
+        ? Number(b.flowUsd || 0) - Number(a.flowUsd || 0)
+        : Number(a.flowUsd || 0) - Number(b.flowUsd || 0),
+    )[0] || null
+  );
+}
+function driverMetric(row: any, _share?: number) {
   const value = row?.value ?? row?.flowUsd ?? null;
   return metric(
     Number(value) >= 0 ? "Largest Inflow" : "Largest Outflow",
     value,
-    row ? `${row.ticker || row.name} · ${share}%` : "Pending",
+    row ? `${row.ticker || row.name} ${formatIssuerFlow(value)}` : "Pending",
   );
 }
 function issuerMetric(label: string, row: any) {
@@ -509,7 +522,10 @@ export function buildBtcEtfDailyCard(
       "BTC ETF flow parser found no completed total + issuer rows",
     );
   const contributors = getTopIssuerContributors(summary.issuerLatest, 5);
-  const driver = contributors[0] || null;
+  const driver = directionalIssuerDriver(
+    summary.issuerLatest,
+    summary.latest.flowUsd,
+  );
   const share = driver ? issuerShare(driver, summary.issuerLatest) : 0;
   const noInflow =
     !summary.inflow &&
@@ -548,7 +564,7 @@ export function buildBtcEtfDailyCard(
         metricLabel:
           Number(summary.latest.flowUsd) >= 0 ? "NET INFLOW" : "NET OUTFLOW",
       },
-      driverMetric(driver, share),
+      driverMetric(driver),
       metric(
         "Cumulative Net Flow",
         summary.totalFlow,
@@ -562,12 +578,12 @@ export function buildBtcEtfDailyCard(
       cards: [
         {
           label:
-            Number(driver?.value ?? 0) >= 0
+            Number(driver?.flowUsd ?? 0) >= 0
               ? "Largest Inflow"
               : "Largest Outflow",
-          value: driver?.name || "Pending",
+          value: driver?.issuer || "Pending",
           ticker: driver?.ticker || null,
-          amount: driver?.value || null,
+          amount: driver?.flowUsd || null,
           share,
         },
         {

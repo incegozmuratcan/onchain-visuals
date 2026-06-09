@@ -17,7 +17,7 @@ const shortDate = (date: string) =>
 const toneClass = (value: any) =>
   Number(value) >= 0 ? "text-emerald-700" : "text-rose-700";
 
-const BTC_LOGO_SRC = "/logos/chains/bitcoin.svg";
+const BTC_LOGO_SRC = "/logos/bitcoin.svg";
 const flowLabel = (value: any) =>
   Number(value) >= 0 ? "NET INFLOW" : "NET OUTFLOW";
 const driverLabel = (value: any) =>

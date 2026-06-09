@@ -166,7 +166,7 @@ function BtcEtfShareCard({
           data-logo-mode="site-asset-subtle-watermark"
           data-logo-shape="official-btc-mark"
           data-logo-mandatory="true"
-          src="/logos/chains/bitcoin.svg"
+          src="/logos/bitcoin.svg"
           alt=""
           className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.08] mix-blend-multiply"
           aria-hidden="true"
@@ -185,7 +185,7 @@ function BtcEtfShareCard({
         aria-hidden="true"
       >
         <img
-          src="/logos/chains/bitcoin.svg"
+          src="/logos/bitcoin.svg"
           alt=""
           className="h-full w-full select-none drop-shadow-[0_4px_10px_rgba(120,53,15,0.22)]"
           draggable={false}
@@ -197,14 +197,14 @@ function BtcEtfShareCard({
   const BtcCanvasWatermarks = () => (
     <>
       <img
-        src="/logos/chains/bitcoin.svg"
+        src="/logos/bitcoin.svg"
         alt=""
         aria-hidden="true"
         draggable={false}
         className="pointer-events-none absolute -right-24 -top-24 h-[300px] w-[300px] select-none opacity-[0.045] mix-blend-multiply"
       />
       <img
-        src="/logos/chains/bitcoin.svg"
+        src="/logos/bitcoin.svg"
         alt=""
         aria-hidden="true"
         draggable={false}
@@ -473,7 +473,7 @@ function BtcEtfShareCard({
         </div>
         <div className="rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
           <img
-            src="/logos/chains/bitcoin.svg"
+            src="/logos/bitcoin.svg"
             alt=""
             className="mr-2 inline h-4 w-4"
             aria-hidden="true"
@@ -681,7 +681,7 @@ export function ShareCard({
     >
       <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
         <img
-          src="/logos/chains/bitcoin.svg"
+          src="/logos/bitcoin.svg"
           alt=""
           className="mr-2 inline h-4 w-4"
           aria-hidden="true"

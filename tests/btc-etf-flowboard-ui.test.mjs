@@ -36,7 +36,7 @@ async function importSnapshotBuilders() {
     .replace(/import type \{[\s\S]*?\} from ["']\.\/types["'];/, "")
     .replace(
       /import \{[\s\S]*?formatCompactUsd[\s\S]*?\} from ["']\.\.\/formatters["'];/,
-      "const formatCompactUsd = (value)=>String(value); const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}$${Math.abs(Number(value) || 0)}`;",
+      () => "const formatCompactUsd = (value)=>{ const n = Math.abs(Number(value) || 0); if (n >= 1e9) return `$${Number((n/1e9).toFixed(1))}B`; if (n >= 1e6) return `$${Number((n/1e6).toFixed(1))}M`; return `$${n}`; }; const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}${formatCompactUsd(value)}`;",
     )
     .replace(
       /import \{[\s\S]*?cumulative_sum[\s\S]*?\} from ["']\.\.\/metrics["'];/,
@@ -96,61 +96,30 @@ const btcDataset = {
   sourceLabel: "Source: Farside Investors + Binance",
   chartTemplates: ["etf_flowboard"],
 };
-const fixtureMonth = new Date().toISOString().slice(0, 7);
-const latestFixtureDate = `${fixtureMonth}-28`;
-const latestFixtureLabel = `${new Date(`${latestFixtureDate}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).toUpperCase()} NET OUTFLOW`;
+const latestFixtureDate = "2026-06-08";
+const latestFixtureLabel = "JUN 8 NET OUTFLOW";
 const btcFlowResult = {
   url: "https://farside.co.uk/bitcoin-etf-flow-all-data/",
   data: {
     warnings: [],
     rows: [
+      ["2026-06-04", 10_000_000, [["BlackRock", "IBIT", 10_000_000]]],
+      ["2026-06-05", -20_000_000, [["BlackRock", "IBIT", -20_000_000]]],
+      ["2026-06-06", 40_000_000, [["BlackRock", "IBIT", 35_000_000], ["Fidelity", "FBTC", 5_000_000]]],
       [
-        `${fixtureMonth}-24`,
-        10,
-        [
-          ["BlackRock", "IBIT", 10],
-          ["Fidelity", "FBTC", 0],
-        ],
+        "2026-06-07",
+        53_961_400_000,
+        [["Historical completed rows", "HIST", 53_961_400_000]],
       ],
       [
-        `${fixtureMonth}-25`,
-        -20,
+        latestFixtureDate,
+        -91_400_000,
         [
-          ["BlackRock", "IBIT", -20],
-          ["Fidelity", "FBTC", 0],
-        ],
-      ],
-      [
-        `${fixtureMonth}-26`,
-        40,
-        [
-          ["BlackRock", "IBIT", 35],
-          ["Fidelity", "FBTC", 5],
-          ["Bitwise", "BITB", 0],
-        ],
-      ],
-      [
-        `${fixtureMonth}-27`,
-        100,
-        [
-          ["BlackRock", "IBIT", 95],
-          ["Fidelity", "FBTC", 5],
-          ["Grayscale GBTC", "GBTC", 0],
-        ],
-      ],
-      [
-        `${fixtureMonth}-28`,
-        -50,
-        [
-          ["BlackRock", "IBIT", -80],
-          ["Fidelity", "FBTC", 30],
-          ["Bitwise", "BITB", 0],
-          ["ARK 21Shares", "ARKB", 0],
-          ["Grayscale GBTC", "GBTC", -5],
-          ["VanEck", "HODL", 5],
-          ["Franklin", "EZBC", 1],
-          ["WisdomTree", "BTCW", -1],
-          ["Valkyrie", "BRRR", 0],
+          ["BlackRock", "IBIT", -232_900_000],
+          ["ARK 21Shares", "ARKB", 63_100_000],
+          ["Fidelity", "FBTC", 59_400_000],
+          ["Bitwise", "BITB", 14_100_000],
+          ["MSBT", "MSBT", 4_900_000],
         ],
       ],
     ].flatMap(([date, total, issuers]) => [
@@ -222,7 +191,8 @@ test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver a
     dailyBlock,
     /Latest capital movement across US spot Bitcoin ETFs\./,
   );
-  assert.match(dailyBlock, /driverMetric\(driver, share\)/);
+  assert.match(dailyBlock, /directionalIssuerDriver/);
+  assert.match(dailyBlock, /driverMetric\(driver\)/);
   assert.match(dailyBlock, /["\']Cumulative Net Flow["\']/);
   assert.doesNotMatch(dailyBlock, /5D Flow|20D Flow|Cumulative Flow/);
   assert.match(dailyBlock, /bars:[\s\S]*\[\]/);
@@ -242,7 +212,7 @@ test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver a
   );
   assert.match(etfFlowboard, /data-logo-shape="official-btc-medallion"/);
   assert.match(etfFlowboard, /data-logo-mandatory="true"/);
-  assert.match(etfFlowboard, /BTC_LOGO_SRC = "\/logos\/chains\/bitcoin.svg"/);
+  assert.match(etfFlowboard, /BTC_LOGO_SRC = "\/logos\/bitcoin.svg"/);
   assert.match(etfFlowboard, /BtcCanvasWatermarks/);
   assert.match(etfFlowboard, /h-36 w-36/);
   assert.match(etfFlowboard, /#f7931a/);
@@ -250,7 +220,7 @@ test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver a
   assert.match(shareCard, /data-logo-mode="site-asset-premium-circular-coin"/);
   assert.match(shareCard, /data-logo-shape="official-btc-medallion"/);
   assert.match(shareCard, /data-logo-mandatory="true"/);
-  assert.match(shareCard, /src="\/logos\/chains\/bitcoin.svg"/);
+  assert.match(shareCard, /src="\/logos\/bitcoin.svg"/);
   assert.match(shareCard, /!daily \? \(/);
   assert.doesNotMatch(
     etfFlowboard,
@@ -380,7 +350,9 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
     daily.headlineMetrics[0].periodLabel,
     latestFixtureLabel.replace(/ NET OUTFLOW$/, ""),
   );
-  assert.match(daily.headlineMetrics[1].formattedValue, /%/);
+  assert.equal(daily.headlineMetrics[1].formattedValue, "IBIT -$232.9M");
+  assert.equal(daily.headlineMetrics[2].formattedValue, "+$53.9B");
+  assert.equal(daily.headlineMetrics[0].formattedValue, "-$91.4M");
   assert.equal(daily.series.lines.length, 0);
   assert.equal(daily.series.bars.length, 0);
   assert.ok(daily.series.tables.length <= 5);
