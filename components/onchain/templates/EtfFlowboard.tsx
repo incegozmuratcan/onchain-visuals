@@ -16,157 +16,97 @@ const shortDate = (date: string) =>
   });
 const toneClass = (value: any) =>
   Number(value) >= 0 ? "text-emerald-700" : "text-rose-700";
+
+const BTC_LOGO_SRC = "/logos/chains/bitcoin.svg";
+const flowLabel = (value: any) =>
+  Number(value) >= 0 ? "NET INFLOW" : "NET OUTFLOW";
+const driverLabel = (value: any) =>
+  Number(value) >= 0 ? "LARGEST INFLOW" : "LARGEST OUTFLOW";
+const displayMetricLabel = (label: string, value: any) => {
+  if (/^net flow$/i.test(label)) return flowLabel(value);
+  if (/^top driver$/i.test(label)) return driverLabel(value);
+  if (/^since launch$/i.test(label)) return "CUMULATIVE NET FLOW";
+  return label;
+};
 const labelParts = (metric?: any) => {
   if (metric?.periodLabel && metric?.metricLabel) {
-    return { periodLabel: metric.periodLabel, metricLabel: metric.metricLabel };
+    return {
+      periodLabel: metric.periodLabel,
+      metricLabel: displayMetricLabel(metric.metricLabel, metric?.value),
+    };
   }
-  const parts = String(metric?.label || "NET FLOW").split(" ");
+  const raw = String(metric?.label || "NET FLOW");
+  const replaced = raw.replace(/NET FLOW$/i, flowLabel(metric?.value));
+  const parts = replaced.split(" ");
   return {
     periodLabel: parts.length > 2 ? parts.slice(0, 2).join(" ") : parts[0],
     metricLabel:
       parts.length > 2
         ? parts.slice(2).join(" ")
-        : parts.slice(1).join(" ") || "NET FLOW",
+        : parts.slice(1).join(" ") || flowLabel(metric?.value),
   };
 };
 
 function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
   if (compact) {
     return (
-      <div
+      <img
         data-testid="btc-logo-treatment"
-        data-logo-mode="restored-watermark"
-        data-logo-shape="warm-orange-blob"
+        data-logo-mode="site-asset-subtle-watermark"
+        data-logo-shape="official-btc-mark"
         data-logo-mandatory="true"
-        className="pointer-events-none absolute -right-5 top-1/2 h-24 w-28 -translate-y-1/2"
+        src={BTC_LOGO_SRC}
+        alt=""
+        className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.08] mix-blend-multiply"
         aria-hidden="true"
-      >
-        <svg
-          className="h-full w-full overflow-visible"
-          viewBox="0 0 180 160"
-          role="presentation"
-          focusable="false"
-        >
-          <defs>
-            <radialGradient id="btc-watermark-glow" cx="42%" cy="36%" r="72%">
-              <stop offset="0%" stopColor="#ffcf73" stopOpacity="0.98" />
-              <stop offset="52%" stopColor="#f7931a" stopOpacity="0.92" />
-              <stop offset="100%" stopColor="#df7b10" stopOpacity="0.74" />
-            </radialGradient>
-            <filter
-              id="btc-watermark-shadow"
-              x="-20%"
-              y="-18%"
-              width="140%"
-              height="140%"
-            >
-              <feDropShadow
-                dx="-8"
-                dy="14"
-                stdDeviation="14"
-                floodColor="#f59e0b"
-                floodOpacity="0.2"
-              />
-            </filter>
-          </defs>
-          <path
-            d="M144.8 23.6c24.6 18.9 26.7 58.6 8.9 89.1-17.8 30.4-55.5 51.7-89.4 41.2-34-10.5-64.2-52.8-54.1-88.3 10.2-35.6 60.8-64.4 99.8-57.9 13.2 2.2 24.9 8.3 34.8 15.9Z"
-            fill="url(#btc-watermark-glow)"
-            filter="url(#btc-watermark-shadow)"
-          />
-          <text
-            x="91"
-            y="103"
-            textAnchor="middle"
-            className="fill-white font-black"
-            style={{
-              fontSize: 68,
-              fontFamily:
-                'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-            }}
-          >
-            ₿
-          </text>
-        </svg>
-      </div>
+      />
     );
   }
 
   return (
     <div
       data-testid="btc-logo-treatment"
-      data-logo-mode="premium-circular-coin"
-      data-logo-shape="circular-btc-coin"
+      data-logo-mode="site-asset-premium-circular-coin"
+      data-logo-shape="official-btc-medallion"
       data-logo-mandatory="true"
-      className="pointer-events-none absolute -right-5 top-1/2 h-32 w-32 -translate-y-1/2"
+      className="pointer-events-none absolute -right-4 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_32%_25%,#ffda8a_0%,#f7931a_48%,#cc6f08_100%)] p-3 shadow-[0_24px_48px_rgba(146,64,14,0.20),inset_0_2px_12px_rgba(255,255,255,0.35),inset_0_-10px_20px_rgba(120,53,15,0.14)] ring-1 ring-amber-200/70"
       aria-hidden="true"
     >
-      <svg
-        className="h-full w-full overflow-visible"
-        viewBox="0 0 140 140"
-        role="presentation"
-        focusable="false"
-      >
-        <defs>
-          <radialGradient id="btc-daily-coin-fill" cx="34%" cy="26%" r="74%">
-            <stop offset="0%" stopColor="#ffd37a" />
-            <stop offset="42%" stopColor="#f7931a" />
-            <stop offset="100%" stopColor="#d97706" />
-          </radialGradient>
-          <linearGradient id="btc-daily-coin-rim" x1="24" x2="112" y1="20" y2="120">
-            <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.95" />
-            <stop offset="38%" stopColor="#fbbf24" stopOpacity="0.72" />
-            <stop offset="100%" stopColor="#b45309" stopOpacity="0.68" />
-          </linearGradient>
-          <filter id="btc-daily-coin-shadow" x="-35%" y="-28%" width="170%" height="170%">
-            <feDropShadow
-              dx="-10"
-              dy="16"
-              stdDeviation="12"
-              floodColor="#92400e"
-              floodOpacity="0.18"
-            />
-          </filter>
-        </defs>
-        <circle cx="70" cy="74" r="55" fill="#fed7aa" opacity="0.24" />
-        <circle
-          cx="70"
-          cy="68"
-          r="54"
-          fill="url(#btc-daily-coin-fill)"
-          filter="url(#btc-daily-coin-shadow)"
-        />
-        <circle
-          cx="70"
-          cy="68"
-          r="54"
-          fill="none"
-          stroke="url(#btc-daily-coin-rim)"
-          strokeWidth="5"
-        />
-        <circle
-          cx="51"
-          cy="43"
-          r="15"
-          fill="#fff7ed"
-          opacity="0.28"
-        />
-        <path
-          d="M52 36v11m21-11v11M44 47h29c14 0 18 17 5 22 16 4 12 25-4 25H44m0-47h-8m8 22h-8m8 25h-8"
-          stroke="#fff"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-      </svg>
+      <img
+        src={BTC_LOGO_SRC}
+        alt=""
+        className="h-full w-full select-none drop-shadow-[0_4px_10px_rgba(120,53,15,0.22)]"
+        draggable={false}
+      />
     </div>
+  );
+}
+
+function BtcCanvasWatermarks() {
+  return (
+    <>
+      <img
+        src={BTC_LOGO_SRC}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-28 -top-24 h-[340px] w-[340px] select-none opacity-[0.045] mix-blend-multiply"
+        draggable={false}
+      />
+      <img
+        src={BTC_LOGO_SRC}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-32 -left-24 h-[260px] w-[260px] select-none opacity-[0.035] mix-blend-multiply"
+        draggable={false}
+      />
+    </>
   );
 }
 
 function BtcMetricCard({
   label,
   value,
+  rawValue,
   sub,
   periodLabel,
   metricLabel,
@@ -174,6 +114,7 @@ function BtcMetricCard({
 }: {
   label: string;
   value: string;
+  rawValue?: any;
   sub?: string | null;
   periodLabel?: string;
   metricLabel?: string;
@@ -181,7 +122,7 @@ function BtcMetricCard({
 }) {
   return (
     <div
-      className={`relative flex min-h-[70px] self-start flex-col justify-start overflow-hidden rounded-[1.15rem] border border-zinc-200 bg-zinc-100/70 px-3.5 py-3 shadow-sm ${watermark ? "pr-20" : ""}`}
+      className={`relative flex min-h-[84px] self-start flex-col justify-start overflow-hidden rounded-[1.35rem] border border-slate-200/85 bg-white/78 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${watermark ? "pr-20" : ""}`}
     >
       {watermark ? <BtcLogoWatermark compact /> : null}
       {periodLabel && metricLabel ? (
@@ -191,28 +132,28 @@ function BtcMetricCard({
         >
           <div
             data-hero-label-primary={periodLabel}
-            className="whitespace-nowrap text-[13px] font-bold uppercase leading-none tracking-[0.04em] text-zinc-950"
+            className="whitespace-nowrap text-[13px] font-bold uppercase leading-none tracking-[0.04em] text-slate-950"
           >
             {periodLabel}
           </div>
           <div
             data-hero-label-secondary={metricLabel}
-            className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-zinc-500"
+            className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-slate-500"
           >
             {metricLabel}
           </div>
         </div>
       ) : (
-        <div className="relative z-10 text-[10px] font-semibold uppercase leading-4 tracking-[0.16em] text-zinc-500">
-          {label}
+        <div className="relative z-10 text-[11px] font-bold uppercase leading-4 tracking-[0.18em] text-slate-500">
+          {displayMetricLabel(label, rawValue)}
         </div>
       )}
       <div className="relative z-10 mt-2 min-w-0">
-        <div className="truncate text-[1.35rem] font-semibold leading-none tracking-[-0.05em] text-zinc-950">
+        <div className="truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em] text-slate-950">
           {value}
         </div>
         {sub ? (
-          <div className="mt-1 truncate text-[11px] font-medium text-zinc-500">
+          <div className="mt-1 truncate text-[11px] font-medium text-slate-500">
             {sub}
           </div>
         ) : null}
@@ -224,24 +165,24 @@ function BtcMetricCard({
 function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative min-h-[132px] overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-100/85 p-5 pr-32 shadow-sm">
+    <div className="relative min-h-[172px] overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/78 p-7 pr-36 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
       <BtcLogoWatermark />
       <div className="relative z-10 min-w-0">
         <div
           data-hero-label-primary={heroLabel.periodLabel}
-          className="text-xl font-semibold uppercase leading-none tracking-[-0.02em] text-zinc-950"
+          className="text-2xl font-bold uppercase leading-none tracking-[-0.02em] text-slate-950"
         >
           {heroLabel.periodLabel}
         </div>
         <div
           data-hero-label-secondary={heroLabel.metricLabel}
-          className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-zinc-500"
+          className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-slate-500"
         >
           {heroLabel.metricLabel}
         </div>
       </div>
       <div
-        className={`relative z-10 mt-6 truncate text-5xl font-semibold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-8 truncate text-6xl font-bold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
@@ -446,51 +387,52 @@ function Leaderboard({
   const visible = rows
     .filter((row: any) => Number(row.value) !== 0)
     .slice(0, maxRows);
-  const maxAbs = Math.max(
+  const rawMaxAbs = Math.max(
     1,
     ...visible.map((row: any) => Math.abs(Number(row.value) || 0)),
   );
+  const scaledMax = Math.sqrt(rawMaxAbs);
   return (
-    <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-100/70 p-5 shadow-sm">
-      <div className="mb-4">
-        <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+    <div className="rounded-[1.9rem] border border-slate-200/90 bg-white/72 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
+      <div className="mb-5">
+        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
           {title}
         </h3>
         {description ? (
-          <p className="mt-1 text-sm leading-5 text-zinc-500">{description}</p>
+          <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
         ) : null}
       </div>
       <div className="grid gap-2.5">
         {visible.map((row: any, index: number) => (
           <div
             key={`${row.ticker || row.name}-${index}`}
-            className="rounded-2xl border border-zinc-200/70 bg-white/88 px-3.5 py-3"
+            className="rounded-[1.2rem] border border-slate-200/80 bg-white/86 px-4 py-3.5 shadow-[0_8px_22px_rgba(15,23,42,0.035)]"
           >
             <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="min-w-0 truncate text-sm font-semibold text-zinc-950">
+              <div className="min-w-0 truncate text-[15px] font-bold text-slate-950">
                 {showRank ? (
-                  <span className="mr-2 text-zinc-400">{index + 1}</span>
+                  <span className="mr-2 text-slate-400">{index + 1}</span>
                 ) : null}
                 <span className="whitespace-nowrap">
                   {row.ticker || row.name}
                 </span>
                 {row.name && row.ticker ? (
-                  <span className="ml-1 truncate font-medium text-zinc-400">
+                  <span className="ml-1.5 truncate font-medium text-slate-500">
                     {row.name}
                   </span>
                 ) : null}
               </div>
               <div
-                className={`shrink-0 whitespace-nowrap text-right text-sm font-semibold tabular-nums ${toneClass(row.value)}`}
+                className={`shrink-0 whitespace-nowrap text-right text-[15px] font-bold tabular-nums ${toneClass(row.value)}`}
               >
                 {signedUsd(row.value)}
               </div>
             </div>
-            <div className="h-1.5 rounded-full bg-zinc-200">
+            <div className="h-1 rounded-full bg-slate-200/70">
               <div
-                className={`h-1.5 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                className={`h-1 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
                 style={{
-                  width: `${Math.max(4, (Math.abs(Number(row.value) || 0) / maxAbs) * 100)}%`,
+                  width: `${Math.max(10, (Math.sqrt(Math.abs(Number(row.value) || 0)) / scaledMax) * 100)}%`,
                 }}
               />
             </div>
@@ -515,17 +457,19 @@ export function EtfFlowboard({ data }: { data: any }) {
   );
 
   return (
-    <div className="space-y-5">
+    <div className="relative space-y-6 overflow-hidden rounded-[2rem]">
+      {daily ? <BtcCanvasWatermarks /> : null}
       {daily ? (
-        <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <BtcHeroMetric hero={hero} />
-            <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="mt-4 grid grid-cols-2 gap-4">
               {supportMetrics.map((metric: any) => (
                 <BtcMetricCard
                   key={metric.label}
                   label={metric.label}
                   value={metric.formattedValue}
+                  rawValue={metric.value}
                 />
               ))}
             </div>
@@ -533,7 +477,7 @@ export function EtfFlowboard({ data }: { data: any }) {
           <Leaderboard
             rows={issuerRows}
             maxRows={5}
-            title="Latest Issuer Flows"
+            title="LATEST ISSUER FLOWS"
             showRank={false}
           />
         </div>
@@ -564,11 +508,11 @@ export function EtfFlowboard({ data }: { data: any }) {
             })}
           </div>
           <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
                 Last 5 Days
               </h3>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Inflows rise above zero; outflows extend below.
               </p>
               <div className="mt-3">
@@ -609,11 +553,11 @@ export function EtfFlowboard({ data }: { data: any }) {
             })}
           </div>
           <div className="grid gap-5 lg:grid-cols-[1.28fr_0.52fr]">
-            <div className="rounded-[1.75rem] border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-zinc-500">
+            <div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
                 This Month
               </h3>
-              <p className="mt-1 text-sm text-zinc-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Completed month-to-date daily net flows.
               </p>
               <div className="mt-3">

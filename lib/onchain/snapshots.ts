@@ -43,7 +43,7 @@ import {
   sourceRun,
 } from "./storage";
 
-const exports = ["1600x900", "1200x1200", "1080x1350"] as const;
+const exports = ["1600x900", "1200x1200", "1080x1350", "1536x1024"] as const;
 const STALE_STATUS = "stale";
 const emptySeries = () => ({
   bars: [],
@@ -422,9 +422,10 @@ function issuerBars(
       (a, b) => Math.abs(Number(b.value) || 0) - Math.abs(Number(a.value) || 0),
     );
 }
-function dateNetFlowLabel(date: string | null) {
-  if (!date) return "NET FLOW";
-  return `${new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).toUpperCase()} NET FLOW`;
+function dateNetFlowLabel(date: string | null, value?: number | null) {
+  const flowDirection = Number(value) >= 0 ? "NET INFLOW" : "NET OUTFLOW";
+  if (!date) return flowDirection;
+  return `${new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).toUpperCase()} ${flowDirection}`;
 }
 function dayMetricLabel(
   value: number | null | undefined,
@@ -480,9 +481,10 @@ function issuerShare(driver: any, rows: EtfFlowRow[]) {
   );
 }
 function driverMetric(row: any, share: number) {
+  const value = row?.value ?? row?.flowUsd ?? null;
   return metric(
-    "Top Driver",
-    row?.value ?? row?.flowUsd ?? null,
+    Number(value) >= 0 ? "Largest Inflow" : "Largest Outflow",
+    value,
     row ? `${row.ticker || row.name} · ${share}%` : "Pending",
   );
 }
@@ -522,6 +524,7 @@ export function buildBtcEtfDailyCard(
       "BTC ETF Daily Flowboard",
       "Latest capital movement across US spot Bitcoin ETFs.",
     ),
+    exportFormats: ["1536x1024" as const],
     status: "active" as const,
     freshness: {
       status: "fresh" as const,
@@ -534,19 +537,20 @@ export function buildBtcEtfDailyCard(
     headlineMetrics: [
       {
         ...metric(
-          dateNetFlowLabel(summary.latestCompletedDate),
+          dateNetFlowLabel(summary.latestCompletedDate, summary.latest.flowUsd),
           summary.latest.flowUsd,
           formatSignedUsd(summary.latest.flowUsd),
         ),
-        periodLabel: dateNetFlowLabel(summary.latestCompletedDate).replace(
-          / NET FLOW$/,
-          "",
-        ),
-        metricLabel: "NET FLOW",
+        periodLabel: dateNetFlowLabel(
+          summary.latestCompletedDate,
+          summary.latest.flowUsd,
+        ).replace(/ NET (?:IN|OUT)FLOW$/, ""),
+        metricLabel:
+          Number(summary.latest.flowUsd) >= 0 ? "NET INFLOW" : "NET OUTFLOW",
       },
       driverMetric(driver, share),
       metric(
-        "Since Launch",
+        "Cumulative Net Flow",
         summary.totalFlow,
         formatSignedUsd(summary.totalFlow),
       ),
@@ -557,14 +561,17 @@ export function buildBtcEtfDailyCard(
       lines: [],
       cards: [
         {
-          label: "Top Driver",
+          label:
+            Number(driver?.value ?? 0) >= 0
+              ? "Largest Inflow"
+              : "Largest Outflow",
           value: driver?.name || "Pending",
           ticker: driver?.ticker || null,
           amount: driver?.value || null,
           share,
         },
         {
-          label: "Since Launch",
+          label: "Cumulative Net Flow",
           value: formatSignedUsd(summary.totalFlow),
           amount: summary.totalFlow,
         },
@@ -586,7 +593,7 @@ export function buildBtcEtfDailyCard(
       view: "daily",
       latestCompletedDate: summary.latestCompletedDate,
       maxIssuerContributors: contributors.length,
-      defaultExportFormat: "1200x1200",
+      defaultExportFormat: "1536x1024",
     },
   };
 }

@@ -98,7 +98,7 @@ const btcDataset = {
 };
 const fixtureMonth = new Date().toISOString().slice(0, 7);
 const latestFixtureDate = `${fixtureMonth}-28`;
-const latestFixtureLabel = `${new Date(`${latestFixtureDate}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).toUpperCase()} NET FLOW`;
+const latestFixtureLabel = `${new Date(`${latestFixtureDate}T00:00:00Z`).toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }).toUpperCase()} NET OUTFLOW`;
 const btcFlowResult = {
   url: "https://farside.co.uk/bitcoin-etf-flow-all-data/",
   data: {
@@ -191,8 +191,11 @@ const weeklyBlock = functionBlock("buildBtcEtfWeeklyCard");
 const monthlyBlock = functionBlock("buildBtcEtfMonthlyIssuerCard");
 
 test("BTC ETF page uses one fixed export PNG button without a visible format dropdown", () => {
-  assert.match(chartShell, /datasetSlug === 'btc-etf-flowboard'/);
-  assert.match(chartShell, /singleFormat \? null : <ExportFormatSelector/);
+  assert.match(chartShell, /datasetSlug === ["']btc-etf-flowboard["']/);
+  assert.match(
+    chartShell,
+    /singleFormat \? null : \([\s\S]*<ExportFormatSelector/,
+  );
   assert.match(chartShell, /<ExportButton onClick=\{onExport\}/);
   assert.match(chartShell, /defaultExportFormat/);
 });
@@ -209,15 +212,18 @@ test("BTC ETF visual avoids tooltip artifacts, scroll classes, and horizontal ov
   assert.match(chartShell, /max-w-full overflow-hidden/);
 });
 
-test("Daily BTC ETF snapshot is latest-completed-day first with only Top Driver and Since Launch support", () => {
-  assert.match(snapshots, /dateNetFlowLabel\(summary\.latestCompletedDate\)/);
+test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver and cumulative support", () => {
+  assert.match(
+    snapshots,
+    /dateNetFlowLabel\(summary\.latestCompletedDate, summary\.latest\.flowUsd\)/,
+  );
   assert.doesNotMatch(dailyBlock, /Latest Net Flow|Today|Latest completed row/);
   assert.match(
     dailyBlock,
     /Latest capital movement across US spot Bitcoin ETFs\./,
   );
   assert.match(dailyBlock, /driverMetric\(driver, share\)/);
-  assert.match(dailyBlock, /["\']Since Launch["\']/);
+  assert.match(dailyBlock, /["\']Cumulative Net Flow["\']/);
   assert.doesNotMatch(dailyBlock, /5D Flow|20D Flow|Cumulative Flow/);
   assert.match(dailyBlock, /bars:[\s\S]*\[\]/);
   assert.match(dailyBlock, /lines:[\s\S]*\[\]/);
@@ -228,25 +234,28 @@ test("Daily BTC ETF snapshot is latest-completed-day first with only Top Driver 
   assert.match(dailyBlock, /No issuer posted inflows\./);
   assert.doesNotMatch(dailyBlock, /Issuer inflow detail is pending/);
   assert.match(etfFlowboard, /metrics\.slice\(1, 3\)/);
-  assert.match(etfFlowboard, /Latest Issuer Flows/);
+  assert.match(etfFlowboard, /LATEST ISSUER FLOWS/);
   assert.match(etfFlowboard, /btc-logo-treatment/);
-  assert.match(etfFlowboard, /data-logo-mode="premium-circular-coin"/);
-  assert.match(etfFlowboard, /data-logo-shape="circular-btc-coin"/);
+  assert.match(
+    etfFlowboard,
+    /data-logo-mode="site-asset-premium-circular-coin"/,
+  );
+  assert.match(etfFlowboard, /data-logo-shape="official-btc-medallion"/);
   assert.match(etfFlowboard, /data-logo-mandatory="true"/);
-  assert.match(etfFlowboard, /btc-daily-coin-fill/);
-  assert.match(etfFlowboard, /btc-daily-coin-rim/);
-  assert.match(etfFlowboard, /btc-daily-coin-shadow/);
-  assert.match(etfFlowboard, /h-32 w-32/);
-  assert.match(etfFlowboard, /-right-5 top-1\/2/);
+  assert.match(etfFlowboard, /BTC_LOGO_SRC = "\/logos\/chains\/bitcoin.svg"/);
+  assert.match(etfFlowboard, /BtcCanvasWatermarks/);
+  assert.match(etfFlowboard, /h-36 w-36/);
   assert.match(etfFlowboard, /#f7931a/);
-  assert.match(etfFlowboard, /stroke="#fff"/);
-  assert.match(etfFlowboard, /bg-zinc-100\/85/);
-  assert.match(shareCard, /data-logo-mode="premium-circular-coin"/);
-  assert.match(shareCard, /data-logo-shape="circular-btc-coin"/);
+  assert.match(etfFlowboard, /bg-\[#f5f8fb\]|bg-white\/78/);
+  assert.match(shareCard, /data-logo-mode="site-asset-premium-circular-coin"/);
+  assert.match(shareCard, /data-logo-shape="official-btc-medallion"/);
   assert.match(shareCard, /data-logo-mandatory="true"/);
-  assert.match(shareCard, /share-btc-daily-coin-fill/);
+  assert.match(shareCard, /src="\/logos\/chains\/bitcoin.svg"/);
   assert.match(shareCard, /!daily \? \(/);
-  assert.doesNotMatch(etfFlowboard, /data-logo-shape="warm-rounded-side-panel"/);
+  assert.doesNotMatch(
+    etfFlowboard,
+    /data-logo-shape="warm-rounded-side-panel"/,
+  );
   assert.doesNotMatch(shareCard, /data-logo-shape="warm-rounded-side-panel"/);
   assert.match(shareCard, /\{!daily \? \([\s\S]*Learn note:[\s\S]*\) : null\}/);
   assert.doesNotMatch(
@@ -313,8 +322,8 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(etfFlowboard, /data-metric-row-variant="weekly-equal"/);
   assert.match(etfFlowboard, /watermark=\{index === 0\}/);
   assert.match(etfFlowboard, /<BtcLogoWatermark compact \/>/);
-  assert.match(etfFlowboard, /bg-zinc-100\/70/);
-  assert.match(etfFlowboard, /Top Issuer Flows/);
+  assert.match(etfFlowboard, /bg-white\/72/);
+  assert.match(etfFlowboard, /Top Issuer Flows|LATEST ISSUER FLOWS/);
   assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
 });
 
@@ -347,7 +356,7 @@ test("Monthly BTC ETF card is an MTD flow report with compact issuer summary", (
   assert.match(etfFlowboard, /monthly \? "text-\[22px\]" : "text-\[23px\]"/);
   assert.match(etfFlowboard, /data-metric-row="compact"/);
   assert.match(etfFlowboard, /whitespace-nowrap/);
-  assert.match(etfFlowboard, /Top Issuer Flows/);
+  assert.match(etfFlowboard, /Top Issuer Flows|LATEST ISSUER FLOWS/);
   assert.doesNotMatch(
     etfFlowboard,
     /Issuer Monthly Flows|Latest completed row/,
@@ -364,12 +373,12 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
   assert.equal(daily.subtitle.includes("Farside"), false);
   assert.deepEqual(
     daily.headlineMetrics.map((metric) => metric.label),
-    [latestFixtureLabel, "Top Driver", "Since Launch"],
+    [latestFixtureLabel, "Largest Outflow", "Cumulative Net Flow"],
   );
-  assert.equal(daily.headlineMetrics[0].metricLabel, "NET FLOW");
+  assert.equal(daily.headlineMetrics[0].metricLabel, "NET OUTFLOW");
   assert.equal(
     daily.headlineMetrics[0].periodLabel,
-    latestFixtureLabel.replace(/ NET FLOW$/, ""),
+    latestFixtureLabel.replace(/ NET OUTFLOW$/, ""),
   );
   assert.match(daily.headlineMetrics[1].formattedValue, /%/);
   assert.equal(daily.series.lines.length, 0);
