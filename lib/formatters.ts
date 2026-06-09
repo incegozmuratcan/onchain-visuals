@@ -1,4 +1,4 @@
-export const formatCompactUsd = (value?: number | null) => value == null ? 'N/A' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:2}).format(value);
+export const formatCompactUsd = (value?: number | null) => value == null ? 'N/A' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',notation:'compact',maximumFractionDigits:1}).format(value);
 export const formatUsd = (value?: number | null) => value == null ? 'N/A' : new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:2}).format(value);
 export const formatNumber = (value?: number | null) => value == null ? 'N/A' : new Intl.NumberFormat('en-US',{maximumFractionDigits:2}).format(value);
 export const formatCompactNumber = (value?: number | null) => value == null ? 'N/A' : new Intl.NumberFormat('en-US',{notation:'compact',maximumFractionDigits:2}).format(value);

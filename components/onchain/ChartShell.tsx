@@ -420,7 +420,7 @@ export function ChartShell({
             {singleFormat ? (
               <div className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/85 px-4 py-2.5 text-sm font-bold tracking-[-0.02em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
                 <img
-                  src="/logos/chains/bitcoin.svg"
+                  src="/logos/bitcoin.svg"
                   alt=""
                   className="h-5 w-5"
                   aria-hidden="true"
