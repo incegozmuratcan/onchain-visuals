@@ -57,7 +57,7 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
         data-logo-mandatory="true"
         src={BTC_LOGO_SRC}
         alt=""
-        className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.08] mix-blend-multiply"
+        className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.055] mix-blend-multiply"
         aria-hidden="true"
       />
     );
@@ -69,13 +69,13 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
       data-logo-mode="site-asset-premium-circular-coin"
       data-logo-shape="official-btc-medallion"
       data-logo-mandatory="true"
-      className="pointer-events-none absolute -right-4 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_32%_25%,#ffda8a_0%,#f7931a_48%,#cc6f08_100%)] p-3 shadow-[0_24px_48px_rgba(146,64,14,0.20),inset_0_2px_12px_rgba(255,255,255,0.35),inset_0_-10px_20px_rgba(120,53,15,0.14)] ring-1 ring-amber-200/70"
+      className="pointer-events-none absolute right-6 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_38%_30%,#ffbf57_0%,#f7931a_58%,#e18414_100%)] p-3 shadow-[0_18px_36px_rgba(146,64,14,0.16),inset_0_0_0_2px_rgba(255,255,255,0.22)] ring-1 ring-amber-200/60"
       aria-hidden="true"
     >
       <img
         src={BTC_LOGO_SRC}
         alt=""
-        className="h-full w-full select-none drop-shadow-[0_4px_10px_rgba(120,53,15,0.22)]"
+        className="h-full w-full select-none"
         draggable={false}
       />
     </div>
@@ -89,17 +89,45 @@ function BtcCanvasWatermarks() {
         src={BTC_LOGO_SRC}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute -right-28 -top-24 h-[340px] w-[340px] select-none opacity-[0.045] mix-blend-multiply"
+        className="pointer-events-none absolute -right-28 -top-24 h-[340px] w-[340px] select-none opacity-[0.035] mix-blend-multiply"
         draggable={false}
       />
       <img
         src={BTC_LOGO_SRC}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-32 -left-24 h-[260px] w-[260px] select-none opacity-[0.035] mix-blend-multiply"
+        className="pointer-events-none absolute -bottom-32 -left-24 h-[260px] w-[260px] select-none opacity-[0.028] mix-blend-multiply"
         draggable={false}
       />
     </>
+  );
+}
+
+function BtcMetricValue({
+  label,
+  value,
+  rawValue,
+}: {
+  label: string;
+  value: string;
+  rawValue?: any;
+}) {
+  const isDriver = /^top driver$|^largest (inflow|outflow)$/i.test(label);
+  const match = isDriver ? String(value).match(/^(\S+)\s+(.+)$/) : null;
+  if (match) {
+    return (
+      <div className="flex min-w-0 items-baseline gap-2 truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em]">
+        <span className="shrink-0 text-slate-950">{match[1]}</span>
+        <span className={`min-w-0 truncate tabular-nums ${toneClass(rawValue)}`}>
+          {match[2]}
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div className="truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em] text-slate-950">
+      {value}
+    </div>
   );
 }
 
@@ -122,13 +150,13 @@ function BtcMetricCard({
 }) {
   return (
     <div
-      className={`relative flex min-h-[84px] self-start flex-col justify-start overflow-hidden rounded-[1.35rem] border border-slate-200/85 bg-white/78 px-4 py-4 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${watermark ? "pr-20" : ""}`}
+      className={`relative flex min-h-[112px] flex-col overflow-hidden rounded-[1.35rem] border border-slate-200/85 bg-white/78 px-5 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${watermark ? "pr-20" : ""}`}
     >
       {watermark ? <BtcLogoWatermark compact /> : null}
       {periodLabel && metricLabel ? (
         <div
           data-hero-label-parts="explicit"
-          className="relative z-10 space-y-1"
+          className="relative z-10 min-h-[28px] space-y-1"
         >
           <div
             data-hero-label-primary={periodLabel}
@@ -144,14 +172,12 @@ function BtcMetricCard({
           </div>
         </div>
       ) : (
-        <div className="relative z-10 text-[11px] font-bold uppercase leading-4 tracking-[0.18em] text-slate-500">
+        <div className="relative z-10 flex min-h-[18px] items-start whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[0.15em] text-slate-500">
           {displayMetricLabel(label, rawValue)}
         </div>
       )}
-      <div className="relative z-10 mt-2 min-w-0">
-        <div className="truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em] text-slate-950">
-          {value}
-        </div>
+      <div className="relative z-10 mt-4 min-w-0">
+        <BtcMetricValue label={label} value={value} rawValue={rawValue} />
         {sub ? (
           <div className="mt-1 truncate text-[11px] font-medium text-slate-500">
             {sub}
@@ -165,7 +191,7 @@ function BtcMetricCard({
 function BtcHeroMetric({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative min-h-[172px] overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/78 p-7 pr-36 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
+    <div className="relative min-h-[222px] overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/78 p-9 pr-44 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
       <BtcLogoWatermark />
       <div className="relative z-10 min-w-0">
         <div
@@ -182,7 +208,7 @@ function BtcHeroMetric({ hero }: { hero: any }) {
         </div>
       </div>
       <div
-        className={`relative z-10 mt-8 truncate text-6xl font-bold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-10 truncate text-7xl font-bold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
@@ -393,7 +419,7 @@ function Leaderboard({
   );
   const scaledMax = Math.sqrt(rawMaxAbs);
   return (
-    <div className="rounded-[1.9rem] border border-slate-200/90 bg-white/72 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
+    <div className="h-full rounded-[1.9rem] border border-slate-200/90 bg-white/72 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
       <div className="mb-5">
         <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
           {title}
@@ -460,10 +486,10 @@ export function EtfFlowboard({ data }: { data: any }) {
     <div className="relative space-y-6 overflow-hidden rounded-[2rem]">
       {daily ? <BtcCanvasWatermarks /> : null}
       {daily ? (
-        <div className="relative z-10 grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="relative z-10 grid grid-cols-[1.05fr_0.95fr] gap-6">
           <div>
             <BtcHeroMetric hero={hero} />
-            <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="mt-5 grid grid-cols-2 gap-5">
               {supportMetrics.map((metric: any) => (
                 <BtcMetricCard
                   key={metric.label}

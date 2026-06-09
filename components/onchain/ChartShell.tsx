@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 
 export type ExportFormat =
@@ -50,6 +50,12 @@ export function ExportButton({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+
+type PublishState = {
+  status: "idle" | "loading" | "success" | "error";
+  message?: string;
+  url?: string;
+};
 export function FreshnessBadge({ status }: { status: string }) {
   const color =
     status === "fresh"
@@ -301,6 +307,49 @@ export function PeriodSwitcher({
   );
 }
 
+
+function btcExportDate(data: any) {
+  return (
+    data?.metadata?.latestCompletedDate ||
+    data?.metadata?.latestCompletedDay ||
+    data?.date ||
+    new Date().toISOString().slice(0, 10)
+  );
+}
+
+function btcDisplayDate(date: string) {
+  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function btcExportFilename(data: any) {
+  return `btc-etf-daily-flowboard-${btcExportDate(data)}.png`;
+}
+
+async function assertPngDimensions(dataUrl: string, expected: { width: number; height: number }) {
+  await new Promise<void>((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.naturalWidth !== expected.width || img.naturalHeight !== expected.height) {
+        reject(new Error(`Exported PNG dimensions were ${img.naturalWidth}x${img.naturalHeight}; expected ${expected.width}x${expected.height}.`));
+        return;
+      }
+      resolve();
+    };
+    img.onerror = () => reject(new Error("Unable to validate exported PNG dimensions."));
+    img.src = dataUrl;
+  });
+}
+
+function shouldShowPublishControls() {
+  if (typeof window === "undefined") return false;
+  const params = new URLSearchParams(window.location.search);
+  return params.get("publish") === "1" || params.get("adminControls") === "1";
+}
+
 export function ChartShell({
   data,
   children,
@@ -313,23 +362,78 @@ export function ChartShell({
   const defaultFormat = (data?.metadata?.defaultExportFormat ||
     (singleFormat ? "1536x1024" : "1600x900")) as ExportFormat;
   const [format, setFormat] = useState<ExportFormat>(defaultFormat);
+  const [publishControls, setPublishControls] = useState(false);
+  const [publishSecret, setPublishSecret] = useState("");
+  const [publishState, setPublishState] = useState<PublishState>({ status: "idle" });
+  useEffect(() => setPublishControls(shouldShowPublishControls()), []);
   const activeFormat = singleFormat ? defaultFormat : format;
   const dims = useMemo(() => EXPORT_DIMENSIONS[activeFormat], [activeFormat]);
+  const renderPng = async () => {
+    if (!ref.current) return null;
+    const previousTransform = ref.current.style.transform;
+    ref.current.style.transform = "none";
+    try {
+      const dataUrl = await toPng(ref.current, {
+        cacheBust: true,
+        pixelRatio: 1,
+        width: dims.width,
+        height: dims.height,
+        canvasWidth: dims.width,
+        canvasHeight: dims.height,
+        backgroundColor: singleFormat ? "#f5f8fb" : "#ffffff",
+      });
+      if (singleFormat) await assertPngDimensions(dataUrl, dims);
+      return dataUrl;
+    } finally {
+      if (ref.current) ref.current.style.transform = previousTransform;
+    }
+  };
   const onExport = async () => {
-    if (!ref.current) return;
-    const dataUrl = await toPng(ref.current, {
-      cacheBust: true,
-      pixelRatio: 1,
-      width: dims.width,
-      height: dims.height,
-      canvasWidth: dims.width,
-      canvasHeight: dims.height,
-      backgroundColor: singleFormat ? "#f5f8fb" : "#ffffff",
-    });
+    const dataUrl = await renderPng();
+    if (!dataUrl) return;
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = `${data.datasetSlug}-${activeFormat}.png`;
+    a.download = singleFormat ? btcExportFilename(data) : `${data.datasetSlug}-${activeFormat}.png`;
     a.click();
+  };
+  const onShareX = async () => {
+    if (!singleFormat || publishState.status === "loading") return;
+    setPublishState({ status: "loading", message: "Rendering 1536×1024 PNG…" });
+    try {
+      const dataUrl = await renderPng();
+      if (!dataUrl) throw new Error("Unable to render the Flowboard PNG.");
+      setPublishState({ status: "loading", message: "Publishing to X…" });
+      const response = await fetch("/api/x/publish-btc-etf-daily", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(publishSecret ? { Authorization: `Bearer ${publishSecret}` } : {}),
+        },
+        body: JSON.stringify({
+          date: btcExportDate(data),
+          displayDate: btcDisplayDate(btcExportDate(data)),
+          imageDataUrl: dataUrl,
+          previewState: data?.metadata?.previewState || null,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.success) {
+        throw new Error(payload?.error?.message || payload?.message || "X publish failed.");
+      }
+      setPublishState({
+        status: "success",
+        message: payload.dryRun
+          ? `Dry run complete: ${payload.tweetText}`
+          : "Published to X.",
+        url: payload.postUrl,
+      });
+      if (payload.postUrl) window.open(payload.postUrl, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      setPublishState({
+        status: "error",
+        message: error instanceof Error ? error.message : "X publish failed.",
+      });
+    }
   };
   return (
     <section className="space-y-5 overflow-x-hidden">
@@ -351,6 +455,41 @@ export function ChartShell({
           <ExportButton onClick={onExport} />
         </div>
       </div>
+      {singleFormat && publishControls ? (
+        <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="text-sm font-bold text-slate-950">Share on X</div>
+              <p className="mt-1 text-sm text-slate-500">Posts the 1536×1024 Flowboard image to @OnchainVis.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                type="password"
+                value={publishSecret}
+                onChange={(event) => setPublishSecret(event.target.value)}
+                placeholder="Publish secret"
+                className="rounded-full border border-slate-300 px-4 py-2 text-sm outline-none focus:border-slate-500"
+              />
+              <button
+                type="button"
+                onClick={onShareX}
+                disabled={publishState.status === "loading"}
+                className="rounded-full bg-slate-950 px-5 py-2 text-sm font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {publishState.status === "loading" ? "Sharing…" : "Share on X"}
+              </button>
+            </div>
+          </div>
+          {publishState.message ? (
+            <div className={`mt-3 text-sm ${publishState.status === "error" ? "text-rose-700" : "text-slate-600"}`}>
+              {publishState.message}
+              {publishState.url ? (
+                <a className="ml-2 font-bold underline" href={publishState.url} target="_blank" rel="noreferrer">Open post</a>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div
         className="mx-auto w-full max-w-full overflow-hidden rounded-[2rem]"
         style={
@@ -418,13 +557,7 @@ export function ChartShell({
               </p>
             </div>
             {singleFormat ? (
-              <div className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/85 px-4 py-2.5 text-sm font-bold tracking-[-0.02em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
-                <img
-                  src="/logos/bitcoin.svg"
-                  alt=""
-                  className="h-5 w-5"
-                  aria-hidden="true"
-                />
+              <div className="flex items-center justify-center rounded-full border border-slate-200/90 bg-white/85 px-5 py-2.5 text-sm font-bold tracking-[-0.02em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
                 Onchain Visuals
               </div>
             ) : (
