@@ -96,46 +96,58 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
     <div
       data-testid="btc-logo-treatment"
       data-logo-mode="restored-watermark"
-      data-logo-shape="warm-orange-blob"
+      data-logo-shape="warm-rounded-side-panel"
       data-logo-mandatory="true"
-      className="pointer-events-none absolute -right-10 top-1/2 h-36 w-52 -translate-y-1/2"
+      className="pointer-events-none absolute inset-y-0 right-0 w-[41%] overflow-hidden"
       aria-hidden="true"
     >
       <svg
-        className="h-full w-full overflow-visible"
+        className="h-full w-full"
         viewBox="0 0 220 160"
         role="presentation"
         focusable="false"
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="none"
       >
         <defs>
+          <linearGradient
+            id="btc-daily-panel-fill"
+            x1="24"
+            x2="218"
+            y1="76"
+            y2="76"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#fff7ed" stopOpacity="0.52" />
+            <stop offset="56%" stopColor="#f8d9b3" stopOpacity="0.64" />
+            <stop offset="100%" stopColor="#f7931a" stopOpacity="0.2" />
+          </linearGradient>
           <radialGradient
-            id="btc-daily-watermark-fill"
-            cx="46%"
-            cy="34%"
+            id="btc-daily-panel-warmth"
+            cx="72%"
+            cy="36%"
             r="78%"
           >
-            <stop offset="0%" stopColor="#f8c979" stopOpacity="0.36" />
-            <stop offset="58%" stopColor="#f59e32" stopOpacity="0.27" />
-            <stop offset="100%" stopColor="#e58a1f" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="#fffaf1" stopOpacity="0.86" />
+            <stop offset="58%" stopColor="#f6c98e" stopOpacity="0.32" />
+            <stop offset="100%" stopColor="#e58a1f" stopOpacity="0.14" />
           </radialGradient>
           <filter
-            id="btc-daily-watermark-soft-shadow"
-            x="-12%"
-            y="-14%"
-            width="124%"
-            height="128%"
+            id="btc-daily-panel-shadow"
+            x="-14%"
+            y="-12%"
+            width="128%"
+            height="124%"
           >
             <feDropShadow
-              dx="-5"
+              dx="-8"
               dy="10"
-              stdDeviation="10"
+              stdDeviation="12"
               floodColor="#f59e0b"
-              floodOpacity="0.1"
+              floodOpacity="0.08"
             />
           </filter>
           <filter
-            id="btc-daily-watermark-symbol-shadow"
+            id="btc-daily-panel-symbol-shadow"
             x="-30%"
             y="-30%"
             width="160%"
@@ -146,23 +158,41 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
               dy="1"
               stdDeviation="0.8"
               floodColor="#d97706"
-              floodOpacity="0.1"
+              floodOpacity="0.12"
             />
           </filter>
         </defs>
         <path
-          d="M116.5 2.8c31.7-.9 68.2 4.3 87.5 25.8 17.3 19.3 14.1 46.7 14.1 72.3 0 24.7 1.2 40.8-16.2 50.3-18.3 10-53.3 6.6-86 6.6-31.9 0-57.1 1.4-73.5-12.7-17-14.6-21.5-45.4-17.7-71.9 3.7-25.9 15.6-47.1 33-58.5C73.7 4.2 94.3 3.5 116.5 2.8Z"
-          fill="url(#btc-daily-watermark-fill)"
-          filter="url(#btc-daily-watermark-soft-shadow)"
+          d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
+          fill="url(#btc-daily-panel-fill)"
+          filter="url(#btc-daily-panel-shadow)"
+        />
+        <path
+          d="M83 1H196C209.3 1 219 10.8 219 24.5V135.5C219 149.2 209.3 159 196 159H88C39 159 13.5 128.4 13.5 83.2C13.5 37.5 37.6 7.8 83 1Z"
+          fill="url(#btc-daily-panel-warmth)"
         />
         <text
-          x="139"
-          y="101"
+          x="158"
+          y="58"
+          textAnchor="middle"
+          className="fill-zinc-400 font-semibold"
+          style={{
+            fontSize: 20,
+            letterSpacing: 12,
+            fontFamily:
+              'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+          }}
+        >
+          FLOW
+        </text>
+        <text
+          x="154"
+          y="110"
           textAnchor="middle"
           className="fill-white font-black"
-          filter="url(#btc-daily-watermark-symbol-shadow)"
+          filter="url(#btc-daily-panel-symbol-shadow)"
           style={{
-            fontSize: 72,
+            fontSize: 76,
             fontFamily:
               'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           }}
