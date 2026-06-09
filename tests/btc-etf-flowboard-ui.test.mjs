@@ -230,15 +230,25 @@ test("Daily BTC ETF snapshot is latest-completed-day first with only Top Driver 
   assert.match(etfFlowboard, /metrics\.slice\(1, 3\)/);
   assert.match(etfFlowboard, /Latest Issuer Flows/);
   assert.match(etfFlowboard, /btc-logo-treatment/);
-  assert.match(etfFlowboard, /data-logo-mode="restored-watermark"/);
-  assert.match(etfFlowboard, /data-logo-shape="warm-orange-blob"/);
+  assert.match(etfFlowboard, /data-logo-mode="premium-circular-coin"/);
+  assert.match(etfFlowboard, /data-logo-shape="circular-btc-coin"/);
   assert.match(etfFlowboard, /data-logo-mandatory="true"/);
+  assert.match(etfFlowboard, /btc-daily-coin-fill/);
+  assert.match(etfFlowboard, /btc-daily-coin-rim/);
+  assert.match(etfFlowboard, /btc-daily-coin-shadow/);
+  assert.match(etfFlowboard, /h-32 w-32/);
+  assert.match(etfFlowboard, /-right-5 top-1\/2/);
   assert.match(etfFlowboard, /#f7931a/);
-  assert.match(etfFlowboard, /₿/);
+  assert.match(etfFlowboard, /stroke="#fff"/);
   assert.match(etfFlowboard, /bg-zinc-100\/85/);
-  assert.match(shareCard, /data-logo-mode="restored-watermark"/);
-  assert.match(shareCard, /data-logo-shape="warm-orange-blob"/);
+  assert.match(shareCard, /data-logo-mode="premium-circular-coin"/);
+  assert.match(shareCard, /data-logo-shape="circular-btc-coin"/);
   assert.match(shareCard, /data-logo-mandatory="true"/);
+  assert.match(shareCard, /share-btc-daily-coin-fill/);
+  assert.match(shareCard, /!daily \? \(/);
+  assert.doesNotMatch(etfFlowboard, /data-logo-shape="warm-rounded-side-panel"/);
+  assert.doesNotMatch(shareCard, /data-logo-shape="warm-rounded-side-panel"/);
+  assert.match(shareCard, /\{!daily \? \([\s\S]*Learn note:[\s\S]*\) : null\}/);
   assert.doesNotMatch(
     etfFlowboard,
     /BtcLogoMark|>BTC<|rounded-full[\s\S]{0,120}btc-logo-treatment|btc-logo-treatment[\s\S]{0,120}rounded-full/,
