@@ -2,37 +2,455 @@
 import { ReactNode, useMemo, useRef, useState } from "react";
 import { toPng } from "html-to-image";
 
-export type ExportFormat = '1600x900'|'1200x1200'|'1080x1350'|'1440x1080';
-export const EXPORT_DIMENSIONS: Record<ExportFormat, { width: number; height: number }> = {
-  '1600x900': { width: 1600, height: 900 },
-  '1200x1200': { width: 1200, height: 1200 },
-  '1080x1350': { width: 1080, height: 1350 },
-  '1440x1080': { width: 1440, height: 1080 },
+export type ExportFormat =
+  | "1600x900"
+  | "1200x1200"
+  | "1080x1350"
+  | "1440x1080"
+  | "1536x1024";
+export const EXPORT_DIMENSIONS: Record<
+  ExportFormat,
+  { width: number; height: number }
+> = {
+  "1600x900": { width: 1600, height: 900 },
+  "1200x1200": { width: 1200, height: 1200 },
+  "1080x1350": { width: 1080, height: 1350 },
+  "1440x1080": { width: 1440, height: 1080 },
+  "1536x1024": { width: 1536, height: 1024 },
 };
 
-export function ExportFormatSelector({ value, onChange }: { value: ExportFormat; onChange: (value: ExportFormat) => void }) {
-  return <select value={value} onChange={(e)=>onChange(e.target.value as ExportFormat)} className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-sm"><option>1600x900</option><option>1200x1200</option><option>1080x1350</option><option>1440x1080</option></select>;
+export function ExportFormatSelector({
+  value,
+  onChange,
+}: {
+  value: ExportFormat;
+  onChange: (value: ExportFormat) => void;
+}) {
+  return (
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value as ExportFormat)}
+      className="rounded-full border border-zinc-300 bg-white px-3 py-2 text-sm"
+    >
+      <option>1600x900</option>
+      <option>1200x1200</option>
+      <option>1080x1350</option>
+      <option>1440x1080</option>
+      <option>1536x1024</option>
+    </select>
+  );
 }
-export function ExportButton({ onClick }: { onClick: () => void }) { return <button onClick={onClick} className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm">Export PNG</button>; }
-export function FreshnessBadge({ status }: { status: string }) { const color = status === 'fresh' ? 'bg-emerald-100 text-emerald-800' : status === 'source_config_required' ? 'bg-amber-100 text-amber-800' : status === 'source_error' ? 'bg-rose-100 text-rose-800' : 'bg-zinc-100 text-zinc-700'; return <span className={`rounded-full px-3 py-1 text-xs font-semibold ${color}`}>{status.replaceAll('_',' ')}</span>; }
-export function DatasetStatusBadge({ status }: { status: string }) { return <span className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600">{status.replaceAll('_',' ')}</span>; }
-export function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string | null }) { return <div className="rounded-2xl border border-zinc-200 bg-white/85 p-4 shadow-sm"><div className="text-xs uppercase tracking-[0.18em] text-zinc-500">{label}</div><div className="mt-2 text-2xl font-semibold text-zinc-950">{value}</div>{sub ? <div className="mt-1 text-xs text-zinc-500">{sub}</div> : null}</div>; }
-export function InsightChips({ insights }: { insights: string[] }) { return <div className="flex flex-wrap gap-2 pb-1">{insights.slice(0,4).map((i)=><span key={i} className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700">{i}</span>)}</div>; }
-export function SourceFooter({ sourceLabel, sourceUrl, lastUpdatedAt }: { sourceLabel: string; sourceUrl?: string | null; lastUpdatedAt?: string | null }) { const cleanSource = sourceLabel.replace(/^Source:\s*/i, ''); return <footer className="mt-6 flex items-center justify-between gap-4 border-t border-zinc-200 pt-4 text-xs text-zinc-500"><span>{sourceUrl ? <a href={sourceUrl} className="underline">Source: {cleanSource}</a> : `Source: ${cleanSource}`}{lastUpdatedAt ? <span className="ml-3">Last updated {new Date(lastUpdatedAt).toLocaleString('en-US', { timeZone: 'UTC', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' })}</span> : null}</span><span className="font-semibold text-zinc-700">Onchain Visuals</span></footer>; }
-export function StaleDataNotice({ message }: { message?: string | null }) { if(!message) return null; return <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">{message}</div>; }
-export function StateCard({ title, message, source, sourceUrl, missingConfig, tone = 'zinc' }: { title: string; message?: string | null; source?: string; sourceUrl?: string | null; missingConfig?: string[]; tone?: 'amber'|'rose'|'zinc' }) { const cls = tone === 'rose' ? 'border-rose-200 bg-rose-50 text-rose-950' : tone === 'amber' ? 'border-amber-300 bg-amber-50 text-amber-950' : 'border-zinc-200 bg-zinc-50 text-zinc-900'; return <div className={`rounded-3xl border p-8 ${cls}`}><p className="text-xs font-semibold uppercase tracking-[0.24em] opacity-70">Onchain Visual QA state</p><h2 className="mt-3 text-3xl font-semibold">{title}</h2><p className="mt-3 max-w-3xl text-sm leading-6">{message || 'This dataset is not currently publishable. No fake data is emitted.'}</p><div className="mt-5 grid gap-3 text-sm md:grid-cols-3"><div className="rounded-2xl bg-white/70 p-4"><div className="text-xs uppercase tracking-[0.18em] opacity-60">Source</div><div className="mt-1 font-semibold">{source || 'Configured source'}</div>{sourceUrl ? <a className="mt-1 block truncate text-xs underline" href={sourceUrl}>{sourceUrl}</a> : null}</div><div className="rounded-2xl bg-white/70 p-4"><div className="text-xs uppercase tracking-[0.18em] opacity-60">Data policy</div><div className="mt-1 font-semibold">No fake data is emitted</div></div><div className="rounded-2xl bg-white/70 p-4"><div className="text-xs uppercase tracking-[0.18em] opacity-60">Next action</div><div className="mt-1 font-semibold">Fix source/config and refresh snapshot</div></div></div>{missingConfig?.length ? <div className="mt-4 flex flex-wrap gap-2">{missingConfig.map((k)=><code key={k} className="rounded bg-white px-2 py-1 text-xs">{k}</code>)}</div> : null}</div>; }
-export function SourceConfigRequiredState({ missingConfig, message }: { missingConfig: string[]; message?: string | null }) { return <StateCard title="Source configuration required" message={message || 'Configure the missing environment variables and run a refresh.'} missingConfig={missingConfig} tone="amber"/>; }
-export function SourceErrorState({ data }: { data: any }) { return <StateCard title={data?.metadata?.chartType === 'etf_flowboard' || data?.datasetSlug?.includes('etf') ? 'ETF source error' : 'Source error'} message={data?.freshness?.message || 'The live source could not be fetched or parsed.'} source={data?.freshness?.source || data?.sourceLabel} sourceUrl={data?.sourceUrl} tone="rose"/>; }
-export function DisabledState({ data }: { data: any }) { return <StateCard title="Dataset disabled / source required" message={data?.freshness?.message || data?.warnings?.[0] || 'Dataset is disabled until a reliable source is configured.'} source={data?.freshness?.source || data?.sourceLabel} missingConfig={data?.freshness?.missingConfig || []} tone="zinc"/>; }
-export function PeriodSwitcher({ periods, current }: { periods?: string[]; current: string }) { return <div className="flex gap-2">{(periods || [current]).map((p)=><span key={p} className={`rounded-full px-3 py-1 text-xs ${p===current?'bg-zinc-950 text-white':'bg-zinc-100 text-zinc-600'}`}>{p.toUpperCase()}</span>)}</div>; }
+export function ExportButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm"
+    >
+      Export PNG
+    </button>
+  );
+}
+export function FreshnessBadge({ status }: { status: string }) {
+  const color =
+    status === "fresh"
+      ? "bg-emerald-100 text-emerald-800"
+      : status === "source_config_required"
+        ? "bg-amber-100 text-amber-800"
+        : status === "source_error"
+          ? "bg-rose-100 text-rose-800"
+          : "bg-zinc-100 text-zinc-700";
+  return (
+    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${color}`}>
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+export function DatasetStatusBadge({ status }: { status: string }) {
+  return (
+    <span className="rounded-full border border-zinc-300 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+export function MetricCard({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string | null;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white/85 p-4 shadow-sm">
+      <div className="text-xs uppercase tracking-[0.18em] text-zinc-500">
+        {label}
+      </div>
+      <div className="mt-2 text-2xl font-semibold text-zinc-950">{value}</div>
+      {sub ? <div className="mt-1 text-xs text-zinc-500">{sub}</div> : null}
+    </div>
+  );
+}
+export function InsightChips({ insights }: { insights: string[] }) {
+  return (
+    <div className="flex flex-wrap gap-2 pb-1">
+      {insights.slice(0, 4).map((i) => (
+        <span
+          key={i}
+          className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-700"
+        >
+          {i}
+        </span>
+      ))}
+    </div>
+  );
+}
+export function SourceFooter({
+  sourceLabel,
+  sourceUrl,
+  lastUpdatedAt,
+}: {
+  sourceLabel: string;
+  sourceUrl?: string | null;
+  lastUpdatedAt?: string | null;
+}) {
+  const cleanSource = sourceLabel.replace(/^Source:\s*/i, "");
+  return (
+    <footer className="mt-6 flex items-center justify-between gap-4 border-t border-zinc-200 pt-4 text-xs text-zinc-500">
+      <span>
+        {sourceUrl ? (
+          <a href={sourceUrl} className="underline">
+            Source: {cleanSource}
+          </a>
+        ) : (
+          `Source: ${cleanSource}`
+        )}
+        {lastUpdatedAt ? (
+          <span className="ml-3">
+            Last updated{" "}
+            {new Date(lastUpdatedAt).toLocaleString("en-US", {
+              timeZone: "UTC",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZoneName: "short",
+            })}
+          </span>
+        ) : null}
+      </span>
+      <span className="font-semibold text-zinc-700">Onchain Visuals</span>
+    </footer>
+  );
+}
+export function StaleDataNotice({ message }: { message?: string | null }) {
+  if (!message) return null;
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+      {message}
+    </div>
+  );
+}
+export function StateCard({
+  title,
+  message,
+  source,
+  sourceUrl,
+  missingConfig,
+  tone = "zinc",
+}: {
+  title: string;
+  message?: string | null;
+  source?: string;
+  sourceUrl?: string | null;
+  missingConfig?: string[];
+  tone?: "amber" | "rose" | "zinc";
+}) {
+  const cls =
+    tone === "rose"
+      ? "border-rose-200 bg-rose-50 text-rose-950"
+      : tone === "amber"
+        ? "border-amber-300 bg-amber-50 text-amber-950"
+        : "border-zinc-200 bg-zinc-50 text-zinc-900";
+  return (
+    <div className={`rounded-3xl border p-8 ${cls}`}>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] opacity-70">
+        Onchain Visual QA state
+      </p>
+      <h2 className="mt-3 text-3xl font-semibold">{title}</h2>
+      <p className="mt-3 max-w-3xl text-sm leading-6">
+        {message ||
+          "This dataset is not currently publishable. No fake data is emitted."}
+      </p>
+      <div className="mt-5 grid gap-3 text-sm md:grid-cols-3">
+        <div className="rounded-2xl bg-white/70 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] opacity-60">
+            Source
+          </div>
+          <div className="mt-1 font-semibold">
+            {source || "Configured source"}
+          </div>
+          {sourceUrl ? (
+            <a
+              className="mt-1 block truncate text-xs underline"
+              href={sourceUrl}
+            >
+              {sourceUrl}
+            </a>
+          ) : null}
+        </div>
+        <div className="rounded-2xl bg-white/70 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] opacity-60">
+            Data policy
+          </div>
+          <div className="mt-1 font-semibold">No fake data is emitted</div>
+        </div>
+        <div className="rounded-2xl bg-white/70 p-4">
+          <div className="text-xs uppercase tracking-[0.18em] opacity-60">
+            Next action
+          </div>
+          <div className="mt-1 font-semibold">
+            Fix source/config and refresh snapshot
+          </div>
+        </div>
+      </div>
+      {missingConfig?.length ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {missingConfig.map((k) => (
+            <code key={k} className="rounded bg-white px-2 py-1 text-xs">
+              {k}
+            </code>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+export function SourceConfigRequiredState({
+  missingConfig,
+  message,
+}: {
+  missingConfig: string[];
+  message?: string | null;
+}) {
+  return (
+    <StateCard
+      title="Source configuration required"
+      message={
+        message ||
+        "Configure the missing environment variables and run a refresh."
+      }
+      missingConfig={missingConfig}
+      tone="amber"
+    />
+  );
+}
+export function SourceErrorState({ data }: { data: any }) {
+  return (
+    <StateCard
+      title={
+        data?.metadata?.chartType === "etf_flowboard" ||
+        data?.datasetSlug?.includes("etf")
+          ? "ETF source error"
+          : "Source error"
+      }
+      message={
+        data?.freshness?.message ||
+        "The live source could not be fetched or parsed."
+      }
+      source={data?.freshness?.source || data?.sourceLabel}
+      sourceUrl={data?.sourceUrl}
+      tone="rose"
+    />
+  );
+}
+export function DisabledState({ data }: { data: any }) {
+  return (
+    <StateCard
+      title="Dataset disabled / source required"
+      message={
+        data?.freshness?.message ||
+        data?.warnings?.[0] ||
+        "Dataset is disabled until a reliable source is configured."
+      }
+      source={data?.freshness?.source || data?.sourceLabel}
+      missingConfig={data?.freshness?.missingConfig || []}
+      tone="zinc"
+    />
+  );
+}
+export function PeriodSwitcher({
+  periods,
+  current,
+}: {
+  periods?: string[];
+  current: string;
+}) {
+  return (
+    <div className="flex gap-2">
+      {(periods || [current]).map((p) => (
+        <span
+          key={p}
+          className={`rounded-full px-3 py-1 text-xs ${p === current ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-600"}`}
+        >
+          {p.toUpperCase()}
+        </span>
+      ))}
+    </div>
+  );
+}
 
-export function ChartShell({ data, children }: { data: any; children: ReactNode }) {
+export function ChartShell({
+  data,
+  children,
+}: {
+  data: any;
+  children: ReactNode;
+}) {
   const ref = useRef<HTMLDivElement>(null);
-  const singleFormat = data?.datasetSlug === 'btc-etf-flowboard';
-  const defaultFormat = (data?.metadata?.defaultExportFormat || (singleFormat ? '1200x1200' : '1600x900')) as ExportFormat;
+  const singleFormat = data?.datasetSlug === "btc-etf-flowboard";
+  const defaultFormat = (data?.metadata?.defaultExportFormat ||
+    (singleFormat ? "1536x1024" : "1600x900")) as ExportFormat;
   const [format, setFormat] = useState<ExportFormat>(defaultFormat);
   const activeFormat = singleFormat ? defaultFormat : format;
   const dims = useMemo(() => EXPORT_DIMENSIONS[activeFormat], [activeFormat]);
-  const onExport = async () => { if (!ref.current) return; const dataUrl = await toPng(ref.current, { cacheBust: true, pixelRatio: 1, width: dims.width, height: dims.height, canvasWidth: dims.width, canvasHeight: dims.height, backgroundColor: '#ffffff' }); const a = document.createElement('a'); a.href = dataUrl; a.download = `${data.datasetSlug}-${activeFormat}.png`; a.click(); };
-  return <section className="space-y-5 overflow-x-hidden"><div className="flex flex-wrap items-start justify-between gap-4"><div className="space-y-2"><div className="flex flex-wrap gap-2"><FreshnessBadge status={data?.freshness?.status || data.status} /><DatasetStatusBadge status={data.status} /></div><h1 className="text-4xl font-semibold tracking-tight text-zinc-950">{data.title}</h1><p className="max-w-3xl text-zinc-600">{data.subtitle}</p></div><div className="flex items-center gap-2">{singleFormat ? null : <ExportFormatSelector value={format} onChange={setFormat}/>}<ExportButton onClick={onExport}/></div></div><div className="mx-auto w-full max-w-full overflow-hidden rounded-[2rem]" style={{ aspectRatio: `${dims.width} / ${dims.height}`, containerType: 'inline-size' } as any} data-testid="responsive-preview-frame"><div ref={ref} data-export-format={activeFormat} data-export-width={dims.width} data-export-height={dims.height} data-static-share="true" className="origin-top-left overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm" style={{ width: dims.width, height: dims.height, transform: `scale(min(1, calc(100cqw / ${dims.width})))`, maxWidth: 'none' } as any}><div className="mb-6 flex items-start justify-between gap-6"><div><div className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500">Onchain Visuals</div><h2 className="mt-3 text-5xl font-semibold tracking-tight">{data.title}</h2><p className="mt-3 max-w-3xl text-lg text-zinc-600">{data.subtitle}</p></div><PeriodSwitcher current={data.period}/></div><StaleDataNotice message={data?.freshness?.fallbackUsed ? data?.freshness?.message : null}/>{children}{data.status !== 'source_error' && data.status !== 'disabled' && data.status !== 'source_config_required' ? <div className="mt-6"><InsightChips insights={data.insights || []}/></div> : null}<SourceFooter sourceLabel={data.sourceLabel} sourceUrl={data.sourceUrl} lastUpdatedAt={data?.freshness?.lastUpdatedAt}/></div></div></section>;
+  const onExport = async () => {
+    if (!ref.current) return;
+    const dataUrl = await toPng(ref.current, {
+      cacheBust: true,
+      pixelRatio: 1,
+      width: dims.width,
+      height: dims.height,
+      canvasWidth: dims.width,
+      canvasHeight: dims.height,
+      backgroundColor: singleFormat ? "#f5f8fb" : "#ffffff",
+    });
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `${data.datasetSlug}-${activeFormat}.png`;
+    a.click();
+  };
+  return (
+    <section className="space-y-5 overflow-x-hidden">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-2">
+          <div className="flex flex-wrap gap-2">
+            <FreshnessBadge status={data?.freshness?.status || data.status} />
+            <DatasetStatusBadge status={data.status} />
+          </div>
+          <h1 className="text-4xl font-semibold tracking-tight text-zinc-950">
+            {data.title}
+          </h1>
+          <p className="max-w-3xl text-zinc-600">{data.subtitle}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {singleFormat ? null : (
+            <ExportFormatSelector value={format} onChange={setFormat} />
+          )}
+          <ExportButton onClick={onExport} />
+        </div>
+      </div>
+      <div
+        className="mx-auto w-full max-w-full overflow-hidden rounded-[2rem]"
+        style={
+          {
+            aspectRatio: `${dims.width} / ${dims.height}`,
+            containerType: "inline-size",
+          } as any
+        }
+        data-testid="responsive-preview-frame"
+      >
+        <div
+          ref={ref}
+          data-export-format={activeFormat}
+          data-export-width={dims.width}
+          data-export-height={dims.height}
+          data-static-share="true"
+          className={
+            singleFormat
+              ? "origin-top-left overflow-hidden rounded-[2.35rem] border border-slate-200/90 bg-[#f5f8fb] p-14 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
+              : "origin-top-left overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm"
+          }
+          style={
+            {
+              width: dims.width,
+              height: dims.height,
+              transform: `scale(min(1, calc(100cqw / ${dims.width})))`,
+              maxWidth: "none",
+            } as any
+          }
+        >
+          <div
+            className={
+              singleFormat
+                ? "mb-8 flex items-start justify-between gap-8"
+                : "mb-6 flex items-start justify-between gap-6"
+            }
+          >
+            <div>
+              <div
+                className={
+                  singleFormat
+                    ? "text-sm font-bold uppercase tracking-[0.26em] text-slate-500"
+                    : "text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500"
+                }
+              >
+                {singleFormat ? "CAPITAL FLOWS · BTC ETF" : "Onchain Visuals"}
+              </div>
+              <h2
+                className={
+                  singleFormat
+                    ? "mt-3 text-6xl font-bold tracking-[-0.055em] text-slate-950"
+                    : "mt-3 text-5xl font-semibold tracking-tight"
+                }
+              >
+                {data.title}
+              </h2>
+              <p
+                className={
+                  singleFormat
+                    ? "mt-4 max-w-3xl text-xl font-medium leading-8 text-slate-500"
+                    : "mt-3 max-w-3xl text-lg text-zinc-600"
+                }
+              >
+                {data.subtitle}
+              </p>
+            </div>
+            {singleFormat ? (
+              <div className="flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/85 px-4 py-2.5 text-sm font-bold tracking-[-0.02em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
+                <img
+                  src="/logos/chains/bitcoin.svg"
+                  alt=""
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                />
+                Onchain Visuals
+              </div>
+            ) : (
+              <PeriodSwitcher current={data.period} />
+            )}
+          </div>
+          <StaleDataNotice
+            message={
+              data?.freshness?.fallbackUsed ? data?.freshness?.message : null
+            }
+          />
+          {children}
+          {data.status !== "source_error" &&
+          data.status !== "disabled" &&
+          data.status !== "source_config_required" ? (
+            <div className={singleFormat ? "mt-7" : "mt-6"}>
+              <InsightChips insights={data.insights || []} />
+            </div>
+          ) : null}
+          <SourceFooter
+            sourceLabel={data.sourceLabel}
+            sourceUrl={data.sourceUrl}
+            lastUpdatedAt={data?.freshness?.lastUpdatedAt}
+          />
+        </div>
+      </div>
+    </section>
+  );
 }

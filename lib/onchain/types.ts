@@ -17,7 +17,7 @@ export type FreshnessStatus =
   | "source_error"
   | "manual_review_required"
   | "source_config_required";
-export type ExportFormat = "1600x900" | "1200x1200" | "1080x1350";
+export type ExportFormat = "1600x900" | "1200x1200" | "1080x1350" | "1536x1024";
 
 export type HeadlineMetric = {
   label: string;
