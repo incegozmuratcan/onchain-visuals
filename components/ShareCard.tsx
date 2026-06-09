@@ -168,7 +168,7 @@ function BtcEtfShareCard({
           data-logo-mandatory="true"
           src="/logos/bitcoin.svg"
           alt=""
-          className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.08] mix-blend-multiply"
+          className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.055] mix-blend-multiply"
           aria-hidden="true"
           draggable={false}
         />
@@ -181,13 +181,13 @@ function BtcEtfShareCard({
         data-logo-mode="site-asset-premium-circular-coin"
         data-logo-shape="official-btc-medallion"
         data-logo-mandatory="true"
-        className="pointer-events-none absolute -right-4 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_32%_25%,#ffda8a_0%,#f7931a_48%,#cc6f08_100%)] p-3 shadow-[0_24px_48px_rgba(146,64,14,0.20),inset_0_2px_12px_rgba(255,255,255,0.35),inset_0_-10px_20px_rgba(120,53,15,0.14)] ring-1 ring-amber-200/70"
+        className="pointer-events-none absolute right-5 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_38%_30%,#ffbf57_0%,#f7931a_58%,#e18414_100%)] p-3 shadow-[0_18px_36px_rgba(146,64,14,0.16),inset_0_0_0_2px_rgba(255,255,255,0.22)] ring-1 ring-amber-200/60"
         aria-hidden="true"
       >
         <img
           src="/logos/bitcoin.svg"
           alt=""
-          className="h-full w-full select-none drop-shadow-[0_4px_10px_rgba(120,53,15,0.22)]"
+          className="h-full w-full select-none"
           draggable={false}
         />
       </div>
@@ -201,20 +201,20 @@ function BtcEtfShareCard({
         alt=""
         aria-hidden="true"
         draggable={false}
-        className="pointer-events-none absolute -right-24 -top-24 h-[300px] w-[300px] select-none opacity-[0.045] mix-blend-multiply"
+        className="pointer-events-none absolute -right-24 -top-24 h-[300px] w-[300px] select-none opacity-[0.035] mix-blend-multiply"
       />
       <img
         src="/logos/bitcoin.svg"
         alt=""
         aria-hidden="true"
         draggable={false}
-        className="pointer-events-none absolute -bottom-28 -left-20 h-[230px] w-[230px] select-none opacity-[0.035] mix-blend-multiply"
+        className="pointer-events-none absolute -bottom-28 -left-20 h-[230px] w-[230px] select-none opacity-[0.028] mix-blend-multiply"
       />
     </>
   );
 
   const HeroMetric = () => (
-    <div className="relative flex min-h-[132px] flex-col justify-start overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100/85 p-5 pr-32">
+    <div className="relative flex min-h-[152px] flex-col justify-start overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100/85 p-6 pr-40">
       <BtcLogoWatermark />
       <div className="relative z-10">
         <div
@@ -471,19 +471,13 @@ function BtcEtfShareCard({
             {data.subtitle}
           </p>
         </div>
-        <div className="rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
-          <img
-            src="/logos/bitcoin.svg"
-            alt=""
-            className="mr-2 inline h-4 w-4"
-            aria-hidden="true"
-          />
+        <div className="rounded-full border border-slate-200 bg-white/95 px-5 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
           {brand.shortName}
         </div>
       </div>
 
       {daily ? (
-        <div className="mt-6 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
+        <div className="mt-6 grid grid-cols-[1.05fr_0.95fr] gap-5">
           <div>
             <HeroMetric />
             <div className="mt-3 grid grid-cols-2 gap-2">

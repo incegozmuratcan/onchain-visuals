@@ -214,7 +214,7 @@ test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver a
   assert.match(etfFlowboard, /data-logo-mandatory="true"/);
   assert.match(etfFlowboard, /BTC_LOGO_SRC = "\/logos\/bitcoin.svg"/);
   assert.match(etfFlowboard, /BtcCanvasWatermarks/);
-  assert.match(etfFlowboard, /h-36 w-36/);
+  assert.match(etfFlowboard, /h-32 w-32/);
   assert.match(etfFlowboard, /#f7931a/);
   assert.match(etfFlowboard, /bg-\[#f5f8fb\]|bg-white\/78/);
   assert.match(shareCard, /data-logo-mode="site-asset-premium-circular-coin"/);
