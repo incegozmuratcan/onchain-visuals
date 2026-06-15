@@ -56,8 +56,8 @@ export function BTCBadge({ compact = false }: { compact?: boolean }) {
       data-logo-mandatory="true"
       className={
         compact
-          ? "pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-white/30 p-3 opacity-[0.055] mix-blend-multiply"
-          : "pointer-events-none absolute right-[24px] top-1/2 h-[218px] w-[218px] -translate-y-1/2 rounded-full border border-white/95 bg-[#f7931a] p-[18px] shadow-[0_16px_42px_rgba(247,147,26,0.16),0_20px_60px_rgba(15,23,42,0.075),0_0_0_14px_rgba(255,255,255,0.82)] ring-[1px] ring-white"
+          ? "pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-white/30 p-3 opacity-[0.07] mix-blend-multiply"
+          : "pointer-events-none absolute right-[10px] top-1/2 h-[240px] w-[240px] -translate-y-1/2 rounded-full border border-white bg-[#f7931a] p-[21px] shadow-[0_18px_42px_rgba(247,147,26,0.18),0_26px_66px_rgba(15,23,42,0.08),0_0_0_16px_rgba(255,255,255,0.9),0_0_0_17px_rgba(226,232,240,0.54)] ring-[2px] ring-white"
       }
       aria-hidden="true"
     >
@@ -82,14 +82,14 @@ function BtcCanvasWatermarks() {
         src={BTC_LOGO_SRC}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute -right-28 -top-24 h-[420px] w-[420px] select-none opacity-[0.024] mix-blend-multiply"
+        className="pointer-events-none absolute -right-40 -top-32 h-[530px] w-[530px] select-none opacity-[0.04] mix-blend-multiply"
         draggable={false}
       />
       <img
         src={BTC_LOGO_SRC}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute -bottom-28 -left-28 h-[260px] w-[260px] select-none opacity-[0.032] mix-blend-multiply"
+        className="pointer-events-none absolute -bottom-28 -left-28 h-[260px] w-[260px] select-none opacity-[0.048] mix-blend-multiply"
         draggable={false}
       />
     </>
@@ -107,7 +107,7 @@ export function BrandPill() {
 export function NetFlowCard({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/85 bg-white/78 p-[42px] pr-[300px] shadow-[0_18px_56px_rgba(15,23,42,0.045)]">
+    <div className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/75 bg-white/78 p-[42px] pr-[300px] shadow-[0_16px_48px_rgba(15,23,42,0.04)]">
       <div className="absolute right-[12px] top-1/2 h-[288px] w-[288px] -translate-y-1/2 rounded-full border border-slate-200/60 bg-slate-50/18" />
       <BTCBadge />
       <div className="relative z-10 min-w-0">
@@ -135,11 +135,11 @@ export function NetFlowCard({ hero }: { hero: any }) {
 
 function StatIcon({ type }: { type: "driver" | "cumulative" }) {
   return (
-    <div className="flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-[22px] border border-slate-200/85 bg-slate-100/62 shadow-[0_12px_28px_rgba(15,23,42,0.045)]">
+    <div className="flex h-[80px] w-[80px] shrink-0 items-center justify-center rounded-[25px] border border-slate-200/80 bg-slate-100/58 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
       {type === "driver" ? (
         <svg
           viewBox="0 0 34 34"
-          className="h-9 w-9 fill-none stroke-slate-600"
+          className="h-10 w-10 fill-none stroke-slate-600"
           strokeWidth="3.2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -151,7 +151,7 @@ function StatIcon({ type }: { type: "driver" | "cumulative" }) {
       ) : (
         <svg
           viewBox="0 0 34 34"
-          className="h-9 w-9 fill-slate-600"
+          className="h-10 w-10 fill-slate-600"
           aria-hidden="true"
         >
           <rect x="6" y="18" width="6" height="11" rx="1.5" />
@@ -175,7 +175,7 @@ export function StatCard({
     ? String(metric.formattedValue).match(/^(\S+)\s+(.+)$/)
     : null;
   return (
-    <div className="grid h-[194px] grid-cols-[70px_1fr] grid-rows-[74px_1fr] gap-x-6 rounded-[32px] border border-slate-200/85 bg-white/76 px-9 py-[30px] shadow-[0_18px_48px_rgba(15,23,42,0.043)]">
+    <div className="grid h-[194px] grid-cols-[80px_1fr] grid-rows-[80px_1fr] gap-x-7 rounded-[34px] border border-slate-200/78 bg-white/76 px-9 py-[30px] shadow-[0_15px_42px_rgba(15,23,42,0.04)]">
       <StatIcon type={icon} />
       <div className="flex h-[54px] items-start">
         <div className="text-[16px] font-extrabold uppercase leading-[1.35] tracking-[0.28em] text-slate-500">
@@ -217,8 +217,8 @@ export function IssuerRow({ row, scaledMax }: { row: any; scaledMax: number }) {
   const value = Number(row.value) || 0;
   const width = Math.max(13, (Math.sqrt(Math.abs(value)) / scaledMax) * 100);
   return (
-    <div className="pb-[31px]">
-      <div className="mb-[18px] flex items-baseline justify-between gap-5">
+    <div className="pb-[38px]">
+      <div className="mb-[17px] flex items-baseline justify-between gap-5">
         <div className="min-w-0 truncate text-[24px] leading-none tracking-[-0.045em]">
           <span className="font-extrabold text-[#050b1f]">
             {row.ticker || row.name}
@@ -233,9 +233,9 @@ export function IssuerRow({ row, scaledMax }: { row: any; scaledMax: number }) {
           {signedUsd(value)}
         </div>
       </div>
-      <div className="h-[6px] rounded-full bg-slate-200/45 shadow-[inset_0_1px_2px_rgba(15,23,42,0.04)]">
+      <div className="h-[5px] rounded-full bg-slate-200/34 shadow-[inset_0_1px_2px_rgba(15,23,42,0.025)]">
         <div
-          className={`h-[6px] rounded-full ${value >= 0 ? "bg-[#08936b]" : "bg-[#b94b5a]"}`}
+          className={`h-[5px] rounded-full ${value >= 0 ? "bg-[#078a65]" : "bg-[#b94b5a]"}`}
           style={{ width: `${width}%` }}
         />
       </div>
@@ -253,8 +253,8 @@ export function IssuerFlowList({ rows }: { rows: any[] }) {
   );
   const scaledMax = Math.sqrt(maxAbs);
   return (
-    <div className="h-[552px] rounded-[34px] border border-slate-200/85 bg-white/76 px-[38px] py-[40px] shadow-[0_18px_56px_rgba(15,23,42,0.045)]">
-      <h3 className="mb-[44px] text-[18px] font-extrabold uppercase leading-none tracking-[0.35em] text-slate-500">
+    <div className="h-[552px] rounded-[34px] border border-slate-200/78 bg-white/76 px-[38px] py-[40px] shadow-[0_16px_48px_rgba(15,23,42,0.04)]">
+      <h3 className="mb-[42px] text-[18px] font-extrabold uppercase leading-none tracking-[0.35em] text-slate-500">
         LATEST ISSUER FLOWS
       </h3>
       <div>
