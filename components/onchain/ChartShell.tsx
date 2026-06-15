@@ -609,17 +609,17 @@ export function ChartShell({
             </div>
           ) : null}
           {singleFormat ? (
-            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-baseline text-[18px] font-semibold leading-none text-slate-500/90">
-              <div>
-                Created with <span className="mx-4">·</span>
+            <footer className="mt-[58px] flex items-baseline justify-between text-[18px] font-semibold leading-none text-slate-500/90">
+              <div className="flex items-baseline">
+                Created with <span className="mx-4 text-slate-300/90">·</span>
                 <span className="font-extrabold text-slate-950">
                   Onchain Visuals
                 </span>
               </div>
-              <div />
-              <div className="text-right">
-                Source: Farside <span className="mx-8 text-slate-300/90">|</span>{" "}
-                Updated:{" "}
+              <div className="flex items-baseline text-right">
+                <span>Source: Farside</span>
+                <span className="mx-8 h-[24px] w-px translate-y-[4px] bg-slate-300/80" />
+                <span>Updated:&nbsp;</span>
                 <span className="font-extrabold text-slate-700">
                   {data?.freshness?.lastUpdatedAt
                     ? new Date(data.freshness.lastUpdatedAt).toLocaleString(
