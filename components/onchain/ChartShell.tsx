@@ -538,7 +538,7 @@ export function ChartShell({
           data-static-share="true"
           className={
             singleFormat
-              ? "origin-top-left overflow-hidden rounded-[2.1rem] border border-slate-200/95 bg-[#fbfaf7] px-[58px] py-[68px] text-slate-950 shadow-[0_22px_74px_rgba(15,23,42,0.105)]"
+              ? "origin-top-left overflow-hidden rounded-[2.1rem] border border-slate-200/95 bg-[#fbfaf7] px-[58px] py-[68px] text-slate-950 shadow-[0_24px_82px_rgba(15,23,42,0.085)]"
               : "origin-top-left overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm"
           }
           style={
@@ -570,7 +570,7 @@ export function ChartShell({
               <h2
                 className={
                   singleFormat
-                    ? "mt-6 text-[78px] font-black leading-[0.96] tracking-[-0.075em] text-[#050b1f]"
+                    ? "mt-6 text-[80px] font-black leading-[0.93] tracking-[-0.075em] text-[#050b1f]"
                     : "mt-3 text-5xl font-semibold tracking-tight"
                 }
               >
@@ -587,7 +587,7 @@ export function ChartShell({
               </p>
             </div>
             {singleFormat ? (
-              <div className="mt-[-18px] flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/95 bg-white/88 px-7 text-[20px] font-bold tracking-[-0.03em] text-[#050b1f] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+              <div className="mt-[-18px] flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/85 bg-white/88 px-7 text-[20px] font-bold tracking-[-0.03em] text-[#050b1f] shadow-[0_12px_32px_rgba(15,23,42,0.065)]">
                 Onchain Visuals
               </div>
             ) : (
@@ -609,7 +609,7 @@ export function ChartShell({
             </div>
           ) : null}
           {singleFormat ? (
-            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-center text-[18px] font-semibold leading-none text-slate-500/90">
+            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-baseline text-[18px] font-semibold leading-none text-slate-500/90">
               <div>
                 Created with <span className="mx-4">·</span>
                 <span className="font-extrabold text-slate-950">
@@ -618,7 +618,7 @@ export function ChartShell({
               </div>
               <div />
               <div className="text-right">
-                Source: Farside <span className="mx-8 text-slate-300">|</span>{" "}
+                Source: Farside <span className="mx-8 text-slate-300/90">|</span>{" "}
                 Updated:{" "}
                 <span className="font-extrabold text-slate-700">
                   {data?.freshness?.lastUpdatedAt
