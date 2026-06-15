@@ -307,7 +307,6 @@ export function PeriodSwitcher({
   );
 }
 
-
 function btcExportDate(data: any) {
   return (
     data?.metadata?.latestCompletedDate ||
@@ -329,17 +328,28 @@ function btcExportFilename(data: any) {
   return `btc-etf-daily-flowboard-${btcExportDate(data)}.png`;
 }
 
-async function assertPngDimensions(dataUrl: string, expected: { width: number; height: number }) {
+async function assertPngDimensions(
+  dataUrl: string,
+  expected: { width: number; height: number },
+) {
   await new Promise<void>((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      if (img.naturalWidth !== expected.width || img.naturalHeight !== expected.height) {
-        reject(new Error(`Exported PNG dimensions were ${img.naturalWidth}x${img.naturalHeight}; expected ${expected.width}x${expected.height}.`));
+      if (
+        img.naturalWidth !== expected.width ||
+        img.naturalHeight !== expected.height
+      ) {
+        reject(
+          new Error(
+            `Exported PNG dimensions were ${img.naturalWidth}x${img.naturalHeight}; expected ${expected.width}x${expected.height}.`,
+          ),
+        );
         return;
       }
       resolve();
     };
-    img.onerror = () => reject(new Error("Unable to validate exported PNG dimensions."));
+    img.onerror = () =>
+      reject(new Error("Unable to validate exported PNG dimensions."));
     img.src = dataUrl;
   });
 }
@@ -364,7 +374,9 @@ export function ChartShell({
   const [format, setFormat] = useState<ExportFormat>(defaultFormat);
   const [publishControls, setPublishControls] = useState(false);
   const [publishSecret, setPublishSecret] = useState("");
-  const [publishState, setPublishState] = useState<PublishState>({ status: "idle" });
+  const [publishState, setPublishState] = useState<PublishState>({
+    status: "idle",
+  });
   useEffect(() => setPublishControls(shouldShowPublishControls()), []);
   const activeFormat = singleFormat ? defaultFormat : format;
   const dims = useMemo(() => EXPORT_DIMENSIONS[activeFormat], [activeFormat]);
@@ -393,7 +405,9 @@ export function ChartShell({
     if (!dataUrl) return;
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = singleFormat ? btcExportFilename(data) : `${data.datasetSlug}-${activeFormat}.png`;
+    a.download = singleFormat
+      ? btcExportFilename(data)
+      : `${data.datasetSlug}-${activeFormat}.png`;
     a.click();
   };
   const onShareX = async () => {
@@ -407,7 +421,9 @@ export function ChartShell({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(publishSecret ? { Authorization: `Bearer ${publishSecret}` } : {}),
+          ...(publishSecret
+            ? { Authorization: `Bearer ${publishSecret}` }
+            : {}),
         },
         body: JSON.stringify({
           date: btcExportDate(data),
@@ -418,7 +434,9 @@ export function ChartShell({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error?.message || payload?.message || "X publish failed.");
+        throw new Error(
+          payload?.error?.message || payload?.message || "X publish failed.",
+        );
       }
       setPublishState({
         status: "success",
@@ -427,7 +445,8 @@ export function ChartShell({
           : "Published to X.",
         url: payload.postUrl,
       });
-      if (payload.postUrl) window.open(payload.postUrl, "_blank", "noopener,noreferrer");
+      if (payload.postUrl)
+        window.open(payload.postUrl, "_blank", "noopener,noreferrer");
     } catch (error) {
       setPublishState({
         status: "error",
@@ -460,7 +479,9 @@ export function ChartShell({
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <div className="text-sm font-bold text-slate-950">Share on X</div>
-              <p className="mt-1 text-sm text-slate-500">Posts the 1536×1024 Flowboard image to @OnchainVis.</p>
+              <p className="mt-1 text-sm text-slate-500">
+                Posts the 1536×1024 Flowboard image to @OnchainVis.
+              </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
@@ -481,10 +502,19 @@ export function ChartShell({
             </div>
           </div>
           {publishState.message ? (
-            <div className={`mt-3 text-sm ${publishState.status === "error" ? "text-rose-700" : "text-slate-600"}`}>
+            <div
+              className={`mt-3 text-sm ${publishState.status === "error" ? "text-rose-700" : "text-slate-600"}`}
+            >
               {publishState.message}
               {publishState.url ? (
-                <a className="ml-2 font-bold underline" href={publishState.url} target="_blank" rel="noreferrer">Open post</a>
+                <a
+                  className="ml-2 font-bold underline"
+                  href={publishState.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open post
+                </a>
               ) : null}
             </div>
           ) : null}
@@ -508,7 +538,7 @@ export function ChartShell({
           data-static-share="true"
           className={
             singleFormat
-              ? "origin-top-left overflow-hidden rounded-[2.35rem] border border-slate-200/90 bg-[linear-gradient(135deg,#f8fbff_0%,#f4f7fb_48%,#f8fbff_100%)] px-[56px] py-[66px] text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
+              ? "origin-top-left overflow-hidden rounded-[2.1rem] border border-slate-200/95 bg-[#fbfaf7] px-[58px] py-[68px] text-slate-950 shadow-[0_22px_74px_rgba(15,23,42,0.105)]"
               : "origin-top-left overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm"
           }
           style={
@@ -523,7 +553,7 @@ export function ChartShell({
           <div
             className={
               singleFormat
-                ? "mb-[42px] flex items-start justify-between gap-8"
+                ? "mb-[44px] flex items-start justify-between gap-8"
                 : "mb-6 flex items-start justify-between gap-6"
             }
           >
@@ -531,7 +561,7 @@ export function ChartShell({
               <div
                 className={
                   singleFormat
-                    ? "text-[21px] font-extrabold uppercase tracking-[0.32em] text-slate-500"
+                    ? "text-[22px] font-extrabold uppercase tracking-[0.34em] text-slate-500/90"
                     : "text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500"
                 }
               >
@@ -540,7 +570,7 @@ export function ChartShell({
               <h2
                 className={
                   singleFormat
-                    ? "mt-6 text-[78px] font-extrabold leading-none tracking-[-0.07em] text-slate-950"
+                    ? "mt-6 text-[78px] font-black leading-[0.96] tracking-[-0.075em] text-[#050b1f]"
                     : "mt-3 text-5xl font-semibold tracking-tight"
                 }
               >
@@ -549,7 +579,7 @@ export function ChartShell({
               <p
                 className={
                   singleFormat
-                    ? "mt-8 max-w-4xl text-[25px] font-semibold leading-none tracking-[-0.035em] text-slate-500"
+                    ? "mt-8 max-w-4xl text-[25px] font-semibold leading-none tracking-[-0.035em] text-slate-500/90"
                     : "mt-3 max-w-3xl text-lg text-zinc-600"
                 }
               >
@@ -557,7 +587,7 @@ export function ChartShell({
               </p>
             </div>
             {singleFormat ? (
-              <div className="mt-[-18px] flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/90 bg-white/86 px-7 text-[20px] font-bold tracking-[-0.03em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+              <div className="mt-[-18px] flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/95 bg-white/88 px-7 text-[20px] font-bold tracking-[-0.03em] text-[#050b1f] shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
                 Onchain Visuals
               </div>
             ) : (
@@ -579,10 +609,34 @@ export function ChartShell({
             </div>
           ) : null}
           {singleFormat ? (
-            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-center text-[18px] font-semibold text-slate-500">
-              <div>Created with <span className="mx-4">·</span><span className="font-extrabold text-slate-950">Onchain Visuals</span></div>
+            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-center text-[18px] font-semibold leading-none text-slate-500/90">
+              <div>
+                Created with <span className="mx-4">·</span>
+                <span className="font-extrabold text-slate-950">
+                  Onchain Visuals
+                </span>
+              </div>
               <div />
-              <div className="text-right">Source: Farside <span className="mx-8 text-slate-300">|</span> Updated: <span className="font-extrabold text-slate-700">{data?.freshness?.lastUpdatedAt ? new Date(data.freshness.lastUpdatedAt).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }) : "—"}</span></div>
+              <div className="text-right">
+                Source: Farside <span className="mx-8 text-slate-300">|</span>{" "}
+                Updated:{" "}
+                <span className="font-extrabold text-slate-700">
+                  {data?.freshness?.lastUpdatedAt
+                    ? new Date(data.freshness.lastUpdatedAt).toLocaleString(
+                        "en-US",
+                        {
+                          timeZone: "UTC",
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZoneName: "short",
+                        },
+                      )
+                    : "—"}
+                </span>
+              </div>
             </footer>
           ) : (
             <SourceFooter
