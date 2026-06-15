@@ -47,29 +47,18 @@ const labelParts = (metric?: any) => {
   };
 };
 
-function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
-  if (compact) {
-    return (
-      <img
-        data-testid="btc-logo-treatment"
-        data-logo-mode="site-asset-subtle-watermark"
-        data-logo-shape="official-btc-mark"
-        data-logo-mandatory="true"
-        src={BTC_LOGO_SRC}
-        alt=""
-        className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.055] mix-blend-multiply"
-        aria-hidden="true"
-      />
-    );
-  }
-
+export function BTCBadge({ compact = false }: { compact?: boolean }) {
   return (
     <div
       data-testid="btc-logo-treatment"
       data-logo-mode="site-asset-premium-circular-coin"
       data-logo-shape="official-btc-medallion"
       data-logo-mandatory="true"
-      className="pointer-events-none absolute right-6 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[radial-gradient(circle_at_38%_30%,#ffbf57_0%,#f7931a_58%,#e18414_100%)] p-3 shadow-[0_18px_36px_rgba(146,64,14,0.16),inset_0_0_0_2px_rgba(255,255,255,0.22)] ring-1 ring-amber-200/60"
+      className={
+        compact
+          ? "pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 rounded-full bg-white/30 p-3 opacity-[0.055] mix-blend-multiply"
+          : "pointer-events-none absolute right-6 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-[#f7931a] p-3 shadow-[0_18px_36px_rgba(15,23,42,0.10)] ring-1 ring-slate-200/70"
+      }
       aria-hidden="true"
     >
       <img
@@ -80,6 +69,10 @@ function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
       />
     </div>
   );
+}
+
+function BtcLogoWatermark({ compact = false }: { compact?: boolean }) {
+  return <BTCBadge compact={compact} />;
 }
 
 function BtcCanvasWatermarks() {
@@ -103,116 +96,181 @@ function BtcCanvasWatermarks() {
   );
 }
 
-function BtcMetricValue({
-  label,
-  value,
-  rawValue,
-}: {
-  label: string;
-  value: string;
-  rawValue?: any;
-}) {
-  const isDriver = /^top driver$|^largest (inflow|outflow)$/i.test(label);
-  const match = isDriver ? String(value).match(/^(\S+)\s+(.+)$/) : null;
-  if (match) {
-    return (
-      <div className="flex min-w-0 items-baseline gap-2 truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em]">
-        <span className="shrink-0 text-slate-950">{match[1]}</span>
-        <span className={`min-w-0 truncate tabular-nums ${toneClass(rawValue)}`}>
-          {match[2]}
-        </span>
-      </div>
-    );
-  }
+export function BrandPill() {
   return (
-    <div className="truncate text-[1.55rem] font-bold leading-none tracking-[-0.05em] text-slate-950">
-      {value}
+    <div className="inline-flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/90 bg-white/86 px-7 text-[20px] font-bold tracking-[-0.03em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
+      Onchain Visuals
     </div>
   );
 }
 
-function BtcMetricCard({
-  label,
-  value,
-  rawValue,
-  sub,
-  periodLabel,
-  metricLabel,
-  watermark = false,
-}: {
-  label: string;
-  value: string;
-  rawValue?: any;
-  sub?: string | null;
-  periodLabel?: string;
-  metricLabel?: string;
-  watermark?: boolean;
-}) {
-  return (
-    <div
-      className={`relative flex min-h-[112px] flex-col overflow-hidden rounded-[1.35rem] border border-slate-200/85 bg-white/78 px-5 py-5 shadow-[0_10px_28px_rgba(15,23,42,0.05)] ${watermark ? "pr-20" : ""}`}
-    >
-      {watermark ? <BtcLogoWatermark compact /> : null}
-      {periodLabel && metricLabel ? (
-        <div
-          data-hero-label-parts="explicit"
-          className="relative z-10 min-h-[28px] space-y-1"
-        >
-          <div
-            data-hero-label-primary={periodLabel}
-            className="whitespace-nowrap text-[13px] font-bold uppercase leading-none tracking-[0.04em] text-slate-950"
-          >
-            {periodLabel}
-          </div>
-          <div
-            data-hero-label-secondary={metricLabel}
-            className="whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.18em] text-slate-500"
-          >
-            {metricLabel}
-          </div>
-        </div>
-      ) : (
-        <div className="relative z-10 flex min-h-[18px] items-start whitespace-nowrap text-[10px] font-bold uppercase leading-none tracking-[0.15em] text-slate-500">
-          {displayMetricLabel(label, rawValue)}
-        </div>
-      )}
-      <div className="relative z-10 mt-4 min-w-0">
-        <BtcMetricValue label={label} value={value} rawValue={rawValue} />
-        {sub ? (
-          <div className="mt-1 truncate text-[11px] font-medium text-slate-500">
-            {sub}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function BtcHeroMetric({ hero }: { hero: any }) {
+export function NetFlowCard({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative min-h-[222px] overflow-hidden rounded-[2rem] border border-slate-200/90 bg-white/78 p-9 pr-44 shadow-[0_18px_44px_rgba(15,23,42,0.07)]">
-      <BtcLogoWatermark />
+    <div className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/90 bg-white/78 p-[42px] pr-[270px] shadow-[0_18px_48px_rgba(15,23,42,0.065)]">
+      <div className="absolute right-[116px] top-1/2 h-[264px] w-[264px] -translate-y-1/2 rounded-full border border-slate-200/70 bg-slate-50/25" />
+      <BTCBadge />
       <div className="relative z-10 min-w-0">
         <div
           data-hero-label-primary={heroLabel.periodLabel}
-          className="text-2xl font-bold uppercase leading-none tracking-[-0.02em] text-slate-950"
+          className="text-[34px] font-extrabold uppercase leading-none tracking-[-0.045em] text-slate-950"
         >
           {heroLabel.periodLabel}
         </div>
         <div
           data-hero-label-secondary={heroLabel.metricLabel}
-          className="mt-1.5 whitespace-nowrap text-[10px] font-semibold uppercase leading-none tracking-[0.2em] text-slate-500"
+          className="mt-6 whitespace-nowrap text-[18px] font-bold uppercase leading-none tracking-[0.34em] text-slate-500"
         >
           {heroLabel.metricLabel}
         </div>
       </div>
       <div
-        className={`relative z-10 mt-10 truncate text-7xl font-bold leading-none tracking-[-0.06em] ${toneClass(hero?.value)}`}
+        className={`relative z-10 mt-[70px] truncate text-[88px] font-extrabold leading-none tracking-[-0.075em] ${toneClass(hero?.value)}`}
       >
         {hero?.formattedValue}
       </div>
     </div>
+  );
+}
+
+function StatIcon({ type }: { type: "driver" | "cumulative" }) {
+  return (
+    <div className="flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-[18px] border border-slate-200 bg-slate-50/70 shadow-[0_8px_20px_rgba(15,23,42,0.045)]">
+      {type === "driver" ? (
+        <svg viewBox="0 0 34 34" className="h-9 w-9 fill-none stroke-emerald-600" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6 23 14 15l6 6 9-10" />
+          <path d="M21 11h8v8" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 34 34" className="h-9 w-9 fill-slate-600" aria-hidden="true">
+          <rect x="6" y="18" width="6" height="11" rx="1.5" />
+          <rect x="15" y="11" width="6" height="18" rx="1.5" />
+          <rect x="24" y="6" width="6" height="23" rx="1.5" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+export function StatCard({ metric, icon }: { metric: any; icon: "driver" | "cumulative" }) {
+  const label = displayMetricLabel(metric.label, metric.value);
+  const match = /^top driver$/i.test(metric.label) ? String(metric.formattedValue).match(/^(\S+)\s+(.+)$/) : null;
+  return (
+    <div className="grid h-[194px] grid-cols-[70px_1fr] grid-rows-[74px_1fr] gap-x-6 rounded-[28px] border border-slate-200/90 bg-white/72 px-9 py-[30px] shadow-[0_14px_38px_rgba(15,23,42,0.055)]">
+      <StatIcon type={icon} />
+      <div className="flex h-[54px] items-start">
+        <div className="text-[16px] font-extrabold uppercase leading-[1.35] tracking-[0.28em] text-slate-500">
+          {label === "CUMULATIVE NET FLOW" ? <>CUMULATIVE<br />NET FLOW</> : label}
+        </div>
+      </div>
+      <div />
+      <div className="flex min-w-0 items-baseline gap-3 self-end">
+        {match ? (
+          <>
+            <span className="text-[32px] font-extrabold leading-none tracking-[-0.055em] text-slate-950">{match[1]}</span>
+            <span className={`truncate text-[38px] font-extrabold leading-none tracking-[-0.065em] tabular-nums ${toneClass(metric.value)}`}>{match[2]}</span>
+          </>
+        ) : (
+          <span className="truncate text-[38px] font-extrabold leading-none tracking-[-0.065em] text-slate-950 tabular-nums">{metric.formattedValue}</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function IssuerRow({ row, scaledMax }: { row: any; scaledMax: number }) {
+  const value = Number(row.value) || 0;
+  const width = Math.max(13, (Math.sqrt(Math.abs(value)) / scaledMax) * 100);
+  return (
+    <div className="pb-[25px]">
+      <div className="mb-4 flex items-baseline justify-between gap-5">
+        <div className="min-w-0 truncate text-[24px] leading-none tracking-[-0.045em]">
+          <span className="font-extrabold text-slate-950">{row.ticker || row.name}</span>
+          {row.name && row.ticker ? <span className="ml-2 font-medium text-slate-500">{row.name}</span> : null}
+        </div>
+        <div className={`shrink-0 text-right text-[24px] font-extrabold leading-none tracking-[-0.035em] tabular-nums ${toneClass(value)}`}>{signedUsd(value)}</div>
+      </div>
+      <div className="h-[8px] rounded-full bg-slate-200/62 shadow-[inset_0_1px_2px_rgba(15,23,42,0.06)]">
+        <div className={`h-[8px] rounded-full ${value >= 0 ? "bg-emerald-600" : "bg-rose-600"}`} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
+}
+
+export function IssuerFlowList({ rows }: { rows: any[] }) {
+  const visible = rows.filter((row: any) => Number(row.value) !== 0).slice(0, 5);
+  const maxAbs = Math.max(1, ...visible.map((row: any) => Math.abs(Number(row.value) || 0)));
+  const scaledMax = Math.sqrt(maxAbs);
+  return (
+    <div className="h-[552px] rounded-[34px] border border-slate-200/90 bg-white/72 px-[38px] py-[38px] shadow-[0_18px_48px_rgba(15,23,42,0.06)]">
+      <h3 className="mb-[42px] text-[18px] font-extrabold uppercase leading-none tracking-[0.35em] text-slate-500">LATEST ISSUER FLOWS</h3>
+      <div>{visible.map((row: any, index: number) => <IssuerRow key={`${row.ticker || row.name}-${index}`} row={row} scaledMax={scaledMax} />)}</div>
+      <div className="mt-[-4px] text-[14px] font-medium text-slate-500">All values in USD</div>
+    </div>
+  );
+}
+
+function BtcMetricCard({ label, value, rawValue, sub, periodLabel, metricLabel, watermark = false }: { label: string; value: string; rawValue?: any; sub?: string | null; periodLabel?: string; metricLabel?: string; watermark?: boolean; }) {
+  const metric = { label, formattedValue: value, value: rawValue };
+  return (
+    <div className="relative">
+      {watermark ? <BtcLogoWatermark compact /> : null}
+      <StatCard metric={{ ...metric, label: periodLabel && metricLabel ? metricLabel : label }} icon={watermark ? "driver" : /^since launch$/i.test(label) ? "cumulative" : "driver"} />
+    </div>
+  );
+}
+
+function BtcHeroMetric({ hero }: { hero: any }) { return <NetFlowCard hero={hero} />; }
+function Leaderboard({ rows, maxRows, title, showRank = true }: { rows: any[]; maxRows: number; title: string; description?: string; showRank?: boolean; }) { return <IssuerFlowList rows={rows.slice(0, maxRows)} />; }
+
+export function FlowboardContainer({ children }: { children: React.ReactNode }) {
+  return <div className="relative overflow-hidden rounded-[2rem]">{children}</div>;
+}
+
+export function EtfFlowboard({ data }: { data: any }) {
+  const view = data.metadata?.view || "daily";
+  const daily = view === "daily";
+  const weekly = view === "weekly";
+  const monthly = view === "monthly";
+  const metrics = data.headlineMetrics || [];
+  const hero = metrics[0];
+  const supportMetrics = daily ? metrics.slice(1, 3) : metrics.slice(1, 4);
+  const bars = data.series?.bars || [];
+  const issuerRows = (data.series?.tables || []).filter((row: any) => Number(row.value) !== 0);
+
+  return (
+    <FlowboardContainer>
+      {daily ? <BtcCanvasWatermarks /> : null}
+      {daily ? (
+        <div className="relative z-10 grid grid-cols-[704px_640px] gap-[30px]">
+          <div>
+            <NetFlowCard hero={hero} />
+            <div className="mt-5 grid grid-cols-2 gap-5">
+              {supportMetrics.map((metric: any, index: number) => <StatCard key={metric.label} metric={metric} icon={index === 0 ? "driver" : "cumulative"} />)}
+            </div>
+          </div>
+          <IssuerFlowList rows={issuerRows} />
+        </div>
+      ) : null}
+
+      {weekly ? (
+        <>
+          <div data-metric-row="compact" data-metric-row-variant="weekly-equal" className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            {metrics.map((metric: any, index: number) => <BtcMetricCard key={metric.label} label={metric.label} value={metric.formattedValue} rawValue={metric.value} sub={null} periodLabel={metric.periodLabel} metricLabel={metric.metricLabel} watermark={index === 0} />)}
+          </div>
+          <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]"><div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm"><h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Last 5 Days</h3><p className="mt-1 text-sm text-slate-500">Inflows rise above zero; outflows extend below.</p><div className="mt-3"><SignedFlowChart rows={bars} /></div></div><Leaderboard rows={issuerRows} maxRows={5} title="Top Issuer Flows" /></div>
+        </>
+      ) : null}
+
+      {monthly ? (
+        <>
+          <div data-metric-row="compact" data-metric-row-variant="monthly-equal" className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+            {metrics.map((metric: any, index: number) => <BtcMetricCard key={metric.label} label={metric.label} value={metric.formattedValue} rawValue={metric.value} sub={null} periodLabel={metric.periodLabel} metricLabel={metric.metricLabel} watermark={index === 0} />)}
+          </div>
+          <div className="grid gap-5 lg:grid-cols-[1.28fr_0.52fr]"><div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm"><h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">This Month</h3><p className="mt-1 text-sm text-slate-500">Completed month-to-date daily net flows.</p><div className="mt-3"><SignedFlowChart rows={bars} monthly /></div></div><Leaderboard rows={issuerRows} maxRows={5} title="Top Issuer Flows" /></div>
+        </>
+      ) : null}
+    </FlowboardContainer>
   );
 }
 
@@ -394,210 +452,5 @@ function SignedFlowChart({
         );
       })}
     </svg>
-  );
-}
-
-function Leaderboard({
-  rows,
-  maxRows,
-  title,
-  description,
-  showRank = true,
-}: {
-  rows: any[];
-  maxRows: number;
-  title: string;
-  description?: string;
-  showRank?: boolean;
-}) {
-  const visible = rows
-    .filter((row: any) => Number(row.value) !== 0)
-    .slice(0, maxRows);
-  const rawMaxAbs = Math.max(
-    1,
-    ...visible.map((row: any) => Math.abs(Number(row.value) || 0)),
-  );
-  const scaledMax = Math.sqrt(rawMaxAbs);
-  return (
-    <div className="h-full rounded-[1.9rem] border border-slate-200/90 bg-white/72 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)]">
-      <div className="mb-5">
-        <h3 className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
-          {title}
-        </h3>
-        {description ? (
-          <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
-        ) : null}
-      </div>
-      <div className="grid gap-2.5">
-        {visible.map((row: any, index: number) => (
-          <div
-            key={`${row.ticker || row.name}-${index}`}
-            className="rounded-[1.2rem] border border-slate-200/80 bg-white/86 px-4 py-3.5 shadow-[0_8px_22px_rgba(15,23,42,0.035)]"
-          >
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="min-w-0 truncate text-[15px] font-bold text-slate-950">
-                {showRank ? (
-                  <span className="mr-2 text-slate-400">{index + 1}</span>
-                ) : null}
-                <span className="whitespace-nowrap">
-                  {row.ticker || row.name}
-                </span>
-                {row.name && row.ticker ? (
-                  <span className="ml-1.5 truncate font-medium text-slate-500">
-                    {row.name}
-                  </span>
-                ) : null}
-              </div>
-              <div
-                className={`shrink-0 whitespace-nowrap text-right text-[15px] font-bold tabular-nums ${toneClass(row.value)}`}
-              >
-                {signedUsd(row.value)}
-              </div>
-            </div>
-            <div className="h-1 rounded-full bg-slate-200/70">
-              <div
-                className={`h-1 rounded-full ${Number(row.value) >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                style={{
-                  width: `${Math.max(10, (Math.sqrt(Math.abs(Number(row.value) || 0)) / scaledMax) * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function EtfFlowboard({ data }: { data: any }) {
-  const view = data.metadata?.view || "daily";
-  const daily = view === "daily";
-  const weekly = view === "weekly";
-  const monthly = view === "monthly";
-  const metrics = data.headlineMetrics || [];
-  const hero = metrics[0];
-  const supportMetrics = daily ? metrics.slice(1, 3) : metrics.slice(1, 4);
-  const bars = data.series?.bars || [];
-  const issuerRows = (data.series?.tables || []).filter(
-    (row: any) => Number(row.value) !== 0,
-  );
-
-  return (
-    <div className="relative space-y-6 overflow-hidden rounded-[2rem]">
-      {daily ? <BtcCanvasWatermarks /> : null}
-      {daily ? (
-        <div className="relative z-10 grid grid-cols-[1.05fr_0.95fr] gap-6">
-          <div>
-            <BtcHeroMetric hero={hero} />
-            <div className="mt-5 grid grid-cols-2 gap-5">
-              {supportMetrics.map((metric: any) => (
-                <BtcMetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.formattedValue}
-                  rawValue={metric.value}
-                />
-              ))}
-            </div>
-          </div>
-          <Leaderboard
-            rows={issuerRows}
-            maxRows={5}
-            title="LATEST ISSUER FLOWS"
-            showRank={false}
-          />
-        </div>
-      ) : null}
-
-      {weekly ? (
-        <>
-          <div
-            data-metric-row="compact"
-            data-metric-row-variant="weekly-equal"
-            className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {metrics.map((metric: any, index: number) => {
-              const card = data.series?.cards?.find(
-                (item: any) => item.label === metric.label,
-              );
-              return (
-                <BtcMetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.formattedValue}
-                  sub={card?.date || null}
-                  periodLabel={metric.periodLabel}
-                  metricLabel={metric.metricLabel}
-                  watermark={index === 0}
-                />
-              );
-            })}
-          </div>
-          <div className="grid gap-5 lg:grid-cols-[1.18fr_0.62fr]">
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                Last 5 Days
-              </h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Inflows rise above zero; outflows extend below.
-              </p>
-              <div className="mt-3">
-                <SignedFlowChart rows={bars} />
-              </div>
-            </div>
-            <Leaderboard
-              rows={issuerRows}
-              maxRows={5}
-              title="Top Issuer Flows"
-            />
-          </div>
-        </>
-      ) : null}
-
-      {monthly ? (
-        <>
-          <div
-            data-metric-row="compact"
-            data-metric-row-variant="monthly-equal"
-            className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4"
-          >
-            {metrics.map((metric: any, index: number) => {
-              const card = data.series?.cards?.find(
-                (item: any) => item.label === metric.label,
-              );
-              return (
-                <BtcMetricCard
-                  key={metric.label}
-                  label={metric.label}
-                  value={metric.formattedValue}
-                  sub={card?.date || null}
-                  periodLabel={metric.periodLabel}
-                  metricLabel={metric.metricLabel}
-                  watermark={index === 0}
-                />
-              );
-            })}
-          </div>
-          <div className="grid gap-5 lg:grid-cols-[1.28fr_0.52fr]">
-            <div className="rounded-[1.75rem] border border-slate-200 bg-white/68 p-4 shadow-sm">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
-                This Month
-              </h3>
-              <p className="mt-1 text-sm text-slate-500">
-                Completed month-to-date daily net flows.
-              </p>
-              <div className="mt-3">
-                <SignedFlowChart rows={bars} monthly />
-              </div>
-            </div>
-            <Leaderboard
-              rows={issuerRows}
-              maxRows={5}
-              title="Top Issuer Flows"
-            />
-          </div>
-        </>
-      ) : null}
-    </div>
   );
 }
