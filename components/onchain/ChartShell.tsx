@@ -508,7 +508,7 @@ export function ChartShell({
           data-static-share="true"
           className={
             singleFormat
-              ? "origin-top-left overflow-hidden rounded-[2.35rem] border border-slate-200/90 bg-[#f5f8fb] p-14 text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
+              ? "origin-top-left overflow-hidden rounded-[2.35rem] border border-slate-200/90 bg-[linear-gradient(135deg,#f8fbff_0%,#f4f7fb_48%,#f8fbff_100%)] px-[56px] py-[66px] text-slate-950 shadow-[0_22px_70px_rgba(15,23,42,0.10)]"
               : "origin-top-left overflow-hidden rounded-[2rem] border border-zinc-200 bg-gradient-to-br from-white via-zinc-50 to-white p-10 text-zinc-950 shadow-sm"
           }
           style={
@@ -523,7 +523,7 @@ export function ChartShell({
           <div
             className={
               singleFormat
-                ? "mb-8 flex items-start justify-between gap-8"
+                ? "mb-[42px] flex items-start justify-between gap-8"
                 : "mb-6 flex items-start justify-between gap-6"
             }
           >
@@ -531,7 +531,7 @@ export function ChartShell({
               <div
                 className={
                   singleFormat
-                    ? "text-sm font-bold uppercase tracking-[0.26em] text-slate-500"
+                    ? "text-[21px] font-extrabold uppercase tracking-[0.32em] text-slate-500"
                     : "text-xs font-semibold uppercase tracking-[0.25em] text-zinc-500"
                 }
               >
@@ -540,7 +540,7 @@ export function ChartShell({
               <h2
                 className={
                   singleFormat
-                    ? "mt-3 text-6xl font-bold tracking-[-0.055em] text-slate-950"
+                    ? "mt-6 text-[78px] font-extrabold leading-none tracking-[-0.07em] text-slate-950"
                     : "mt-3 text-5xl font-semibold tracking-tight"
                 }
               >
@@ -549,7 +549,7 @@ export function ChartShell({
               <p
                 className={
                   singleFormat
-                    ? "mt-4 max-w-3xl text-xl font-medium leading-8 text-slate-500"
+                    ? "mt-8 max-w-4xl text-[25px] font-semibold leading-none tracking-[-0.035em] text-slate-500"
                     : "mt-3 max-w-3xl text-lg text-zinc-600"
                 }
               >
@@ -557,7 +557,7 @@ export function ChartShell({
               </p>
             </div>
             {singleFormat ? (
-              <div className="flex items-center justify-center rounded-full border border-slate-200/90 bg-white/85 px-5 py-2.5 text-sm font-bold tracking-[-0.02em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.07)]">
+              <div className="mt-[-18px] flex h-[58px] items-center justify-center rounded-[18px] border border-slate-200/90 bg-white/86 px-7 text-[20px] font-bold tracking-[-0.03em] text-slate-950 shadow-[0_10px_28px_rgba(15,23,42,0.08)]">
                 Onchain Visuals
               </div>
             ) : (
@@ -570,18 +570,27 @@ export function ChartShell({
             }
           />
           {children}
-          {data.status !== "source_error" &&
+          {!singleFormat &&
+          data.status !== "source_error" &&
           data.status !== "disabled" &&
           data.status !== "source_config_required" ? (
-            <div className={singleFormat ? "mt-7" : "mt-6"}>
+            <div className="mt-6">
               <InsightChips insights={data.insights || []} />
             </div>
           ) : null}
-          <SourceFooter
-            sourceLabel={data.sourceLabel}
-            sourceUrl={data.sourceUrl}
-            lastUpdatedAt={data?.freshness?.lastUpdatedAt}
-          />
+          {singleFormat ? (
+            <footer className="mt-[58px] grid grid-cols-[1fr_auto_1fr] items-center text-[18px] font-semibold text-slate-500">
+              <div>Created with <span className="mx-4">·</span><span className="font-extrabold text-slate-950">Onchain Visuals</span></div>
+              <div />
+              <div className="text-right">Source: Farside <span className="mx-8 text-slate-300">|</span> Updated: <span className="font-extrabold text-slate-700">{data?.freshness?.lastUpdatedAt ? new Date(data.freshness.lastUpdatedAt).toLocaleString("en-US", { timeZone: "UTC", month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit", timeZoneName: "short" }) : "—"}</span></div>
+            </footer>
+          ) : (
+            <SourceFooter
+              sourceLabel={data.sourceLabel}
+              sourceUrl={data.sourceUrl}
+              lastUpdatedAt={data?.freshness?.lastUpdatedAt}
+            />
+          )}
         </div>
       </div>
     </section>
