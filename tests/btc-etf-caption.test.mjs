@@ -125,9 +125,18 @@ test("workflow stays a dry run unless posting is explicitly enabled", async () =
   assert.match(workflow, /default: true/);
   assert.match(workflow, /X_DRY_RUN=true/);
   assert.match(workflow, /ONCHAIN_PUBLISH_SECRET/);
-  assert.match(workflow, /X_USER_ACCESS_TOKEN/);
+  assert.match(workflow, /X_CONSUMER_KEY: \$\{\{ secrets\.X_CONSUMER_KEY \}\}/);
+  assert.match(workflow, /X_CONSUMER_SECRET: \$\{\{ secrets\.X_CONSUMER_SECRET \}\}/);
+  assert.match(workflow, /X_ACCESS_TOKEN: \$\{\{ secrets\.X_ACCESS_TOKEN \}\}/);
+  assert.match(workflow, /X_ACCESS_TOKEN_SECRET: \$\{\{ secrets\.X_ACCESS_TOKEN_SECRET \}\}/);
+  assert.doesNotMatch(workflow, /X_USER_ACCESS_TOKEN: \$\{\{ secrets\.X_USER_ACCESS_TOKEN \}\}/);
   assert.match(script, /X_DRY_RUN \?\? "true"/);
   assert.match(script, /Refusing to post/);
+  assert.match(script, /X_CONSUMER_KEY/);
+  assert.match(script, /X_USER_ACCESS_TOKEN is not used/);
+  assert.match(publishRoute, /oauth1AuthorizationHeader/);
+  assert.match(publishRoute, /https:\/\/api\.x\.com\/2\/media\/upload/);
+  assert.doesNotMatch(publishRoute, /Authorization: `Bearer /);
 });
 
 test("flowboard hero and stat values are not ellipsized", () => {

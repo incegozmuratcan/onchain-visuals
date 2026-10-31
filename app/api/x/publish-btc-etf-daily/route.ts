@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { buildChartSnapshot } from "@/lib/onchainData";
 import { buildBtcEtfDailyCaption } from "@/lib/onchain/btcEtfCaption";
 import { buildBtcEtfJun8OutflowPreview } from "@/lib/onchain/btcEtfPreview";
+import { oauth1AuthorizationHeader, type OAuth1Credentials } from "@/lib/x/oauth1";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -35,8 +36,35 @@ function isLivePostEnabled() {
   return value === "false" || value === "0" || value === "off";
 }
 
-function xAccessToken() {
-  return readEnv("X_USER_ACCESS_TOKEN") || readEnv("X_ACCESS_TOKEN");
+/**
+ * OAuth 1.0a user context for @OnchainVis. POST /2/media/upload accepts this
+ * or an OAuth 2.0 user token with media.write. This app's portal token
+ * generator does not offer media.write, so a bearer in X_USER_ACCESS_TOKEN
+ * cannot upload the card.
+ */
+function oauth1Credentials(): OAuth1Credentials | null {
+  const consumerKey = readEnv("X_CONSUMER_KEY").trim();
+  const consumerSecret = readEnv("X_CONSUMER_SECRET").trim();
+  const accessToken = readEnv("X_ACCESS_TOKEN").trim();
+  const accessTokenSecret = readEnv("X_ACCESS_TOKEN_SECRET").trim();
+  if (!consumerKey || !consumerSecret || !accessToken || !accessTokenSecret) return null;
+  return { consumerKey, consumerSecret, accessToken, accessTokenSecret };
+}
+
+function xAuthorization(method: string, url: string) {
+  const credentials = oauth1Credentials();
+  if (!credentials) throw new Error("Missing X OAuth 1.0a credentials.");
+  return oauth1AuthorizationHeader(method, url, credentials);
+}
+
+function xFailureMessage(payload: any, action: string, status: number) {
+  const detail =
+    (typeof payload?.detail === "string" && payload.detail) ||
+    (typeof payload?.title === "string" && payload.title) ||
+    (typeof payload?.errors?.[0]?.message === "string" && payload.errors[0].message) ||
+    (typeof payload?.error === "string" && payload.error) ||
+    "";
+  return `${action} failed with HTTP ${status}${detail ? `: ${detail}` : ""}.`;
 }
 
 function timingSafeEqualText(a: string, b: string) {
@@ -91,21 +119,20 @@ function validateSnapshot(snapshot: any, date: string) {
 }
 
 async function uploadMediaToX(buffer: Buffer) {
-  const token = xAccessToken();
-  if (!token) throw new Error("Missing X user access token.");
+  const url = "https://api.x.com/2/media/upload";
   const form = new FormData();
   form.set("media_category", "tweet_image");
   form.set("media_type", "image/png");
   const mediaBytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
   form.set("media", new Blob([mediaBytes], { type: "image/png" }), "btc-etf-daily-flowboard.png");
-  const response = await fetch("https://api.x.com/2/media/upload", {
+  const response = await fetch(url, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: xAuthorization("POST", url) },
     body: form,
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.detail || payload?.title || payload?.error || `X media upload failed with HTTP ${response.status}.`);
+    throw new Error(xFailureMessage(payload, "X media upload", response.status));
   }
   const mediaId = payload?.data?.id || payload?.media_id_string || payload?.media_id;
   if (!mediaId) throw new Error("X media upload response did not include a media id.");
@@ -113,19 +140,18 @@ async function uploadMediaToX(buffer: Buffer) {
 }
 
 async function createTweet(mediaId: string, text: string) {
-  const token = xAccessToken();
-  if (!token) throw new Error("Missing X user access token.");
-  const response = await fetch("https://api.x.com/2/tweets", {
+  const url = "https://api.x.com/2/tweets";
+  const response = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: xAuthorization("POST", url),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text, media: { media_ids: [mediaId] } }),
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(payload?.detail || payload?.title || payload?.error || `X post creation failed with HTTP ${response.status}.`);
+    throw new Error(xFailureMessage(payload, "X post creation", response.status));
   }
   const postId = payload?.data?.id;
   if (!postId) throw new Error("X post response did not include a post id.");
@@ -197,8 +223,12 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (!xAccessToken()) {
-    return jsonError(500, "missing_x_credentials", "Missing X user-context access token for @OnchainVis. Set X_USER_ACCESS_TOKEN, or leave X_DRY_RUN unset to keep the dry run.");
+  if (!oauth1Credentials()) {
+    return jsonError(
+      500,
+      "missing_x_credentials",
+      "Missing OAuth 1.0a credentials for @OnchainVis. Set X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and X_ACCESS_TOKEN_SECRET from the app's OAuth 1.0 Keys. X_USER_ACCESS_TOKEN is not used; it cannot upload media.",
+    );
   }
 
   try {
@@ -216,7 +246,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "X publish failed.";
-    const code: PublishErrorCode = message.toLowerCase().includes("media") ? "x_media_upload_failed" : "x_post_failed";
+    const code: PublishErrorCode = message.startsWith("X media upload") ? "x_media_upload_failed" : "x_post_failed";
     return jsonError(502, code, message);
   }
 }

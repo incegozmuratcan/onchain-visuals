@@ -4,10 +4,12 @@
  *
  * Dry-run by default: writes artifacts/x-btc-etf-daily/{png,caption,result}
  * and does not call X. A live post happens only when X_DRY_RUN is exactly
- * false (or 0 / off), ONCHAIN_PUBLISH_SECRET and X_USER_ACCESS_TOKEN are set,
- * and CAPTURE_PREVIEW is unset.
+ * false (or 0 / off), ONCHAIN_PUBLISH_SECRET is set, the four OAuth 1.0a
+ * secrets below are set, and CAPTURE_PREVIEW is unset.
  *
- * The X user token must belong to @OnchainVis.
+ * X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and
+ * X_ACCESS_TOKEN_SECRET are the @OnchainVis OAuth 1.0 Keys (Read and write).
+ * X_USER_ACCESS_TOKEN is not used; that OAuth 2.0 bearer cannot upload media.
  */
 import { spawn } from "node:child_process";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -276,10 +278,15 @@ async function main() {
     };
 
     if (!dryRun) {
-      const token = process.env.X_USER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN;
-      if (!publishSecretProvided || !token) {
+      const oauth1Ready = [
+        "X_CONSUMER_KEY",
+        "X_CONSUMER_SECRET",
+        "X_ACCESS_TOKEN",
+        "X_ACCESS_TOKEN_SECRET",
+      ].every((name) => String(process.env[name] || "").trim());
+      if (!publishSecretProvided || !oauth1Ready) {
         throw new Error(
-          "Refusing to post: set ONCHAIN_PUBLISH_SECRET and X_USER_ACCESS_TOKEN (the token must be for @OnchainVis), with X_DRY_RUN=false.",
+          "Refusing to post: set ONCHAIN_PUBLISH_SECRET and the @OnchainVis OAuth 1.0a secrets X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and X_ACCESS_TOKEN_SECRET, with X_DRY_RUN=false. X_USER_ACCESS_TOKEN is not used.",
         );
       }
       const publish = await fetch(`${base}/api/x/publish-btc-etf-daily`, {
