@@ -12,7 +12,7 @@ The first automated post is the daily BTC ETF Flowboard for [@OnchainVis](https:
 
 When `X_DRY_RUN` is anything other than `false`, `0`, or `off`, the job stops there. It does not call `POST /api/x/publish-btc-etf-daily` and it does not call X.
 
-A live post runs only when dry-run is explicitly off **and** `ONCHAIN_PUBLISH_SECRET` plus `X_USER_ACCESS_TOKEN` are set. The publish route uses the same rule: an unset `X_DRY_RUN` is a dry run. The token has to be a user-context token for **@OnchainVis**.
+A live post runs only when dry-run is explicitly off **and** `ONCHAIN_PUBLISH_SECRET` plus the four OAuth 1.0a secrets below are set. The publish route uses the same rule: an unset `X_DRY_RUN` is a dry run. The access token has to be the **@OnchainVis** user token with Read and write permission. The route signs `POST https://api.x.com/2/media/upload` and `POST https://api.x.com/2/tweets` with OAuth 1.0a, then posts the caption with the PNG attached.
 
 ## Schedule
 
@@ -22,17 +22,35 @@ The schedule stays a dry run unless the repository variable `X_DRY_RUN` is set t
 
 ## GitHub Actions secrets
 
+A dry run needs none of the X secrets. A live post needs `ONCHAIN_PUBLISH_SECRET` and four values from the X Developer Portal. Do not commit those values.
+
+### Paste the OAuth 1.0 keys
+
+1. Open the [X Developer Portal](https://developer.x.com/en/portal/dashboard) and select the app that posts as [@OnchainVis](https://x.com/OnchainVis).
+2. Under **User authentication settings**, set **App permissions** to **Read and write**. If you change this, regenerate the Access Token and Secret afterward. A token created while the app was Read stays read-only.
+3. Open **Keys and tokens** and find **OAuth 1.0 Keys**.
+4. In the GitHub repo, open **Settings → Secrets and variables → Actions → New repository secret**. Create one secret per row. Paste the portal value only: no quotes and no extra spaces. The Access Token row in the portal must show **@OnchainVis**.
+
+| GitHub secret | Copy this portal field |
+| --- | --- |
+| `X_CONSUMER_KEY` | Consumer Key. Some screens label this **API Key**. It is the same value. |
+| `X_CONSUMER_SECRET` | Consumer Secret. Some screens label this **API Key Secret**. |
+| `X_ACCESS_TOKEN` | Access Token for @OnchainVis. This is the OAuth 1.0 token, not an OAuth 2.0 bearer. |
+| `X_ACCESS_TOKEN_SECRET` | Access Token Secret shown next to that Access Token. |
+
+`X_USER_ACCESS_TOKEN` is obsolete for live posts. The portal OAuth 2.0 token generator for this app does not offer `media.write`. `POST /2/media/upload` then returns `Forbidden` for that bearer. The job does not read `X_USER_ACCESS_TOKEN`. Do not paste an OAuth 2.0 bearer into `X_ACCESS_TOKEN`.
+
+`X_CLIENT_ID`, `X_CLIENT_SECRET`, and `X_USER_REFRESH_TOKEN` are not read. Live posts do not refresh an OAuth 2.0 token.
+
+### Other secrets
+
 | Secret | Required for a dry run | Used for |
 | --- | --- | --- |
-| `ONCHAIN_PUBLISH_SECRET` | No | Bearer token for `POST /api/x/publish-btc-etf-daily`. Required for a live post. |
-| `X_USER_ACCESS_TOKEN` | No | User-context token for @OnchainVis. Required for a live post. |
-| `X_CLIENT_ID` | No | Reserved for a later refresh-token exchange. Not read yet. |
-| `X_CLIENT_SECRET` | No | Reserved for a later refresh-token exchange. Not read yet. |
-| `X_USER_REFRESH_TOKEN` | No | Reserved for a later refresh-token exchange. Not read yet. |
+| `ONCHAIN_PUBLISH_SECRET` | No | Any long random string. The job sends it as the bearer for `POST /api/x/publish-btc-etf-daily`. Required for a live post. It is not an X token. |
 | `DATABASE_URL` | No | When set, refresh persists the snapshot in Postgres. When unset, the job uses `.onchain-cache` on the runner. |
 | `ONCHAIN_REFRESH_SECRET` or `CRON_SECRET` | No | Bearer for the refresh route. When both are unset, the job mints a one-run secret for the server it starts. |
 
-Do not put a token for a personal or other project account in `X_USER_ACCESS_TOKEN`.
+Do not put keys for a personal or other project account in the four OAuth 1.0 secrets. A successful live run writes `posted: true` and the post URL into `artifacts/x-btc-etf-daily/result.json`.
 
 ## Local dry run
 

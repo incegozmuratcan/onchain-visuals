@@ -14,13 +14,26 @@ name: X BTC ETF daily
 # - ONCHAIN_PUBLISH_SECRET
 #     Bearer token for POST /api/x/publish-btc-etf-daily. Required only for a
 #     live post. This job mints a one-run value when the secret is unset so
-#     the local server can authorize itself during a dry run.
+#     the local server can authorize itself during a dry run. This is not an
+#     X token.
+# - X_CONSUMER_KEY
+#     OAuth 1.0 Consumer Key (API Key) from the app's OAuth 1.0 Keys.
+#     Required only when dry-run is off.
+# - X_CONSUMER_SECRET
+#     OAuth 1.0 Consumer Secret (API Key Secret). Required only when dry-run
+#     is off.
+# - X_ACCESS_TOKEN
+#     OAuth 1.0 Access Token for @OnchainVis with Read and write. This is not
+#     an OAuth 2.0 bearer. Required only when dry-run is off.
+# - X_ACCESS_TOKEN_SECRET
+#     OAuth 1.0 Access Token Secret for that same @OnchainVis token.
+#     Required only when dry-run is off.
 # - X_USER_ACCESS_TOKEN
-#     User-context access token for @OnchainVis. Not a token for any other
-#     account. Required only when dry-run is off.
+#     Obsolete for live posts. The portal OAuth 2.0 token generator does not
+#     offer media.write, so that bearer cannot upload the PNG. This job does
+#     not read it.
 # - X_CLIENT_ID, X_CLIENT_SECRET, X_USER_REFRESH_TOKEN
-#     Reserved for a later refresh-token exchange. This slice does not read
-#     them and will not refresh or rotate tokens.
+#     Not read. Live posts use the four OAuth 1.0a secrets above.
 # - DATABASE_URL
 #     Optional Neon/Postgres URL. When set, the refresh writes the BTC ETF
 #     snapshot there. When unset, the job uses its local .onchain-cache.
@@ -59,7 +72,10 @@ jobs:
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
       ONCHAIN_PUBLISH_SECRET: ${{ secrets.ONCHAIN_PUBLISH_SECRET }}
-      X_USER_ACCESS_TOKEN: ${{ secrets.X_USER_ACCESS_TOKEN }}
+      X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+      X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+      X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
       X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
       X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
       X_USER_REFRESH_TOKEN: ${{ secrets.X_USER_REFRESH_TOKEN }}
