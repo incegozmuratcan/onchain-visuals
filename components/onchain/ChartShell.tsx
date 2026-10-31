@@ -363,9 +363,11 @@ function shouldShowPublishControls() {
 export function ChartShell({
   data,
   children,
+  capture = false,
 }: {
   data: any;
   children: ReactNode;
+  capture?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const singleFormat = data?.datasetSlug === "btc-etf-flowboard";
@@ -455,7 +457,12 @@ export function ChartShell({
     }
   };
   return (
-    <section className="space-y-5 overflow-x-hidden">
+    <section
+      className={
+        capture ? "m-0 bg-[#f5f8fb] p-0" : "space-y-5 overflow-x-hidden"
+      }
+    >
+      {capture ? null : (
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <div className="flex flex-wrap gap-2">
@@ -474,7 +481,8 @@ export function ChartShell({
           <ExportButton onClick={onExport} />
         </div>
       </div>
-      {singleFormat && publishControls ? (
+      )}
+      {capture ? null : singleFormat && publishControls ? (
         <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -521,12 +529,18 @@ export function ChartShell({
         </div>
       ) : null}
       <div
-        className="mx-auto w-full max-w-full overflow-hidden rounded-[2rem]"
+        className={
+          capture
+            ? "m-0 overflow-visible"
+            : "mx-auto w-full max-w-full overflow-hidden rounded-[2rem]"
+        }
         style={
-          {
-            aspectRatio: `${dims.width} / ${dims.height}`,
-            containerType: "inline-size",
-          } as any
+          capture
+            ? ({ width: dims.width, height: dims.height } as any)
+            : ({
+                aspectRatio: `${dims.width} / ${dims.height}`,
+                containerType: "inline-size",
+              } as any)
         }
         data-testid="responsive-preview-frame"
       >
@@ -536,6 +550,7 @@ export function ChartShell({
           data-export-width={dims.width}
           data-export-height={dims.height}
           data-static-share="true"
+          data-capture={capture ? "share-card" : undefined}
           className={
             singleFormat
               ? "origin-top-left overflow-hidden rounded-[2.1rem] border border-slate-200/95 bg-[#fbfaf7] px-[58px] py-[68px] text-slate-950 shadow-[0_24px_82px_rgba(15,23,42,0.085)]"
@@ -545,7 +560,9 @@ export function ChartShell({
             {
               width: dims.width,
               height: dims.height,
-              transform: `scale(min(1, calc(100cqw / ${dims.width})))`,
+              transform: capture
+                ? "none"
+                : `scale(min(1, calc(100cqw / ${dims.width})))`,
               maxWidth: "none",
             } as any
           }

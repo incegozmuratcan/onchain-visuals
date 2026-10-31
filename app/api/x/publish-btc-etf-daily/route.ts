@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { buildChartSnapshot } from "@/lib/onchainData";
+import { buildBtcEtfDailyCaption } from "@/lib/onchain/btcEtfCaption";
 import { buildBtcEtfJun8OutflowPreview } from "@/lib/onchain/btcEtfPreview";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,21 @@ function jsonError(status: number, code: PublishErrorCode, message: string, deta
   return NextResponse.json({ success: false, error: { code, message, details } }, { status });
 }
 
+function readEnv(name: string) {
+  const value = globalThis.process?.env?.[name];
+  return typeof value === "string" ? value : "";
+}
+
+/** Live posts require an explicit off switch. Unset X_DRY_RUN stays a dry run. */
+function isLivePostEnabled() {
+  const value = readEnv("X_DRY_RUN").trim().toLowerCase();
+  return value === "false" || value === "0" || value === "off";
+}
+
+function xAccessToken() {
+  return readEnv("X_USER_ACCESS_TOKEN") || readEnv("X_ACCESS_TOKEN");
+}
+
 function timingSafeEqualText(a: string, b: string) {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
@@ -30,19 +46,11 @@ function timingSafeEqualText(a: string, b: string) {
 }
 
 function authorize(request: NextRequest) {
-  const expected = process.env.ONCHAIN_PUBLISH_SECRET;
+  const expected = readEnv("ONCHAIN_PUBLISH_SECRET");
   if (!expected) return false;
   const raw = request.headers.get("authorization") || "";
   const token = raw.replace(/^Bearer\s+/i, "").trim();
   return Boolean(token) && timingSafeEqualText(token, expected);
-}
-
-function displayDate(date: string) {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
-    timeZone: "UTC",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function decodePngDataUrl(dataUrl: unknown) {
@@ -83,7 +91,7 @@ function validateSnapshot(snapshot: any, date: string) {
 }
 
 async function uploadMediaToX(buffer: Buffer) {
-  const token = process.env.X_USER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN;
+  const token = xAccessToken();
   if (!token) throw new Error("Missing X user access token.");
   const form = new FormData();
   form.set("media_category", "tweet_image");
@@ -105,7 +113,7 @@ async function uploadMediaToX(buffer: Buffer) {
 }
 
 async function createTweet(mediaId: string, text: string) {
-  const token = process.env.X_USER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN;
+  const token = xAccessToken();
   if (!token) throw new Error("Missing X user access token.");
   const response = await fetch("https://api.x.com/2/tweets", {
     method: "POST",
@@ -140,12 +148,13 @@ export async function POST(request: NextRequest) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return jsonError(400, "bad_request", "A YYYY-MM-DD date is required.");
   }
-  const tweetText = `BTC ETF Daily Flowboard — ${displayDate(date)}`;
 
   let snapshot: any;
+  let tweetText = "";
   try {
     snapshot = body?.previewState === "jun8-outflow" ? buildBtcEtfJun8OutflowPreview() : await buildChartSnapshot("btc-etf-flowboard", "daily");
     validateSnapshot(snapshot, date);
+    tweetText = buildBtcEtfDailyCaption(snapshot);
   } catch (error) {
     return jsonError(422, "data_validation_failed", error instanceof Error ? error.message : "BTC ETF data validation failed.");
   }
@@ -168,7 +177,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       duplicate: true,
-      dryRun: false,
+      dryRun: !isLivePostEnabled(),
       tweetText,
       postId: existing.postId,
       postUrl: existing.postUrl,
@@ -176,7 +185,7 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  const dryRun = process.env.X_DRY_RUN === "true";
+  const dryRun = !isLivePostEnabled();
   if (dryRun) {
     return NextResponse.json({
       success: true,
@@ -188,8 +197,8 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  if (!(process.env.X_USER_ACCESS_TOKEN || process.env.X_ACCESS_TOKEN)) {
-    return jsonError(500, "missing_x_credentials", "Missing X user-context access token. Set X_USER_ACCESS_TOKEN or X_ACCESS_TOKEN, or enable X_DRY_RUN=true.");
+  if (!xAccessToken()) {
+    return jsonError(500, "missing_x_credentials", "Missing X user-context access token for @OnchainVis. Set X_USER_ACCESS_TOKEN, or leave X_DRY_RUN unset to keep the dry run.");
   }
 
   try {
