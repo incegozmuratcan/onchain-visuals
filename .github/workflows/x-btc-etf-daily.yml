@@ -1,0 +1,136 @@
+name: X BTC ETF daily
+
+# Dry-run by default. This job refreshes the BTC ETF daily snapshot, renders the
+# share card at 1536×1024, and uploads the PNG plus caption as artifacts.
+# It does not call X unless a run explicitly sets dry-run off AND the secrets
+# below are present. The X user token must be for @OnchainVis.
+#
+# Schedule: 05:30 UTC Tuesday–Saturday (08:30 Europe/Istanbul). US cash close
+# is the afternoon before; Farside often publishes late, so Istanbul morning
+# Tue–Sat is the first automated pass for the completed US session. Manual
+# runs use workflow_dispatch and stay dry-run unless dry_run is set to false.
+#
+# GitHub Actions secrets
+# - ONCHAIN_PUBLISH_SECRET
+#     Bearer token for POST /api/x/publish-btc-etf-daily. Required only for a
+#     live post. This job mints a one-run value when the secret is unset so
+#     the local server can authorize itself during a dry run.
+# - X_USER_ACCESS_TOKEN
+#     User-context access token for @OnchainVis. Not a token for any other
+#     account. Required only when dry-run is off.
+# - X_CLIENT_ID, X_CLIENT_SECRET, X_USER_REFRESH_TOKEN
+#     Reserved for a later refresh-token exchange. This slice does not read
+#     them and will not refresh or rotate tokens.
+# - DATABASE_URL
+#     Optional Neon/Postgres URL. When set, the refresh writes the BTC ETF
+#     snapshot there. When unset, the job uses its local .onchain-cache.
+# - ONCHAIN_REFRESH_SECRET or CRON_SECRET
+#     Optional bearer for /api/admin/onchain/refresh and /api/cron/onchain/refresh.
+#     When both are unset, the job mints a one-run secret for the server it starts.
+#
+# Repository variable (optional)
+# - X_DRY_RUN
+#     Schedule only. Leave unset or set to true to keep the dry run.
+#     Set to false only when live posts should run on the schedule.
+#     workflow_dispatch uses its dry_run input instead, which defaults to true.
+
+on:
+  schedule:
+    - cron: "30 5 * * 2-6"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (PNG + caption only). Leave true until live posting is intentional."
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: x-btc-etf-daily
+  cancel-in-progress: false
+
+jobs:
+  btc-etf-daily:
+    name: Render BTC ETF daily card
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ONCHAIN_PUBLISH_SECRET: ${{ secrets.ONCHAIN_PUBLISH_SECRET }}
+      X_USER_ACCESS_TOKEN: ${{ secrets.X_USER_ACCESS_TOKEN }}
+      X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
+      X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+      X_USER_REFRESH_TOKEN: ${{ secrets.X_USER_REFRESH_TOKEN }}
+      ONCHAIN_REFRESH_SECRET: ${{ secrets.ONCHAIN_REFRESH_SECRET }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Inter for share-card text
+        run: |
+          set -euo pipefail
+          if fc-list : family | grep -qi '^Inter$'; then
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y fonts-inter || true
+          if fc-list : family | grep -qi '^Inter$'; then
+            exit 0
+          fi
+          mkdir -p "$HOME/.local/share/fonts"
+          curl -fsSL -o /tmp/inter.zip https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+          unzip -q /tmp/inter.zip -d /tmp/inter
+          find /tmp/inter -name '*.ttf' -exec cp {} "$HOME/.local/share/fonts/" \;
+          fc-cache -f
+          fc-list : family | grep -i '^Inter$'
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Choose dry-run or live post
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            RAW="${{ inputs.dry_run }}"
+          else
+            RAW="${{ vars.X_DRY_RUN }}"
+          fi
+          case "$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]')" in
+            false|0|off)
+              echo "X_DRY_RUN=false" >> "$GITHUB_ENV"
+              echo "Live post requested."
+              ;;
+            *)
+              echo "X_DRY_RUN=true" >> "$GITHUB_ENV"
+              echo "Dry run. X will not be called."
+              ;;
+          esac
+
+      - name: Build Next.js app
+        run: npm run build
+
+      - name: Refresh, capture, and prepare the post
+        run: node scripts/x-btc-etf-daily.mjs
+
+      - name: Upload PNG and caption
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-etf-daily
+          path: artifacts/x-btc-etf-daily/
+          if-no-files-found: warn
+          retention-days: 14

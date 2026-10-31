@@ -6,7 +6,9 @@ const usd = (v: any) =>
     currency: "USD",
     notation: "compact",
     maximumFractionDigits: 2,
-  }).format(Number(v) || 0);
+  })
+    .format(Number(v) || 0)
+    .replace(/\.(\d*?)0+(?=\D|$)/g, (_, digits) => (digits ? `.${digits}` : ""));
 const signedUsd = (v: any) => `${Number(v) >= 0 ? "+" : ""}${usd(v)}`;
 const shortDate = (date: string) =>
   new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
@@ -22,6 +24,23 @@ const flowLabel = (value: any) =>
   Number(value) >= 0 ? "NET INFLOW" : "NET OUTFLOW";
 const driverLabel = (value: any) =>
   Number(value) >= 0 ? "LARGEST INFLOW" : "LARGEST OUTFLOW";
+/** Font size for the hero net-flow figure. Long prints such as "-$643.2M" scale down so they stay inside the coin inset. */
+export function heroFlowFontSize(value: unknown) {
+  const length = String(value ?? "").trim().length;
+  if (length <= 6) return 88;
+  if (length <= 7) return 84;
+  if (length <= 8) return 80;
+  if (length <= 10) return 68;
+  return 56;
+}
+
+/** Ticker + amount sizes for the support stat. The value sits on the full card width. */
+export function statFlowFontSizes(value: unknown) {
+  const length = String(value ?? "").trim().length;
+  if (length <= 14) return { ticker: 32, amount: 38 };
+  return { ticker: 26, amount: 30 };
+}
+
 const displayMetricLabel = (label: string, value: any) => {
   if (/^net flow$/i.test(label)) return flowLabel(value);
   if (/^top driver$/i.test(label)) return driverLabel(value);
@@ -107,7 +126,10 @@ export function BrandPill() {
 export function NetFlowCard({ hero }: { hero: any }) {
   const heroLabel = labelParts(hero);
   return (
-    <div className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/75 bg-white/78 p-[42px] pr-[300px] shadow-[0_16px_48px_rgba(15,23,42,0.04)]">
+    <div
+      data-hero-card="true"
+      className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/75 bg-white/78 p-[42px] pr-[272px] shadow-[0_16px_48px_rgba(15,23,42,0.04)]"
+    >
       <div className="absolute right-[12px] top-1/2 h-[288px] w-[288px] -translate-y-1/2 rounded-full border border-slate-200/60 bg-slate-50/18" />
       <BTCBadge />
       <div className="relative z-10 min-w-0">
@@ -125,7 +147,9 @@ export function NetFlowCard({ hero }: { hero: any }) {
         </div>
       </div>
       <div
-        className={`relative z-10 mt-[70px] truncate text-[88px] font-extrabold leading-none tracking-[-0.075em] ${toneClass(hero?.value)}`}
+        data-hero-flow-value={hero?.formattedValue || ""}
+        className={`relative z-10 mt-[70px] whitespace-nowrap font-extrabold leading-none tracking-[-0.075em] ${toneClass(hero?.value)}`}
+        style={{ fontSize: heroFlowFontSize(hero?.formattedValue) }}
       >
         {hero?.formattedValue}
       </div>
@@ -171,11 +195,17 @@ export function StatCard({
   icon: "driver" | "cumulative";
 }) {
   const label = displayMetricLabel(metric.label, metric.value);
-  const match = /^top driver$/i.test(metric.label)
-    ? String(metric.formattedValue).match(/^(\S+)\s+(.+)$/)
-    : null;
+  const formatted = String(metric.formattedValue ?? "");
+  const splitDriver =
+    /^top driver$/i.test(metric.label) ||
+    /^largest (in|out)flow$/i.test(String(metric.label || ""));
+  const match = splitDriver ? formatted.match(/^(\S+)\s+(.+)$/) : null;
+  const sizes = statFlowFontSizes(formatted);
   return (
-    <div className="grid h-[194px] grid-cols-[80px_1fr] grid-rows-[80px_1fr] gap-x-7 rounded-[34px] border border-slate-200/78 bg-white/76 px-9 py-[30px] shadow-[0_15px_42px_rgba(15,23,42,0.04)]">
+    <div
+      data-stat-card="true"
+      className="grid h-[194px] grid-cols-[80px_1fr] grid-rows-[80px_1fr] gap-x-7 overflow-hidden rounded-[34px] border border-slate-200/78 bg-white/76 px-9 py-[30px] shadow-[0_15px_42px_rgba(15,23,42,0.04)]"
+    >
       <StatIcon type={icon} />
       <div className="flex h-[54px] items-start">
         <div className="text-[16px] font-extrabold uppercase leading-[1.35] tracking-[0.28em] text-slate-500">
@@ -190,21 +220,30 @@ export function StatCard({
           )}
         </div>
       </div>
-      <div />
-      <div className="flex min-w-0 items-baseline gap-3 self-end">
+      <div
+        data-stat-flow-value={formatted}
+        className="col-span-2 flex min-w-0 items-end gap-3 self-end whitespace-nowrap"
+      >
         {match ? (
           <>
-            <span className="text-[32px] font-extrabold leading-none tracking-[-0.055em] text-[#050b1f]">
+            <span
+              className="shrink-0 font-extrabold leading-none tracking-[-0.055em] text-[#050b1f]"
+              style={{ fontSize: sizes.ticker }}
+            >
               {match[1]}
             </span>
             <span
-              className={`truncate text-[38px] font-extrabold leading-none tracking-[-0.065em] tabular-nums ${toneClass(metric.value)}`}
+              className={`font-extrabold leading-none tracking-[-0.065em] tabular-nums ${toneClass(metric.value)}`}
+              style={{ fontSize: sizes.amount }}
             >
               {match[2]}
             </span>
           </>
         ) : (
-          <span className="truncate text-[38px] font-extrabold leading-none tracking-[-0.065em] text-[#050b1f] tabular-nums">
+          <span
+            className="font-extrabold leading-none tracking-[-0.065em] text-[#050b1f] tabular-nums"
+            style={{ fontSize: sizes.amount }}
+          >
             {metric.formattedValue}
           </span>
         )}

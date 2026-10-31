@@ -5,7 +5,7 @@ import { EtfFlowboard } from "./templates/EtfFlowboard";
 import { BtcEthEtfComparison } from "./templates/BtcEthEtfComparison";
 import { HolderConcentration, LiquidationPulse, StablecoinFlowBoard, UnlockCalendar, WhaleTransferCards } from "./templates/SpecialBoards";
 
-export default function DatasetChartClient({ data }: { data: any }) {
+export default function DatasetChartClient({ data, capture = false }: { data: any; capture?: boolean }) {
   const template = data?.metadata?.chartType || data?.series?.metadata?.chartType;
   const slug = data?.datasetSlug;
   const hasRenderableData = Boolean((data?.series?.bars||[]).length || (data?.series?.lines||[]).length || (data?.series?.cards||[]).length || (data?.series?.tables||[]).length || (data?.series?.calendar||[]).length);
@@ -23,5 +23,5 @@ export default function DatasetChartClient({ data }: { data: any }) {
     if (template === 'whale_transfer_cards') return <WhaleTransferCards data={data}/>;
     return <LeaderboardBarChart data={data}/>;
   };
-  return <ChartShell data={data}>{render()}</ChartShell>;
+  return <ChartShell data={data} capture={capture}>{render()}</ChartShell>;
 }
