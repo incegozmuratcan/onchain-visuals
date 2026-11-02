@@ -78,20 +78,29 @@ function snapshot(overrides = {}) {
   };
 }
 
-test("combined caption uses both Farside panels, the shared date, and stays within a post", () => {
-  const caption = buildBtcEthEtfDailyCaption(snapshot());
-  assert.match(caption, /ETF Daily Flowboard — Oct 30, 2026/);
-  assert.match(caption, /Bitcoin ETFs: -\$643\.2M net outflow/);
-  assert.match(caption, /Largest outflow: \$IBIT \(BlackRock\) -\$233M/);
-  assert.match(caption, /Ethereum ETFs: -\$89\.4M net outflow/);
-  assert.match(caption, /Largest outflow: \$ETHA \(BlackRock\) -\$41M/);
-  assert.match(caption, /Cumulative: BTC \+\$57\.0B · ETH \+\$12\.1B/);
-  assert.match(caption, /#Bitcoin #Ethereum #ETF/);
-  assert.match(caption, /Source: Farside/);
+function assertShortCaption(caption) {
+  assert.doesNotMatch(caption, /\$[A-Za-z]/);
+  assert.doesNotMatch(caption, /#/);
+  assert.doesNotMatch(caption, /Largest|Cumulative|Source:|Also /);
   assert.ok(xWeightedLength(caption) <= 280, `${xWeightedLength(caption)} ${caption}`);
+}
+
+test("combined caption is the date plus BTC and ETH net flows", () => {
+  const caption = buildBtcEthEtfDailyCaption(snapshot());
+  assert.equal(
+    caption,
+    [
+      "ETF Daily Flowboard — Oct 30, 2026",
+      "",
+      "Bitcoin ETFs: -$643.2M net outflow",
+      "",
+      "Ethereum ETFs: -$89.4M net outflow",
+    ].join("\n"),
+  );
+  assertShortCaption(caption);
 });
 
-test("inflow captions name both largest inflows", () => {
+test("inflow captions use the sign of each net flow", () => {
   const caption = buildBtcEthEtfDailyCaption(
     snapshot({
       btc: panel("BTC", {
@@ -116,13 +125,20 @@ test("inflow captions name both largest inflows", () => {
       }),
     }),
   );
-  assert.match(caption, /net inflow/);
-  assert.match(caption, /Largest inflow: \$FBTC \(Fidelity\) \+\$80M/);
-  assert.match(caption, /Largest inflow: \$ETHA \(BlackRock\) \+\$12M/);
-  assert.ok(xWeightedLength(caption) <= 280, caption);
+  assert.equal(
+    caption,
+    [
+      "ETF Daily Flowboard — Oct 29, 2026",
+      "",
+      "Bitcoin ETFs: +$120.4M net inflow",
+      "",
+      "Ethereum ETFs: +$15.0M net inflow",
+    ].join("\n"),
+  );
+  assertShortCaption(caption);
 });
 
-test("same-direction issuers are included when the post still fits", () => {
+test("issuer rows stay off the combined caption", () => {
   const short = {
     date: "2026-10-29",
     formattedCumulative: "+$1B",
@@ -159,10 +175,18 @@ test("same-direction issuers are included when the post still fits", () => {
       ],
     },
   });
-  assert.match(caption, /Also in: IBIT \+\$1M/);
-  assert.match(caption, /Also in: FETH \+\$1M/);
-  assert.match(caption, /#Bitcoin #Ethereum #ETF/);
-  assert.ok(xWeightedLength(caption) <= 280, `${xWeightedLength(caption)} ${caption}`);
+  assert.equal(
+    caption,
+    [
+      "ETF — Oct 29, 2026",
+      "",
+      "Bitcoin ETFs: +$3M net inflow",
+      "",
+      "Ethereum ETFs: +$2M net inflow",
+    ].join("\n"),
+  );
+  assert.doesNotMatch(caption, /IBIT|FETH|ETHA|FBTC/);
+  assertShortCaption(caption);
 });
 
 test("different completed dates are both named", () => {
@@ -176,7 +200,7 @@ test("different completed dates are both named", () => {
   assert.ok(xWeightedLength(caption) <= 280, caption);
 });
 
-test("very long issuer tails drop extra names before exceeding 280", () => {
+test("issuer detail never lengthens the combined caption", () => {
   const issuers = Array.from({ length: 12 }, (_, index) => ({
     ticker: `T${index}`,
     name: `Issuer ${index} with a long display name`,
@@ -199,10 +223,18 @@ test("very long issuer tails drop extra names before exceeding 280", () => {
       }),
     }),
   );
-  assert.match(caption, /Bitcoin ETFs: -\$10\.0M net outflow/);
-  assert.match(caption, /Ethereum ETFs: -\$8\.0M net outflow/);
-  assert.match(caption, /Source: Farside/);
-  assert.ok(xWeightedLength(caption) <= 280, `${xWeightedLength(caption)} ${caption}`);
+  assert.equal(
+    caption,
+    [
+      "ETF Daily Flowboard — Oct 30, 2026",
+      "",
+      "Bitcoin ETFs: -$10.0M net outflow",
+      "",
+      "Ethereum ETFs: -$8.0M net outflow",
+    ].join("\n"),
+  );
+  assert.doesNotMatch(caption, /Issuer|T11/);
+  assertShortCaption(caption);
 });
 
 test("caption builder rejects a panel that is not ready to post", () => {

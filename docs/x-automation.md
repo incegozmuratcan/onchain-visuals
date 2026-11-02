@@ -9,7 +9,7 @@ Daily X sharing is that combined card only. `.github/workflows/x-btc-etf-daily.y
 1. Builds the Next.js app and starts it inside the job.
 2. Refreshes the combined snapshot through `POST /api/admin/onchain/refresh/btc-eth-etf-daily-flowboard?period=daily`. That route calls `refreshDataset`, which loads the Farside BTC and ETH tables together in `buildBtcEthDailySplit`. The card does not read the separate BTC-only or ETH-only flowboard snapshots. The full `POST /api/cron/onchain/refresh` route is still available for a complete refresh; this job does not call it, so a missing Dune or DefiLlama key does not block the card.
 3. Opens `/onchain/btc-eth-etf-daily-flowboard?period=daily&capture=1` in Playwright Chromium and screenshots `[data-capture='share-card']` at 1536×1024.
-4. Builds a caption from the combined snapshot panels: session date, BTC and ETH net flow, largest issuer move on each side, other same-direction issuers when they fit, and both cumulative net flows. BTC and ETH must share the same completed date or the job stops.
+4. Builds a caption from the combined snapshot panels: the shared session date, then the BTC and ETH hero net amounts labeled inflow or outflow. The caption is only those lines. It has no cashtags, issuer lines, cumulative totals, source line, or hashtags, because X rejects a post with more than one cashtag. BTC and ETH must share the same completed date or the job stops.
 5. Uploads `btc-eth-etf-daily.png`, `caption.txt`, and `result.json` as the `btc-eth-etf-daily` artifact.
 
 When `X_DRY_RUN` is anything other than `false`, `0`, or `off`, the job stops there. It does not call `POST /api/x/publish-btc-eth-etf-daily` and it does not call X.
