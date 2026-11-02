@@ -348,11 +348,18 @@ function completedEtfDays(rows: EtfFlowRow[]) {
     .filter((day): day is CompletedEtfDay & { date: string } => Boolean(day))
     .sort((a, b) => a.date.localeCompare(b.date));
 }
+export function getLatestCompletedEtfDays(
+  rows: EtfFlowRow[],
+  asset: "BTC" | "ETH",
+  count = 5,
+) {
+  return completedEtfDays(rows.filter((r) => r.asset === asset)).slice(-count);
+}
 export function getLatestCompletedBtcEtfRow(rows: EtfFlowRow[]) {
   return completedEtfDays(rows.filter((r) => r.asset === "BTC")).at(-1) || null;
 }
 export function getLatestCompletedBtcEtfDays(rows: EtfFlowRow[], count = 5) {
-  return completedEtfDays(rows.filter((r) => r.asset === "BTC")).slice(-count);
+  return getLatestCompletedEtfDays(rows, "BTC", count);
 }
 export function getIssuerBreadth(rows: EtfFlowRow[]) {
   return {
@@ -446,7 +453,7 @@ function sourceSafeBase(
   subtitle: string,
 ) {
   const sourceLabel =
-    d.slug === "btc-etf-flowboard"
+    d.slug === "btc-etf-flowboard" || d.slug === "eth-etf-flowboard"
       ? "Farside"
       : d.sourceLabel.replace(/^Source:\s*/i, "");
   return {
@@ -517,11 +524,14 @@ export function buildBtcEtfDailyCard(
   period: string,
   flowResult: any,
   price?: any,
+  asset: "BTC" | "ETH" = "BTC",
 ) {
-  const summary = summarizeEtf(flowResult.data.rows, "BTC");
+  const summary = summarizeEtf(flowResult.data.rows, asset);
   if (!summary.latest)
     throw new Error(
-      "BTC ETF flow parser found no completed total + issuer rows",
+      asset === "ETH"
+        ? "ETH ETF flow parser found no completed total + issuer rows"
+        : "BTC ETF flow parser found no completed total + issuer rows",
     );
   const contributors = getTopIssuerContributors(summary.issuerLatest, 5);
   const driver = directionalIssuerDriver(
@@ -539,8 +549,10 @@ export function buildBtcEtfDailyCard(
     ...sourceSafeBase(
       d,
       period,
-      "BTC ETF Daily Flowboard",
-      "Latest capital movement across US spot Bitcoin ETFs.",
+      asset === "ETH" ? "ETH ETF Daily Flowboard" : "BTC ETF Daily Flowboard",
+      asset === "ETH"
+        ? "Latest capital movement across US spot Ethereum ETFs."
+        : "Latest capital movement across US spot Bitcoin ETFs.",
     ),
     exportFormats: ["1536x1024" as const],
     status: "active" as const,
@@ -597,7 +609,7 @@ export function buildBtcEtfDailyCard(
       tables: contributors,
     },
     insights: [
-      `BTC ETFs recorded ${formatSignedUsd(summary.latest.flowUsd)} on ${humanDate(summary.latest.date)}.`,
+      `${asset} ETFs recorded ${formatSignedUsd(summary.latest.flowUsd)} on ${humanDate(summary.latest.date)}.`,
       driverSentence,
       noInflow
         ? "No issuer posted inflows."
@@ -607,7 +619,7 @@ export function buildBtcEtfDailyCard(
     warnings: flowResult.data.warnings || [],
     metadata: {
       ...base(d, period).metadata,
-      asset: "BTC",
+      asset,
       view: "daily",
       latestCompletedDate: summary.latestCompletedDate,
       maxIssuerContributors: contributors.length,
@@ -738,20 +750,29 @@ export function buildBtcEtfWeeklyCard(
   period: string,
   flowResult: any,
   price?: any,
+  asset: "BTC" | "ETH" = "BTC",
 ) {
-  const summary = summarizeEtf(flowResult.data.rows, "BTC");
+  const summary = summarizeEtf(flowResult.data.rows, asset);
   if (summary.days.length < 1)
-    throw new Error("BTC ETF weekly flowboard found no completed rows");
+    throw new Error(
+      asset === "ETH"
+        ? "ETH ETF weekly flowboard found no completed rows"
+        : "BTC ETF weekly flowboard found no completed rows",
+    );
   const weekDays = getLatestCompletedBtcEtfDays(flowResult.data.rows, 5);
-  const weeklyNet = weekDays.reduce((a, d) => a + (d.total.flowUsd || 0), 0);
+  const scopedWeekDays =
+    asset === "ETH"
+      ? getLatestCompletedEtfDays(flowResult.data.rows, "ETH", 5)
+      : weekDays;
+  const weeklyNet = scopedWeekDays.reduce((a, d) => a + (d.total.flowUsd || 0), 0);
   const issuerMap = new Map<string, any>();
-  for (const day of weekDays)
+  for (const day of scopedWeekDays)
     for (const row of day.issuers.filter((r) => Number(r.flowUsd) !== 0)) {
       const g = issuerMap.get(row.ticker) || {
         name: row.issuer,
         ticker: row.ticker,
         value: 0,
-        asset: "BTC",
+        asset,
       };
       g.value += row.flowUsd || 0;
       issuerMap.set(row.ticker, g);
@@ -773,11 +794,11 @@ export function buildBtcEtfWeeklyCard(
           100,
       )
     : 0;
-  const largestDay = [...weekDays].sort(
+  const largestDay = [...scopedWeekDays].sort(
     (a, b) => Math.abs(b.total.flowUsd || 0) - Math.abs(a.total.flowUsd || 0),
   )[0];
   const largestOutflowDay =
-    [...weekDays]
+    [...scopedWeekDays]
       .filter((day) => Number(day.total.flowUsd) < 0)
       .sort((a, b) => (a.total.flowUsd || 0) - (b.total.flowUsd || 0))[0] ||
     null;
@@ -787,8 +808,10 @@ export function buildBtcEtfWeeklyCard(
     ...sourceSafeBase(
       d,
       period,
-      "BTC ETF Weekly Flowboard",
-      "Five-session view of BTC ETF capital movement.",
+      asset === "ETH" ? "ETH ETF Weekly Flowboard" : "BTC ETF Weekly Flowboard",
+      asset === "ETH"
+        ? "Five-session view of ETH ETF capital movement."
+        : "Five-session view of BTC ETF capital movement.",
     ),
     status: "active" as const,
     freshness: {
@@ -821,13 +844,13 @@ export function buildBtcEtfWeeklyCard(
     ],
     series: {
       ...emptySeries(),
-      bars: weekDays.map((day, index) => ({
+      bars: scopedWeekDays.map((day, index) => ({
         date: day.date,
         name: day.date,
         value: day.total.flowUsd || 0,
         magnitude: Math.abs(day.total.flowUsd || 0),
         valueLabel: formatSignedUsd(day.total.flowUsd || 0),
-        isLatest: index === weekDays.length - 1,
+        isLatest: index === scopedWeekDays.length - 1,
         isLargest: day.date === largestDay?.date,
         sign: Number(day.total.flowUsd || 0) >= 0 ? "positive" : "negative",
       })),
@@ -856,7 +879,7 @@ export function buildBtcEtfWeeklyCard(
       tables: issuers,
     },
     insights: [
-      `BTC ETFs recorded ${formatSignedUsd(weeklyNet)} net flow over the last 5 completed trading sessions.`,
+      `${asset} ETFs recorded ${formatSignedUsd(weeklyNet)} net flow over the last 5 completed trading sessions.`,
       topIssuer
         ? `${topIssuer.ticker} was the top weekly driver at roughly ${topIssuerShare}%.`
         : "Issuer detail is unavailable.",
@@ -868,10 +891,10 @@ export function buildBtcEtfWeeklyCard(
     warnings: flowResult.data.warnings || [],
     metadata: {
       ...base(d, period).metadata,
-      asset: "BTC",
+      asset,
       view: "weekly",
       latestCompletedDate: summary.latestCompletedDate,
-      completedDayCount: weekDays.length,
+      completedDayCount: scopedWeekDays.length,
       hiddenIssuerCount: Math.max(0, allIssuers.length - issuers.length),
       weeklyPrimaryMetric: "WEEKLY / NET FLOW",
       weeklyPrimaryMetricParts: {
@@ -889,11 +912,20 @@ export function buildBtcEtfMonthlyIssuerCard(
   period: string,
   flowResult: any,
   price?: any,
+  asset: "BTC" | "ETH" = "BTC",
 ) {
-  const summary = summarizeEtf(flowResult.data.rows, "BTC");
+  const summary = summarizeEtf(flowResult.data.rows, asset);
   if (!summary.latestCompletedDate)
-    throw new Error("BTC ETF monthly report found no completed rows");
-  const month = new Date().toISOString().slice(0, 7);
+    throw new Error(
+      asset === "ETH"
+        ? "ETH ETF monthly report found no completed rows"
+        : "BTC ETF monthly report found no completed rows",
+    );
+  const calendarMonth = new Date().toISOString().slice(0, 7);
+  const latestMonth = summary.latestCompletedDate?.slice(0, 7) || calendarMonth;
+  const month = summary.days.some((day) => day.date.startsWith(calendarMonth))
+    ? calendarMonth
+    : latestMonth;
   const monthDays = summary.days.filter((day) => day.date.startsWith(month));
   const monthlyNet = monthDays.reduce((a, d) => a + (d.total.flowUsd || 0), 0);
   const issuerMap = new Map<string, any>();
@@ -903,7 +935,7 @@ export function buildBtcEtfMonthlyIssuerCard(
         name: row.issuer,
         ticker: row.ticker,
         value: 0,
-        asset: "BTC",
+        asset,
       };
       g.value += row.flowUsd || 0;
       issuerMap.set(row.ticker, g);
@@ -913,9 +945,17 @@ export function buildBtcEtfMonthlyIssuerCard(
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
   const issuers = allIssuers.slice(0, 5);
   if (!monthDays.length)
-    throw new Error("No completed current-month BTC ETF rows parsed");
+    throw new Error(
+      asset === "ETH"
+        ? "No completed current-month ETH ETF rows parsed"
+        : "No completed current-month BTC ETF rows parsed",
+    );
   if (!issuers.length)
-    throw new Error("No completed current-month BTC ETF issuer rows parsed");
+    throw new Error(
+      asset === "ETH"
+        ? "No completed current-month ETH ETF issuer rows parsed"
+        : "No completed current-month BTC ETF issuer rows parsed",
+    );
   const topInflow =
     [...allIssuers]
       .filter((row) => Number(row.value) > 0)
@@ -949,8 +989,12 @@ export function buildBtcEtfMonthlyIssuerCard(
     ...sourceSafeBase(
       d,
       period,
-      "BTC ETF Monthly Flow Report",
-      "Month-to-date capital movement across US spot Bitcoin ETFs.",
+      asset === "ETH"
+        ? "ETH ETF Monthly Flow Report"
+        : "BTC ETF Monthly Flow Report",
+      asset === "ETH"
+        ? "Month-to-date capital movement across US spot Ethereum ETFs."
+        : "Month-to-date capital movement across US spot Bitcoin ETFs.",
     ),
     status: "active" as const,
     freshness: {
@@ -1038,7 +1082,7 @@ export function buildBtcEtfMonthlyIssuerCard(
       tables: issuers,
     },
     insights: [
-      `BTC ETFs recorded ${formatSignedUsd(monthlyNet)} month-to-date.`,
+      `${asset} ETFs recorded ${formatSignedUsd(monthlyNet)} month-to-date.`,
       topOutflow
         ? `${topOutflow.ticker} posted the largest issuer outflow this month.`
         : "No issuer posted month-to-date outflows.",
@@ -1050,7 +1094,7 @@ export function buildBtcEtfMonthlyIssuerCard(
     warnings: flowResult.data.warnings || [],
     metadata: {
       ...base(d, period).metadata,
-      asset: "BTC",
+      asset,
       view: "monthly",
       month,
       latestCompletedDate: summary.latestCompletedDate,
@@ -1084,92 +1128,11 @@ async function buildEtfFlowSnapshot(
       started,
       asset === "BTC" ? await fetchBtcEtfFlows() : await fetchEthEtfFlows(),
     );
-    if (asset === "BTC") {
-      if (period === "weekly")
-        return buildBtcEtfWeeklyCard(d, period, flowResult);
-      if (period === "monthly")
-        return buildBtcEtfMonthlyIssuerCard(d, period, flowResult);
-      return buildBtcEtfDailyCard(d, period || "daily", flowResult);
-    }
-    const summary = summarizeEtf(flowResult.data.rows, asset);
-    if (!summary.latest)
-      throw new Error(
-        `${asset} ETF flow parser found no completed total + issuer rows`,
-      );
-    const lines = summary.totals.map((r, i) => ({
-      date: r.date,
-      value: r.flowUsd || 0,
-      cumulative: summary.cumulative[i],
-    }));
-    const bars = issuerBars(
-      summary.issuerLatest,
-      summary.inflow,
-      summary.outflow,
-    );
-    return {
-      ...sourceSafeBase(
-        d,
-        period,
-        `${asset} ETF Flowboard`,
-        `${asset} ETF daily net flow and issuer rotation from Farside.`,
-      ),
-      status: "active" as const,
-      freshness: {
-        status: "fresh" as const,
-        lastUpdatedAt: new Date().toISOString(),
-        source: "Farside Investors",
-        fallbackUsed: false,
-        missingConfig: [],
-        message: null,
-      },
-      headlineMetrics: [
-        metric(
-          "Latest Net Flow",
-          summary.latest.flowUsd,
-          formatSignedUsd(summary.latest.flowUsd),
-        ),
-        metric("5D Flow", summary.five, formatSignedUsd(summary.five)),
-        metric("20D Flow", summary.twenty, formatSignedUsd(summary.twenty)),
-        metric(
-          "Cumulative Flow",
-          summary.totalFlow,
-          formatSignedUsd(summary.totalFlow),
-        ),
-      ],
-      series: {
-        ...emptySeries(),
-        bars,
-        lines,
-        cards: [
-          {
-            label: "Largest inflow issuer",
-            value: summary.inflow?.issuer || "Pending",
-            ticker: summary.inflow?.ticker || null,
-            amount: summary.inflow?.flowUsd || null,
-          },
-          {
-            label: "Largest outflow issuer",
-            value: summary.outflow?.issuer || "Pending",
-            ticker: summary.outflow?.ticker || null,
-            amount: summary.outflow?.flowUsd || null,
-          },
-        ],
-        tables: summary.issuerLatest,
-      },
-      insights: [
-        `${asset} ETFs recorded ${formatSignedUsd(summary.latest.flowUsd)} on ${summary.latest.date}.`,
-        `${summary.inflow?.ticker || summary.inflow?.issuer} had the largest issuer inflow.`,
-        `${summary.outflow?.ticker || summary.outflow?.issuer} had the largest issuer outflow.`,
-        `The ${asset} 20D rolling flow is ${formatSignedUsd(summary.twenty)}.`,
-      ],
-      sourceUrl: flowResult.url,
-      warnings: flowResult.data.warnings || [],
-      metadata: {
-        ...base(d, period).metadata,
-        asset,
-        latestCompletedDate: summary.latestCompletedDate,
-      },
-    };
+    if (period === "weekly")
+      return buildBtcEtfWeeklyCard(d, period, flowResult, undefined, asset);
+    if (period === "monthly")
+      return buildBtcEtfMonthlyIssuerCard(d, period, flowResult, undefined, asset);
+    return buildBtcEtfDailyCard(d, period || "daily", flowResult, undefined, asset);
   });
 }
 async function buildBtcEthDailySplit(d: DatasetRegistryItem, period: string) {

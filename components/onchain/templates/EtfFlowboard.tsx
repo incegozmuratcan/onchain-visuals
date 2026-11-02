@@ -1,5 +1,7 @@
 "use client";
 
+import { EthereumMedallion } from "@/components/share/AssetMedallions";
+
 const usd = (v: any) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -123,7 +125,13 @@ export function BrandPill() {
   );
 }
 
-export function NetFlowCard({ hero }: { hero: any }) {
+export function NetFlowCard({
+  hero,
+  asset = "BTC",
+}: {
+  hero: any;
+  asset?: string;
+}) {
   const heroLabel = labelParts(hero);
   return (
     <div
@@ -131,7 +139,11 @@ export function NetFlowCard({ hero }: { hero: any }) {
       className="relative h-[332px] overflow-hidden rounded-[34px] border border-slate-200/75 bg-white/78 p-[42px] pr-[272px] shadow-[0_16px_48px_rgba(15,23,42,0.04)]"
     >
       <div className="absolute right-[12px] top-1/2 h-[288px] w-[288px] -translate-y-1/2 rounded-full border border-slate-200/60 bg-slate-50/18" />
-      <BTCBadge />
+      {asset === "ETH" ? (
+        <EthereumMedallion className="pointer-events-none absolute right-[10px] top-1/2 h-[240px] w-[240px] -translate-y-1/2" />
+      ) : (
+        <BTCBadge />
+      )}
       <div className="relative z-10 min-w-0">
         <div
           data-hero-label-primary={heroLabel.periodLabel}
@@ -320,6 +332,7 @@ function BtcMetricCard({
   periodLabel,
   metricLabel,
   watermark = false,
+  asset = "BTC",
 }: {
   label: string;
   value: string;
@@ -328,11 +341,18 @@ function BtcMetricCard({
   periodLabel?: string;
   metricLabel?: string;
   watermark?: boolean;
+  asset?: string;
 }) {
   const metric = { label, formattedValue: value, value: rawValue };
   return (
     <div className="relative">
-      {watermark ? <BtcLogoWatermark compact /> : null}
+      {watermark ? (
+        asset === "ETH" ? (
+          <EthereumMedallion className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.055] mix-blend-multiply" />
+        ) : (
+          <BtcLogoWatermark compact />
+        )
+      ) : null}
       <StatCard
         metric={{
           ...metric,
@@ -380,6 +400,7 @@ export function FlowboardContainer({
 
 export function EtfFlowboard({ data }: { data: any }) {
   const view = data.metadata?.view || "daily";
+  const asset = data.metadata?.asset === "ETH" ? "ETH" : "BTC";
   const daily = view === "daily";
   const weekly = view === "weekly";
   const monthly = view === "monthly";
@@ -393,11 +414,11 @@ export function EtfFlowboard({ data }: { data: any }) {
 
   return (
     <FlowboardContainer>
-      {daily ? <BtcCanvasWatermarks /> : null}
+      {daily && asset === "BTC" ? <BtcCanvasWatermarks /> : null}
       {daily ? (
         <div className="relative z-10 grid grid-cols-[704px_640px] gap-[30px]">
           <div>
-            <NetFlowCard hero={hero} />
+            <NetFlowCard hero={hero} asset={asset} />
             <div className="mt-5 grid grid-cols-2 gap-5">
               {supportMetrics.map((metric: any, index: number) => (
                 <StatCard
@@ -429,6 +450,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                 periodLabel={metric.periodLabel}
                 metricLabel={metric.metricLabel}
                 watermark={index === 0}
+                asset={asset}
               />
             ))}
           </div>
@@ -441,7 +463,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                 Inflows rise above zero; outflows extend below.
               </p>
               <div className="mt-3">
-                <SignedFlowChart rows={bars} />
+                <SignedFlowChart rows={bars} asset={asset} />
               </div>
             </div>
             <Leaderboard
@@ -470,6 +492,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                 periodLabel={metric.periodLabel}
                 metricLabel={metric.metricLabel}
                 watermark={index === 0}
+                asset={asset}
               />
             ))}
           </div>
@@ -482,7 +505,7 @@ export function EtfFlowboard({ data }: { data: any }) {
                 Completed month-to-date daily net flows.
               </p>
               <div className="mt-3">
-                <SignedFlowChart rows={bars} monthly />
+                <SignedFlowChart rows={bars} monthly asset={asset} />
               </div>
             </div>
             <Leaderboard
@@ -500,9 +523,11 @@ export function EtfFlowboard({ data }: { data: any }) {
 function SignedFlowChart({
   rows,
   monthly = false,
+  asset = "BTC",
 }: {
   rows: any[];
   monthly?: boolean;
+  asset?: string;
 }) {
   const width = monthly ? 860 : 760;
   const height = monthly ? 430 : 360;
@@ -551,8 +576,8 @@ function SignedFlowChart({
       role="img"
       aria-label={
         monthly
-          ? "This Month signed BTC ETF flows"
-          : "Last 5 Days signed BTC ETF flows"
+          ? `This Month signed ${asset} ETF flows`
+          : `Last 5 Days signed ${asset} ETF flows`
       }
     >
       {[0.25, 0.75].map((ratio) => (

@@ -5,6 +5,10 @@ import { ChevronDown } from "lucide-react";
 import type { DatasetGroup } from "@/lib/datasets";
 import { APP_VERSION_BADGE } from "@/lib/version";
 
+function isPeriodChip(chip: string) {
+  return chip === "Daily" || chip === "Weekly" || chip === "Monthly";
+}
+
 export function DatasetLibrary({
   groups,
   onSelectPrompt,
@@ -90,7 +94,9 @@ export function DatasetLibrary({
                             {metric.label}
                             {metric.status !== "active" ? " soon" : ""}
                           </button>
-                          {active && metric.queries.length > 1
+                          {active &&
+                          (metric.queries.length > 1 ||
+                            metric.queries.every((query) => isPeriodChip(query.chip)))
                             ? metric.queries.map((query) => (
                                 <button
                                   key={query.id}

@@ -13,19 +13,44 @@ export async function GET(request: NextRequest) {
   const rawPrompt = request.nextUrl.searchParams.get("prompt") || "BTC ETF Daily Flowboard";
   const prompt = rawPrompt.slice(0, 240);
   const parsed = parsePrompt(prompt);
-  const btcOnlyEtf = /btc\s*etf/i.test(prompt) && !/\beth\b|ethereum/i.test(prompt);
+  const mentionsEth = /\beth\b|ethereum/i.test(prompt);
+  const mentionsBtc = /\bbtc\b|bitcoin/i.test(prompt);
+  const etfPeriod = /monthly|issuer\s+report/i.test(prompt)
+    ? "monthly"
+    : /weekly|week/i.test(prompt)
+      ? "weekly"
+      : "daily";
+  const ethOnlyEtf = mentionsEth && !mentionsBtc && /\betf\b/i.test(prompt);
+  const btcOnlyEtf = /btc\s*etf|bitcoin\s*etf/i.test(prompt) && !mentionsEth;
   const splitFlowboard =
     !btcOnlyEtf &&
+    !ethOnlyEtf &&
     /etf daily flowboard|btc\s*\+\s*eth|bitcoin\s+and\s+ethereum/i.test(prompt);
-  const btcEtfPeriod = /btc\s*etf/i.test(prompt) && !splitFlowboard
-    ? /monthly|issuer\s+report/i.test(prompt)
-      ? "monthly"
-      : /weekly|week/i.test(prompt)
-        ? "weekly"
-        : "daily"
-    : null;
+  const btcEtfPeriod = btcOnlyEtf && !splitFlowboard ? etfPeriod : null;
+  const ethEtfPeriod = ethOnlyEtf ? etfPeriod : null;
 
   try {
+    if (ethEtfPeriod) {
+      const chart = await buildChartSnapshot("eth-etf-flowboard", ethEtfPeriod);
+      const periodLabel = ethEtfPeriod[0].toUpperCase() + ethEtfPeriod.slice(1);
+      if (!chart || chart.status === "source_error") {
+        return NextResponse.json({ ok: false, error: "ETH ETF source data could not be refreshed. No fake data is emitted.", query: { labels: ["Capital Flows", "ETH ETF", periodLabel] } }, { status: 503, headers: { "Cache-Control": "no-store, max-age=0" } });
+      }
+      return NextResponse.json({
+        ok: true,
+        visualType: "eth_etf_card",
+        chart,
+        rows: [],
+        source: chart.sourceLabel.replace(/^Source:\s*/i, ""),
+        updatedAt: chart.freshness.lastUpdatedAt || "-",
+        title: chart.title,
+        eyebrow: "Capital Flows · ETH ETF",
+        description: chart.subtitle,
+        methodology: `${chart.title} shows completed ETH ETF capital flow data with issuer detail when available.`,
+        insight: chart.insights.join(" "),
+        query: { timeframe: ethEtfPeriod, limit: 0, labels: ["Capital Flows", "ETH ETF", periodLabel], metric: "eth_etf" },
+      }, { headers: { "Cache-Control": "no-store, max-age=0" } });
+    }
     if (splitFlowboard) {
       const chart = await buildChartSnapshot("btc-eth-etf-daily-flowboard", "daily");
       if (!chart || chart.status === "source_error") {

@@ -6,6 +6,7 @@ import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
 import type { ChartSnapshot } from "@/lib/onchain/types";
+import { EthereumMedallion } from "@/components/share/AssetMedallions";
 import { SplitFlowboardCard } from "@/components/share/SplitFlowboardCard";
 
 function rowLayoutClass(count: number) {
@@ -56,6 +57,7 @@ function BtcEtfShareCard({
   data: ChartSnapshot;
 }) {
   const view = data.metadata?.view || "daily";
+  const asset = data.metadata?.asset === "ETH" ? "ETH" : "BTC";
   const daily = view === "daily";
   const weekly = view === "weekly";
   const monthly = view === "monthly";
@@ -73,7 +75,8 @@ function BtcEtfShareCard({
     ...flowRows.map((row: any) => Math.abs(Number(row.value) || 0)),
   );
   const cleanSource =
-    data.datasetSlug === "btc-etf-flowboard"
+    data.datasetSlug === "btc-etf-flowboard" ||
+    data.datasetSlug === "eth-etf-flowboard"
       ? "Farside"
       : data.sourceLabel.replace(/^Source:\s*/i, "").replace(/ Investors/g, "");
   const hero = data.headlineMetrics[0];
@@ -120,9 +123,15 @@ function BtcEtfShareCard({
     watermark?: boolean;
   }) => (
     <div
-      className={`relative flex min-h-[70px] self-start flex-col justify-start overflow-hidden rounded-[18px] border border-slate-200 bg-slate-100/70 px-3.5 py-3 ${watermark ? "pr-20" : ""}`}
+      className="relative flex min-h-[70px] self-start flex-col justify-start overflow-hidden rounded-[18px] border border-slate-200 bg-slate-100/70 px-3.5 py-3"
     >
-      {watermark ? <BtcLogoWatermark compact /> : null}
+      {watermark ? (
+        asset === "ETH" ? (
+          <EthereumMedallion className="pointer-events-none absolute -right-7 top-1/2 h-28 w-28 -translate-y-1/2 select-none opacity-[0.055] mix-blend-multiply" />
+        ) : (
+          <BtcLogoWatermark compact />
+        )
+      ) : null}
       {metric.periodLabel && metric.metricLabel ? (
         <div
           data-hero-label-parts="explicit"
@@ -147,7 +156,9 @@ function BtcEtfShareCard({
         </div>
       )}
       <div className="relative z-10 mt-2 min-w-0">
-        <div className="truncate text-[1.35rem] font-black leading-none tracking-[-0.045em] text-slate-950">
+        <div
+          className={`whitespace-nowrap font-black leading-none tracking-[-0.045em] text-slate-950 ${String(metric.formattedValue || "").length > 12 ? "text-[1.15rem]" : "text-[1.35rem]"}`}
+        >
           {metric.formattedValue}
         </div>
         {sub ? (
@@ -216,7 +227,11 @@ function BtcEtfShareCard({
 
   const HeroMetric = () => (
     <div className="relative flex min-h-[152px] flex-col justify-start overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100/85 p-6 pr-40">
-      <BtcLogoWatermark />
+      {asset === "ETH" ? (
+        <EthereumMedallion className="pointer-events-none absolute right-5 top-1/2 h-32 w-32 -translate-y-1/2" />
+      ) : (
+        <BtcLogoWatermark />
+      )}
       <div className="relative z-10">
         <div
           data-hero-label-primary={heroParts.periodLabel}
@@ -281,8 +296,8 @@ function BtcEtfShareCard({
         role="img"
         aria-label={
           monthly
-            ? "This Month signed BTC ETF flows"
-            : "Last 5 Days signed BTC ETF flows"
+            ? `This Month signed ${asset} ETF flows`
+            : `Last 5 Days signed ${asset} ETF flows`
         }
       >
         {[0.25, 0.75].map((ratio) => (
@@ -458,12 +473,12 @@ function BtcEtfShareCard({
       id="share-card"
       className="relative overflow-hidden rounded-[34px] border border-slate-200/90 bg-[#f5f8fb] p-8 shadow-soft md:p-10"
     >
-      <BtcCanvasWatermarks />
+      {asset === "BTC" ? <BtcCanvasWatermarks /> : null}
       <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-slate-300 to-transparent" />
       <div className="flex items-start justify-between gap-6">
         <div className="max-w-[76%]">
           <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">
-            Capital Flows · BTC ETF
+            Capital Flows · {asset} ETF
           </p>
           <h2 className="mt-2 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">
             {data.title}
@@ -678,12 +693,6 @@ export function ShareCard({
       className="card-grid-bg relative overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10"
     >
       <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
-        <img
-          src="/logos/bitcoin.svg"
-          alt=""
-          className="mr-2 inline h-4 w-4"
-          aria-hidden="true"
-        />
         {brand.shortName}
       </div>
 

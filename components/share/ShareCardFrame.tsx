@@ -56,15 +56,9 @@ export function ShareCardFrame({
       id="share-card"
       role="region"
       aria-label={title}
-      className="card-grid-bg relative w-full overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10"
+      className="relative w-full overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10"
     >
       <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
-        <img
-          src="/logos/bitcoin.svg"
-          alt=""
-          className="mr-2 inline h-4 w-4"
-          aria-hidden="true"
-        />
         {brand.shortName}
       </div>
 
