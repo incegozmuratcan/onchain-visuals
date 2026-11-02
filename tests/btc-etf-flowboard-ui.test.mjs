@@ -521,6 +521,10 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.match(splitCard, /Capital Flows · BTC \+ ETH ETF/);
   assert.match(splitCard, /grid-cols-2/);
   assert.match(splitCard, /data-chip="largest"/);
+  assert.match(splitCard, /bg-rose-100/);
+  assert.match(splitCard, /bg-emerald-100/);
+  assert.match(splitCard, /text-\[22px\]/);
+  assert.doesNotMatch(splitCard, /px-2 py-1\.5/);
   assert.match(splitCard, /data-chip="cumulative"/);
   assert.match(splitCard, />Largest</);
   assert.match(splitCard, />Cumulative</);

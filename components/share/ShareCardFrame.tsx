@@ -76,14 +76,19 @@ export function ShareCardFrame({
 
       <div className="mt-8">{children}</div>
 
-      <div className="mt-7 flex flex-wrap items-end justify-between gap-x-8 gap-y-2 text-xs font-bold text-slate-400">
-        <span>
-          {brand.cardFooterText} ·{" "}
+      <div className="mt-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 text-xs font-bold text-slate-400">
+        <span className="inline-flex flex-wrap items-center gap-x-3">
+          <span>{brand.cardFooterText}</span>
+          <span aria-hidden="true">·</span>
           <span className="whitespace-nowrap font-black text-slate-950">{brand.createdWithText}</span>
         </span>
-        <span>
-          Source: {source} · Updated:{" "}
-          <span className="font-black text-slate-700">{formatShareUpdated(updatedAt)}</span>
+        <span className="inline-flex flex-wrap items-center gap-x-3">
+          <span>Source: {source}</span>
+          <span aria-hidden="true">·</span>
+          <span>
+            Updated:{" "}
+            <span className="font-black text-slate-700">{formatShareUpdated(updatedAt)}</span>
+          </span>
         </span>
       </div>
     </div>
