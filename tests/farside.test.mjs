@@ -20,6 +20,18 @@ test('Farside BTC parser fixture handles issuer columns, total/net flow, negativ
   assert.ok(!warnings.some((w)=>w.includes('No BTC ETF flow values parsed')));
 });
 
+test('Farside ETH parser accepts the current all-data header without a Date label', () => {
+  const html = `<table><tr><th></th><th>ETHA</th><th>ETHB</th><th>FETH</th><th>TETH</th><th>MSSE</th><th>ETHE</th><th>ETH</th><th>Total</th></tr><tr><td>Fee</td><td>0.25%</td><td>0.25%</td><td>0.25%</td><td>0.21%</td><td>0.14%</td><td>2.50%</td><td>0.15%</td><td></td></tr><tr><td>30 Oct 2026</td><td>(76.6)</td><td>(19.5)</td><td>(3.3)</td><td>0.0</td><td>(0.7)</td><td>(21.5)</td><td>(34.1)</td><td>(155.7)</td></tr><tr><td>02 Nov 2026</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.0</td></tr></table>`;
+  const { rows } = mod.parseFarsideEtfTable(html, 'ETH');
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.ticker==='ETHA').issuer, 'BlackRock');
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.ticker==='ETHA').flowUsd, -76_600_000);
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.ticker==='ETHB').issuer, 'BlackRock');
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.ticker==='TETH').issuer, '21Shares');
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.ticker==='MSSE').issuer, 'Morgan Stanley');
+  assert.equal(rows.find((r)=>r.date==='2026-10-30' && r.isTotal).flowUsd, -155_700_000);
+  assert.equal(rows.find((r)=>r.date==='2026-11-02' && r.ticker==='ETHA').flowUsd, null);
+});
+
 test('Farside parser falls back across tables and rejects invalid HTML without fake rows', () => {
   const invalid = mod.parseFarsideEtfTable('<main><h1>No data today</h1></main>', 'BTC');
   assert.equal(invalid.rows.length, 0);

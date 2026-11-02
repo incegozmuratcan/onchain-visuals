@@ -14,6 +14,7 @@ const DEFAULT_CARD_INPUT = "BTC ETF Daily Flowboard";
 
 const tryCards = [
   "BTC ETF Daily Flowboard",
+  "ETF Daily Flowboard",
   "Top 10 chains by 30D revenue",
   "Top 10 chains by stablecoin supply",
   "Top 10 chains by DeFi TVL",
@@ -41,7 +42,7 @@ type ApiResult = {
   valueSuffix?: string;
   valueDirection?: "higher" | "lower";
   query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
-  visualType?: "leaderboard_card" | "btc_etf_card";
+  visualType?: "leaderboard_card" | "btc_etf_card" | "btc_eth_split_card";
   chart?: ChartSnapshot;
   error?: string;
 };

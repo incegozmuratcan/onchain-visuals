@@ -12,7 +12,9 @@ const depinTimeframeOptions = ["24H", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
-  const isBtcEtf = /btc\s*etf|bitcoin\s*etf/.test(text);
+  const btcOnlyEtf = /btc\s*etf|bitcoin\s*etf/.test(text) && !/\beth\b|ethereum/.test(text);
+  const isSplitFlowboard = !btcOnlyEtf && /etf daily flowboard|btc\s*\+\s*eth|bitcoin\s+and\s+ethereum/.test(text);
+  const isBtcEtf = /btc\s*etf|bitcoin\s*etf/.test(text) && !isSplitFlowboard;
   if (isBtcEtf) {
     const period = /monthly|month|flow report/.test(text)
       ? "Monthly"
@@ -27,6 +29,19 @@ function parsePromptLabels(prompt: string) {
       isCurrentOnly: true,
       isDepin: false,
       isBtcEtf: true,
+      isSplitFlowboard: false,
+    };
+  }
+  if (isSplitFlowboard) {
+    return {
+      scope: "Capital Flows",
+      metric: "Flowboard",
+      limit: 10,
+      timeframe: "Daily",
+      isCurrentOnly: true,
+      isDepin: false,
+      isBtcEtf: false,
+      isSplitFlowboard: true,
     };
   }
   const isDepin = /(depin|physical infrastructure|infrastructure network)/.test(text);
@@ -50,7 +65,7 @@ function parsePromptLabels(prompt: string) {
 
   const scope = isDepin ? "Protocols" : isDevelopers || isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
   const metric = isDepin ? "DePIN" : isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
-  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin, isBtcEtf: false };
+  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin, isBtcEtf: false, isSplitFlowboard: false };
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -118,7 +133,13 @@ export function PromptPanel({
       <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
         <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">Card settings</div>
         <div className="flex flex-wrap gap-2">
-          {detected.isBtcEtf ? (
+          {detected.isSplitFlowboard ? (
+            <>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">Capital Flows</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">BTC + ETH</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">Daily</span>
+            </>
+          ) : detected.isBtcEtf ? (
             <>
               <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">BTC ETF</span>
               <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">{currentTimeframe}</span>
