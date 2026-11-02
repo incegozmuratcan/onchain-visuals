@@ -84,6 +84,23 @@ async function importSnapshotBuilders() {
 }
 
 const snapshotBuilders = await importSnapshotBuilders();
+
+async function loadCombinedCaption() {
+  const source = await readFile(
+    new URL("../lib/onchain/btcEthEtfCaption.ts", import.meta.url),
+    "utf8",
+  );
+  const js = ts.transpileModule(source, {
+    compilerOptions: {
+      module: ts.ModuleKind.ES2022,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const dir = await mkdtemp(join(tmpdir(), "btc-eth-etf-caption-"));
+  const file = join(dir, "caption.mjs");
+  await writeFile(file, js);
+  return import(pathToFileURL(file).href);
+}
 const btcDataset = {
   id: "btc-etf-flowboard",
   slug: "btc-etf-flowboard",
@@ -609,6 +626,17 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.equal(card.series.cards[1].formattedCumulative, "+$12.1B");
   assert.equal(card.series.cards[1].issuers.length, 3);
   assert.equal(card.series.cards[1].issuers.some((row) => row.ticker === "ETHW"), false);
+
+  const { buildBtcEthEtfDailyCaption, xWeightedLength } = await loadCombinedCaption();
+  const caption = buildBtcEthEtfDailyCaption(card);
+  assert.match(caption, /ETF Daily Flowboard — Oct 30, 2026/);
+  assert.match(caption, /Bitcoin ETFs: -\$643\.2M net outflow/);
+  assert.match(caption, /\$IBIT \(BlackRock\) -\$233M/);
+  assert.match(caption, /Ethereum ETFs: -\$89\.4M net outflow/);
+  assert.match(caption, /\$ETHA \(BlackRock\) -\$41M/);
+  assert.match(caption, /Cumulative: BTC \+\$57\.0B · ETH \+\$12\.1B/);
+  assert.match(caption, /Source: Farside/);
+  assert.ok(xWeightedLength(caption) <= 280, caption);
 });
 
 test("ETH ETF daily weekly and monthly cards reuse the BTC share-card contract", () => {
