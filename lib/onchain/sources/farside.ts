@@ -48,6 +48,9 @@ const issuerMap: Record<string, { ticker: string; issuer: string }> = {
   ezet: { ticker: 'EZET', issuer: 'Franklin' },
   ethe: { ticker: 'ETHE', issuer: 'Grayscale ETHE' },
   eth: { ticker: 'ETH', issuer: 'Grayscale Mini' },
+  ethb: { ticker: 'ETHB', issuer: 'BlackRock' },
+  teth: { ticker: 'TETH', issuer: '21Shares' },
+  msse: { ticker: 'MSSE', issuer: 'Morgan Stanley' },
 };
 
 const knownIssuerKeys = Object.keys(issuerMap);
@@ -85,7 +88,7 @@ function cellsFromRow(rowHtml: string) { return [...rowHtml.matchAll(/<t[hd][^>]
 function splitTables(html: string) { const tables = [...html.matchAll(/<table[\s\S]*?<\/table>/gi)].map((m) => m[0]); return tables.length ? tables : [html]; }
 function isTotalHeader(value: string) { return /^(total|net\s*flow|net|total\s*net\s*flow|flow)$/i.test(decode(value).replace(/\*/g,'').trim()); }
 function issuerScore(headers: string[], asset: EtfAsset) {
-  const expected = asset === 'BTC' ? ['ibit','fbtc','bitb','arkb','gbtc','btc','hodl','ezbc','btco','btcw','brrr','brtc'] : ['etha','feth','ethw','ceth','ethv','qeth','ezet','ethe','eth'];
+  const expected = asset === 'BTC' ? ['ibit','fbtc','bitb','arkb','gbtc','btc','hodl','ezbc','btco','btcw','brrr','brtc'] : ['etha','ethb','feth','ethw','ceth','teth','ethv','qeth','ezet','msse','ethe','eth'];
   return headers.reduce((score, h) => score + (expected.includes(keyFor(h)) || expected.includes(h.toLowerCase()) || knownIssuerKeys.includes(keyFor(h)) ? 1 : 0), 0);
 }
 function parseSingleTable(table: string, asset: EtfAsset, tableIndex: number): ParsedTable {
@@ -94,7 +97,12 @@ function parseSingleTable(table: string, asset: EtfAsset, tableIndex: number): P
   if (!tr.length) return { rows: [], warnings: ['No table rows found in Farside HTML.'], score: 0, tableIndex, totalColumn: null };
   const headerIndex = tr.findIndex((rowHtml) => {
     const cells = cellsFromRow(rowHtml);
-    return cells.length > 2 && /date/i.test(cells[0]) && (cells.some(isTotalHeader) || issuerScore(cells.slice(1), asset) >= 2);
+    if (cells.length <= 2) return false;
+    const issuers = issuerScore(cells, asset) >= 2;
+    const total = cells.some(isTotalHeader);
+    const dated = /date/i.test(cells[0] || "");
+    // Current ETH all-data tables label the first column by omission and put tickers plus Total on one row.
+    return (dated && (total || issuers)) || (issuers && total);
   });
   if (headerIndex < 0) return { rows: [], warnings: ['No Date + issuer ETF table header found.'], score: 0, tableIndex, totalColumn: null };
   const headerCells = cellsFromRow(tr[headerIndex]);

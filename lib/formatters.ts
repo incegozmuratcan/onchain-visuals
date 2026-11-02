@@ -5,6 +5,34 @@ export const formatCompactNumber = (value?: number | null) => value == null ? 'N
 export const formatPercent = (value?: number | null) => value == null ? 'N/A' : `${(value*100).toFixed(1)}%`;
 export const formatSignedPercent = (value?: number | null) => value == null ? 'N/A' : `${value >= 0 ? '+' : ''}${(value*100).toFixed(1)}%`;
 export const formatSignedUsd = (value?: number | null) => value == null ? 'N/A' : `${value >=0?'+':'-'}${formatCompactUsd(Math.abs(value))}`;
+
+function flowSign(value: number) {
+  return value < 0 ? "-" : "+";
+}
+
+/** Hero and cumulative ETF flows, always one decimal on compact units (for example -$643.2M, +$57.0B). */
+export function formatFlowOneDecimal(value?: number | null) {
+  if (value == null || !Number.isFinite(Number(value))) return "N/A";
+  const n = Number(value);
+  const sign = flowSign(n);
+  const abs = Math.abs(n);
+  const compact = (divisor: number, suffix: string) => `${sign}$${(abs / divisor).toFixed(1)}${suffix}`;
+  if (abs >= 1e12) return compact(1e12, "T");
+  if (abs >= 1e9) return compact(1e9, "B");
+  if (abs >= 1e6) return compact(1e6, "M");
+  if (abs >= 1e3) return compact(1e3, "K");
+  return `${sign}$${abs.toFixed(1)}`;
+}
+
+/** Issuer rows and the Largest chip: nearest whole million, still signed. */
+export function formatFlowWholeMillions(value?: number | null) {
+  if (value == null || !Number.isFinite(Number(value))) return "N/A";
+  const n = Number(value);
+  const sign = flowSign(n);
+  const millions = Math.round(Math.abs(n) / 1_000_000);
+  if (millions >= 1000) return `${sign}$${(millions / 1000).toFixed(1)}B`;
+  return `${sign}$${millions}M`;
+}
 export const formatFlow = formatSignedUsd;
 export const formatTokenAmount = (v?:number|null)=>formatCompactNumber(v);
 export const formatDate = (iso?: string | null) => !iso ? 'N/A' : new Date(iso).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric', timeZone:'UTC'});

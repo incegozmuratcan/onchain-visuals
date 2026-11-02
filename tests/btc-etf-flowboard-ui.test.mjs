@@ -36,7 +36,7 @@ async function importSnapshotBuilders() {
     .replace(/import type \{[\s\S]*?\} from ["']\.\/types["'];/, "")
     .replace(
       /import \{[\s\S]*?formatCompactUsd[\s\S]*?\} from ["']\.\.\/formatters["'];/,
-      () => "const formatCompactUsd = (value)=>{ const n = Math.abs(Number(value) || 0); if (n >= 1e9) return `$${Number((n/1e9).toFixed(1))}B`; if (n >= 1e6) return `$${Number((n/1e6).toFixed(1))}M`; return `$${n}`; }; const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}${formatCompactUsd(value)}`;",
+      () => "const formatCompactUsd = (value)=>{ const n = Math.abs(Number(value) || 0); if (n >= 1e9) return `$${Number((n/1e9).toFixed(1))}B`; if (n >= 1e6) return `$${Number((n/1e6).toFixed(1))}M`; return `$${n}`; }; const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}${formatCompactUsd(value)}`; const formatFlowOneDecimal = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const abs = Math.abs(n); const compact = (divisor, suffix) => `${sign}$${(abs / divisor).toFixed(1)}${suffix}`; if (abs >= 1e12) return compact(1e12, 'T'); if (abs >= 1e9) return compact(1e9, 'B'); if (abs >= 1e6) return compact(1e6, 'M'); if (abs >= 1e3) return compact(1e3, 'K'); return `${sign}$${abs.toFixed(1)}`; }; const formatFlowWholeMillions = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const millions = Math.round(Math.abs(n) / 1e6); if (millions >= 1000) return `${sign}$${(millions / 1000).toFixed(1)}B`; return `${sign}$${millions}M`; };",
     )
     .replace(
       /import \{[\s\S]*?cumulative_sum[\s\S]*?\} from ["']\.\.\/metrics["'];/,
@@ -453,4 +453,149 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
   );
   assert.equal(JSON.stringify(monthly).includes("Cumulative Flow"), false);
   assert.notEqual(monthly.metadata.monthlyVisual, "issuer_leaderboard");
+});
+
+function flowRows(asset, days) {
+  return days.flatMap(([date, total, issuers]) => [
+    {
+      date,
+      asset,
+      issuer: "Total",
+      ticker: "Total",
+      flowUsd: total,
+      isTotal: true,
+      rawValue: String(total),
+    },
+    ...issuers.map(([issuer, ticker, flowUsd]) => ({
+      date,
+      asset,
+      issuer,
+      ticker,
+      flowUsd,
+      isTotal: false,
+      rawValue: String(flowUsd),
+    })),
+  ]);
+}
+
+test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million issuers, and two panels", async () => {
+  const splitCard = await readFile(
+    new URL("../components/share/SplitFlowboardCard.tsx", import.meta.url),
+    "utf8",
+  );
+  const medallions = await readFile(
+    new URL("../components/share/AssetMedallions.tsx", import.meta.url),
+    "utf8",
+  );
+  const frame = await readFile(
+    new URL("../components/share/ShareCardFrame.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(splitCard, /Capital Flows · BTC \+ ETH ETF/);
+  assert.match(splitCard, /grid-cols-2/);
+  assert.match(splitCard, /data-chip="largest"/);
+  assert.match(splitCard, /data-chip="cumulative"/);
+  assert.match(splitCard, />Largest</);
+  assert.match(splitCard, />Cumulative</);
+  assert.match(splitCard, /text-slate-500">Largest/);
+  assert.match(splitCard, /border-slate-200 bg-slate-100/);
+  assert.match(splitCard, /Math\.abs\(value\) \/ maxAbs/);
+  assert.match(splitCard, /data-issuer-bar="proportional"/);
+  assert.match(medallions, /data-logo-mode="classic-tilted-bitcoin"/);
+  assert.match(medallions, /data-logo-shape="single-orange-circle"/);
+  assert.match(medallions, /data-logo-ring="none"/);
+  assert.match(medallions, /#F7931A/);
+  assert.match(medallions, /#627EEA/);
+  assert.equal((medallions.match(/<circle /g) || []).length, 2);
+  assert.doesNotMatch(medallions, />₿<|>BTC</);
+  assert.match(frame, /id="share-card"/);
+  assert.match(frame, /Source: \{source\}/);
+  assert.match(frame, /whitespace-nowrap font-black text-slate-950/);
+  assert.match(frame, /src="\/logos\/bitcoin.svg"/);
+  assert.match(snapshots, /export function buildBtcEthEtfDailyCard/);
+  assert.match(snapshots, /fetchBtcEtfFlows\(\)[\s\S]*fetchEthEtfFlows\(\)/);
+
+  const dataset = {
+    ...btcDataset,
+    id: "btc-eth-etf-daily-flowboard",
+    slug: "btc-eth-etf-daily-flowboard",
+    name: "ETF Daily Flowboard",
+    sourceLabel: "Farside",
+    chartTemplates: ["split_flowboard"],
+  };
+  const card = snapshotBuilders.buildBtcEthEtfDailyCard(
+    dataset,
+    "daily",
+    {
+      url: "https://farside.co.uk/btc/",
+      data: {
+        warnings: [],
+        rows: flowRows("BTC", [
+          ["2026-10-29", 57_643_200_000, [["BlackRock", "IBIT", 57_643_200_000]]],
+          [
+            "2026-10-30",
+            -643_200_000,
+            [
+              ["BlackRock", "IBIT", -233_400_000],
+              ["Fidelity", "FBTC", -201_000_000],
+              ["ARK 21Shares", "ARKB", -130_000_000],
+              ["Bitwise", "BITB", -25_000_000],
+            ],
+          ],
+        ]),
+      },
+    },
+    {
+      url: "https://farside.co.uk/eth/",
+      data: {
+        warnings: [],
+        rows: flowRows("ETH", [
+          ["2026-10-29", 12_189_400_000, [["BlackRock", "ETHA", 12_189_400_000]]],
+          [
+            "2026-10-30",
+            -89_400_000,
+            [
+              ["BlackRock", "ETHA", -41_000_000],
+              ["Fidelity", "FETH", -25_000_000],
+              ["21Shares", "CETH", -15_000_000],
+              ["Bitwise", "ETHW", -8_000_000],
+            ],
+          ],
+        ]),
+      },
+    },
+  );
+
+  assert.equal(card.title, "ETF Daily Flowboard");
+  assert.equal(
+    card.subtitle,
+    "Latest capital movement across US spot Bitcoin and Ethereum ETFs.",
+  );
+  assert.equal(card.sourceLabel, "Farside");
+  assert.equal(card.metadata.layout, "btc-eth-split");
+  assert.equal(card.metadata.chartType, "split_flowboard");
+  assert.equal(card.series.cards.length, 2);
+  assert.deepEqual(
+    card.series.cards.map((panel) => panel.asset),
+    ["BTC", "ETH"],
+  );
+  assert.equal(card.series.cards[0].formattedNet, "-$643.2M");
+  assert.equal(card.series.cards[0].metricLabel, "NET OUTFLOW");
+  assert.equal(card.series.cards[0].periodLabel, "OCT 30");
+  assert.equal(card.series.cards[0].largest.formattedValue, "-$233M");
+  assert.equal(card.series.cards[0].formattedCumulative, "+$57.0B");
+  assert.deepEqual(
+    card.series.cards[0].issuers.map((row) => [row.ticker, row.formattedValue]),
+    [
+      ["IBIT", "-$233M"],
+      ["FBTC", "-$201M"],
+      ["ARKB", "-$130M"],
+    ],
+  );
+  assert.equal(card.series.cards[1].formattedNet, "-$89.4M");
+  assert.equal(card.series.cards[1].largest.ticker, "ETHA");
+  assert.equal(card.series.cards[1].largest.formattedValue, "-$41M");
+  assert.equal(card.series.cards[1].formattedCumulative, "+$12.1B");
+  assert.equal(card.series.cards[1].issuers.length, 3);
+  assert.equal(card.series.cards[1].issuers.some((row) => row.ticker === "ETHW"), false);
 });

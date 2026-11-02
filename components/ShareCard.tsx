@@ -6,6 +6,7 @@ import { formatUsd } from "@/lib/format";
 import type { ChainRevenueRow } from "@/lib/defillama";
 import type { PublicBrandSettings } from "@/lib/brandTypes";
 import type { ChartSnapshot } from "@/lib/onchain/types";
+import { SplitFlowboardCard } from "@/components/share/SplitFlowboardCard";
 
 function rowLayoutClass(count: number) {
   if (count > 15) return "mt-6 grid gap-2";
@@ -662,6 +663,9 @@ export function ShareCard({
   valueDirection?: "higher" | "lower";
   etfSnapshot?: ChartSnapshot | null;
 }) {
+  if (etfSnapshot?.metadata?.layout === "btc-eth-split") {
+    return <SplitFlowboardCard brand={brand} data={etfSnapshot} />;
+  }
   if (etfSnapshot) return <BtcEtfShareCard brand={brand} data={etfSnapshot} />;
 
   const leader = rows[0];

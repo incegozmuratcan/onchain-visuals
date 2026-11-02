@@ -7,6 +7,8 @@ import type {
 } from "./types";
 import {
   formatCompactUsd,
+  formatFlowOneDecimal,
+  formatFlowWholeMillions,
   formatSignedPercent,
   formatSignedUsd,
 } from "../formatters";
@@ -613,6 +615,124 @@ export function buildBtcEtfDailyCard(
     },
   };
 }
+function splitFlowPanel(asset: "BTC" | "ETH", summary: ReturnType<typeof summarizeEtf>) {
+  const net = Number(summary.latest?.flowUsd) || 0;
+  const contributors = getTopIssuerContributors(summary.issuerLatest, 3);
+  const driver = directionalIssuerDriver(summary.issuerLatest, summary.latest?.flowUsd);
+  const periodLabel = dateNetFlowLabel(summary.latestCompletedDate, net).replace(
+    / NET (?:IN|OUT)FLOW$/,
+    "",
+  );
+  return {
+    asset,
+    date: summary.latestCompletedDate,
+    periodLabel,
+    metricLabel: net >= 0 ? "NET INFLOW" : "NET OUTFLOW",
+    netFlow: net,
+    formattedNet: formatFlowOneDecimal(net),
+    largest: driver
+      ? {
+          ticker: driver.ticker,
+          issuer: driver.issuer,
+          value: driver.flowUsd,
+          formattedValue: formatFlowWholeMillions(driver.flowUsd),
+        }
+      : null,
+    cumulative: summary.totalFlow,
+    formattedCumulative: formatFlowOneDecimal(summary.totalFlow),
+    issuers: contributors.map((row) => ({
+      ticker: row.ticker,
+      name: row.name,
+      value: row.value,
+      formattedValue: formatFlowWholeMillions(row.value),
+    })),
+  };
+}
+export function buildBtcEthEtfDailyCard(
+  d: DatasetRegistryItem,
+  period: string,
+  btcResult: any,
+  ethResult: any,
+) {
+  const btc = summarizeEtf(btcResult.data.rows, "BTC");
+  const eth = summarizeEtf(ethResult.data.rows, "ETH");
+  if (!btc.latest) {
+    throw new Error("BTC ETF flow parser found no completed total + issuer rows");
+  }
+  if (!eth.latest) {
+    throw new Error("ETH ETF flow parser found no completed total + issuer rows");
+  }
+  const btcPanel = splitFlowPanel("BTC", btc);
+  const ethPanel = splitFlowPanel("ETH", eth);
+  const flowMetric = (
+    asset: "BTC" | "ETH",
+    panel: ReturnType<typeof splitFlowPanel>,
+    summary: ReturnType<typeof summarizeEtf>,
+  ) => ({
+    ...metric(
+      `${asset} ${dateNetFlowLabel(summary.latestCompletedDate, summary.latest?.flowUsd)}`,
+      summary.latest?.flowUsd ?? null,
+      panel.formattedNet,
+    ),
+    periodLabel: panel.periodLabel,
+    metricLabel: panel.metricLabel,
+  });
+  return {
+    ...sourceSafeBase(
+      d,
+      period,
+      "ETF Daily Flowboard",
+      "Latest capital movement across US spot Bitcoin and Ethereum ETFs.",
+    ),
+    sourceLabel: "Farside",
+    exportFormats: ["1600x900" as const],
+    status: "active" as const,
+    freshness: {
+      status: "fresh" as const,
+      lastUpdatedAt: new Date().toISOString(),
+      source: "Farside",
+      fallbackUsed: false,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: [
+      flowMetric("BTC", btcPanel, btc),
+      flowMetric("ETH", ethPanel, eth),
+      metric("BTC cumulative", btc.totalFlow, btcPanel.formattedCumulative),
+      metric("ETH cumulative", eth.totalFlow, ethPanel.formattedCumulative),
+    ],
+    series: {
+      ...emptySeries(),
+      cards: [btcPanel, ethPanel],
+      tables: [btcPanel, ethPanel].flatMap((panel) =>
+        panel.issuers.map((row) => ({ ...row, asset: panel.asset })),
+      ),
+    },
+    insights: [
+      `Bitcoin ETFs recorded ${btcPanel.formattedNet} on ${humanDate(btc.latest.date)}.`,
+      `Ethereum ETFs recorded ${ethPanel.formattedNet} on ${humanDate(eth.latest.date)}.`,
+      btcPanel.largest
+        ? `${btcPanel.largest.ticker} was the largest Bitcoin issuer move.`
+        : "Bitcoin issuer detail is unavailable.",
+      ethPanel.largest
+        ? `${ethPanel.largest.ticker} was the largest Ethereum issuer move.`
+        : "Ethereum issuer detail is unavailable.",
+    ],
+    sourceUrl: btcResult.url || ethResult.url || null,
+    warnings: [...(btcResult.data.warnings || []), ...(ethResult.data.warnings || [])],
+    metadata: {
+      ...base(d, period).metadata,
+      layout: "btc-eth-split",
+      view: "daily",
+      asset: "BTC+ETH",
+      assets: ["BTC", "ETH"],
+      latestCompletedDate: btc.latestCompletedDate,
+      ethLatestCompletedDate: eth.latestCompletedDate,
+      defaultExportFormat: "1600x900",
+      ethSourceUrl: ethResult.url || null,
+    },
+  };
+}
 export function buildBtcEtfWeeklyCard(
   d: DatasetRegistryItem,
   period: string,
@@ -1052,6 +1172,20 @@ async function buildEtfFlowSnapshot(
     };
   });
 }
+async function buildBtcEthDailySplit(d: DatasetRegistryItem, period: string) {
+  return withFallback(d, period, async () => {
+    const started = new Date().toISOString();
+    const [btcRaw, ethRaw] = await Promise.all([
+      fetchBtcEtfFlows(),
+      fetchEthEtfFlows(),
+    ]);
+    const [btc, eth] = await Promise.all([
+      resultOrThrow(d.slug, "Farside", started, btcRaw),
+      resultOrThrow(d.slug, "Farside", started, ethRaw),
+    ]);
+    return buildBtcEthEtfDailyCard(d, period, btc, eth);
+  });
+}
 async function buildBtcEth(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const started = new Date().toISOString();
@@ -1361,6 +1495,8 @@ export async function buildChartSnapshot(
       );
     case "btc-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "BTC");
+    case "btc-eth-etf-daily-flowboard":
+      return buildBtcEthDailySplit(d, p);
     case "eth-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "ETH");
     case "btc-vs-eth-etf-flow-battle":

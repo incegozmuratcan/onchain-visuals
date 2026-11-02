@@ -39,6 +39,14 @@ export const datasetGroups: DatasetGroup[] = [
           { id: "btc_etf_monthly_flow_report", label: "BTC ETF Monthly Flow Report", prompt: "BTC ETF Monthly Flow Report", status: "active", source: "Farside", chip: "Monthly" },
         ],
       },
+      {
+        id: "spot_etf_flowboard",
+        label: "Spot ETFs",
+        status: "active",
+        queries: [
+          { id: "btc_eth_etf_daily_flowboard", label: "ETF Daily Flowboard", prompt: "ETF Daily Flowboard", status: "active", source: "Farside", chip: "Split" },
+        ],
+      },
     ],
   },
   {
