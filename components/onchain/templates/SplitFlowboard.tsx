@@ -32,14 +32,26 @@ export function SplitFlowboard({
     link.click();
   }
 
-  return (
-    <section className={capture ? "m-0 bg-transparent p-0" : "space-y-4"}>
-      {capture ? null : (
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <FreshnessBadge status={data?.freshness?.status || data?.status || "missing"} />
-          <ExportButton onClick={downloadCard} />
+  if (capture) {
+    return (
+      <div
+        data-capture="share-card"
+        className="m-0 flex items-center justify-center overflow-hidden bg-[#f7f8fb] p-10"
+        style={{ width: 1536, height: 1024 }}
+      >
+        <div className="w-full">
+          <SplitFlowboardCard data={data} brand={brand} cardRef={cardRef} />
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <section className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <FreshnessBadge status={data?.freshness?.status || data?.status || "missing"} />
+        <ExportButton onClick={downloadCard} />
+      </div>
       <SplitFlowboardCard data={data} brand={brand} cardRef={cardRef} />
     </section>
   );

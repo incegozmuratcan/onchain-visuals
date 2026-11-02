@@ -1,14 +1,15 @@
 name: X BTC ETF daily
 
+# Manual BTC-only emergency post. Daily X sharing is combined BTC+ETH only,
+# in .github/workflows/x-btc-eth-etf-daily.yml. This workflow no longer runs
+# on a timer, so it does not auto-post.
+#
 # Dry-run by default. This job refreshes the BTC ETF daily snapshot, renders the
 # share card at 1536×1024, and uploads the PNG plus caption as artifacts.
 # It does not call X unless a run explicitly sets dry-run off AND the secrets
 # below are present. The X user token must be for @OnchainVis.
 #
-# Schedule: 05:30 UTC Tuesday–Saturday (08:30 Europe/Istanbul). US cash close
-# is the afternoon before; Farside often publishes late, so Istanbul morning
-# Tue–Sat is the first automated pass for the completed US session. Manual
-# runs use workflow_dispatch and stay dry-run unless dry_run is set to false.
+# Manual runs use workflow_dispatch and stay dry-run unless dry_run is set to false.
 #
 # GitHub Actions secrets
 # - ONCHAIN_PUBLISH_SECRET
@@ -43,13 +44,11 @@ name: X BTC ETF daily
 #
 # Repository variable (optional)
 # - X_DRY_RUN
-#     Schedule only. Leave unset or set to true to keep the dry run.
-#     Set to false only when live posts should run on the schedule.
-#     workflow_dispatch uses its dry_run input instead, which defaults to true.
+#     Unused for a timer, because this workflow no longer has one. Daily X
+#     sharing is the combined BTC+ETH workflow. workflow_dispatch uses its
+#     dry_run input instead, which defaults to true.
 
 on:
-  schedule:
-    - cron: "30 5 * * 2-6"
   workflow_dispatch:
     inputs:
       dry_run:

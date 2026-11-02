@@ -113,6 +113,17 @@ test("publish route posts the rich caption only when dry-run is explicitly off",
   assert.doesNotMatch(publishRoute, /BTC ETF Daily Flowboard — \$\{displayDate/);
 });
 
+test("BTC daily workflow no longer auto-posts on a timer", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/x-btc-etf-daily.yml", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /combined BTC\+ETH only/);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.doesNotMatch(workflow, /^\s*schedule:/m);
+  assert.doesNotMatch(workflow, /^\s*- cron:/m);
+});
+
 test("workflow stays a dry run unless posting is explicitly enabled", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/x-btc-etf-daily.yml", import.meta.url),

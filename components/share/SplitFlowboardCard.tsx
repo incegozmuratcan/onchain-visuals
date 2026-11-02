@@ -114,7 +114,10 @@ function FlowPanel({ panel }: { panel: SplitFlowPanel }) {
                     <span className="ml-1.5 font-medium text-slate-400">{row.name}</span>
                   ) : null}
                 </div>
-                <span className={`shrink-0 text-right font-black tabular-nums ${toneClass(value)}`}>
+                <span
+                  data-issuer-flow={row.formattedValue}
+                  className={`shrink-0 text-right font-black tabular-nums ${toneClass(value)}`}
+                >
                   {row.formattedValue}
                 </span>
               </div>
