@@ -214,7 +214,7 @@ test("Daily BTC ETF snapshot is latest-completed-day first with largest-driver a
   assert.match(etfFlowboard, /data-logo-mandatory="true"/);
   assert.match(etfFlowboard, /BTC_LOGO_SRC = "\/logos\/bitcoin.svg"/);
   assert.match(etfFlowboard, /BtcCanvasWatermarks/);
-  assert.match(etfFlowboard, /h-32 w-32/);
+  assert.match(etfFlowboard, /h-\[240px\] w-\[240px\]/);
   assert.match(etfFlowboard, /#f7931a/);
   assert.match(etfFlowboard, /bg-\[#f5f8fb\]|bg-white\/78/);
   assert.match(shareCard, /data-logo-mode="site-asset-premium-circular-coin"/);
@@ -292,7 +292,7 @@ test("Weekly BTC ETF snapshot elevates weekly net flow and renders signed zero-b
   assert.match(etfFlowboard, /data-metric-row-variant="weekly-equal"/);
   assert.match(etfFlowboard, /watermark=\{index === 0\}/);
   assert.match(etfFlowboard, /<BtcLogoWatermark compact \/>/);
-  assert.match(etfFlowboard, /bg-white\/72/);
+  assert.match(etfFlowboard, /bg-white\/76/);
   assert.match(etfFlowboard, /Top Issuer Flows|LATEST ISSUER FLOWS/);
   assert.doesNotMatch(etfFlowboard, /bg-zinc-950/);
 });
@@ -408,10 +408,20 @@ test("BTC ETF snapshot builders emit semantic card contracts for public daily we
     false,
   );
 
+  const currentMonth = new Date().toISOString().slice(0, 7);
   const monthly = snapshotBuilders.buildBtcEtfMonthlyIssuerCard(
     btcDataset,
     "monthly",
-    btcFlowResult,
+    {
+      ...btcFlowResult,
+      data: {
+        ...btcFlowResult.data,
+        rows: btcFlowResult.data.rows.map((row) => ({
+          ...row,
+          date: String(row.date).replace(/^2026-06/, currentMonth),
+        })),
+      },
+    },
   );
   assert.equal(JSON.stringify(monthly).includes("WEEKLY NET"), false);
   assert.equal(JSON.stringify(monthly).includes("MONTHLY NET"), false);
@@ -511,7 +521,8 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.match(frame, /id="share-card"/);
   assert.match(frame, /Source: \{source\}/);
   assert.match(frame, /whitespace-nowrap font-black text-slate-950/);
-  assert.match(frame, /src="\/logos\/bitcoin.svg"/);
+  assert.match(frame, /\{brand\.shortName\}/);
+  assert.doesNotMatch(frame, /bitcoin\.svg|card-grid-bg/);
   assert.match(snapshots, /export function buildBtcEthEtfDailyCard/);
   assert.match(snapshots, /fetchBtcEtfFlows\(\)[\s\S]*fetchEthEtfFlows\(\)/);
 
@@ -598,4 +609,85 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.equal(card.series.cards[1].formattedCumulative, "+$12.1B");
   assert.equal(card.series.cards[1].issuers.length, 3);
   assert.equal(card.series.cards[1].issuers.some((row) => row.ticker === "ETHW"), false);
+});
+
+test("ETH ETF daily weekly and monthly cards reuse the BTC share-card contract", () => {
+  const ethDataset = {
+    ...btcDataset,
+    id: "eth-etf-flowboard",
+    slug: "eth-etf-flowboard",
+    name: "ETH ETF Flowboard",
+    sourceLabel: "Farside Investors + Binance",
+  };
+  const ethFlowResult = {
+    url: "https://farside.co.uk/eth/",
+    data: {
+      warnings: [],
+      rows: flowRows("ETH", [
+        ["2026-10-28", 10_000_000, [["BlackRock", "ETHA", 10_000_000]]],
+        ["2026-10-29", -20_000_000, [["Fidelity", "FETH", -20_000_000]]],
+        ["2026-10-30", 40_000_000, [["BlackRock", "ETHA", 25_000_000], ["Fidelity", "FETH", 15_000_000]]],
+        ["2026-10-31", 12_000_000, [["BlackRock", "ETHA", 12_000_000]]],
+        ["2026-11-02", -89_400_000, [["BlackRock", "ETHA", -41_000_000], ["Fidelity", "FETH", -25_000_000], ["Bitwise", "ETHW", -8_000_000]]],
+      ]),
+    },
+  };
+  const daily = snapshotBuilders.buildBtcEtfDailyCard(
+    ethDataset,
+    "daily",
+    ethFlowResult,
+    undefined,
+    "ETH",
+  );
+  assert.equal(daily.title, "ETH ETF Daily Flowboard");
+  assert.equal(daily.sourceLabel, "Farside");
+  assert.equal(daily.metadata.asset, "ETH");
+  assert.equal(daily.metadata.view, "daily");
+  assert.equal(daily.headlineMetrics[0].formattedValue, "-$89.4M");
+  assert.equal(daily.headlineMetrics[1].formattedValue, "ETHA -$41M");
+  assert.equal(daily.series.tables[0].ticker, "ETHA");
+  assert.equal(daily.series.tables.some((row) => row.ticker === "IBIT"), false);
+
+  const weekly = snapshotBuilders.buildBtcEtfWeeklyCard(
+    ethDataset,
+    "weekly",
+    ethFlowResult,
+    undefined,
+    "ETH",
+  );
+  assert.equal(weekly.title, "ETH ETF Weekly Flowboard");
+  assert.equal(weekly.metadata.asset, "ETH");
+  assert.equal(weekly.metadata.view, "weekly");
+  assert.equal(weekly.series.bars.length, 5);
+  assert.equal(weekly.series.tables.some((row) => row.asset === "BTC"), false);
+
+  const month = new Date().toISOString().slice(0, 7);
+  const monthlyRows = flowRows("ETH", [
+    [`${month}-01`, -10_000_000, [["BlackRock", "ETHA", -10_000_000]]],
+    [`${month}-02`, 4_000_000, [["Fidelity", "FETH", 4_000_000]]],
+  ]);
+  const monthly = snapshotBuilders.buildBtcEtfMonthlyIssuerCard(
+    ethDataset,
+    "monthly",
+    { url: ethFlowResult.url, data: { warnings: [], rows: monthlyRows } },
+    undefined,
+    "ETH",
+  );
+  assert.equal(monthly.title, "ETH ETF Monthly Flow Report");
+  assert.equal(monthly.metadata.asset, "ETH");
+  assert.equal(monthly.metadata.view, "monthly");
+  assert.equal(monthly.metadata.monthlyVisual, "mtd_signed_daily_flow_chart");
+  assert.equal(monthly.series.bars.length, 2);
+});
+
+test("monthly flow report uses the latest completed month when the calendar month is empty", () => {
+  const monthly = snapshotBuilders.buildBtcEtfMonthlyIssuerCard(
+    btcDataset,
+    "monthly",
+    btcFlowResult,
+  );
+  assert.equal(monthly.metadata.month, "2026-06");
+  assert.equal(monthly.metadata.view, "monthly");
+  assert.equal(monthly.series.bars.length, 5);
+  assert.equal(monthly.title, "BTC ETF Monthly Flow Report");
 });

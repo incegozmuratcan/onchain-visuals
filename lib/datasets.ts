@@ -40,11 +40,21 @@ export const datasetGroups: DatasetGroup[] = [
         ],
       },
       {
-        id: "spot_etf_flowboard",
-        label: "Spot ETFs",
+        id: "eth_etf",
+        label: "ETH ETF",
         status: "active",
         queries: [
-          { id: "btc_eth_etf_daily_flowboard", label: "ETF Daily Flowboard", prompt: "ETF Daily Flowboard", status: "active", source: "Farside", chip: "Split" },
+          { id: "eth_etf_daily_flowboard", label: "ETH ETF Daily Flowboard", prompt: "ETH ETF Daily Flowboard", status: "active", source: "Farside", chip: "Daily" },
+          { id: "eth_etf_weekly_flowboard", label: "ETH ETF Weekly Flowboard", prompt: "ETH ETF Weekly Flowboard", status: "active", source: "Farside", chip: "Weekly" },
+          { id: "eth_etf_monthly_flow_report", label: "ETH ETF Monthly Flow Report", prompt: "ETH ETF Monthly Flow Report", status: "active", source: "Farside", chip: "Monthly" },
+        ],
+      },
+      {
+        id: "btc_eth_etf",
+        label: "BTC + ETH",
+        status: "active",
+        queries: [
+          { id: "btc_eth_etf_daily_flowboard", label: "ETF Daily Flowboard", prompt: "ETF Daily Flowboard", status: "active", source: "Farside", chip: "Daily" },
         ],
       },
     ],

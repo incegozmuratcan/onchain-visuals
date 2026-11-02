@@ -70,7 +70,7 @@ test("home defaults to BTC ETF Daily with context-aware BTC ETF settings", () =>
   assert.match(promptPanel, /placeholder="BTC ETF Daily Flowboard"/);
 });
 
-test("Capital Flows appears first and public dataset library exposes only BTC ETF there", () => {
+test("Capital Flows appears first and exposes BTC, ETH, and combined ETF period chips", () => {
   assert.ok(
     datasets.indexOf('id: "capital_flows"') < datasets.indexOf('id: "chains"'),
   );
@@ -86,14 +86,29 @@ test("Capital Flows appears first and public dataset library exposes only BTC ET
   const publicCapitalFlows = blockFor("capital_flows");
   assert.match(publicCapitalFlows, /name: "Capital Flows"/);
   assert.match(publicCapitalFlows, /label: "BTC ETF"/);
+  assert.match(publicCapitalFlows, /label: "ETH ETF"/);
+  assert.match(publicCapitalFlows, /label: "BTC \+ ETH"/);
+  assert.ok(
+    publicCapitalFlows.indexOf('label: "BTC ETF"') <
+      publicCapitalFlows.indexOf('label: "ETH ETF"'),
+  );
+  assert.ok(
+    publicCapitalFlows.indexOf('label: "ETH ETF"') <
+      publicCapitalFlows.indexOf('label: "BTC + ETH"'),
+  );
   assert.match(publicCapitalFlows, /BTC ETF Daily Flowboard/);
   assert.match(publicCapitalFlows, /BTC ETF Weekly Flowboard/);
   assert.match(publicCapitalFlows, /BTC ETF Monthly Flow Report/);
+  assert.match(publicCapitalFlows, /ETH ETF Daily Flowboard/);
+  assert.match(publicCapitalFlows, /ETH ETF Weekly Flowboard/);
+  assert.match(publicCapitalFlows, /ETH ETF Monthly Flow Report/);
+  assert.match(publicCapitalFlows, /prompt: "ETF Daily Flowboard"/);
+  assert.match(publicCapitalFlows, /chip: "Daily"/);
+  assert.match(publicCapitalFlows, /chip: "Weekly"/);
+  assert.match(publicCapitalFlows, /chip: "Monthly"/);
+  assert.doesNotMatch(publicCapitalFlows, /chip: "Split"|label: "Spot ETFs"/);
   assert.match(publicCapitalFlows, /source: "Farside"/);
-  assert.doesNotMatch(
-    publicCapitalFlows,
-    /ETH ETF|BTC vs ETH|Whale|Liquidation|config/i,
-  );
+  assert.doesNotMatch(publicCapitalFlows, /BTC vs ETH|Whale|Liquidation/i);
 });
 
 test("BTC ETF presets appear only under Capital Flows in public menus and API search still accepts all periods", () => {
@@ -113,9 +128,18 @@ test("BTC ETF presets appear only under Capital Flows in public menus and API se
     chainApi,
     /buildChartSnapshot\("btc-etf-flowboard", btcEtfPeriod\)/,
   );
+  assert.match(
+    chainApi,
+    /buildChartSnapshot\("eth-etf-flowboard", ethEtfPeriod\)/,
+  );
+  assert.match(chainApi, /ethOnlyEtf/);
+  assert.match(chainApi, /Capital Flows · ETH ETF/);
   assert.match(chainApi, /visualType: "btc_etf_card"/);
   assert.match(chainApi, /Capital Flows/);
   assert.match(datasetLibrary, /query\.chip/);
+  assert.match(datasetLibrary, /isPeriodChip/);
+  assert.match(promptPanel, /isEthEtf/);
+  assert.match(promptPanel, />ETH ETF<\/span>/);
   assert.match(datasetLibrary, /onSelectPrompt\(query\.prompt\)/);
   assert.match(datasetLibrary, /flex-nowrap/);
   assert.match(datasetLibrary, /text-\[10px\]/);

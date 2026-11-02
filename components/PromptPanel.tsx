@@ -12,23 +12,28 @@ const depinTimeframeOptions = ["24H", "30D"];
 
 function parsePromptLabels(prompt: string) {
   const text = prompt.toLowerCase();
-  const btcOnlyEtf = /btc\s*etf|bitcoin\s*etf/.test(text) && !/\beth\b|ethereum/.test(text);
-  const isSplitFlowboard = !btcOnlyEtf && /etf daily flowboard|btc\s*\+\s*eth|bitcoin\s+and\s+ethereum/.test(text);
-  const isBtcEtf = /btc\s*etf|bitcoin\s*etf/.test(text) && !isSplitFlowboard;
-  if (isBtcEtf) {
+  const mentionsEth = /\beth\b|ethereum/.test(text);
+  const mentionsBtc = /\bbtc\b|bitcoin/.test(text);
+  const btcOnlyEtf = /btc\s*etf|bitcoin\s*etf/.test(text) && !mentionsEth;
+  const ethOnlyEtf = mentionsEth && !mentionsBtc && /\betf\b/.test(text);
+  const isSplitFlowboard = !btcOnlyEtf && !ethOnlyEtf && /etf daily flowboard|btc\s*\+\s*eth|bitcoin\s+and\s+ethereum/.test(text);
+  const isBtcEtf = btcOnlyEtf && !isSplitFlowboard;
+  const isEthEtf = ethOnlyEtf && !isSplitFlowboard;
+  if (isBtcEtf || isEthEtf) {
     const period = /monthly|month|flow report/.test(text)
       ? "Monthly"
       : /weekly|week/.test(text)
         ? "Weekly"
         : "Daily";
     return {
-      scope: "BTC ETF",
+      scope: isEthEtf ? "ETH ETF" : "BTC ETF",
       metric: period === "Monthly" ? "Flow Report" : "Flow",
       limit: 10,
       timeframe: period,
       isCurrentOnly: true,
       isDepin: false,
-      isBtcEtf: true,
+      isBtcEtf,
+      isEthEtf,
       isSplitFlowboard: false,
     };
   }
@@ -41,6 +46,7 @@ function parsePromptLabels(prompt: string) {
       isCurrentOnly: true,
       isDepin: false,
       isBtcEtf: false,
+      isEthEtf: false,
       isSplitFlowboard: true,
     };
   }
@@ -65,7 +71,7 @@ function parsePromptLabels(prompt: string) {
 
   const scope = isDepin ? "Protocols" : isDevelopers || isTxFee || isBlockTime || isTps ? "Infrastructure" : isBenji || isBuidl ? "Assets" : "Chains";
   const metric = isDepin ? "DePIN" : isDevelopers ? "Developers" : isTxFee ? "Avg Tx Fee" : isBlockTime ? "Block Time" : isTps ? "Real-time TPS" : isBenji ? "BENJI" : isBuidl ? "BUIDL" : isStablecoin ? "Stablecoin Supply" : isTvl ? "TVL" : "Revenue";
-  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin, isBtcEtf: false, isSplitFlowboard: false };
+  return { scope, metric, limit, timeframe, isCurrentOnly, isDepin, isBtcEtf: false, isEthEtf: false, isSplitFlowboard: false };
 }
 
 function replaceLimit(prompt: string, nextLimit: number) {
@@ -138,6 +144,12 @@ export function PromptPanel({
               <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">Capital Flows</span>
               <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">BTC + ETH</span>
               <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">Daily</span>
+            </>
+          ) : detected.isEthEtf ? (
+            <>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">ETH ETF</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">{currentTimeframe}</span>
+              <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm">{detected.metric}</span>
             </>
           ) : detected.isBtcEtf ? (
             <>

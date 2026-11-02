@@ -42,7 +42,7 @@ type ApiResult = {
   valueSuffix?: string;
   valueDirection?: "higher" | "lower";
   query?: { timeframe: string; limit: number; labels?: string[]; metric?: string };
-  visualType?: "leaderboard_card" | "btc_etf_card" | "btc_eth_split_card";
+  visualType?: "leaderboard_card" | "btc_etf_card" | "eth_etf_card" | "btc_eth_split_card";
   chart?: ChartSnapshot;
   error?: string;
 };
