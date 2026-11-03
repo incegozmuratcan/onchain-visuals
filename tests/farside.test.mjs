@@ -32,6 +32,75 @@ test('Farside ETH parser accepts the current all-data header without a Date labe
   assert.equal(rows.find((r)=>r.date==='2026-11-02' && r.ticker==='ETHA').flowUsd, null);
 });
 
+function btcSessionTable(rows) {
+  const header = '<tr><th>Date</th><th>IBIT</th><th>FBTC</th><th>Total</th></tr>';
+  const body = rows
+    .map(([date, ibit, fbtc, total]) => `<tr><td>${date}</td><td>${ibit}</td><td>${fbtc}</td><td>${total}</td></tr>`)
+    .join('');
+  return `<table>${header}${body}</table>`;
+}
+
+test('latest Farside session stays incomplete when an issuer cell is a dash, blank, or missing', () => {
+  const dashed = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['01 Nov 2026', '1.0', '2.0', '3.0'],
+    ['02 Nov 2026', '4.0', '-', '4.0'],
+  ]), 'BTC').rows);
+  assert.equal(dashed.date, '2026-11-02');
+  assert.equal(dashed.complete, false);
+  assert.deepEqual(dashed.missingTickers, ['FBTC']);
+
+  const blank = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['01 Nov 2026', '1.0', '2.0', '3.0'],
+    ['02 Nov 2026', '4.0', '', '4.0'],
+  ]), 'BTC').rows);
+  assert.equal(blank.complete, false);
+  assert.deepEqual(blank.missingTickers, ['FBTC']);
+
+  const missingCell = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(
+    `<table><tr><th>Date</th><th>IBIT</th><th>FBTC</th><th>Total</th></tr><tr><td>01 Nov 2026</td><td>1.0</td><td>2.0</td><td>3.0</td></tr><tr><td>02 Nov 2026</td><td>4.0</td></tr></table>`,
+    'BTC',
+  ).rows);
+  assert.equal(missingCell.date, '2026-11-02');
+  assert.equal(missingCell.complete, false);
+  assert.equal(missingCell.totalReady, false);
+  assert.deepEqual(missingCell.missingTickers, ['FBTC']);
+});
+
+test('a trailing all-dash row is not the session, and a started row does not fall back', () => {
+  const placeholder = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['02 Nov 2026', '1.5', '0.0', '1.5'],
+    ['03 Nov 2026', '-', '-', '0.0'],
+  ]), 'BTC').rows);
+  assert.equal(placeholder.date, '2026-11-02');
+  assert.equal(placeholder.complete, true);
+  assert.deepEqual(placeholder.missingTickers, []);
+
+  const started = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['02 Nov 2026', '1.5', '0.0', '1.5'],
+    ['03 Nov 2026', '4.0', '-', '4.0'],
+  ]), 'BTC').rows);
+  assert.equal(started.date, '2026-11-03');
+  assert.equal(started.complete, false);
+  assert.deepEqual(started.missingTickers, ['FBTC']);
+});
+
+test('explicit zero fills an issuer cell, and a dash total does not', () => {
+  const zeros = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['01 Nov 2026', '-', '1.0', '1.0'],
+    ['02 Nov 2026', '0.0', '0', '0.0'],
+  ]), 'BTC').rows);
+  assert.equal(zeros.complete, true);
+  assert.equal(zeros.totalReady, true);
+  assert.deepEqual(zeros.missingTickers, []);
+
+  const dashTotal = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
+    ['02 Nov 2026', '1.0', '0.0', '-'],
+  ]), 'BTC').rows);
+  assert.equal(dashTotal.complete, false);
+  assert.equal(dashTotal.totalReady, false);
+  assert.deepEqual(dashTotal.missingTickers, []);
+});
+
 test('Farside parser falls back across tables and rejects invalid HTML without fake rows', () => {
   const invalid = mod.parseFarsideEtfTable('<main><h1>No data today</h1></main>', 'BTC');
   assert.equal(invalid.rows.length, 0);

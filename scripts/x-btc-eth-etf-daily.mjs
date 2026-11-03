@@ -11,24 +11,36 @@
  * Farside BTC and ETH tables together in buildBtcEthDailySplit. The card does
  * not read the separate btc-etf-flowboard or eth-etf-flowboard snapshots.
  *
+ * The share runs only when the newest real BTC session and the newest real ETH
+ * session are the same date and every issuer cell on both rows is a real
+ * number or an explicit 0. A dash, blank, or missing cell is incomplete.
+ * A trailing row of only dashes is Farside's empty next-day shell and is not
+ * the session. A partial row skips with exit 0 so a later pass can try again.
+ * A date already recorded in posted-state.json is not posted again.
+ *
  * X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and
  * X_ACCESS_TOKEN_SECRET are the @OnchainVis OAuth 1.0 Keys (Read and write).
  * X_USER_ACCESS_TOKEN is not used; that OAuth 2.0 bearer cannot upload media.
  */
 import { spawn } from "node:child_process";
-import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
+import { decideEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4173);
 const base = `http://127.0.0.1:${port}`;
 const preview = String(process.env.CAPTURE_PREVIEW || "").trim();
 const outDir = path.join(root, "artifacts", "x-btc-eth-etf-daily");
+const statePath = process.env.X_ETF_POST_STATE
+  ? path.resolve(process.env.X_ETF_POST_STATE)
+  : path.join(outDir, "posted-state.json");
 const datasetSlug = "btc-eth-etf-daily-flowboard";
 const useDev = process.argv.includes("--dev");
+const preflightOnly = process.argv.includes("--preflight");
 
 function livePostRequested() {
   const value = String(process.env.X_DRY_RUN ?? "true").trim().toLowerCase();
@@ -41,6 +53,76 @@ function pngSize(buffer) {
     throw new Error("Capture is not a PNG.");
   }
   return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
+
+let farsideModule;
+
+async function loadFarsideModule() {
+  if (!farsideModule) {
+    const sourceDir = path.join(root, "lib", "onchain", "sources");
+    const dir = await mkdtemp(path.join(tmpdir(), "farside-share-"));
+    for (const name of ["http.ts", "farside.ts"]) {
+      const source = await readFile(path.join(sourceDir, name), "utf8");
+      const js = ts
+        .transpileModule(source, {
+          compilerOptions: {
+            module: ts.ModuleKind.ES2022,
+            target: ts.ScriptTarget.ES2022,
+          },
+        })
+        .outputText.replace(/from\s+['"]\.\/http['"]/g, "from './http.mjs'");
+      await writeFile(path.join(dir, name.replace(/\.ts$/, ".mjs")), js);
+    }
+    farsideModule = import(pathToFileURL(path.join(dir, "farside.mjs")).href);
+  }
+  return farsideModule;
+}
+
+function sessionSummary(fill) {
+  return {
+    date: fill?.date || null,
+    complete: Boolean(fill?.complete),
+    missingTickers: fill?.missingTickers || [],
+    totalReady: Boolean(fill?.totalReady),
+  };
+}
+
+async function evaluateShare(dryRun) {
+  const farside = await loadFarsideModule();
+  const [btcResult, ethResult] = await Promise.all([
+    farside.fetchEtfFlows("BTC"),
+    farside.fetchEtfFlows("ETH"),
+  ]);
+  if (!btcResult?.ok) throw new Error(btcResult?.message || "BTC Farside fetch failed.");
+  if (!ethResult?.ok) throw new Error(ethResult?.message || "ETH Farside fetch failed.");
+  const btc = farside.assessLatestEtfSession(btcResult.data.rows);
+  const eth = farside.assessLatestEtfSession(ethResult.data.rows);
+  const posts = await readPostState(statePath);
+  const decision = decideEtfShare({ btc, eth, dryRun, posts });
+  return { dryRun, btc, eth, decision };
+}
+
+async function writeGithubProceed(proceed) {
+  const output = process.env.GITHUB_OUTPUT;
+  if (!output) return;
+  await appendFile(output, `proceed=${proceed ? "true" : "false"}\n`);
+}
+
+async function writeSkipArtifact(share) {
+  await mkdir(outDir, { recursive: true });
+  const result = {
+    dryRun: share.dryRun,
+    posted: false,
+    skipped: true,
+    reason: share.decision.reason,
+    noNewSession: share.decision.noNewSession,
+    date: share.decision.date,
+    message: share.decision.message,
+    btc: sessionSummary(share.btc),
+    eth: sessionSummary(share.eth),
+  };
+  await writeFile(path.join(outDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
+  return result;
 }
 
 async function loadCaptionBuilder() {
@@ -252,6 +334,20 @@ async function main() {
   if (preview) {
     throw new Error("Combined ETF daily capture has no preview fixture. Unset CAPTURE_PREVIEW.");
   }
+  const share = await evaluateShare(dryRun);
+  if (preflightOnly) {
+    await writeGithubProceed(share.decision.proceed);
+    if (!share.decision.proceed) await writeSkipArtifact(share);
+    console.log(share.decision.message);
+    console.log(JSON.stringify({ preflight: true, ...share.decision, dryRun }, null, 2));
+    return;
+  }
+  if (!share.decision.proceed) {
+    const skipped = await writeSkipArtifact(share);
+    console.log(share.decision.message);
+    console.log(JSON.stringify(skipped, null, 2));
+    return;
+  }
   const publishSecretProvided = Boolean(process.env.ONCHAIN_PUBLISH_SECRET);
   if (!publishSecretProvided) {
     process.env.ONCHAIN_PUBLISH_SECRET = `local-${process.pid}`;
@@ -274,6 +370,14 @@ async function main() {
       throw new Error(snapshot?.error || `Chart fetch failed with HTTP ${chartResponse.status}.`);
     }
     assertPublishable(snapshot);
+    if (
+      snapshot.metadata.latestCompletedDate !== share.decision.date ||
+      snapshot.metadata.ethLatestCompletedDate !== share.decision.date
+    ) {
+      throw new Error(
+        `Combined snapshot date ${snapshot.metadata.latestCompletedDate} / ${snapshot.metadata.ethLatestCompletedDate} does not match the filled Farside session ${share.decision.date}.`,
+      );
+    }
     const { buildBtcEthEtfDailyCaption } = await loadCaptionBuilder();
     const caption = buildBtcEthEtfDailyCaption(snapshot);
     const pageUrl = `${base}/onchain/${datasetSlug}?period=daily&capture=1`;
@@ -286,6 +390,8 @@ async function main() {
     const result = {
       dryRun,
       posted: false,
+      skipped: false,
+      reason: null,
       date: snapshot.metadata.latestCompletedDate,
       ethDate: snapshot.metadata.ethLatestCompletedDate,
       caption,
@@ -335,6 +441,14 @@ async function main() {
       result.duplicate = Boolean(payload.duplicate);
     }
 
+    await recordShare(statePath, {
+      date: result.date,
+      mode: dryRun ? "dry-run" : "live",
+      at: new Date().toISOString(),
+      postId: result.postId || null,
+      postUrl: result.postUrl || null,
+    });
+    result.shareRecorded = true;
     await writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`);
     console.log(
       JSON.stringify(

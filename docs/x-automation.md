@@ -20,7 +20,19 @@ A live post runs only when dry-run is explicitly off **and** `ONCHAIN_PUBLISH_SE
 
 ## Schedule
 
-`30 5 * * 2-6` on the combined workflow is 05:30 UTC, which is 08:30 in Istanbul (UTC+3, no daylight saving). That is Tuesday through Saturday morning, after the previous US cash session. Farside often publishes after the close, so this is a first pass rather than a guarantee that the print is final. `workflow_dispatch` is always available and defaults to a dry run.
+The combined workflow runs three times, Tuesday through Saturday, after the previous US cash session. Times are Europe/Istanbul (UTC+3, no daylight saving):
+
+| Istanbul | UTC cron | Pass |
+| --- | --- | --- |
+| 08:30 | `30 5 * * 2-6` | Primary |
+| 10:30 | `30 7 * * 2-6` | Retry if the primary did not share |
+| 13:30 | `30 10 * * 2-6` | Second retry |
+
+A pass shares only when the newest real Farside session for Bitcoin and the newest real session for Ethereum are the same date, and every issuer cell on both rows is a real number or an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero. Farside often appends the next date as dashes with a total of 0 before that print exists. That shell is not a session, so the previous filled day can still be shared. Once any issuer number is on the new row, that row is the session, and a partial fill does not post. An incomplete pass exits successfully without calling X, writes `reason: "incomplete"` into `result.json`, and leaves the later pass free to share once the row is filled.
+
+If that session date was already shared, or Farside has no newer row than the last success (a holiday or an empty day), the pass exits successfully with `reason: "already_posted"` or `reason: "no_new_session"`. Successful runs record the date in `artifacts/x-btc-eth-etf-daily/posted-state.json`. The workflow uploads that file and the next run restores it from the previous artifact. A live post blocks every later run of that date. A dry-run success blocks later dry-runs only, so turning live posting on the same day can still publish once.
+
+`workflow_dispatch` is always available and defaults to a dry run.
 
 The schedule stays a dry run unless the repository variable `X_DRY_RUN` is set to `false`. A manual run follows its `dry_run` input, which defaults to true even if that variable is false.
 
@@ -66,5 +78,7 @@ npm run x:btc-eth-etf-daily
 ```
 
 Artifacts land in `artifacts/x-btc-eth-etf-daily/`. `X_DRY_RUN` defaults to a dry run when it is unset. Leave `CAPTURE_PREVIEW` unset. The combined script does not render a fixture, and it refuses a live post when that variable is set.
+
+`npm run test:unit` covers the Farside completeness check and the skip rules. To verify the scheduled path without posting, run **X BTC+ETH ETF daily** with `workflow_dispatch` and leave `dry_run` at true. A green run whose artifact `result.json` has `reason: "incomplete"` means Farside was not ready and a later cron can still share. A green run with `btc-eth-etf-daily.png` means the session was complete. A later run for that same date logs that it was already shared and does not call X. Delete `artifacts/x-btc-eth-etf-daily/posted-state.json` before a local rerun of a date you already recorded.
 
 The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `CAPTURE_PREVIEW=oct30-outflow` on that command renders the wide-number fixture (`-$643.2M`, `IBIT -$233.7M`) instead of live Farside data and never posts.

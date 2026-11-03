@@ -284,6 +284,15 @@ test("combined workflow is the daily X schedule and stays a dry run by default",
     "utf8",
   );
   assert.match(workflow, /cron: "30 5 \* \* 2-6"/);
+  assert.match(workflow, /cron: "30 7 \* \* 2-6"/);
+  assert.match(workflow, /cron: "30 10 \* \* 2-6"/);
+  assert.equal((workflow.match(/^\s*- cron:/gm) || []).length, 3);
+  assert.match(workflow, /Europe\/Istanbul/);
+  assert.match(workflow, /explicit 0/);
+  assert.match(workflow, /posted-state\.json/);
+  assert.ok(workflow.indexOf("Restore the last shared ETF date") < workflow.indexOf("Choose dry-run or live post"));
+  assert.ok(workflow.indexOf("Choose dry-run or live post") < workflow.indexOf("id: gate"));
+  assert.ok(workflow.indexOf("id: gate") < workflow.indexOf("npm run build"));
   assert.match(workflow, /default: true/);
   assert.match(workflow, /inputs\.dry_run/);
   assert.match(workflow, /vars\.X_DRY_RUN/);
@@ -296,6 +305,11 @@ test("combined workflow is the daily X schedule and stays a dry run by default",
   assert.doesNotMatch(workflow, /X_USER_ACCESS_TOKEN: \$\{\{ secrets\.X_USER_ACCESS_TOKEN \}\}/);
   assert.match(workflow, /scripts\/x-btc-eth-etf-daily\.mjs/);
   assert.match(script, /X_DRY_RUN \?\? "true"/);
+  assert.match(script, /process\.argv\.includes\("--preflight"\)/);
+  assert.match(script, /assessLatestEtfSession/);
+  assert.match(script, /decideEtfShare/);
+  assert.match(script, /recordShare/);
+  assert.match(script, /if \(!share\.decision\.proceed\)/);
   assert.match(script, /Refusing to post a preview fixture/);
   assert.match(script, /Refusing to post: set ONCHAIN_PUBLISH_SECRET/);
   assert.match(script, /X_USER_ACCESS_TOKEN is not used/);
