@@ -9,10 +9,30 @@ name: X BTC+ETH ETF daily
 # Daily X sharing is this combined card only. The BTC-only workflow no longer
 # has a schedule.
 #
-# Schedule: 05:30 UTC Tuesday–Saturday (08:30 Europe/Istanbul). US cash close
-# is the afternoon before; Farside often publishes late, so Istanbul morning
-# Tue–Sat is the first automated pass for the completed US session. Manual
-# runs use workflow_dispatch and stay dry-run unless dry_run is set to false.
+# Schedule (Europe/Istanbul, UTC+3, no daylight saving). Tuesday–Saturday
+# only, after the previous US cash session:
+# - 08:30 TR (05:30 UTC) is the primary pass.
+# - 10:30 TR (07:30 UTC) retries when the first pass did not share.
+# - 13:30 TR (10:30 UTC) is the second retry.
+#
+# Each pass shares only when the newest real Farside session for both BTC and
+# ETH is the same date and fully filled: every issuer cell is a real number or
+# an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero.
+# Farside often adds the next date as a row of dashes with a total of 0 before
+# that print exists. That shell is ignored, so the previous filled session can
+# still be shared. Once any issuer number is present, that row is the session
+# and a partial fill does not post. An incomplete pass exits successfully
+# without posting, so a later pass can share once the row is filled. A pass
+# also skips when that ETF date was already shared (a live post, or a dry-run
+# that already recorded a success for the date) or when Farside has no newer
+# session than the last success
+# (holiday or empty day). The recorded dates live in posted-state.json, which
+# this workflow restores from the previous run's artifact.
+#
+# Dry-run stays the default. The schedule follows vars.X_DRY_RUN (unset or
+# true = dry run; false = live). Manual runs use workflow_dispatch and stay
+# dry-run unless dry_run is set to false. A recorded dry-run does not block
+# a later live post of the same date.
 #
 # GitHub Actions secrets
 # - ONCHAIN_PUBLISH_SECRET
@@ -53,7 +73,12 @@ name: X BTC+ETH ETF daily
 
 on:
   schedule:
+    # 08:30 Europe/Istanbul
     - cron: "30 5 * * 2-6"
+    # 10:30 Europe/Istanbul
+    - cron: "30 7 * * 2-6"
+    # 13:30 Europe/Istanbul
+    - cron: "30 10 * * 2-6"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -63,6 +88,8 @@ on:
 
 permissions:
   contents: read
+  # Read the previous run's share record and upload this run's artifact.
+  actions: write
 
 concurrency:
   group: x-btc-eth-etf-daily
@@ -99,26 +126,52 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Inter for share-card text
+      - name: Restore the last shared ETF date
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if fc-list : family | grep -qi '^Inter$'; then
+          mkdir -p artifacts/x-btc-eth-etf-daily
+          if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GH_TOKEN:-}" ]; then
+            echo "No Actions artifact API. Keeping any local post state."
             exit 0
           fi
-          sudo apt-get update
-          sudo apt-get install -y fonts-inter || true
-          if fc-list : family | grep -qi '^Inter$'; then
+          LIST=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=btc-eth-etf-daily")
+          ARTIFACT_ID=$(printf '%s' "$LIST" | node --input-type=module -e '
+            let raw = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { raw += chunk; });
+            process.stdin.on("end", () => {
+              const payload = JSON.parse(raw);
+              const rows = (payload.artifacts || []).filter((row) => row && row.name === "btc-eth-etf-daily" && !row.expired);
+              rows.sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+              if (rows[0]) process.stdout.write(String(rows[0].id));
+            });
+          ')
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "No earlier share record."
             exit 0
           fi
-          mkdir -p "$HOME/.local/share/fonts"
-          curl -fsSL -o /tmp/inter.zip https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
-          unzip -q /tmp/inter.zip -d /tmp/inter
-          find /tmp/inter -name '*.ttf' -exec cp {} "$HOME/.local/share/fonts/" \;
-          fc-cache -f
-          fc-list : family | grep -i '^Inter$'
-
-      - name: Install Playwright Chromium
-        run: npx playwright install --with-deps chromium
+          TMP=$(mktemp -d)
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -L \
+            -o "$TMP/artifact.zip" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"
+          unzip -q "$TMP/artifact.zip" -d "$TMP/unzip"
+          FOUND=$(find "$TMP/unzip" -name posted-state.json -print -quit)
+          if [ -n "$FOUND" ]; then
+            cp "$FOUND" artifacts/x-btc-eth-etf-daily/posted-state.json
+            echo "Restored post state from artifact ${ARTIFACT_ID}."
+          else
+            echo "Latest artifact ${ARTIFACT_ID} has no post state yet."
+          fi
 
       - name: Choose dry-run or live post
         shell: bash
@@ -140,10 +193,39 @@ jobs:
               ;;
           esac
 
+      - name: Check whether this Farside session should be shared
+        id: gate
+        run: node scripts/x-btc-eth-etf-daily.mjs --preflight
+
+      - name: Install Inter for share-card text
+        if: steps.gate.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          if fc-list : family | grep -qi '^Inter$'; then
+            exit 0
+          fi
+          sudo apt-get update
+          sudo apt-get install -y fonts-inter || true
+          if fc-list : family | grep -qi '^Inter$'; then
+            exit 0
+          fi
+          mkdir -p "$HOME/.local/share/fonts"
+          curl -fsSL -o /tmp/inter.zip https://github.com/rsms/inter/releases/download/v4.1/Inter-4.1.zip
+          unzip -q /tmp/inter.zip -d /tmp/inter
+          find /tmp/inter -name '*.ttf' -exec cp {} "$HOME/.local/share/fonts/" \;
+          fc-cache -f
+          fc-list : family | grep -i '^Inter$'
+
+      - name: Install Playwright Chromium
+        if: steps.gate.outputs.proceed == 'true'
+        run: npx playwright install --with-deps chromium
+
       - name: Build Next.js app
+        if: steps.gate.outputs.proceed == 'true'
         run: npm run build
 
       - name: Refresh, capture, and prepare the post
+        if: steps.gate.outputs.proceed == 'true'
         run: node scripts/x-btc-eth-etf-daily.mjs
 
       - name: Upload PNG and caption

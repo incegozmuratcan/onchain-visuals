@@ -132,6 +132,60 @@ function parseSingleTable(table: string, asset: EtfAsset, tableIndex: number): P
   const score = parsedValues + totalRows * 5 + uniqueDates * 2 + issuerScore(dataHeaders, asset) * 10;
   return { rows, warnings, score, tableIndex, totalColumn: totalIdx >= 0 ? totalIdx + 1 : null };
 }
+export type EtfSessionFill = {
+  date: string | null;
+  complete: boolean;
+  missingTickers: string[];
+  totalReady: boolean;
+};
+
+function finiteFlow(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+/**
+ * The session to share is the newest row that actually has issuer numbers.
+ * Farside often appends the next date as dashes with a total of 0.0 before
+ * that print exists. That shell is not a session: dashes are not zeros, and
+ * it does not hide the previous filled row. A row that has started to print
+ * (at least one real issuer number, including an explicit 0) is the session,
+ * and every issuer cell plus the total must be a real number or it is incomplete.
+ */
+export function assessLatestEtfSession(rows: EtfFlowRow[]): EtfSessionFill {
+  const dates = [...new Set(rows.map((row) => row.date))].sort();
+  if (!dates.length) return { date: null, complete: false, missingTickers: [], totalReady: false };
+  const issuersOn = (day: string) => {
+    const byTicker = new Map<string, EtfFlowRow>();
+    for (const row of rows) {
+      if (row.date !== day || row.isTotal) continue;
+      const prior = byTicker.get(row.ticker);
+      if (!prior || (prior.flowUsd == null && row.flowUsd != null)) byTicker.set(row.ticker, row);
+    }
+    return byTicker;
+  };
+  const placeholder = (day: string) => {
+    const issuers = issuersOn(day);
+    return !issuers.size || [...issuers.values()].every((row) => !finiteFlow(row.flowUsd));
+  };
+  let index = dates.length - 1;
+  while (index > 0 && placeholder(dates[index])) index -= 1;
+  const date = dates[index];
+  const latest = issuersOn(date);
+  const previous = index > 0 ? dates[index - 1] : null;
+  const expected = new Set(latest.keys());
+  if (previous) {
+    for (const ticker of issuersOn(previous).keys()) expected.add(ticker);
+  }
+  const missingTickers = [...expected].filter((ticker) => !finiteFlow(latest.get(ticker)?.flowUsd)).sort();
+  const totalReady = rows.some((row) => row.date === date && row.isTotal && finiteFlow(row.flowUsd));
+  return {
+    date,
+    complete: expected.size > 0 && missingTickers.length === 0 && totalReady,
+    missingTickers,
+    totalReady,
+  };
+}
+
 export function parseFarsideEtfTable(html: string, asset: EtfAsset): { rows: EtfFlowRow[]; warnings: string[] } {
   const parsed = splitTables(html).map((table, index) => parseSingleTable(table, asset, index)).sort((a, b) => b.score - a.score)[0];
   if (!parsed || !parsed.rows.length) return { rows: [], warnings: ['ETF table not found in Farside HTML.'] };
