@@ -7,13 +7,22 @@ name: X BTC+ETH ETF daily
 # below are present. The X user token must be for @OnchainVis.
 #
 # Daily X sharing is this combined card only. The BTC-only workflow no longer
-# has a schedule.
+# has a schedule. This workflow has no schedule either. Vercel Cron is the
+# only timer, so GitHub Actions cannot double-fire it.
 #
-# Schedule (Europe/Istanbul, UTC+3, no daylight saving). Tuesday–Saturday
-# only, after the previous US cash session:
-# - 08:30 TR (05:30 UTC) is the primary pass.
-# - 10:30 TR (07:30 UTC) retries when the first pass did not share.
-# - 13:30 TR (10:30 UTC) is the second retry.
+# Vercel Cron (vercel.json), Europe/Istanbul, UTC+3, no daylight saving.
+# Tuesday–Saturday, 08:00–14:00 Istanbul (05:00–11:00 UTC) every 30 minutes,
+# including both ends:
+# - */30 5-10 * * 2-6  →  05:00–10:30 UTC (08:00–13:30 Istanbul)
+# - 0 11 * * 2-6       →  11:00 UTC (14:00 Istanbul), last live dispatch
+# Both hit GET /api/cron/x-btc-eth-etf-daily, which dispatches this workflow
+# on main with dry_run=false (the string "false"). A third cron,
+# 45 11 * * 2-6 (14:45 Istanbul), does not dispatch. It logs when the window
+# produced no live post.
+#
+# Hobby cannot deploy the half-hour expression. Hobby cron runs at most once
+# per day and only sometime inside the hour. Pro or Enterprise is required
+# for per-minute precision. See docs/x-automation.md.
 #
 # Each pass shares only when the newest real Farside session for both BTC and
 # ETH is the same date and fully filled: every issuer cell is a real number or
@@ -29,10 +38,22 @@ name: X BTC+ETH ETF daily
 # (holiday or empty day). The recorded dates live in posted-state.json, which
 # this workflow restores from the previous run's artifact.
 #
-# Dry-run stays the default. The schedule follows vars.X_DRY_RUN (unset or
-# true = dry run; false = live). Manual runs use workflow_dispatch and stay
-# dry-run unless dry_run is set to false. A recorded dry-run does not block
-# a later live post of the same date.
+# Manual workflow_dispatch stays a dry run unless dry_run is set to false.
+# The Vercel route always sends false, so cron posts live. The choose-dry-run
+# step copies that input into X_DRY_RUN for the script. It does not read
+# vars.X_DRY_RUN for workflow_dispatch. The variable remains only if some
+# other event is added later. A recorded dry-run does not block a later live
+# post of the same date.
+#
+# Vercel Production env (not committed):
+# - CRON_SECRET
+#     Bearer for /api/cron/x-btc-eth-etf-daily. Vercel Cron sends
+#     Authorization: Bearer $CRON_SECRET. The route rejects a missing or wrong
+#     secret. It does not accept ONCHAIN_REFRESH_SECRET in its place.
+# - GITHUB_DISPATCH_TOKEN
+#     Token with Actions read and write on this repo (fine-grained PAT or
+#     GitHub App). Used only to workflow_dispatch this file on main. Set it on
+#     Production, not Preview.
 #
 # GitHub Actions secrets
 # - ONCHAIN_PUBLISH_SECRET
@@ -67,18 +88,11 @@ name: X BTC+ETH ETF daily
 #
 # Repository variable (optional)
 # - X_DRY_RUN
-#     Schedule only. Leave unset or set to true to keep the dry run.
-#     Set to false only when live posts should run on the schedule.
-#     workflow_dispatch uses its dry_run input instead, which defaults to true.
+#     Not read for workflow_dispatch. Leave it as-is. Cron forces a live post
+#     by passing dry_run=false. A manual run uses the dry_run input below,
+#     which defaults to true.
 
 on:
-  schedule:
-    # 08:30 Europe/Istanbul
-    - cron: "30 5 * * 2-6"
-    # 10:30 Europe/Istanbul
-    - cron: "30 7 * * 2-6"
-    # 13:30 Europe/Istanbul
-    - cron: "30 10 * * 2-6"
   workflow_dispatch:
     inputs:
       dry_run:

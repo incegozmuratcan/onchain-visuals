@@ -1,6 +1,6 @@
 # X automation
 
-The scheduled post is the combined daily ETF Flowboard (Bitcoin and Ethereum) for [@OnchainVis](https://x.com/OnchainVis). The GitHub Actions workflow `.github/workflows/x-btc-eth-etf-daily.yml` is a dry run unless a run explicitly turns that off.
+The scheduled post is the combined daily ETF Flowboard (Bitcoin and Ethereum) for [@OnchainVis](https://x.com/OnchainVis). Vercel Cron dispatches `.github/workflows/x-btc-eth-etf-daily.yml` on `main` with `dry_run` set to false. A manual run of that workflow stays a dry run unless its `dry_run` input is set to false.
 
 Daily X sharing is that combined card only. `.github/workflows/x-btc-etf-daily.yml` no longer has a timer. It remains a manual `workflow_dispatch` for an emergency BTC-only post, and that dispatch still defaults to a dry run.
 
@@ -20,21 +20,48 @@ A live post runs only when dry-run is explicitly off **and** `ONCHAIN_PUBLISH_SE
 
 ## Schedule
 
-The combined workflow runs three times, Tuesday through Saturday, after the previous US cash session. Times are Europe/Istanbul (UTC+3, no daylight saving):
+GitHub Actions does not schedule this workflow. The timer is Vercel Cron on the production deployment, defined in `vercel.json`. Leaving a GitHub `schedule` in place would race that cron.
 
-| Istanbul | UTC cron | Pass |
-| --- | --- | --- |
-| 08:30 | `30 5 * * 2-6` | Primary |
-| 10:30 | `30 7 * * 2-6` | Retry if the primary did not share |
-| 13:30 | `30 10 * * 2-6` | Second retry |
+Europe/Istanbul is UTC+3 all year (no daylight saving). The window is Tuesday–Saturday, 08:00–14:00 Istanbul, every 30 minutes, including both ends. In UTC that is 05:00–11:00.
+
+| Istanbul | UTC | Vercel cron | What it does |
+| --- | --- | --- | --- |
+| 08:00–13:30, every 30 min | 05:00–10:30 | `*/30 5-10 * * 2-6` | Dispatch the workflow live |
+| 14:00 | 11:00 | `0 11 * * 2-6` | Last live dispatch |
+| 14:45 | 11:45 | `45 11 * * 2-6` | Do not dispatch. Log if the window has no live post |
+
+All three entries call `GET /api/cron/x-btc-eth-etf-daily`. Vercel sends `Authorization: Bearer $CRON_SECRET` and the `x-vercel-cron-schedule` header. The route calls GitHub `workflow_dispatch` for `.github/workflows/x-btc-eth-etf-daily.yml` on `main` with input `dry_run` set to the string `false`. A manual run from the Actions tab still defaults that input to true.
+
+If a run of this workflow is already queued or in progress, the route does not dispatch another one. It returns `reason: "already_running"`. The workflow concurrency group `x-btc-eth-etf-daily` (`cancel-in-progress: false`) is the backstop when two requests overlap. The next half-hour tries again. The Farside completeness check is unchanged.
 
 A pass shares only when the newest real Farside session for Bitcoin and the newest real session for Ethereum are the same date, and every issuer cell on both rows is a real number or an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero. Farside often appends the next date as dashes with a total of 0 before that print exists. That shell is not a session, so the previous filled day can still be shared. Once any issuer number is on the new row, that row is the session, and a partial fill does not post. An incomplete pass exits successfully without calling X, writes `reason: "incomplete"` into `result.json`, and leaves the later pass free to share once the row is filled.
 
 If that session date was already shared, or Farside has no newer row than the last success (a holiday or an empty day), the pass exits successfully with `reason: "already_posted"` or `reason: "no_new_session"`. Successful runs record the date in `artifacts/x-btc-eth-etf-daily/posted-state.json`. The workflow uploads that file and the next run restores it from the previous artifact. A live post blocks every later run of that date. A dry-run success blocks later dry-runs only, so turning live posting on the same day can still publish once.
 
-`workflow_dispatch` is always available and defaults to a dry run.
+`workflow_dispatch` is always available and defaults to a dry run. The repository variable `X_DRY_RUN` is not read for that event. Cron does not depend on it. Leave the variable as it is. This repo does not set `X_DRY_RUN` in code.
 
-The schedule stays a dry run unless the repository variable `X_DRY_RUN` is set to `false`. A manual run follows its `dry_run` input, which defaults to true even if that variable is false.
+### Plan limits
+
+Vercel allows 100 cron jobs per project on Hobby, Pro, and Enterprise. These three entries are inside that count.
+
+Hobby cannot run this window. A Hobby cron expression may fire at most once per day, and Hobby invokes it sometime inside that hour rather than on the minute. `*/30 5-10 * * 2-6` runs twelve times on a Tuesday–Saturday, so deployment fails with `Hobby accounts are limited to daily cron jobs. This cron expression would run more than once per day.` Splitting each half-hour into its own daily expression would pass that check and still miss the minute, because two jobs in the same hour can fire together. Use Pro or Enterprise. Pro invokes the job during the scheduled minute.
+
+Cron jobs run only for the production deployment.
+
+### After the window
+
+At 14:45 Istanbul the same route does not dispatch. It reads the newest `btc-eth-etf-daily` artifact created since 05:00 UTC. It writes an error log when that artifact shows no live post because Farside was incomplete, the run failed, or no run started. `no_new_session` (holiday or empty day) is a warning, not that error. `already_posted` from a live run counts as a live post. This check does not send Slack or email.
+
+### Vercel environment variables
+
+Set these on the Vercel project for Production. Do not commit them. Leave `GITHUB_DISPATCH_TOKEN` off Preview so a preview deployment cannot dispatch a live post.
+
+| Variable | Required | Used for |
+| --- | --- | --- |
+| `CRON_SECRET` | Yes | Bearer checked by `/api/cron/x-btc-eth-etf-daily`. Vercel Cron attaches it when the variable exists. Use at least 16 random characters. The route does not accept `ONCHAIN_REFRESH_SECRET` in its place. The same string may also be the GitHub Actions `CRON_SECRET`, but it has to be set on Vercel. |
+| `GITHUB_DISPATCH_TOKEN` | Yes | Token that can dispatch Actions on this repo. Prefer a fine-grained PAT, or a GitHub App installation token, with Actions read and write on `incegozmuratcan/onchain-visuals`. A classic PAT needs the `repo` scope. The route never reads `X_DRY_RUN`. |
+
+`GITHUB_REPOSITORY` is optional (`owner/repo`). When it is unset, the route uses `VERCEL_GIT_REPO_OWNER` and `VERCEL_GIT_REPO_SLUG`, then `incegozmuratcan/onchain-visuals`. The dispatch ref is always `main`.
 
 ## GitHub Actions secrets
 
@@ -79,6 +106,6 @@ npm run x:btc-eth-etf-daily
 
 Artifacts land in `artifacts/x-btc-eth-etf-daily/`. `X_DRY_RUN` defaults to a dry run when it is unset. Leave `CAPTURE_PREVIEW` unset. The combined script does not render a fixture, and it refuses a live post when that variable is set.
 
-`npm run test:unit` covers the Farside completeness check and the skip rules. To verify the scheduled path without posting, run **X BTC+ETH ETF daily** with `workflow_dispatch` and leave `dry_run` at true. A green run whose artifact `result.json` has `reason: "incomplete"` means Farside was not ready and a later cron can still share. A green run with `btc-eth-etf-daily.png` means the session was complete. A later run for that same date logs that it was already shared and does not call X. Delete `artifacts/x-btc-eth-etf-daily/posted-state.json` before a local rerun of a date you already recorded.
+`npm run test:unit` covers the Farside completeness check, the skip rules, and the Vercel cron dispatch. To verify the path without posting, run **X BTC+ETH ETF daily** with `workflow_dispatch` and leave `dry_run` at true. A green run whose artifact `result.json` has `reason: "incomplete"` means Farside was not ready and a later cron can still share. A green run with `btc-eth-etf-daily.png` means the session was complete. A later run for that same date logs that it was already shared and does not call X. Delete `artifacts/x-btc-eth-etf-daily/posted-state.json` before a local rerun of a date you already recorded.
 
 The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `CAPTURE_PREVIEW=oct30-outflow` on that command renders the wide-number fixture (`-$643.2M`, `IBIT -$233.7M`) instead of live Farside data and never posts.

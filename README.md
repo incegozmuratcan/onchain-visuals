@@ -1,3 +1,9 @@
+## BTC+ETH ETF daily X post
+
+Vercel Cron posts the combined card. Production calls `/api/cron/x-btc-eth-etf-daily` every 30 minutes from 08:00 through 14:00 Europe/Istanbul (05:00–11:00 UTC), Tuesday–Saturday. That route dispatches `.github/workflows/x-btc-eth-etf-daily.yml` on `main` with `dry_run` false. GitHub Actions has no `schedule` for this workflow. A manual run still defaults to a dry run.
+
+This needs a Vercel Pro or Enterprise project. Hobby cron is once a day and only accurate to the hour, and the half-hour expression fails Hobby deploys. Set `CRON_SECRET` and `GITHUB_DISPATCH_TOKEN` (Actions read and write) on the Vercel Production environment. An incomplete Farside table exits success without posting, and a date already posted live is skipped. Details: `docs/x-automation.md`.
+
 ## v0.11.47 BLOCKER: Logo Work Queue logic + dashboard priority fix
 
 - Centralized review-state logic in `lib/admin/logoQa.ts` so manual/upload/managed-vault reviewed sources count as **reviewed/resolved** even when provider gaps remain.

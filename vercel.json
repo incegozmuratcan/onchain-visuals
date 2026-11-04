@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/x-btc-eth-etf-daily",
+      "schedule": "*/30 5-10 * * 2-6"
+    },
+    {
+      "path": "/api/cron/x-btc-eth-etf-daily",
+      "schedule": "0 11 * * 2-6"
+    },
+    {
+      "path": "/api/cron/x-btc-eth-etf-daily",
+      "schedule": "45 11 * * 2-6"
+    }
+  ]
+}

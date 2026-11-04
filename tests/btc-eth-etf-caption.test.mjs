@@ -270,7 +270,7 @@ test("publish route posts through OAuth 1.0a only when dry-run is explicitly off
   assert.match(splitCard, /data-issuer-flow=/);
 });
 
-test("combined workflow is the daily X schedule and stays a dry run by default", async () => {
+test("combined workflow is dispatched by Vercel cron and manual runs stay a dry run", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/x-btc-eth-etf-daily.yml", import.meta.url),
     "utf8",
@@ -283,10 +283,11 @@ test("combined workflow is the daily X schedule and stays a dry run by default",
     new URL("../.github/workflows/x-btc-etf-daily.yml", import.meta.url),
     "utf8",
   );
-  assert.match(workflow, /cron: "30 5 \* \* 2-6"/);
-  assert.match(workflow, /cron: "30 7 \* \* 2-6"/);
-  assert.match(workflow, /cron: "30 10 \* \* 2-6"/);
-  assert.equal((workflow.match(/^\s*- cron:/gm) || []).length, 3);
+  assert.doesNotMatch(workflow, /^\s*schedule:/m);
+  assert.doesNotMatch(workflow, /^\s*- cron:/m);
+  assert.match(workflow, /workflow_dispatch:/);
+  assert.match(workflow, /GITHUB_DISPATCH_TOKEN/);
+  assert.match(workflow, /CRON_SECRET/);
   assert.match(workflow, /Europe\/Istanbul/);
   assert.match(workflow, /explicit 0/);
   assert.match(workflow, /posted-state\.json/);
