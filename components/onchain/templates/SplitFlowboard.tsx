@@ -36,10 +36,10 @@ export function SplitFlowboard({
     return (
       <div
         data-capture="share-card"
-        className="m-0 flex items-center justify-center overflow-hidden bg-[#f7f8fb] p-10"
-        style={{ width: 1536, height: 1024 }}
+        className="m-0 box-border flex overflow-hidden"
+        style={{ width: 1536, height: 1024, background: "#f3f4f7", padding: 42 }}
       >
-        <div className="w-full">
+        <div className="flex min-h-0 min-w-0 flex-1">
           <SplitFlowboardCard data={data} brand={brand} cardRef={cardRef} />
         </div>
       </div>

@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { getPublicBrandSettings } from "@/lib/brandSettings";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "block",
+});
 
 export const dynamic = "force-dynamic";
 
@@ -29,8 +35,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className={inter.className}>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }
