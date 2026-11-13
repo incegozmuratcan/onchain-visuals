@@ -7,7 +7,7 @@ import type {
 } from "./types";
 import {
   formatCompactUsd,
-  formatFlowOneDecimal,
+  formatFlowCardAmount,
   formatFlowWholeMillions,
   formatSignedPercent,
   formatSignedUsd,
@@ -431,6 +431,16 @@ function issuerBars(
       (a, b) => Math.abs(Number(b.value) || 0) - Math.abs(Number(a.value) || 0),
     );
 }
+function monthDayLabel(date: string | null) {
+  if (!date) return "";
+  return new Date(`${date}T00:00:00Z`)
+    .toLocaleDateString("en-US", {
+      timeZone: "UTC",
+      month: "short",
+      day: "numeric",
+    })
+    .toUpperCase();
+}
 function dateNetFlowLabel(date: string | null, value?: number | null) {
   const flowDirection = Number(value) >= 0 ? "NET INFLOW" : "NET OUTFLOW";
   if (!date) return flowDirection;
@@ -631,17 +641,18 @@ function splitFlowPanel(asset: "BTC" | "ETH", summary: ReturnType<typeof summari
   const net = Number(summary.latest?.flowUsd) || 0;
   const contributors = getTopIssuerContributors(summary.issuerLatest, 3);
   const driver = directionalIssuerDriver(summary.issuerLatest, summary.latest?.flowUsd);
-  const periodLabel = dateNetFlowLabel(summary.latestCompletedDate, net).replace(
-    / NET (?:IN|OUT)FLOW$/,
-    "",
-  );
+  const periodLabel = monthDayLabel(summary.latestCompletedDate);
+  // Previous trading session: the prior completed Farside row. Weekends, holidays,
+  // and dash-only shells are not completed rows, so Monday shows Friday.
+  const previous = summary.days.length >= 2 ? summary.days[summary.days.length - 2] : null;
+  const priorFlow = previous?.total.flowUsd;
   return {
     asset,
     date: summary.latestCompletedDate,
     periodLabel,
     metricLabel: net >= 0 ? "NET INFLOW" : "NET OUTFLOW",
     netFlow: net,
-    formattedNet: formatFlowOneDecimal(net),
+    formattedNet: formatFlowCardAmount(net),
     largest: driver
       ? {
           ticker: driver.ticker,
@@ -650,8 +661,17 @@ function splitFlowPanel(asset: "BTC" | "ETH", summary: ReturnType<typeof summari
           formattedValue: formatFlowWholeMillions(driver.flowUsd),
         }
       : null,
+    priorDay:
+      previous && priorFlow != null && Number.isFinite(Number(priorFlow))
+        ? {
+            date: previous.date,
+            label: `PRIOR DAY · ${monthDayLabel(previous.date)}`,
+            value: Number(priorFlow),
+            formattedValue: formatFlowCardAmount(priorFlow),
+          }
+        : null,
     cumulative: summary.totalFlow,
-    formattedCumulative: formatFlowOneDecimal(summary.totalFlow),
+    formattedCumulative: formatFlowCardAmount(summary.totalFlow),
     issuers: contributors.map((row) => ({
       ticker: row.ticker,
       name: row.name,

@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from "react";
+import { formatShareUpdated } from "@/lib/formatters";
 
 export type ShareCardBrand = {
   shortName: string;
@@ -12,20 +13,7 @@ export const defaultShareCardBrand: ShareCardBrand = {
   createdWithText: "Created with Onchain Visuals",
 };
 
-export function formatShareUpdated(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString("en-US", {
-    timeZone: "UTC",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    timeZoneName: "short",
-  });
-}
+export { formatShareUpdated };
 
 /**
  * Site share-card shell: category line, title, subtitle, brand pill, and footer.
@@ -56,38 +44,41 @@ export function ShareCardFrame({
       id="share-card"
       role="region"
       aria-label={title}
-      className="relative w-full overflow-hidden rounded-[34px] border border-slate-200 bg-white p-8 shadow-soft md:p-10"
+      className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] bg-white px-5 pb-8 pt-8 antialiased lg:px-12 lg:pb-[52px] lg:pt-[60px]"
+      style={{
+        boxShadow: "0 8px 30px rgba(0,0,0,.08)",
+        fontFeatureSettings: '"ss01" 1, "cv01" 1, "tnum" 1',
+        lineHeight: "normal",
+      }}
     >
-      <div className="absolute right-8 top-8 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black tracking-[-0.02em] text-slate-950 shadow-sm">
+      <div className="absolute right-5 top-6 rounded-full border-[1.5px] border-[#e3e5ea] bg-white px-3 py-2 text-[13px] font-extrabold text-[#111] lg:right-12 lg:top-[44px] lg:px-6 lg:py-3 lg:text-[20px]">
         {brand.shortName}
       </div>
 
-      <div className="max-w-[74%]">
-        <p className="text-sm font-black uppercase tracking-[0.24em] text-slate-400">
-          {eyebrow}
-        </p>
-        <h2 className="mt-3 text-4xl font-black leading-[0.95] tracking-[-0.055em] text-slate-950 md:text-5xl">
-          {title}
-        </h2>
-        <p className="mt-4 max-w-xl text-base font-medium leading-7 text-slate-500">
-          {description}
-        </p>
-      </div>
+      <p className="pr-24 text-[12px] font-bold uppercase tracking-[2px] text-[#8a8f99] lg:pr-0 lg:text-[17px] lg:tracking-[4px]">
+        {eyebrow}
+      </p>
+      <h2 className="mt-2 text-[32px] font-black leading-[0.95] tracking-[-0.055em] text-[#020617] lg:mt-[10px] lg:text-[48px]">
+        {title}
+      </h2>
+      <p className="mt-2 text-[15px] font-normal text-[#7b808a] lg:mt-[10px] lg:text-[22px]">
+        {description}
+      </p>
 
-      <div className="mt-8">{children}</div>
+      <div className="mt-6 flex min-h-0 flex-1 flex-col lg:mt-12">{children}</div>
 
-      <div className="mt-8 flex flex-wrap items-end justify-between gap-x-8 gap-y-3 text-xs font-bold text-slate-400">
-        <span className="inline-flex flex-wrap items-center gap-x-3">
-          <span>{brand.cardFooterText}</span>
-          <span aria-hidden="true">·</span>
-          <span className="whitespace-nowrap font-black text-slate-950">{brand.createdWithText}</span>
+      <div className="mt-6 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[13px] text-[#9aa0a8] lg:mt-10 lg:text-[18px]">
+        <span>
+          Created with · <span className="font-bold text-[#111]">{brand.shortName}</span>
         </span>
-        <span className="inline-flex flex-wrap items-center gap-x-3">
+        <span className="inline-flex flex-wrap items-center">
           <span>Source: {source}</span>
-          <span aria-hidden="true">·</span>
+          <span aria-hidden="true" className="mx-[7px] text-[18px] text-[#c4c8cd] lg:text-[22px]">
+            ·
+          </span>
           <span>
             Updated:{" "}
-            <span className="font-black text-slate-700">{formatShareUpdated(updatedAt)}</span>
+            <span className="font-bold text-[#111]">{formatShareUpdated(updatedAt)}</span>
           </span>
         </span>
       </div>

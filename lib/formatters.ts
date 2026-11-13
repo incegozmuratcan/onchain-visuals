@@ -10,7 +10,7 @@ function flowSign(value: number) {
   return value < 0 ? "-" : "+";
 }
 
-/** Hero and cumulative ETF flows, always one decimal on compact units (for example -$643.2M, +$57.0B). */
+/** One compact decimal on every unit, including billions (for example -$643.2M, +$57.0B). */
 export function formatFlowOneDecimal(value?: number | null) {
   if (value == null || !Number.isFinite(Number(value))) return "N/A";
   const n = Number(value);
@@ -24,16 +24,49 @@ export function formatFlowOneDecimal(value?: number | null) {
   return `${sign}$${abs.toFixed(1)}`;
 }
 
-/** Issuer rows and the Largest chip: nearest whole million, still signed. */
+/**
+ * Hero, prior-day, and cumulative amounts on the combined ETF card.
+ * Millions keep one decimal. Absolute values of at least $1B use two decimals (for example +$54.89B, -$1.28B).
+ */
+export function formatFlowCardAmount(value?: number | null) {
+  if (value == null || !Number.isFinite(Number(value))) return "N/A";
+  const n = Number(value);
+  const sign = flowSign(n);
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`;
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
+  if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`;
+  if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(1)}K`;
+  return `${sign}$${abs.toFixed(1)}`;
+}
+
+/** Issuer rows: nearest whole million, or two-decimal billions when the absolute value is at least $1B. */
 export function formatFlowWholeMillions(value?: number | null) {
   if (value == null || !Number.isFinite(Number(value))) return "N/A";
   const n = Number(value);
   const sign = flowSign(n);
-  const millions = Math.round(Math.abs(n) / 1_000_000);
-  if (millions >= 1000) return `${sign}$${(millions / 1000).toFixed(1)}B`;
-  return `${sign}$${millions}M`;
+  const abs = Math.abs(n);
+  if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`;
+  return `${sign}$${Math.round(abs / 1_000_000)}M`;
 }
 export const formatFlow = formatSignedUsd;
+
+const SHARE_UPDATED_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Share-card footer clock: "Nov 13, 2026, 02:02 PM UTC". */
+export function formatShareUpdated(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const month = SHARE_UPDATED_MONTHS[date.getUTCMonth()];
+  const day = date.getUTCDate();
+  const year = date.getUTCFullYear();
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0");
+  const hour24 = date.getUTCHours();
+  const ampm = hour24 >= 12 ? "PM" : "AM";
+  const hour = String(hour24 % 12 || 12).padStart(2, "0");
+  return `${month} ${day}, ${year}, ${hour}:${minutes} ${ampm} UTC`;
+}
 export const formatTokenAmount = (v?:number|null)=>formatCompactNumber(v);
 export const formatDate = (iso?: string | null) => !iso ? 'N/A' : new Date(iso).toLocaleDateString('en-US',{month:'short', day:'numeric', year:'numeric', timeZone:'UTC'});
 export const formatMonth = (iso?: string | null) => !iso ? 'N/A' : new Date(iso).toLocaleDateString('en-US',{month:'short', year:'numeric', timeZone:'UTC'});

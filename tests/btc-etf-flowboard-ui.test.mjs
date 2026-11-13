@@ -36,7 +36,7 @@ async function importSnapshotBuilders() {
     .replace(/import type \{[\s\S]*?\} from ["']\.\/types["'];/, "")
     .replace(
       /import \{[\s\S]*?formatCompactUsd[\s\S]*?\} from ["']\.\.\/formatters["'];/,
-      () => "const formatCompactUsd = (value)=>{ const n = Math.abs(Number(value) || 0); if (n >= 1e9) return `$${Number((n/1e9).toFixed(1))}B`; if (n >= 1e6) return `$${Number((n/1e6).toFixed(1))}M`; return `$${n}`; }; const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}${formatCompactUsd(value)}`; const formatFlowOneDecimal = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const abs = Math.abs(n); const compact = (divisor, suffix) => `${sign}$${(abs / divisor).toFixed(1)}${suffix}`; if (abs >= 1e12) return compact(1e12, 'T'); if (abs >= 1e9) return compact(1e9, 'B'); if (abs >= 1e6) return compact(1e6, 'M'); if (abs >= 1e3) return compact(1e3, 'K'); return `${sign}$${abs.toFixed(1)}`; }; const formatFlowWholeMillions = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const millions = Math.round(Math.abs(n) / 1e6); if (millions >= 1000) return `${sign}$${(millions / 1000).toFixed(1)}B`; return `${sign}$${millions}M`; };",
+      () => "const formatCompactUsd = (value)=>{ const n = Math.abs(Number(value) || 0); if (n >= 1e9) return `$${Number((n/1e9).toFixed(1))}B`; if (n >= 1e6) return `$${Number((n/1e6).toFixed(1))}M`; return `$${n}`; }; const formatSignedPercent = (value)=>`${Number(value) >= 0 ? '+' : ''}${value}%`; const formatSignedUsd = (value)=>`${Number(value) >= 0 ? '+' : '-'}${formatCompactUsd(value)}`; const formatFlowOneDecimal = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const abs = Math.abs(n); const compact = (divisor, suffix) => `${sign}$${(abs / divisor).toFixed(1)}${suffix}`; if (abs >= 1e12) return compact(1e12, 'T'); if (abs >= 1e9) return compact(1e9, 'B'); if (abs >= 1e6) return compact(1e6, 'M'); if (abs >= 1e3) return compact(1e3, 'K'); return `${sign}$${abs.toFixed(1)}`; }; const formatFlowCardAmount = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const abs = Math.abs(n); if (abs >= 1e12) return `${sign}$${(abs / 1e12).toFixed(2)}T`; if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`; if (abs >= 1e6) return `${sign}$${(abs / 1e6).toFixed(1)}M`; if (abs >= 1e3) return `${sign}$${(abs / 1e3).toFixed(1)}K`; return `${sign}$${abs.toFixed(1)}`; }; const formatFlowWholeMillions = (value)=>{ if (value == null || !Number.isFinite(Number(value))) return 'N/A'; const n = Number(value); const sign = n < 0 ? '-' : '+'; const abs = Math.abs(n); if (abs >= 1e9) return `${sign}$${(abs / 1e9).toFixed(2)}B`; return `${sign}$${Math.round(abs / 1e6)}M`; };",
     )
     .replace(
       /import \{[\s\S]*?cumulative_sum[\s\S]*?\} from ["']\.\.\/metrics["'];/,
@@ -520,16 +520,17 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   );
   assert.match(splitCard, /Capital Flows · BTC \+ ETH ETF/);
   assert.match(splitCard, /grid-cols-2/);
-  assert.match(splitCard, /data-chip="largest"/);
-  assert.match(splitCard, /bg-rose-100/);
-  assert.match(splitCard, /bg-emerald-100/);
+  assert.match(splitCard, /data-chip="prior-day"/);
+  assert.match(splitCard, /bg-\[#e8eaee\]/);
+  assert.match(splitCard, /bg-\[#f5f6f8\]/);
+  assert.match(splitCard, /border-\[#cfd4dc\]/);
   assert.match(splitCard, /text-\[22px\]/);
   assert.doesNotMatch(splitCard, /px-2 py-1\.5/);
+  assert.doesNotMatch(splitCard, /data-chip="largest"/);
+  assert.doesNotMatch(splitCard, />Largest</);
   assert.match(splitCard, /data-chip="cumulative"/);
-  assert.match(splitCard, />Largest</);
-  assert.match(splitCard, />Cumulative</);
-  assert.match(splitCard, /text-slate-500">Largest/);
-  assert.match(splitCard, /border-slate-200 bg-slate-100/);
+  assert.match(splitCard, /Cumulative/);
+  assert.match(splitCard, /Math\.abs\(Number\(b\.value\) \|\| 0\) - Math\.abs\(Number\(a\.value\) \|\| 0\)/);
   assert.match(splitCard, /Math\.abs\(value\) \/ maxAbs/);
   assert.match(splitCard, /data-issuer-bar="proportional"/);
   assert.match(medallions, /data-logo-mode="classic-tilted-bitcoin"/);
@@ -541,11 +542,15 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.doesNotMatch(medallions, />₿<|>BTC</);
   assert.match(frame, /id="share-card"/);
   assert.match(frame, /Source: \{source\}/);
-  assert.match(frame, /whitespace-nowrap font-black text-slate-950/);
+  assert.match(frame, /Created with/);
+  assert.match(frame, /Updated:/);
+  assert.match(frame, /formatShareUpdated/);
   assert.match(frame, /\{brand\.shortName\}/);
   assert.doesNotMatch(frame, /bitcoin\.svg|card-grid-bg/);
   assert.match(snapshots, /export function buildBtcEthEtfDailyCard/);
   assert.match(snapshots, /fetchBtcEtfFlows\(\)[\s\S]*fetchEthEtfFlows\(\)/);
+  assert.match(snapshots, /priorDay/);
+  assert.match(snapshots, /PRIOR DAY/);
 
   const dataset = {
     ...btcDataset,
@@ -615,7 +620,10 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.equal(card.series.cards[0].metricLabel, "NET OUTFLOW");
   assert.equal(card.series.cards[0].periodLabel, "OCT 30");
   assert.equal(card.series.cards[0].largest.formattedValue, "-$233M");
-  assert.equal(card.series.cards[0].formattedCumulative, "+$57.0B");
+  assert.equal(card.series.cards[0].priorDay.label, "PRIOR DAY · OCT 29");
+  assert.equal(card.series.cards[0].priorDay.formattedValue, "+$57.64B");
+  assert.equal(card.series.cards[0].priorDay.value, 57_643_200_000);
+  assert.equal(card.series.cards[0].formattedCumulative, "+$57.00B");
   assert.deepEqual(
     card.series.cards[0].issuers.map((row) => [row.ticker, row.formattedValue]),
     [
@@ -627,7 +635,9 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.equal(card.series.cards[1].formattedNet, "-$89.4M");
   assert.equal(card.series.cards[1].largest.ticker, "ETHA");
   assert.equal(card.series.cards[1].largest.formattedValue, "-$41M");
-  assert.equal(card.series.cards[1].formattedCumulative, "+$12.1B");
+  assert.equal(card.series.cards[1].priorDay.label, "PRIOR DAY · OCT 29");
+  assert.equal(card.series.cards[1].priorDay.formattedValue, "+$12.19B");
+  assert.equal(card.series.cards[1].formattedCumulative, "+$12.10B");
   assert.equal(card.series.cards[1].issuers.length, 3);
   assert.equal(card.series.cards[1].issuers.some((row) => row.ticker === "ETHW"), false);
 
@@ -646,6 +656,100 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.doesNotMatch(caption, /\$[A-Za-z]/);
   assert.doesNotMatch(caption, /#|Largest|Cumulative|Source:/);
   assert.ok(xWeightedLength(caption) <= 280, caption);
+});
+
+test("prior day is the previous Farside row with data and skips closed shells", () => {
+  const dataset = {
+    ...btcDataset,
+    id: "btc-eth-etf-daily-flowboard",
+    slug: "btc-eth-etf-daily-flowboard",
+    name: "ETF Daily Flowboard",
+    sourceLabel: "Farside",
+    chartTemplates: ["split_flowboard"],
+  };
+  function session(asset, days) {
+    return {
+      url: `https://farside.co.uk/${asset.toLowerCase()}/`,
+      data: {
+        warnings: [],
+        rows: days.flatMap(([date, total, issuers]) => [
+          {
+            date,
+            asset,
+            issuer: "Total",
+            ticker: "Total",
+            flowUsd: total,
+            isTotal: true,
+            rawValue: total == null ? "-" : String(total),
+          },
+          ...issuers.map(([issuer, ticker, flowUsd]) => ({
+            date,
+            asset,
+            issuer,
+            ticker,
+            flowUsd,
+            isTotal: false,
+            rawValue: flowUsd == null ? "-" : String(flowUsd),
+          })),
+        ]),
+      },
+    };
+  }
+  const card = snapshotBuilders.buildBtcEthEtfDailyCard(
+    dataset,
+    "daily",
+    session("BTC", [
+      ["2026-11-06", -299_800_000, [["BlackRock", "IBIT", -200_000_000]]],
+      ["2026-11-09", 0, [["BlackRock", "IBIT", null]]],
+      [
+        "2026-11-10",
+        -284_100_000,
+        [
+          ["Bitwise", "BITB", -26_200_000],
+          ["Fidelity", "FBTC", -33_400_000],
+          ["BlackRock", "IBIT", -204_000_000],
+        ],
+      ],
+    ]),
+    session("ETH", [
+      ["2026-11-06", -144_800_000, [["BlackRock", "ETHA", -100_000_000]]],
+      ["2026-11-09", 0, [["BlackRock", "ETHA", null]]],
+      [
+        "2026-11-10",
+        -70_500_000,
+        [
+          ["VanEck", "ETHV", -2_800_000],
+          ["Grayscale Mini", "ETH", -6_600_000],
+          ["BlackRock", "ETHA", -62_400_000],
+        ],
+      ],
+    ]),
+  );
+  assert.equal(card.series.cards[0].periodLabel, "NOV 10");
+  assert.equal(card.series.cards[0].formattedNet, "-$284.1M");
+  assert.equal(card.series.cards[0].priorDay.date, "2026-11-06");
+  assert.equal(card.series.cards[0].priorDay.label, "PRIOR DAY · NOV 6");
+  assert.equal(card.series.cards[0].priorDay.formattedValue, "-$299.8M");
+  assert.equal(card.series.cards[1].periodLabel, "NOV 10");
+  assert.equal(card.series.cards[1].formattedNet, "-$70.5M");
+  assert.equal(card.series.cards[1].priorDay.date, "2026-11-06");
+  assert.equal(card.series.cards[1].priorDay.formattedValue, "-$144.8M");
+  assert.deepEqual(
+    card.series.cards[0].issuers.map((row) => [row.ticker, row.formattedValue]),
+    [
+      ["IBIT", "-$204M"],
+      ["FBTC", "-$33M"],
+      ["BITB", "-$26M"],
+    ],
+  );
+  assert.deepEqual(
+    card.series.cards[1].issuers.map((row) => [row.ticker, row.formattedValue]),
+    [
+      ["ETHA", "-$62M"],
+      ["ETH", "-$7M"],
+      ["ETHV", "-$3M"],
+    ],
+  );
 });
 
 test("ETH ETF daily weekly and monthly cards reuse the BTC share-card contract", () => {
