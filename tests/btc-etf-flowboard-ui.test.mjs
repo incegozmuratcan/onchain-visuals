@@ -63,6 +63,10 @@ async function importSnapshotBuilders() {
       "const whaleTransferMissingConfig = ()=>[];",
     )
     .replace(
+      /import \{ buildWeeklyPanels \} from ["']\.\/btcEthEtfWeek["'];/,
+      "const buildWeeklyPanels = () => { throw new Error('weekly panel builder is not loaded in this fixture'); };",
+    )
+    .replace(
       /import \{[\s\S]*?loadLatestChartSnapshot[\s\S]*?\} from ["']\.\/storage["'];/,
       "const loadLatestChartSnapshot = async()=>null; const markSnapshotStale = (snapshot)=>snapshot; const saveChartSnapshot = async()=>{}; const sourceRun = async()=>{};",
     );

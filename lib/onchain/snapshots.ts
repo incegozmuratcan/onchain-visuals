@@ -35,6 +35,7 @@ import {
   fetchEthEtfFlows,
   type EtfFlowRow,
 } from "./sources/farside";
+import { buildWeeklyPanels } from "./btcEthEtfWeek";
 import { fetchStablecoinNetTransfersLatest } from "./sources/dune";
 import { largeHolderMissingConfig } from "./sources/etherscan";
 import { whaleTransferMissingConfig } from "./sources/whaleAlert";
@@ -765,6 +766,102 @@ export function buildBtcEthEtfDailyCard(
     },
   };
 }
+export function buildBtcEthEtfWeeklyCard(
+  d: DatasetRegistryItem,
+  period: string,
+  btcResult: any,
+  ethResult: any,
+  now: Date = new Date(),
+) {
+  const model = buildWeeklyPanels(btcResult?.data?.rows || [], ethResult?.data?.rows || [], now);
+  if (!model.panels) {
+    throw new Error(model.decision.message || "No completed BTC+ETH ETF week is available.");
+  }
+  const [btcPanel, ethPanel] = model.panels;
+  const present = (panel: typeof btcPanel) => ({
+    asset: panel.asset,
+    weekStart: panel.weekStart,
+    weekEnd: panel.weekEnd,
+    periodLabel: panel.periodLabel,
+    captionRange: panel.captionRange,
+    metricLabel: panel.metricLabel,
+    netFlow: panel.netFlow,
+    formattedNet: formatFlowCardAmount(panel.netFlow),
+    priorWeek:
+      panel.priorWeek == null
+        ? null
+        : {
+            label: "PRIOR WEEK",
+            value: panel.priorWeek,
+            formattedValue: formatFlowCardAmount(panel.priorWeek),
+          },
+    cumulative: panel.cumulative,
+    formattedCumulative: formatFlowCardAmount(panel.cumulative),
+    days: panel.days.map((day) => ({
+      ...day,
+      formattedValue: formatFlowWholeMillions(day.value),
+    })),
+    issuers: panel.issuers.map((row) => ({
+      ...row,
+      formattedValue: formatFlowWholeMillions(row.value),
+    })),
+  });
+  const btc = present(btcPanel);
+  const eth = present(ethPanel);
+  const lastDay = model.decision.tradingDays[model.decision.tradingDays.length - 1];
+  return {
+    ...sourceSafeBase(
+      d,
+      period,
+      "ETF Weekly Flowboard",
+      "Weekly capital movement across US spot Bitcoin and Ethereum ETFs.",
+    ),
+    sourceLabel: "Farside",
+    exportFormats: ["1600x900" as const],
+    status: "active" as const,
+    freshness: {
+      status: "fresh" as const,
+      lastUpdatedAt: new Date().toISOString(),
+      source: "Farside",
+      fallbackUsed: false,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: [
+      metric(`BTC ${btc.metricLabel}`, btc.netFlow, btc.formattedNet),
+      metric(`ETH ${eth.metricLabel}`, eth.netFlow, eth.formattedNet),
+      metric("BTC cumulative", btc.cumulative, btc.formattedCumulative),
+      metric("ETH cumulative", eth.cumulative, eth.formattedCumulative),
+    ],
+    series: {
+      ...emptySeries(),
+      cards: [btc, eth],
+      tables: [btc, eth].flatMap((panel) => panel.issuers.map((row) => ({ ...row, asset: panel.asset }))),
+    },
+    insights: [
+      `Bitcoin ETFs recorded ${btc.formattedNet} for ${btc.captionRange}.`,
+      `Ethereum ETFs recorded ${eth.formattedNet} for ${eth.captionRange}.`,
+    ],
+    sourceUrl: btcResult.url || ethResult.url || null,
+    warnings: [...(btcResult.data?.warnings || []), ...(ethResult.data?.warnings || [])],
+    metadata: {
+      ...base(d, period).metadata,
+      layout: "btc-eth-weekly-split",
+      view: "weekly",
+      asset: "BTC+ETH",
+      assets: ["BTC", "ETH"],
+      weekStart: model.decision.weekStart,
+      weekEnd: model.decision.weekEnd,
+      tradingDays: model.decision.tradingDays,
+      tradingDayCount: model.decision.tradingDays.length,
+      captionRange: btc.captionRange,
+      latestCompletedDate: lastDay,
+      ethLatestCompletedDate: lastDay,
+      defaultExportFormat: "1536x1134",
+      ethSourceUrl: ethResult.url || null,
+    },
+  };
+}
 export function buildBtcEtfWeeklyCard(
   d: DatasetRegistryItem,
   period: string,
@@ -1155,6 +1252,20 @@ async function buildEtfFlowSnapshot(
     return buildBtcEtfDailyCard(d, period || "daily", flowResult, undefined, asset);
   });
 }
+async function buildBtcEthWeeklySplit(d: DatasetRegistryItem, period: string) {
+  return withFallback(d, period, async () => {
+    const started = new Date().toISOString();
+    const [btcRaw, ethRaw] = await Promise.all([
+      fetchBtcEtfFlows(),
+      fetchEthEtfFlows(),
+    ]);
+    const [btc, eth] = await Promise.all([
+      resultOrThrow(d.slug, "Farside", started, btcRaw),
+      resultOrThrow(d.slug, "Farside", started, ethRaw),
+    ]);
+    return buildBtcEthEtfWeeklyCard(d, period, btc, eth);
+  });
+}
 async function buildBtcEthDailySplit(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const started = new Date().toISOString();
@@ -1480,6 +1591,8 @@ export async function buildChartSnapshot(
       return buildEtfFlowSnapshot(d, p, "BTC");
     case "btc-eth-etf-daily-flowboard":
       return buildBtcEthDailySplit(d, p);
+    case "btc-eth-etf-weekly-flowboard":
+      return buildBtcEthWeeklySplit(d, p);
     case "eth-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "ETH");
     case "btc-vs-eth-etf-flow-battle":

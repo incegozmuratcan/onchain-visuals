@@ -3,6 +3,7 @@ import { ChartShell, DisabledState, SourceConfigRequiredState, SourceErrorState 
 import { LeaderboardBarChart } from "./templates/LeaderboardBarChart";
 import { EtfFlowboard } from "./templates/EtfFlowboard";
 import { SplitFlowboard } from "./templates/SplitFlowboard";
+import { WeeklyFlowboard } from "./templates/WeeklyFlowboard";
 import type { ShareCardBrand } from "@/components/share/ShareCardFrame";
 import { BtcEthEtfComparison } from "./templates/BtcEthEtfComparison";
 import { HolderConcentration, LiquidationPulse, StablecoinFlowBoard, UnlockCalendar, WhaleTransferCards } from "./templates/SpecialBoards";
@@ -16,6 +17,7 @@ export default function DatasetChartClient({ data, capture = false, brand }: { d
     if (data.status === 'disabled') return <DisabledState data={data}/>;
     if (data.status === 'source_config_required' || data?.freshness?.status === 'source_config_required') return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>;
     if (!hasRenderableData) return <SourceErrorState data={{...data, freshness:{...data.freshness, message:'No usable series is available for this dataset. Empty chart panels are suppressed until a real snapshot exists.'}}}/>;
+    if (template === 'weekly_flowboard' || data?.metadata?.layout === 'btc-eth-weekly-split') return <WeeklyFlowboard data={data} capture={capture} brand={brand}/>;
     if (template === 'split_flowboard' || data?.metadata?.layout === 'btc-eth-split') return <SplitFlowboard data={data} capture={capture} brand={brand}/>;
     if (template === 'etf_flowboard') return <EtfFlowboard data={data}/>;
     if (template === 'btc_eth_comparison') return <BtcEthEtfComparison data={data}/>;
@@ -28,7 +30,10 @@ export default function DatasetChartClient({ data, capture = false, brand }: { d
   };
   const body = render();
   const splitReady =
-    (template === "split_flowboard" || data?.metadata?.layout === "btc-eth-split") &&
+    (template === "split_flowboard" ||
+      data?.metadata?.layout === "btc-eth-split" ||
+      template === "weekly_flowboard" ||
+      data?.metadata?.layout === "btc-eth-weekly-split") &&
     data.status !== "source_error" &&
     data?.freshness?.status !== "source_error" &&
     data.status !== "disabled" &&
