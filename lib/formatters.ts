@@ -51,6 +51,41 @@ export function formatFlowWholeMillions(value?: number | null) {
 }
 export const formatFlow = formatSignedUsd;
 
+const DEFAULT_CARD_FOOTER = "Source-backed DeFi market card";
+
+export type ShareFooterCredit = {
+  prefix: string;
+  emphasis: string;
+};
+
+/**
+ * Left side of the ETF share footer.
+ * Defaults render the approved card: "Created with · Onchain Visuals".
+ * A customized cardFooterText or createdWithText is kept in that line.
+ */
+export function shareFooterCredit(brand: {
+  shortName?: string | null;
+  cardFooterText?: string | null;
+  createdWithText?: string | null;
+}): ShareFooterCredit {
+  const name = (brand.shortName || "").trim() || "Onchain Visuals";
+  const created = (brand.createdWithText || "").trim();
+  const footer = (brand.cardFooterText || "").trim();
+  const standardCreated = `Created with ${name}`;
+  const usesStandardCreated = !created || created === standardCreated || created === "Created with Onchain Visuals";
+  const customFooter = footer && footer !== DEFAULT_CARD_FOOTER ? footer : "";
+  if (usesStandardCreated) {
+    return {
+      prefix: customFooter ? `${customFooter} · Created with · ` : "Created with · ",
+      emphasis: name,
+    };
+  }
+  return {
+    prefix: customFooter ? `${customFooter} · ` : "",
+    emphasis: created,
+  };
+}
+
 const SHARE_UPDATED_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Share-card footer clock: "Nov 13, 2026, 02:02 PM UTC". */

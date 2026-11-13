@@ -31,6 +31,40 @@ test('formatFlowWholeMillions rounds issuer flows', () => {
 test('formatAddress', () => assert.equal(f.formatAddress('0x1234567890abcdef').includes('...'), true));
 test('formatTxHash', () => assert.equal(f.formatTxHash('0x1234567890abcdef').includes('...'), true));
 test('formatTimeAgo', () => assert.equal(f.formatTimeAgo(new Date().toISOString()).startsWith('Updated'), true));
+test('shareFooterCredit keeps the approved default and custom brand copy', () => {
+  assert.deepEqual(
+    f.shareFooterCredit({
+      shortName: 'Onchain Visuals',
+      cardFooterText: 'Source-backed DeFi market card',
+      createdWithText: 'Created with Onchain Visuals',
+    }),
+    { prefix: 'Created with · ', emphasis: 'Onchain Visuals' },
+  );
+  assert.deepEqual(
+    f.shareFooterCredit({
+      shortName: 'Onchain Visuals',
+      cardFooterText: 'Desk note',
+      createdWithText: 'Created with Onchain Visuals',
+    }),
+    { prefix: 'Desk note · Created with · ', emphasis: 'Onchain Visuals' },
+  );
+  assert.deepEqual(
+    f.shareFooterCredit({
+      shortName: 'Onchain Visuals',
+      cardFooterText: 'Source-backed DeFi market card',
+      createdWithText: 'Made by the desk',
+    }),
+    { prefix: '', emphasis: 'Made by the desk' },
+  );
+  assert.deepEqual(
+    f.shareFooterCredit({
+      shortName: 'OV',
+      cardFooterText: 'Desk note',
+      createdWithText: 'Printed by OV',
+    }),
+    { prefix: 'Desk note · ', emphasis: 'Printed by OV' },
+  );
+});
 test('formatShareUpdated uses the card footer clock in UTC', () => {
   assert.equal(f.formatShareUpdated('2026-11-13T14:02:00.000Z'), 'Nov 13, 2026, 02:02 PM UTC');
   assert.equal(f.formatShareUpdated('2026-11-13T00:05:00.000Z'), 'Nov 13, 2026, 12:05 AM UTC');

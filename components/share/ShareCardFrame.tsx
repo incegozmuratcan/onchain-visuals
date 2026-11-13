@@ -1,5 +1,5 @@
 import type { ReactNode, Ref } from "react";
-import { formatShareUpdated } from "@/lib/formatters";
+import { formatShareUpdated, shareFooterCredit } from "@/lib/formatters";
 
 export type ShareCardBrand = {
   shortName: string;
@@ -38,6 +38,7 @@ export function ShareCardFrame({
   children: ReactNode;
   cardRef?: Ref<HTMLDivElement>;
 }) {
+  const credit = shareFooterCredit(brand);
   return (
     <div
       ref={cardRef}
@@ -69,7 +70,8 @@ export function ShareCardFrame({
 
       <div className="mt-6 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[13px] text-[#9aa0a8] lg:mt-10 lg:text-[18px]">
         <span>
-          Created with · <span className="font-bold text-[#111]">{brand.shortName}</span>
+          {credit.prefix}
+          <span className="font-bold text-[#111]">{credit.emphasis}</span>
         </span>
         <span className="inline-flex flex-wrap items-center">
           <span>Source: {source}</span>

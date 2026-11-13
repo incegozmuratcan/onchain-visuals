@@ -542,7 +542,7 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.doesNotMatch(medallions, />₿<|>BTC</);
   assert.match(frame, /id="share-card"/);
   assert.match(frame, /Source: \{source\}/);
-  assert.match(frame, /Created with/);
+  assert.match(frame, /shareFooterCredit\(brand\)/);
   assert.match(frame, /Updated:/);
   assert.match(frame, /formatShareUpdated/);
   assert.match(frame, /\{brand\.shortName\}/);
