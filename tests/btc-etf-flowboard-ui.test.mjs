@@ -528,15 +528,25 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
   assert.match(splitCard, /bg-\[#e8eaee\]/);
   assert.match(splitCard, /bg-\[#f5f6f8\]/);
   assert.match(splitCard, /border-\[#cfd4dc\]/);
-  assert.match(splitCard, /text-\[22px\]/);
+  assert.match(splitCard, /IssuerFlowRow/);
   assert.doesNotMatch(splitCard, /px-2 py-1\.5/);
   assert.doesNotMatch(splitCard, /data-chip="largest"/);
   assert.doesNotMatch(splitCard, />Largest</);
   assert.match(splitCard, /data-chip="cumulative"/);
   assert.match(splitCard, /Cumulative/);
   assert.match(splitCard, /Math\.abs\(Number\(b\.value\) \|\| 0\) - Math\.abs\(Number\(a\.value\) \|\| 0\)/);
-  assert.match(splitCard, /Math\.abs\(value\) \/ maxAbs/);
-  assert.match(splitCard, /data-issuer-bar="proportional"/);
+  assert.doesNotMatch(splitCard, /Math\.abs\(value\) \/ maxAbs/);
+  const issuerRow = await readFile(
+    new URL("../components/share/IssuerFlowRow.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(issuerRow, /text-\[22px\]/);
+  assert.match(issuerRow, /issuerBarPercent/);
+  assert.match(issuerRow, /data-issuer-flow=/);
+  assert.match(issuerRow, /data-issuer-bar="proportional"/);
+  assert.match(issuerRow, /data-issuer-ticker/);
+  assert.match(issuerRow, /grid-cols-\[4\.25rem_minmax\(0,1fr\)\]/);
+  assert.match(issuerRow, /lg:grid-cols-\[5\.125rem_minmax\(0,1fr\)\]/);
   assert.match(medallions, /data-logo-mode="classic-tilted-bitcoin"/);
   assert.match(medallions, /data-logo-shape="single-orange-circle"/);
   assert.match(medallions, /data-logo-ring="none"/);

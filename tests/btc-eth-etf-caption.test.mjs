@@ -18,6 +18,10 @@ const splitCard = await readFile(
   new URL("../components/share/SplitFlowboardCard.tsx", import.meta.url),
   "utf8",
 );
+const issuerRow = await readFile(
+  new URL("../components/share/IssuerFlowRow.tsx", import.meta.url),
+  "utf8",
+);
 
 async function loadCaption() {
   const source = await readFile(
@@ -267,7 +271,8 @@ test("publish route posts through OAuth 1.0a only when dry-run is explicitly off
   assert.doesNotMatch(publishRoute, /Authorization: `Bearer /);
   assert.match(splitTemplate, /data-capture="share-card"/);
   assert.match(splitTemplate, /width: 1536, height: 1024/);
-  assert.match(splitCard, /data-issuer-flow=/);
+  assert.match(splitCard, /IssuerFlowRow/);
+  assert.match(issuerRow, /data-issuer-flow=/);
 });
 
 test("combined workflow is the daily X schedule and stays a dry run by default", async () => {

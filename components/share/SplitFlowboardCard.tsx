@@ -1,6 +1,7 @@
 import type { Ref } from "react";
 import type { ChartSnapshot } from "@/lib/onchain/types";
 import { BitcoinMedallion, EthereumMedallion } from "./AssetMedallions";
+import { IssuerFlowRow } from "./IssuerFlowRow";
 import {
   ShareCardFrame,
   type ShareCardBrand,
@@ -118,48 +119,21 @@ function FlowPanel({ panel }: { panel: SplitFlowPanel }) {
       </div>
 
       <ul className="mt-6 lg:mt-10">
-        {issuers.map((row, index) => {
-          const value = Number(row.value) || 0;
-          const width = (Math.abs(value) / maxAbs) * 100;
-          return (
-            <li
-              key={`${panel.asset}-${row.ticker}`}
-              className={index === 0 ? "pt-1" : "pt-[26px]"}
-            >
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="min-w-0 truncate">
-                  <span className="text-[16px] font-black tracking-[-0.03em] text-[#111] lg:text-[20px]">
-                    {row.ticker}
-                  </span>
-                  {row.name ? (
-                    <span className="ml-2 text-[14px] font-medium text-[#7b808a] lg:ml-[10px] lg:text-[18px]">
-                      {row.name}
-                    </span>
-                  ) : null}
-                </div>
-                <span
-                  data-issuer-flow={row.formattedValue}
-                  className="shrink-0 whitespace-nowrap text-right text-[16px] font-black tabular-nums tracking-[-0.03em] lg:text-[22px]"
-                  style={{ color: amountColor(value) }}
-                >
-                  {displayFlow(row.formattedValue)}
-                </span>
-              </div>
-              <div
-                className="mt-[13px] h-[3px] rounded-[3px] bg-[#e8eaee]"
-                data-issuer-bar="proportional"
-              >
-                <span
-                  className="block h-[3px] rounded-[3px]"
-                  style={{
-                    width: `${width}%`,
-                    backgroundColor: value < 0 ? "#c8203f" : "#1b8f58",
-                  }}
-                />
-              </div>
-            </li>
-          );
-        })}
+        {issuers.map((row, index) => (
+          <li
+            key={`${panel.asset}-${row.ticker}`}
+            className={index === 0 ? "pt-1" : "pt-[26px]"}
+          >
+            <IssuerFlowRow
+              ticker={row.ticker}
+              name={row.name}
+              value={Number(row.value) || 0}
+              formattedValue={row.formattedValue}
+              maxAbs={maxAbs}
+              barClassName="mt-[13px]"
+            />
+          </li>
+        ))}
       </ul>
     </section>
   );

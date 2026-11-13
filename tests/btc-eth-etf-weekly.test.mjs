@@ -504,6 +504,11 @@ test("weekly workflow stays a dry-run and uses its own Sunday schedule", async (
   const card = await readFile(new URL("../components/share/WeeklyFlowboardCard.tsx", import.meta.url), "utf8");
   const dailyCard = await readFile(new URL("../components/share/SplitFlowboardCard.tsx", import.meta.url), "utf8");
   assert.match(card, /ShareCardFrame/);
+  assert.match(card, /IssuerFlowRow/);
+  assert.match(dailyCard, /IssuerFlowRow/);
+  const issuerRow = await readFile(new URL("../components/share/IssuerFlowRow.tsx", import.meta.url), "utf8");
+  assert.match(issuerRow, /issuerBarPercent/);
+  assert.match(issuerRow, /data-issuer-ticker/);
   assert.match(card, /data-chip="prior-week"/);
   assert.match(card, /bg-\[#e8eaee\]/);
   assert.match(card, /border-\[#cfd4dc\]/);

@@ -12,14 +12,13 @@ name: X BTC+ETH ETF weekly
 #   ref: main
 #   inputs: { "dry_run": false } for a live post, true to render only
 #
-# Suggested cron-job.org schedule (Europe/Istanbul, UTC+3, no daylight saving),
-# after the US Friday session has had time to land on Farside:
-# - Sunday 08:30 TR (05:30 UTC) primary
-# - Sunday 11:30 TR (08:30 UTC) retry when the first pass did not share
-#
-# GitHub backup, same clock:
-# - 08:30 TR (05:30 UTC)
-# - 11:30 TR (08:30 UTC)
+# Live cron-job.org schedule (Europe/Istanbul, UTC+3, no DST):
+#   */30 8-23 * * 0
+#   Sunday every 30 minutes from 08:00 through 23:30.
+# The GitHub crons below stay as backup only (08:30 and 11:30 Istanbul).
+# Both triggers run this same workflow. The concurrency group queues them, and
+# both restore the same posted-state.json artifact, so a week already shared
+# by either path is skipped by the other.
 #
 # Each pass shares only when every NYSE trading day of the target week has a
 # numeric total and numeric issuer cells in BOTH the BTC and ETH Farside tables.
