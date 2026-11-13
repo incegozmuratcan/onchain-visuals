@@ -28,6 +28,7 @@ export function ShareCardFrame({
   updatedAt,
   children,
   cardRef,
+  density = "daily",
 }: {
   brand?: ShareCardBrand;
   eyebrow: string;
@@ -37,15 +38,20 @@ export function ShareCardFrame({
   updatedAt?: string | null;
   children: ReactNode;
   cardRef?: Ref<HTMLDivElement>;
+  /** Weekly capture uses the v21 chrome so five day rows fit 1536×1134. Daily stays on the original spacing. */
+  density?: "daily" | "weekly";
 }) {
   const credit = shareFooterCredit(brand);
+  const weekly = density === "weekly";
   return (
     <div
       ref={cardRef}
       id="share-card"
       role="region"
       aria-label={title}
-      className="relative flex h-full w-full flex-col overflow-hidden rounded-[28px] bg-white px-5 pb-8 pt-8 antialiased lg:px-12 lg:pb-[52px] lg:pt-[60px]"
+      className={`relative flex h-full w-full flex-col overflow-hidden rounded-[28px] bg-white px-5 pb-8 pt-8 antialiased lg:px-12 ${
+        weekly ? "lg:pb-8 lg:pt-11" : "lg:pb-[52px] lg:pt-[60px]"
+      }`}
       style={{
         boxShadow: "0 8px 30px rgba(0,0,0,.08)",
         fontFeatureSettings: '"ss01" 1, "cv01" 1, "tnum" 1',
@@ -66,9 +72,13 @@ export function ShareCardFrame({
         {description}
       </p>
 
-      <div className="mt-6 flex min-h-0 flex-1 flex-col lg:mt-12">{children}</div>
+      <div className={`mt-6 flex min-h-0 flex-1 flex-col ${weekly ? "lg:mt-[26px]" : "lg:mt-12"}`}>{children}</div>
 
-      <div className="mt-6 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[13px] text-[#9aa0a8] lg:mt-10 lg:text-[18px]">
+      <div
+        className={`mt-6 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-2 text-[13px] text-[#9aa0a8] lg:text-[18px] ${
+          weekly ? "lg:mt-[22px]" : "lg:mt-10"
+        }`}
+      >
         <span>
           {credit.prefix}
           <span className="font-bold text-[#111]">{credit.emphasis}</span>
