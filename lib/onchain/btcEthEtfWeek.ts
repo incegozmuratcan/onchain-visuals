@@ -64,6 +64,8 @@ const ISSUER_LABELS: Record<string, string> = {
   ETHB: "BlackRock Staked",
   BTC: "Grayscale Mini",
   ETH: "Grayscale Mini",
+  MSBT: "Morgan Stanley",
+  MSSE: "Morgan Stanley",
 };
 
 function finite(value: number | null | undefined) {
@@ -246,7 +248,7 @@ export function dayFill(rows: EtfFlowInput[], date: string): DayFill {
   return "complete";
 }
 
-function totalOn(rows: EtfFlowInput[], date: string) {
+export function totalOn(rows: EtfFlowInput[], date: string) {
   const total = rowsOn(rows, date).find((row) => row.isTotal && finite(row.flowUsd));
   return total ? Number(total.flowUsd) : null;
 }
@@ -369,7 +371,7 @@ export function selectPostingWeek(
   return emptyDecision("No ended ETF week is available to share.");
 }
 
-function cumulativeThrough(rows: EtfFlowInput[], lastDate: string) {
+export function cumulativeThrough(rows: EtfFlowInput[], lastDate: string) {
   // Farside cumulative is the running sum of daily totals. Older sessions often
   // have a dash for a fund that had not launched yet, so those days are not
   // "complete" issuer rows, but their total still counts.
@@ -402,7 +404,7 @@ function priorWeekNet(rows: EtfFlowInput[], monday: string) {
   return sum;
 }
 
-function topIssuers(rows: EtfFlowInput[], dates: string[]) {
+export function topIssuers(rows: EtfFlowInput[], dates: string[]) {
   const totals = new Map<string, WeeklyIssuerModel>();
   for (const date of dates) {
     for (const row of issuerMap(rowsOn(rows, date)).values()) {
