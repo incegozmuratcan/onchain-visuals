@@ -45,7 +45,13 @@ function amountColor(value: number) {
   return value < 0 ? "#b0153f" : "#127a45";
 }
 
-function FlowPanel({ panel }: { panel: WeeklyFlowPanel }) {
+function FlowPanel({
+  panel,
+  timeline = "weekday",
+}: {
+  panel: WeeklyFlowPanel;
+  timeline?: "weekday" | "month";
+}) {
   const net = Number(panel.netFlow) || 0;
   const cumulative = Number(panel.cumulative) || 0;
   const priorValue = panel.priorWeek == null ? null : Number(panel.priorWeek.value);
@@ -57,6 +63,8 @@ function FlowPanel({ panel }: { panel: WeeklyFlowPanel }) {
   const dayMax = Math.max(1, ...days.map((day) => Math.abs(Number(day.value) || 0)));
   const issuerMax = Math.max(1, ...issuers.map((row) => Math.abs(Number(row.value) || 0)));
   const shortWeek = days.length < 5;
+  const monthTimeline = timeline === "month";
+  const crowdedMonth = monthTimeline && days.length > 5;
 
   return (
     <section
@@ -118,7 +126,7 @@ function FlowPanel({ panel }: { panel: WeeklyFlowPanel }) {
       </div>
 
       <ul
-        className={`mt-5 flex flex-col gap-2 lg:mt-[26px] ${shortWeek ? "min-h-0 flex-1 justify-evenly" : ""}`}
+        className={`mt-5 flex flex-col lg:mt-[26px] ${crowdedMonth ? "gap-1.5" : "gap-2"} ${shortWeek ? "min-h-0 flex-1 justify-evenly" : ""}`}
       >
         {days.map((day) => {
           const value = Number(day.value) || 0;
@@ -126,9 +134,19 @@ function FlowPanel({ panel }: { panel: WeeklyFlowPanel }) {
           return (
             <li
               key={`${panel.asset}-${day.date}`}
-              className="grid h-[54px] grid-cols-[54px_minmax(0,1fr)_118px] items-center gap-x-2 rounded-[14px] bg-[#e8eaee] px-5"
+              className={`grid items-center gap-x-2 rounded-[14px] bg-[#e8eaee] px-5 ${
+                monthTimeline
+                  ? crowdedMonth
+                    ? "h-[46px] grid-cols-[112px_minmax(0,1fr)_118px]"
+                    : "h-[54px] grid-cols-[112px_minmax(0,1fr)_118px]"
+                  : "h-[54px] grid-cols-[54px_minmax(0,1fr)_118px]"
+              }`}
             >
-              <div className="text-[21px] font-black tracking-[-0.02em] text-[#111]">{day.label}</div>
+              <div
+                className={`text-[21px] font-black tracking-[-0.02em] text-[#111] ${monthTimeline ? "whitespace-nowrap" : ""}`}
+              >
+                {day.label}
+              </div>
               <div className="relative h-9">
                 <div className="absolute bottom-0 left-1/2 top-0 z-[2] w-[2px] -translate-x-1/2 rounded-[1px] bg-[#020617]" />
                 {value !== 0 ? (
@@ -179,10 +197,13 @@ export function WeeklyFlowboardCard({
   data,
   brand,
   cardRef,
+  timeline = "weekday",
 }: {
   data: ChartSnapshot;
   brand?: ShareCardBrand;
   cardRef?: Ref<HTMLDivElement>;
+  /** Month buckets need the 112px date-range column. Weekday labels stay at 54px. */
+  timeline?: "weekday" | "month";
 }) {
   const panels = ((data.series?.cards || []) as WeeklyFlowPanel[]).filter(
     (panel) => panel?.asset === "BTC" || panel?.asset === "ETH",
@@ -207,9 +228,13 @@ export function WeeklyFlowboardCard({
       source={source || "Farside"}
       updatedAt={data.freshness?.lastUpdatedAt}
     >
-      <div data-testid="weekly-flowboard" className="grid h-full min-h-0 flex-1 grid-cols-1 gap-7 md:grid-cols-2">
+      <div
+        data-testid="weekly-flowboard"
+        data-timeline={timeline}
+        className="grid h-full min-h-0 flex-1 grid-cols-1 gap-7 md:grid-cols-2"
+      >
         {ordered.map((panel) => (
-          <FlowPanel key={panel.asset} panel={panel} />
+          <FlowPanel key={panel.asset} panel={panel} timeline={timeline} />
         ))}
       </div>
     </ShareCardFrame>

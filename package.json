@@ -22,7 +22,8 @@
     "onchain:init-db": "node scripts/onchain-init-db.mjs",
     "x:btc-etf-daily": "node scripts/x-btc-etf-daily.mjs",
     "x:btc-eth-etf-daily": "node scripts/x-btc-eth-etf-daily.mjs",
-    "x:btc-eth-etf-weekly": "node scripts/x-btc-eth-etf-weekly.mjs"
+    "x:btc-eth-etf-weekly": "node scripts/x-btc-eth-etf-weekly.mjs",
+    "x:btc-eth-etf-monthly": "node scripts/x-btc-eth-etf-monthly.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

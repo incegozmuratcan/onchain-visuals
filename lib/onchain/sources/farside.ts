@@ -35,6 +35,7 @@ const issuerMap: Record<string, { ticker: string; issuer: string }> = {
   btco: { ticker: 'BTCO', issuer: 'Invesco Galaxy' },
   invescogalaxy: { ticker: 'BTCO', issuer: 'Invesco Galaxy' },
   btcw: { ticker: 'BTCW', issuer: 'WisdomTree' },
+  msbt: { ticker: 'MSBT', issuer: 'Morgan Stanley' },
   wisdomtree: { ticker: 'BTCW', issuer: 'WisdomTree' },
   brrr: { ticker: 'BRRR', issuer: 'Valkyrie' },
   brtc: { ticker: 'BRRR', issuer: 'Valkyrie' },
@@ -88,7 +89,7 @@ function cellsFromRow(rowHtml: string) { return [...rowHtml.matchAll(/<t[hd][^>]
 function splitTables(html: string) { const tables = [...html.matchAll(/<table[\s\S]*?<\/table>/gi)].map((m) => m[0]); return tables.length ? tables : [html]; }
 function isTotalHeader(value: string) { return /^(total|net\s*flow|net|total\s*net\s*flow|flow)$/i.test(decode(value).replace(/\*/g,'').trim()); }
 function issuerScore(headers: string[], asset: EtfAsset) {
-  const expected = asset === 'BTC' ? ['ibit','fbtc','bitb','arkb','gbtc','btc','hodl','ezbc','btco','btcw','brrr','brtc'] : ['etha','ethb','feth','ethw','ceth','teth','ethv','qeth','ezet','msse','ethe','eth'];
+  const expected = asset === 'BTC' ? ['ibit','fbtc','bitb','arkb','gbtc','btc','hodl','ezbc','btco','btcw','brrr','brtc','msbt'] : ['etha','ethb','feth','ethw','ceth','teth','ethv','qeth','ezet','msse','ethe','eth'];
   return headers.reduce((score, h) => score + (expected.includes(keyFor(h)) || expected.includes(h.toLowerCase()) || knownIssuerKeys.includes(keyFor(h)) ? 1 : 0), 0);
 }
 function parseSingleTable(table: string, asset: EtfAsset, tableIndex: number): ParsedTable {

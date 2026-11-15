@@ -2,6 +2,10 @@ import { notFound } from 'next/navigation';
 import { buildChartSnapshot } from '@/lib/onchainData';
 import { buildBtcEtfJun8OutflowPreview, buildBtcEtfOct30OutflowPreview } from '@/lib/onchain/btcEtfPreview';
 import { buildBtcEthEtfWeeklyHolidayPreview } from '@/lib/onchain/btcEthEtfWeeklyPreview';
+import {
+  buildBtcEthEtfMonthlyHolidayPreview,
+  buildBtcEthEtfMonthlySingleDayPreview,
+} from '@/lib/onchain/btcEthEtfMonthlyPreview';
 import { getPublicBrandSettings } from '@/lib/brandSettings';
 import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
@@ -12,11 +16,15 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
       ? buildBtcEtfOct30OutflowPreview()
       : params.slug === 'btc-eth-etf-weekly-flowboard' && searchParams?.preview === 'holiday-week'
         ? buildBtcEthEtfWeeklyHolidayPreview()
-        : null;
+        : params.slug === 'btc-eth-etf-monthly-flowboard' && searchParams?.preview === 'single-day-week'
+          ? buildBtcEthEtfMonthlySingleDayPreview()
+          : params.slug === 'btc-eth-etf-monthly-flowboard' && searchParams?.preview === 'holiday-month'
+            ? buildBtcEthEtfMonthlyHolidayPreview()
+            : null;
   const data = previewData || await buildChartSnapshot(params.slug, searchParams?.period);
   if (!data) notFound();
   const capture = searchParams?.capture === '1';
-  const brand = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard'
+  const brand = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard'
     ? await getPublicBrandSettings()
     : undefined;
   const chart = <DatasetChartClient data={data} capture={capture} brand={brand} />;

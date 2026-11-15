@@ -67,6 +67,10 @@ async function importSnapshotBuilders() {
       "const buildWeeklyPanels = () => { throw new Error('weekly panel builder is not loaded in this fixture'); };",
     )
     .replace(
+      /import \{ buildMonthlyPanels \} from ["']\.\/btcEthEtfMonth["'];/,
+      "const buildMonthlyPanels = () => { throw new Error('monthly panel builder is not loaded in this fixture'); };",
+    )
+    .replace(
       /import \{[\s\S]*?loadLatestChartSnapshot[\s\S]*?\} from ["']\.\/storage["'];/,
       "const loadLatestChartSnapshot = async()=>null; const markSnapshotStale = (snapshot)=>snapshot; const saveChartSnapshot = async()=>{}; const sourceRun = async()=>{};",
     );
