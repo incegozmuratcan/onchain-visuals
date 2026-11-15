@@ -358,6 +358,33 @@ test("completeness gate blocks a month with a blank issuer cell and does not fal
   assert.equal(decision.noNewSession, false);
 });
 
+test("an issuer cell omitted from one trading day keeps the month incomplete", () => {
+  const dates = month.monthTradingDays(2026, 9);
+  const btc = dates.flatMap((date) =>
+    rows("BTC", [
+      [
+        date,
+        -2_000_000,
+        date === "2026-10-16"
+          ? [["BlackRock", "IBIT", -2_000_000]]
+          : [
+              ["BlackRock", "IBIT", -1_000_000],
+              ["Fidelity", "FBTC", -1_000_000],
+            ],
+      ],
+    ]),
+  );
+  const eth = rows(
+    "ETH",
+    dates.map((date) => [date, -1_000_000, [["BlackRock", "ETHA", -1_000_000]]]),
+  );
+  const blocked = month.selectPostingMonth(btc, eth, NOV_15);
+  assert.equal(blocked.complete, false);
+  assert.equal(blocked.monthStart, "2026-10-01");
+  assert.match(blocked.message, /2026-10-16/);
+  assert.match(blocked.message, /FBTC/);
+});
+
 test("same-month skip blocks a repeated dry-run and still allows the live post", async () => {
   const ready = {
     complete: true,
@@ -458,6 +485,7 @@ test("monthly workflow is a days 1–5 dry-run and leaves the weekly schedule al
   assert.match(workflow, /group: x-btc-eth-etf-monthly/);
   assert.match(workflow, /scripts\/x-btc-eth-etf-monthly\.mjs/);
   assert.match(workflow, /name: btc-eth-etf-monthly/);
+  assert.match(workflow, /retention-days: 45/);
   assert.match(script, /datasetSlug = "btc-eth-eth-etf-monthly-flowboard"|datasetSlug = "btc-eth-etf-monthly-flowboard"/);
   assert.match(script, /selectPostingMonth/);
   assert.match(script, /1536/);
@@ -467,6 +495,8 @@ test("monthly workflow is a days 1–5 dry-run and leaves the weekly schedule al
   assert.match(script, /\/api\/x\/publish-btc-eth-etf-monthly/);
   assert.match(card, /grid-cols-\[54px_minmax\(0,1fr\)_118px\]/);
   assert.match(card, /grid-cols-\[112px_minmax\(0,1fr\)_118px\]/);
+  assert.match(card, /min\(\$\{width\}%, calc\(50% - 12px\)\)/);
+  assert.match(card, /monthTimeline \? `min\(\$\{width\}%, calc\(50% - 12px\)\)` : `\$\{width\}%`/);
   assert.match(card, /IssuerFlowRow/);
   assert.match(weeklyWorkflow, /cron: "30 5 \* \* 0"/);
   assert.match(weeklyWorkflow, /cron: "30 8 \* \* 0"/);

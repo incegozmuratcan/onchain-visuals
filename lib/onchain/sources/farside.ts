@@ -117,14 +117,17 @@ function parseSingleTable(table: string, asset: EtfAsset, tableIndex: number): P
     if (cells.length < 2) continue;
     const date = parseDate(cells[0]);
     if (!date) { if (cells[0] && !/total|date/i.test(cells[0])) skippedRows++; continue; }
-    for (let i = 1; i < Math.min(cells.length, headerCells.length); i++) {
+    // A short row omitted the trailing issuer or total cells. Those cells are
+    // missing, not zero, so they are stored as null and fail the completeness gate.
+    for (let i = 1; i < headerCells.length; i++) {
       const header = dataHeaders[i - 1] || `col_${i}`;
+      const raw = i < cells.length ? cells[i] : "";
       const isTotal = i - 1 === totalIdx || isTotalHeader(header);
-      const value = parseFlowValue(cells[i]);
+      const value = parseFlowValue(raw);
       if (value != null) parsedValues++;
-      else if (cells[i] && !/^(-|n\/?a|pending|awaiting|tbc|\.)$/i.test(cells[i])) warnings.push(`Unknown ETF value for ${header} on ${date}`);
+      else if (raw && !/^(-|n\/?a|pending|awaiting|tbc|\.)$/i.test(raw)) warnings.push(`Unknown ETF value for ${header} on ${date}`);
       const normalized = isTotal ? { ticker: 'Total', issuer: 'Total' } : normalizeIssuer(header);
-      rows.push({ date, asset, issuer: normalized.issuer, ticker: normalized.ticker, flowUsd: value, isTotal, rawValue: cells[i] });
+      rows.push({ date, asset, issuer: normalized.issuer, ticker: normalized.ticker, flowUsd: value, isTotal, rawValue: raw });
     }
   }
   if (skippedRows) warnings.push(`Skipped ${skippedRows} non-date Farside rows.`);

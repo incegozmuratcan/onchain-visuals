@@ -68,6 +68,12 @@ test('latest Farside session stays incomplete when an issuer cell is a dash, bla
   assert.equal(missingCell.complete, false);
   assert.equal(missingCell.totalReady, false);
   assert.deepEqual(missingCell.missingTickers, ['FBTC']);
+  const omitted = mod.parseFarsideEtfTable(
+    `<table><tr><th>Date</th><th>IBIT</th><th>FBTC</th><th>Total</th></tr><tr><td>02 Nov 2026</td><td>4.0</td></tr></table>`,
+    'BTC',
+  ).rows;
+  assert.equal(omitted.find((row) => row.ticker === 'FBTC').flowUsd, null);
+  assert.equal(omitted.find((row) => row.isTotal).flowUsd, null);
 });
 
 test('a trailing all-dash row is not the session, and a started row does not fall back', () => {

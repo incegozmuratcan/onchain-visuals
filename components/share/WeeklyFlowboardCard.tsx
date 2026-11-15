@@ -154,7 +154,11 @@ function FlowPanel({
                     data-day-bar={day.label}
                     className="absolute top-1/2 z-[1] h-3 -mt-1.5 min-w-[12px] rounded-[6px]"
                     style={{
-                      width: `${width}%`,
+                      // Month labels fill the 112px column, so a full half-track bar
+                      // meets the text. Stop 12px short of the track edge. The zero
+                      // line stays at 50%. Weekday labels are short, so they keep
+                      // the original half-track length.
+                      width: monthTimeline ? `min(${width}%, calc(50% - 12px))` : `${width}%`,
                       backgroundColor: value < 0 ? "#b0153f" : "#127a45",
                       ...(value < 0 ? { right: "50%" } : { left: "50%" }),
                     }}

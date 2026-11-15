@@ -236,4 +236,7 @@ jobs:
           name: btc-eth-etf-monthly
           path: artifacts/x-btc-eth-etf-monthly/
           if-no-files-found: warn
-          retention-days: 14
+          # A live post on day 1 must still be visible to a manual run later in
+          # the same month, and to the next month's days 1–5 job. 14 days expires
+          # before that and the gate would post the month again.
+          retention-days: 45

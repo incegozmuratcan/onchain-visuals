@@ -198,6 +198,25 @@ function emptyDecision(message: string): MonthDecision {
   };
 }
 
+function issuerTickers(rows: EtfFlowInput[], dates: string[]) {
+  const wanted = new Set(dates);
+  const tickers = new Set<string>();
+  for (const row of rows) {
+    if (row.isTotal || !wanted.has(row.date)) continue;
+    tickers.add(row.ticker);
+  }
+  return tickers;
+}
+
+function missingIssuerTickers(rows: EtfFlowInput[], date: string, expected: Set<string>) {
+  const present = new Set<string>();
+  for (const row of rows) {
+    if (row.date !== date || row.isTotal) continue;
+    if (typeof row.flowUsd === "number" && Number.isFinite(row.flowUsd)) present.add(row.ticker);
+  }
+  return [...expected].filter((ticker) => !present.has(ticker)).sort();
+}
+
 export function assessMonth(
   btcRows: EtfFlowInput[],
   ethRows: EtfFlowInput[],
@@ -206,16 +225,24 @@ export function assessMonth(
 ): MonthDecision {
   const expected = monthTradingDays(year, monthIndex);
   const bounds = monthBounds(year, monthIndex);
+  const btcTickers = issuerTickers(btcRows, expected);
+  const ethTickers = issuerTickers(ethRows, expected);
   const problems: string[] = [];
   const filled: string[] = [];
   for (const date of expected) {
     const btc = dayFill(btcRows, date);
     const eth = dayFill(ethRows, date);
-    if (btc === "complete" && eth === "complete") {
+    const btcMissing = missingIssuerTickers(btcRows, date, btcTickers);
+    const ethMissing = missingIssuerTickers(ethRows, date, ethTickers);
+    if (btc === "complete" && eth === "complete" && !btcMissing.length && !ethMissing.length) {
       filled.push(date);
       continue;
     }
-    problems.push(`${date} BTC ${btc}, ETH ${eth}`);
+    const omitted = [
+      btcMissing.length ? `BTC missing ${btcMissing.join(", ")}` : "",
+      ethMissing.length ? `ETH missing ${ethMissing.join(", ")}` : "",
+    ].filter(Boolean);
+    problems.push(`${date} BTC ${btc}, ETH ${eth}${omitted.length ? ` (${omitted.join("; ")})` : ""}`);
   }
   const allComplete = expected.length > 0 && filled.length === expected.length;
   const heading = formatMonthHeading(year, monthIndex, "caption");
