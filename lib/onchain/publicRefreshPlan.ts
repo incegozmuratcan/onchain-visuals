@@ -33,6 +33,28 @@ export function snapshotIsStale(storedAt: string | null | undefined, now: number
   return now - at >= ttlMs;
 }
 
+/**
+ * Store a finished error for the period that was requested.
+ * A stale copy of another period (fallbackUsed) is shown, not written.
+ * Active rows are already stored by the snapshot builder.
+ */
+export function shouldRememberPublicSnapshot(
+  built: { status?: string; period?: string; freshness?: { fallbackUsed?: boolean } } | null | undefined,
+  period: string,
+) {
+  return Boolean(built && built.status !== "active" && !built.freshness?.fallbackUsed && built.period === period);
+}
+
+/** An active row follows the cadence. Anything else is due for another try. */
+export function publicReadIsStale(
+  stored: { status?: string; freshness?: { lastUpdatedAt?: string | null } } | null | undefined,
+  now: number,
+  ttlMs: number,
+) {
+  if (!stored || stored.status !== "active") return true;
+  return snapshotIsStale(stored.freshness?.lastUpdatedAt, now, ttlMs);
+}
+
 export function publicDatasetMayBuild(status: string | undefined) {
   return status !== "disabled" && status !== "source_config_required";
 }

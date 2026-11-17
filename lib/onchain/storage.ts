@@ -42,7 +42,7 @@ export async function saveChartSnapshot(snapshot: ChartSnapshot) {
 export async function loadLatestChartSnapshot(datasetSlug: string): Promise<ChartSnapshot | null> {
   if (hasDatabaseConfig()) {
     try {
-      const res = await query(`select * from onchain_chart_snapshots where dataset_slug = $1 order by generated_at desc limit 1`, [datasetSlug]);
+      const res = await query(`select * from onchain_chart_snapshots where dataset_slug = $1 and freshness_status not in ('source_error', 'disabled', 'source_config_required') order by generated_at desc limit 1`, [datasetSlug]);
       const row = res.rows[0];
       if (!row) return null;
       return { datasetId: datasetSlug, datasetSlug, title: row.title, subtitle: row.subtitle, date: row.date, period: row.period, category: row.metadata_json?.category || 'chains', status:'stale', freshness:{status:row.freshness_status || 'stale', lastUpdatedAt:row.generated_at, source:row.source_label, fallbackUsed:true, missingConfig:[], message:null}, headlineMetrics:row.headline_metrics_json || [], series:row.series_json, insights:row.insights_json || [], sourceLabel:row.source_label, sourceUrl:row.source_url, exportFormats:['1600x900','1200x1200','1080x1350'], warnings:row.warnings_json || [], metadata:row.metadata_json || {} } as ChartSnapshot;
@@ -53,7 +53,7 @@ export async function loadLatestChartSnapshot(datasetSlug: string): Promise<Char
     }
   }
   const all = await readJson<Record<string, ChartSnapshot[]>>(snapshotsFile, {});
-  return all[datasetSlug]?.[0] || null;
+  return (all[datasetSlug] || []).find((row) => row.status === "active" || row.freshness?.status === "fresh" || row.freshness?.status === "stale") || null;
 }
 
 function asDateString(value: unknown) {
