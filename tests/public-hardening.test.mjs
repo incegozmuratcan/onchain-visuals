@@ -35,8 +35,9 @@ test("public chart reads use the stored snapshot and capture still builds live",
   const home = await read("../app/page.tsx");
   const layout = await read("../app/layout.tsx");
   assert.match(charts, /readPublicChartSnapshot/);
-  assert.match(charts, /PUBLIC_CACHE_CONTROL/);
+  assert.match(charts, /publicCacheHeaders/);
   const cache = await read("../lib/onchain/publicSnapshot.ts");
+  assert.match(cache, /Vercel-CDN-Cache-Control/);
   assert.match(cache, /s-maxage=300, stale-while-revalidate=600/);
   assert.match(cache, /normalizeChartPeriod/);
   assert.match(cache, /supportedPeriods\.includes/);
@@ -55,7 +56,7 @@ test("public chart reads use the stored snapshot and capture still builds live",
   assert.match(page, /VERCEL_ENV === 'production'/);
   assert.doesNotMatch(chain, /buildChartSnapshot/);
   assert.match(chain, /readPublicChartSnapshot/);
-  assert.match(chain, /PUBLIC_CACHE_CONTROL/);
+  assert.match(chain, /publicCacheHeaders/);
   assert.match(home, /export const revalidate = 300/);
   assert.doesNotMatch(home, /force-dynamic/);
   assert.match(layout, /export const revalidate = 300/);

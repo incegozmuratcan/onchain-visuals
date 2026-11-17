@@ -135,3 +135,10 @@ create table if not exists admin_login_attempts (
   window_started_at timestamptz not null default now(),
   blocked_until timestamptz
 );
+
+create table if not exists refresh_locks (
+  dataset_slug text not null,
+  period text not null,
+  last_started_at timestamptz not null default now(),
+  primary key (dataset_slug, period)
+);

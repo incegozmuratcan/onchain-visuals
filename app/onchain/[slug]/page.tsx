@@ -44,7 +44,11 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
         <main className="mx-auto flex min-h-[50vh] max-w-3xl flex-col justify-center p-8">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Onchain Visuals</p>
           <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">Data unavailable</h1>
-          <p className="mt-3 text-slate-600">This chart has no stored snapshot yet. It will show up after the next refresh.</p>
+          <p className="mt-3 text-slate-600">
+            {error.updating
+              ? "Updating. This chart will show up when the refresh finishes."
+              : "This chart has no stored snapshot yet. It will show up after the next refresh."}
+          </p>
         </main>
       );
     }
