@@ -661,16 +661,7 @@ test("combined BTC and ETH daily card keeps one-decimal heroes, whole-million is
 
   const { buildBtcEthEtfDailyCaption, xWeightedLength } = await loadCombinedCaption();
   const caption = buildBtcEthEtfDailyCaption(card);
-  assert.equal(
-    caption,
-    [
-      "ETF Daily Flowboard — Oct 30, 2026",
-      "",
-      "Bitcoin ETFs: -$643.2M net outflow",
-      "",
-      "Ethereum ETFs: -$89.4M net outflow",
-    ].join("\n"),
-  );
+  assert.equal(caption, "What were the net flows of Bitcoin and Ethereum ETFs on Oct 30?");
   assert.doesNotMatch(caption, /\$[A-Za-z]/);
   assert.doesNotMatch(caption, /#|Largest|Cumulative|Source:/);
   assert.ok(xWeightedLength(caption) <= 280, caption);

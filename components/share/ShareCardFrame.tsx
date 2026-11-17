@@ -29,6 +29,8 @@ export function ShareCardFrame({
   children,
   cardRef,
   density = "daily",
+  titleBadge,
+  spacedFooterMeta = false,
 }: {
   brand?: ShareCardBrand;
   eyebrow: string;
@@ -40,6 +42,10 @@ export function ShareCardFrame({
   cardRef?: Ref<HTMLDivElement>;
   /** Weekly capture uses the v21 chrome so five day rows fit 1536×1134. Daily stays on the original spacing. */
   density?: "daily" | "weekly";
+  /** Short black cadence badge drawn after the title, e.g. "24H" on the Chain Revenue card. */
+  titleBadge?: string;
+  /** Chain Revenue v17 footer: 6px between Source, the dot, and Updated. ETF cards keep the tight footer. */
+  spacedFooterMeta?: boolean;
 }) {
   const credit = shareFooterCredit(brand);
   const weekly = density === "weekly";
@@ -65,10 +71,28 @@ export function ShareCardFrame({
       <p className="pr-24 text-[12px] font-bold uppercase tracking-[2px] text-[#8a8f99] lg:pr-0 lg:text-[17px] lg:tracking-[4px]">
         {eyebrow}
       </p>
-      <h2 className="mt-2 text-[32px] font-black leading-[0.95] tracking-[-0.055em] text-[#020617] lg:mt-[10px] lg:text-[48px]">
-        {title}
-      </h2>
-      <p className="mt-2 text-[15px] font-normal text-[#7b808a] lg:mt-[10px] lg:text-[22px]">
+      {titleBadge ? (
+        <div className="mt-2 flex min-w-0 items-center gap-[10px] pr-24 lg:mt-[10px] lg:gap-[14px] lg:pr-[250px]">
+          <h2 className="whitespace-nowrap text-[32px] font-black leading-none tracking-[-0.055em] text-[#020617] lg:text-[48px]">
+            {title}
+          </h2>
+          <span
+            data-title-badge={titleBadge}
+            className="inline-flex h-8 shrink-0 items-center justify-center rounded-[10px] bg-[#020617] px-[11px] text-[27px] font-black leading-none tracking-[-0.055em] text-white lg:h-12 lg:rounded-[14px] lg:px-4 lg:text-[40px]"
+          >
+            {titleBadge}
+          </span>
+        </div>
+      ) : (
+        <h2 className="mt-2 text-[32px] font-black leading-[0.95] tracking-[-0.055em] text-[#020617] lg:mt-[10px] lg:text-[48px]">
+          {title}
+        </h2>
+      )}
+      <p
+        className={`mt-2 text-[15px] font-normal text-[#7b808a] lg:text-[22px] ${
+          titleBadge ? "lg:mt-3" : "lg:mt-[10px]"
+        }`}
+      >
         {description}
       </p>
 
@@ -83,7 +107,7 @@ export function ShareCardFrame({
           {credit.prefix}
           <span className="font-bold text-[#111]">{credit.emphasis}</span>
         </span>
-        <span className="inline-flex flex-wrap items-center">
+        <span className={`inline-flex flex-wrap items-center ${spacedFooterMeta ? "gap-[6px]" : ""}`}>
           <span>Source: {source}</span>
           <span aria-hidden="true" className="mx-[7px] text-[18px] text-[#c4c8cd] lg:text-[22px]">
             ·

@@ -26,12 +26,12 @@ export function xWeightedLength(text: string) {
   return length;
 }
 
-function longDate(date: string) {
+/** "Nov 14": the Farside session date drawn on the card, in UTC. */
+function shortDate(date: string) {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
     timeZone: "UTC",
     month: "short",
     day: "numeric",
-    year: "numeric",
   });
 }
 
@@ -44,12 +44,6 @@ function completedDate(panel: CaptionPanel, fallback?: string | null) {
   return DATE_RE.test(date) ? date : "";
 }
 
-function directionOf(value: number) {
-  if (value > 0) return "inflow";
-  if (value < 0) return "outflow";
-  return "flat";
-}
-
 function requirePanel(panel: CaptionPanel | undefined, asset: "BTC" | "ETH") {
   if (!panel) {
     throw new Error(`BTC+ETH ETF caption requires a ${asset} panel.`);
@@ -60,16 +54,13 @@ function requirePanel(panel: CaptionPanel | undefined, asset: "BTC" | "ETH") {
   return panel;
 }
 
-function assetLine(label: string, panel: CaptionPanel) {
-  const net = Number(panel.netFlow);
-  const direction = directionOf(Number.isFinite(net) ? net : 0);
-  return `${label}: ${String(panel.formattedNet || "").trim()} net ${direction}`;
-}
-
 /**
- * Caption for the combined daily card. Amounts are the hero strings already
- * drawn on each panel (`formattedNet`). X allows one cashtag per post, so this
- * caption has no tickers, issuer lines, cumulative totals, source line, or hashtags.
+ * Caption for the combined daily card: one plain question with the Farside
+ * session date shown on the card ("What were the net flows of Bitcoin and
+ * Ethereum ETFs on Nov 14?"). The date is explicit because a Monday post
+ * carries Friday's session, so "yesterday" would be wrong. Simple English
+ * keeps X's translation clean. No amounts, cashtags, or hashtags; the card
+ * carries the numbers. BTC and ETH must be the same completed session.
  */
 export function buildBtcEthEtfDailyCaption(snapshot: CaptionSnapshot) {
   const cards = snapshot.series?.cards || [];
@@ -80,11 +71,8 @@ export function buildBtcEthEtfDailyCaption(snapshot: CaptionSnapshot) {
   if (!btcDate || !ethDate) {
     throw new Error("BTC+ETH ETF caption requires completed BTC and ETH dates.");
   }
-
-  const header =
-    btcDate === ethDate
-      ? `${snapshot.title || "ETF Daily Flowboard"} — ${longDate(btcDate)}`
-      : `${snapshot.title || "ETF Daily Flowboard"} — BTC ${longDate(btcDate)} · ETH ${longDate(ethDate)}`;
-
-  return [header, "", assetLine("Bitcoin ETFs", btc), "", assetLine("Ethereum ETFs", eth)].join("\n");
+  if (btcDate !== ethDate) {
+    throw new Error(`BTC+ETH ETF caption requires one session; BTC is ${btcDate} and ETH is ${ethDate}.`);
+  }
+  return `What were the net flows of Bitcoin and Ethereum ETFs on ${shortDate(btcDate)}?`;
 }

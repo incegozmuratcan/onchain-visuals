@@ -9,7 +9,7 @@ Daily X sharing is that combined card only. `.github/workflows/x-btc-etf-daily.y
 1. Builds the Next.js app and starts it inside the job.
 2. Refreshes the combined snapshot through `POST /api/admin/onchain/refresh/btc-eth-etf-daily-flowboard?period=daily`. That route calls `refreshDataset`, which loads the Farside BTC and ETH tables together in `buildBtcEthDailySplit`. The card does not read the separate BTC-only or ETH-only flowboard snapshots. The full `POST /api/cron/onchain/refresh` route is still available for a complete refresh; this job does not call it, so a missing Dune or DefiLlama key does not block the card.
 3. Opens `/onchain/btc-eth-etf-daily-flowboard?period=daily&capture=1` in Playwright Chromium and screenshots `[data-capture='share-card']` at 1536×1024.
-4. Builds a caption from the combined snapshot panels: the shared session date, then the BTC and ETH hero net amounts labeled inflow or outflow. The caption is only those lines. It has no cashtags, issuer lines, cumulative totals, source line, or hashtags, because X rejects a post with more than one cashtag. BTC and ETH must share the same completed date or the job stops.
+4. Builds a one-sentence caption from the Farside session date drawn on the card: `What were the net flows of Bitcoin and Ethereum ETFs on Nov 14?`. The date is explicit because a Monday post carries Friday's session, so "yesterday" would be wrong. The sentence is plain English so X's translate button reads cleanly in other languages. It has no amounts, cashtags, issuer lines, source line, or hashtags; the card carries the numbers. BTC and ETH must share the same completed date or the job stops.
 5. Uploads `btc-eth-etf-daily.png`, `caption.txt`, and `result.json` as the `btc-eth-etf-daily` artifact.
 
 When `X_DRY_RUN` is anything other than `false`, `0`, or `off`, the job stops there. It does not call `POST /api/x/publish-btc-eth-etf-daily` and it does not call X.
@@ -82,3 +82,43 @@ Artifacts land in `artifacts/x-btc-eth-etf-daily/`. `X_DRY_RUN` defaults to a dr
 `npm run test:unit` covers the Farside completeness check and the skip rules. To verify the scheduled path without posting, run **X BTC+ETH ETF daily** with `workflow_dispatch` and leave `dry_run` at true. A green run whose artifact `result.json` has `reason: "incomplete"` means Farside was not ready and a later cron can still share. A green run with `btc-eth-etf-daily.png` means the session was complete. A later run for that same date logs that it was already shared and does not call X. Delete `artifacts/x-btc-eth-etf-daily/posted-state.json` before a local rerun of a date you already recorded.
 
 The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `CAPTURE_PREVIEW=oct30-outflow` on that command renders the wide-number fixture (`-$643.2M`, `IBIT -$233.7M`) instead of live Farside data and never posts.
+
+## Chain Revenue daily
+
+`.github/workflows/x-chain-revenue-daily.yml` posts the Chain Revenue card (top 10 chains by revenue for the latest completed UTC day). It follows the ETF jobs: dry run by default, the same secrets, its own `posted-state.json` in the `chain-revenue-daily` artifact, and `POST /api/x/publish-chain-revenue-daily` for the live post.
+
+### Data
+
+- Chains: `https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue`, keeping `protocolType: "chain"` with `category: "Chain"` (about 115).
+- Values: each chain's `https://api.llama.fi/summary/fees/{slug}?dataType=dailyRevenue` `totalDataChart` point for the exact UTC calendar day. `total24h` is never read, because it is a rolling window that mixes two days.
+- Card: top 10 by revenue, total of every chain with a point that day, the chain count, and the #1 chain's share. Bars use a square-root scale so small chains stay visible.
+- Logos: the ten chains on the approved v17 card use the reviewed marks in `public/logos/chain-revenue/`. Every other chain uses its DefiLlama icon, `https://icons.llamao.fi/icons/chains/rsz_<name>?w=96`, where `<name>` comes from the overview logo file name (`op mainnet`, `zksync era`, …). The old `icons.llamao.fi/chains/rsz_*.jpg` paths in the overview 404. A missing icon draws a neutral initial circle.
+
+### Completeness gate
+
+DefiLlama fills a finished UTC day late, chain by chain. At 00:25 UTC the next day only about 45 of about 100 chains have a point. The share day is always the latest completed UTC day, so the caption's "yesterday" is true. A pass shares only when that day is complete:
+
+1. The number of chains with a point for the day is at least 95% of the median count of the previous three days (normal days have about 96–109).
+2. Every chain in the previous day's top 10 has revenue on the day.
+
+An incomplete pass exits successfully with `reason: "incomplete"` and the coverage numbers in `result.json`. A later pass shares once the day is filled. An older day is never posted late. A day already shared skips with `reason: "already_posted"`. The site page shows the newest complete day, never a partial one.
+
+### Caption
+
+`How much revenue did blockchains generate yesterday?` Plain English with no hashtags or cashtags, so X's translation reads cleanly.
+
+### Schedule
+
+cron-job.org is the primary trigger, every 30 minutes from 16:00 to 23:30 Europe/Istanbul (`*/30 16-23 * * *`), sending `POST /repos/incegozmuratcan/onchain-visuals/actions/workflows/x-chain-revenue-daily.yml/dispatches` with `{"ref":"main","inputs":{"dry_run":false}}`. The first pass at 16:00 is the intended post time; later passes only post if 16:00 found the day incomplete. GitHub crons at 16:30 and 19:30 Istanbul are a backup and follow `vars.X_DRY_RUN`.
+
+### Local dry run
+
+```bash
+npm run build
+npm run x:chain-revenue-daily                      # gate, then render if the day is complete
+node scripts/x-chain-revenue-daily.mjs --preflight # gate only
+node scripts/x-chain-revenue-daily.mjs --preview=long-names
+node scripts/x-chain-revenue-daily.mjs --as-of=2026-11-16T13:00:00Z
+```
+
+`--preview=long-names` renders a fixture with the longest chain names and a missing icon. `--as-of` runs the gate as of that time to re-render the newest complete day; it is dry-run only and records nothing. The server still builds the card from the newest complete day, so use it only while that day is the newest complete one. Artifacts land in `artifacts/x-chain-revenue-daily/`.
