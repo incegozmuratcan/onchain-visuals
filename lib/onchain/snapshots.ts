@@ -56,6 +56,7 @@ import {
   markSnapshotStale,
   saveChartSnapshot,
   sourceRun,
+  withoutSnapshotWrites,
 } from "./storage";
 
 const exports = ["1600x900", "1200x1200", "1080x1350", "1536x1024"] as const;
@@ -1766,7 +1767,11 @@ function configSnapshot(
 export async function buildChartSnapshot(
   slug: string,
   period?: string,
+  options?: { persist?: boolean },
 ): Promise<ChartSnapshot | null> {
+  if (options?.persist === false) {
+    return withoutSnapshotWrites(() => buildChartSnapshot(slug, period));
+  }
   const d = datasetRegistry.find((x) => x.slug === slug);
   if (!d) return null;
   const p = period || d.defaultPeriod;

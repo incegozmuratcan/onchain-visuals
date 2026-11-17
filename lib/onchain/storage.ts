@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { createHash } from 'crypto';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
@@ -8,11 +9,21 @@ import type { ChartSnapshot, SourceRun, SourceRunStatus } from './types';
 const dir = path.join(process.cwd(), '.onchain-cache');
 const snapshotsFile = path.join(dir, 'snapshots.json');
 const runsFile = path.join(dir, 'source-runs.json');
+const snapshotWrites = new AsyncLocalStorage<boolean>();
+
+/** Public reads use this so a cold fallback build cannot insert snapshots or source runs. */
+export function withoutSnapshotWrites<T>(fn: () => Promise<T>) {
+  return snapshotWrites.run(false, fn);
+}
+function writesEnabled() {
+  return snapshotWrites.getStore() !== false;
+}
 async function readJson<T>(file: string, fallback: T): Promise<T> { try { return JSON.parse(await readFile(file, 'utf8')) as T; } catch { return fallback; } }
 async function writeJson(file: string, data: unknown) { await mkdir(dir, { recursive: true }); await writeFile(file, JSON.stringify(data, null, 2)); }
 export function hashPayload(payload: unknown) { return createHash('sha256').update(JSON.stringify(payload)).digest('hex'); }
 
 export async function saveChartSnapshot(snapshot: ChartSnapshot) {
+  if (!writesEnabled()) return;
   if (hasDatabaseConfig()) {
     try {
       await query(`insert into onchain_chart_snapshots (dataset_slug, chart_type, period, date, title, subtitle, headline_metrics_json, series_json, insights_json, source_label, source_url, freshness_status, generated_at, metadata_json, warnings_json)
@@ -44,9 +55,84 @@ export async function loadLatestChartSnapshot(datasetSlug: string): Promise<Char
   const all = await readJson<Record<string, ChartSnapshot[]>>(snapshotsFile, {});
   return all[datasetSlug]?.[0] || null;
 }
+
+function asDateString(value: unknown) {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  const match = String(value ?? "").match(/\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : String(value ?? "");
+}
+function asIso(value: unknown) {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(String(value));
+  return Number.isNaN(date.getTime()) ? String(value) : date.toISOString();
+}
+function snapshotFromRow(row: any): ChartSnapshot {
+  const freshnessStatus = row.freshness_status || "stale";
+  const fresh = freshnessStatus === "fresh";
+  const status = fresh
+    ? "active"
+    : freshnessStatus === "source_error" || freshnessStatus === "source_config_required" || freshnessStatus === "disabled"
+      ? freshnessStatus
+      : "stale";
+  const series = row.series_json || {};
+  return {
+    datasetId: row.metadata_json?.datasetId || row.dataset_slug,
+    datasetSlug: row.dataset_slug,
+    title: row.title,
+    subtitle: row.subtitle,
+    date: asDateString(row.date),
+    period: row.period,
+    category: row.metadata_json?.category || "chains",
+    status,
+    freshness: {
+      status: freshnessStatus,
+      lastUpdatedAt: asIso(row.generated_at),
+      source: row.source_label,
+      fallbackUsed: !fresh,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: row.headline_metrics_json || [],
+    series: {
+      bars: series.bars || [],
+      lines: series.lines || [],
+      areas: series.areas || [],
+      cards: series.cards || [],
+      tables: series.tables || [],
+      calendar: series.calendar || [],
+    },
+    insights: row.insights_json || [],
+    sourceLabel: row.source_label,
+    sourceUrl: row.source_url,
+    exportFormats: ["1600x900", "1200x1200", "1080x1350", "1536x1024"],
+    warnings: row.warnings_json || [],
+    metadata: row.metadata_json || {},
+  } as ChartSnapshot;
+}
+
+/** Latest successful snapshot for a public read. Does not mark a fresh row stale and does not write. */
+export async function loadStoredChartSnapshot(datasetSlug: string, period?: string): Promise<ChartSnapshot | null> {
+  if (hasDatabaseConfig()) {
+    try {
+      const res = period
+        ? await query(`select * from onchain_chart_snapshots where dataset_slug = $1 and period = $2 order by generated_at desc limit 1`, [datasetSlug, period])
+        : await query(`select * from onchain_chart_snapshots where dataset_slug = $1 order by generated_at desc limit 1`, [datasetSlug]);
+      return res.rows[0] ? snapshotFromRow(res.rows[0]) : null;
+    } catch (error) {
+      const storageError = toOnchainStorageNotInitializedError(error);
+      if (!storageError) throw error;
+      return null;
+    }
+  }
+  const all = await readJson<Record<string, ChartSnapshot[]>>(snapshotsFile, {});
+  const rows = all[datasetSlug] || [];
+  if (!period) return rows[0] || null;
+  return rows.find((row) => row.period === period) || null;
+}
 export async function markSnapshotStale(snapshot: ChartSnapshot, message: string): Promise<ChartSnapshot> { return { ...snapshot, status:'stale', freshness:{ ...snapshot.freshness, status:'stale', fallbackUsed:true, message }, warnings:[...snapshot.warnings, message] }; }
 export async function saveSourceRun(input: Omit<SourceRun, 'id'>) {
   const run: SourceRun = { ...input, id: `${Date.now()}-${Math.random().toString(16).slice(2)}` };
+  if (!writesEnabled()) return run;
   if (hasDatabaseConfig()) {
     try {
       await query(`insert into onchain_source_runs (id, source, dataset_slug, status, started_at, finished_at, error_message, rows_fetched, payload_hash, metadata_json) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb)`, [run.id, run.source, run.datasetSlug, run.status, run.startedAt, run.finishedAt, run.errorMessage, run.rowsFetched, run.payloadHash, JSON.stringify(run.metadata)]);

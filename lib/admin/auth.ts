@@ -3,11 +3,21 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { query, hasDatabaseConfig } from "@/lib/server/postgres";
+import { timingSafeEqualText } from "@/lib/security/timingSafeEqual";
 
 const COOKIE = "learndefi_admin";
 
+function isProduction() {
+  return process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production";
+}
+
 function secret() {
-  return process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_SETUP_TOKEN || "learndefi-local-admin-secret";
+  const configured = process.env.ADMIN_SESSION_SECRET;
+  if (configured) return configured;
+  if (isProduction()) {
+    throw new Error("ADMIN_SESSION_SECRET is required in production.");
+  }
+  return process.env.ADMIN_SETUP_TOKEN || "learndefi-local-admin-secret";
 }
 
 function sign(value: string) {
@@ -23,13 +33,13 @@ function verifyPassword(password: string, encoded: string) {
   const [, salt, expected] = encoded.split(":");
   if (!salt || !expected) return false;
   const actual = hashPassword(password, salt).split(":")[2];
-  return crypto.timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+  return timingSafeEqualText(actual, expected);
 }
 
 export function adminConfigState() {
   return {
     hasDatabase: hasDatabaseConfig(),
-    hasSessionSecret: Boolean(process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_SETUP_TOKEN),
+    hasSessionSecret: Boolean(process.env.ADMIN_SESSION_SECRET),
     hasBlob: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
   };
 }
@@ -128,12 +138,16 @@ export function clearSession() {
 }
 
 export function hasSession() {
-  const raw = cookies().get(COOKIE)?.value;
-  if (!raw) return false;
-  const [time, role, signature] = raw.split(/[.:]/);
-  const payload = `${time}:${role}`;
-  if (!time || role !== "admin" || signature !== sign(payload)) return false;
-  return Date.now() - Number(time) < 1000 * 60 * 60 * 8;
+  try {
+    const raw = cookies().get(COOKIE)?.value;
+    if (!raw) return false;
+    const [time, role, signature] = raw.split(/[.:]/);
+    const payload = `${time}:${role}`;
+    if (!time || role !== "admin" || !signature || !timingSafeEqualText(signature, sign(payload))) return false;
+    return Date.now() - Number(time) < 1000 * 60 * 60 * 8;
+  } catch {
+    return false;
+  }
 }
 
 export async function requireAdmin() {

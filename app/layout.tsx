@@ -8,7 +8,7 @@ const inter = Inter({
   display: "block",
 });
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export async function generateMetadata(): Promise<Metadata> {
   const brand = await getPublicBrandSettings();
