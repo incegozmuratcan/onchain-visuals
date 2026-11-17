@@ -153,6 +153,9 @@ create table if not exists x_published_posts (
   claim_token text,
   claimed_at timestamptz,
   posted_at timestamptz,
+  uncertain boolean not null default false,
   created_at timestamptz not null default now(),
   primary key (dataset_slug, data_date)
 );
+
+alter table x_published_posts add column if not exists uncertain boolean not null default false;

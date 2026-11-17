@@ -15,9 +15,11 @@ export function notFreshMessage(snapshot) {
 }
 
 export async function writeNotFreshSkip(outDir, message, extra = {}) {
+  if (typeof extra.dryRun !== "boolean") {
+    throw new Error("writeNotFreshSkip requires dryRun from the caller.");
+  }
   await mkdir(outDir, { recursive: true });
   const result = {
-    dryRun: true,
     posted: false,
     skipped: true,
     reason: "not_fresh",

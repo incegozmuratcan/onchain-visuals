@@ -4,6 +4,7 @@ import { buildChartSnapshot } from "@/lib/onchainData";
 import { buildBtcEthEtfWeeklyCaption } from "@/lib/onchain/btcEthEtfWeeklyCaption";
 import { oauth1AuthorizationHeader, type OAuth1Credentials } from "@/lib/x/oauth1";
 import { openLiveXPost } from "@/lib/x/postLedger";
+import { XPublishError, fetchX, settleLivePostFailure } from "@/lib/x/publishFailure";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -149,36 +150,28 @@ async function uploadMediaToX(buffer: Buffer) {
   form.set("media_type", "image/png");
   const mediaBytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
   form.set("media", new Blob([mediaBytes], { type: "image/png" }), "btc-eth-etf-weekly-flowboard.png");
-  const response = await fetch(url, {
+  const payload = await fetchX("media", "X media upload", url, {
     method: "POST",
     headers: { Authorization: xAuthorization("POST", url) },
     body: form,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(xFailureMessage(payload, "X media upload", response.status));
-  }
+  }, xFailureMessage);
   const mediaId = payload?.data?.id || payload?.media_id_string || payload?.media_id;
-  if (!mediaId) throw new Error("X media upload response did not include a media id.");
+  if (!mediaId) throw new XPublishError("media", "X media upload response did not include a media id.");
   return String(mediaId);
 }
 
 async function createTweet(mediaId: string, text: string) {
   const url = "https://api.x.com/2/tweets";
-  const response = await fetch(url, {
+  const payload = await fetchX("tweet", "X post creation", url, {
     method: "POST",
     headers: {
       Authorization: xAuthorization("POST", url),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text, media: { media_ids: [mediaId] } }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(xFailureMessage(payload, "X post creation", response.status));
-  }
+  }, xFailureMessage);
   const postId = payload?.data?.id;
-  if (!postId) throw new Error("X post response did not include a post id.");
+  if (!postId) throw new XPublishError("tweet", "X post response did not include a post id.");
   return String(postId);
 }
 
@@ -264,8 +257,10 @@ export async function POST(request: NextRequest) {
       image: { width: dims.width, height: dims.height, sha256: imageHash },
     });
   }
-  if (ledger.outcome === "in_progress") {
-    return jsonError(409, "x_post_failed", "A live publish for this dataset and date is already in progress.");
+  if (ledger.outcome === "in_progress" || ledger.outcome === "uncertain") {
+    return jsonError(409, "x_post_failed", ledger.outcome === "uncertain"
+      ? "A previous publish attempt may have posted. Check X before retrying."
+      : "A live publish for this dataset and date is already in progress.");
   }
 
   if (!oauth1Credentials()) {
@@ -292,9 +287,7 @@ export async function POST(request: NextRequest) {
       image: { width: dims.width, height: dims.height, sha256: imageHash },
     });
   } catch (error) {
-    await ledger.release();
-    const message = error instanceof Error ? error.message : "X publish failed.";
-    const code: PublishErrorCode = message.startsWith("X media upload") ? "x_media_upload_failed" : "x_post_failed";
-    return jsonError(502, code, message);
+    const settled = await settleLivePostFailure(ledger, error);
+    return jsonError(settled.status, settled.code, settled.message);
   }
 }

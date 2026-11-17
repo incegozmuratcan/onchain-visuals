@@ -9,11 +9,13 @@ import { hasDatabaseConfig, query } from "@/lib/server/postgres";
 const CLAIM_TTL = "15 minutes";
 
 export type LivePostGuard = {
-  outcome: "proceed" | "fallback" | "duplicate" | "in_progress";
+  outcome: "proceed" | "fallback" | "duplicate" | "in_progress" | "uncertain";
   postId: string | null;
   postUrl: string | null;
   record: (tweetId: string, postUrl: string) => Promise<void>;
   release: () => Promise<void>;
+  /** Keep the claim and exclude it from the stale-claim reclaim. */
+  markUncertain: () => Promise<void>;
 };
 
 let tableReady: Promise<void> | null = null;
@@ -29,6 +31,7 @@ function noopGuard(outcome: LivePostGuard["outcome"], postId: string | null = nu
     postUrl,
     record: async () => {},
     release: async () => {},
+    markUncertain: async () => {},
   };
 }
 
@@ -43,9 +46,12 @@ async function ensureTable() {
         claim_token text,
         claimed_at timestamptz,
         posted_at timestamptz,
+        uncertain boolean NOT NULL DEFAULT false,
         created_at timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (dataset_slug, data_date)
       )`,
+    ).then(() =>
+      query(`ALTER TABLE x_published_posts ADD COLUMN IF NOT EXISTS uncertain boolean NOT NULL DEFAULT false`),
     )
       .then(() => undefined)
       .catch((error) => {
@@ -77,6 +83,7 @@ export async function openLiveXPost(datasetSlug: string, dataDate: string): Prom
        WHERE dataset_slug = $1
          AND data_date = $2::date
          AND tweet_id IS NULL
+         AND uncertain = false
          AND (claim_token IS NULL OR claimed_at IS NULL OR claimed_at < now() - interval '${CLAIM_TTL}')
        RETURNING tweet_id`,
       [datasetSlug, dataDate, token],
@@ -104,23 +111,34 @@ export async function openLiveXPost(datasetSlug: string, dataDate: string): Prom
           await query(
             `UPDATE x_published_posts
              SET claim_token = NULL, claimed_at = NULL
-             WHERE dataset_slug = $1 AND data_date = $2::date AND claim_token = $3 AND tweet_id IS NULL`,
+             WHERE dataset_slug = $1 AND data_date = $2::date AND claim_token = $3 AND tweet_id IS NULL AND uncertain = false`,
             [datasetSlug, dataDate, token],
           ).catch((error) => {
             warn(`Could not release claim for ${datasetSlug} ${dataDate}: ${error instanceof Error ? error.message : "unknown error"}`);
           });
         },
+        async markUncertain() {
+          await query(
+            `UPDATE x_published_posts
+             SET uncertain = true
+             WHERE dataset_slug = $1 AND data_date = $2::date AND claim_token = $3 AND tweet_id IS NULL`,
+            [datasetSlug, dataDate, token],
+          ).catch((error) => {
+            warn(`Could not mark ${datasetSlug} ${dataDate} uncertain: ${error instanceof Error ? error.message : "unknown error"}`);
+          });
+        },
       };
     }
 
-    const existing = await query<{ tweet_id: string | null; post_url: string | null }>(
-      `SELECT tweet_id, post_url FROM x_published_posts WHERE dataset_slug = $1 AND data_date = $2::date`,
+    const existing = await query<{ tweet_id: string | null; post_url: string | null; uncertain: boolean }>(
+      `SELECT tweet_id, post_url, uncertain FROM x_published_posts WHERE dataset_slug = $1 AND data_date = $2::date`,
       [datasetSlug, dataDate],
     );
     const row = existing.rows[0];
     if (row?.tweet_id) {
       return noopGuard("duplicate", row.tweet_id, row.post_url || `https://x.com/OnchainVis/status/${row.tweet_id}`);
     }
+    if (row?.uncertain) return noopGuard("uncertain");
     return noopGuard("in_progress");
   } catch (error) {
     warn(
