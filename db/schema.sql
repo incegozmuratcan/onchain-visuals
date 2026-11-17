@@ -128,3 +128,10 @@ create table if not exists onchain_chart_snapshots (
 );
 
 create index if not exists onchain_chart_snapshots_dataset_generated_idx on onchain_chart_snapshots(dataset_slug, generated_at desc);
+
+create table if not exists admin_login_attempts (
+  bucket text primary key,
+  failures integer not null default 0,
+  window_started_at timestamptz not null default now(),
+  blocked_until timestamptz
+);

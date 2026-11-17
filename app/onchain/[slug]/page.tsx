@@ -8,25 +8,31 @@ import {
 } from '@/lib/onchain/btcEthEtfMonthlyPreview';
 import { buildChainRevenueDailyLongNamesPreview } from '@/lib/onchain/chainRevenueDailyPreview';
 import { getPublicBrandSettings } from '@/lib/brandSettings';
+import { readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
 import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
 export default async function DatasetPage({params, searchParams}:{params:{slug:string};searchParams?:{period?:string;preview?:string;capture?:string}}){
-  const previewData = params.slug === 'btc-etf-flowboard' && searchParams?.preview === 'jun8-outflow'
+  const capture = searchParams?.capture === '1';
+  // GitHub Actions renders on a local server, where VERCEL_ENV is unset.
+  const preview = process.env.VERCEL_ENV === 'production' ? undefined : searchParams?.preview;
+  const previewData = params.slug === 'btc-etf-flowboard' && preview === 'jun8-outflow'
     ? buildBtcEtfJun8OutflowPreview()
-    : params.slug === 'btc-etf-flowboard' && searchParams?.preview === 'oct30-outflow'
+    : params.slug === 'btc-etf-flowboard' && preview === 'oct30-outflow'
       ? buildBtcEtfOct30OutflowPreview()
-      : params.slug === 'btc-eth-etf-weekly-flowboard' && searchParams?.preview === 'holiday-week'
+      : params.slug === 'btc-eth-etf-weekly-flowboard' && preview === 'holiday-week'
         ? buildBtcEthEtfWeeklyHolidayPreview()
-        : params.slug === 'btc-eth-etf-monthly-flowboard' && searchParams?.preview === 'single-day-week'
+        : params.slug === 'btc-eth-etf-monthly-flowboard' && preview === 'single-day-week'
           ? buildBtcEthEtfMonthlySingleDayPreview()
-          : params.slug === 'btc-eth-etf-monthly-flowboard' && searchParams?.preview === 'holiday-month'
+          : params.slug === 'btc-eth-etf-monthly-flowboard' && preview === 'holiday-month'
             ? buildBtcEthEtfMonthlyHolidayPreview()
-            : params.slug === 'chain-revenue-daily' && searchParams?.preview === 'long-names'
+            : params.slug === 'chain-revenue-daily' && preview === 'long-names'
               ? buildChainRevenueDailyLongNamesPreview()
               : null;
-  const data = previewData || await buildChartSnapshot(params.slug, searchParams?.period);
+  // capture=1 still builds live, which is what the X workflows screenshot.
+  const data = previewData || (capture
+    ? await buildChartSnapshot(params.slug, searchParams?.period)
+    : await readPublicChartSnapshot(params.slug, searchParams?.period));
   if (!data) notFound();
-  const capture = searchParams?.capture === '1';
   const brand = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily'
     ? await getPublicBrandSettings()
     : undefined;

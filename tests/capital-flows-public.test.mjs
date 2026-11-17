@@ -126,11 +126,11 @@ test("BTC ETF presets appear only under Capital Flows in public menus and API se
   assert.match(chainApi, /weekly\|week/);
   assert.match(
     chainApi,
-    /buildChartSnapshot\("btc-etf-flowboard", btcEtfPeriod\)/,
+    /readPublicChartSnapshot\("btc-etf-flowboard", btcEtfPeriod\)/,
   );
   assert.match(
     chainApi,
-    /buildChartSnapshot\("eth-etf-flowboard", ethEtfPeriod\)/,
+    /readPublicChartSnapshot\("eth-etf-flowboard", ethEtfPeriod\)/,
   );
   assert.match(chainApi, /ethOnlyEtf/);
   assert.match(chainApi, /Capital Flows · ETH ETF/);

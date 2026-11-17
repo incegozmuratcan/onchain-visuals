@@ -10,6 +10,8 @@ import {
   clearSession,
   getAdminConfigDiagnostic,
 } from "@/lib/admin/auth";
+import { assertLoginAllowed, recordLoginFailure, recordLoginSuccess } from "@/lib/admin/loginThrottle";
+import { timingSafeEqualText } from "@/lib/security/timingSafeEqual";
 import {
   addLogoSource,
   approveSource,
@@ -761,7 +763,7 @@ export async function setupAdminAction(formData: FormData) {
     throw new Error("Admin is already configured. Use /admin/login.");
 
   const token = String(formData.get("setupToken") || "");
-  if (process.env.ADMIN_SETUP_TOKEN && token !== process.env.ADMIN_SETUP_TOKEN)
+  if (process.env.ADMIN_SETUP_TOKEN && !timingSafeEqualText(token, process.env.ADMIN_SETUP_TOKEN))
     throw new Error("Invalid setup token.");
   const password = String(formData.get("password") || "");
   if (password.length < 10)
@@ -772,9 +774,13 @@ export async function setupAdminAction(formData: FormData) {
 }
 
 export async function loginAction(formData: FormData) {
+  await assertLoginAllowed();
   const password = String(formData.get("password") || "");
-  if (!(await validateAdminPassword(password)))
+  if (!(await validateAdminPassword(password))) {
+    await recordLoginFailure();
     throw new Error("Invalid admin password.");
+  }
+  await recordLoginSuccess();
   createSession();
   redirect("/admin");
 }

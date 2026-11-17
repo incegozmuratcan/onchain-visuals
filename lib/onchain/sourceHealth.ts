@@ -33,3 +33,5 @@ export async function getSourceHealth({ detailed = false } = {}) {
 
   return { generatedAt:new Date().toISOString(), status:storageReady ? 'ok' : 'storage_not_initialized', configured:storageReady, storageReady, missingTables, message, sources:sourceHealth };
 }
+
+export { redactPublicSourceHealth } from './redactSourceHealth';

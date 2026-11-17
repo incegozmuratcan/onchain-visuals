@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { buildChartSnapshot } from '@/lib/onchainData';
 import { buildBtcEtfJun8OutflowPreview, buildBtcEtfOct30OutflowPreview } from '@/lib/onchain/btcEtfPreview';
+import { PUBLIC_CACHE_CONTROL, readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
 
+// Stays dynamic so the X capture server sees the snapshot it just refreshed.
+// The CDN still caches public responses via Cache-Control. Next's data cache
+// is not used here: the workflow calls this URL before and after refresh.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function previewAllowed() {
+  return process.env.VERCEL_ENV !== "production";
+}
+
 export async function GET(request: NextRequest, { params }: { params: { datasetSlug: string } }) {
   const period = request.nextUrl.searchParams.get('period') || undefined;
-  const preview = request.nextUrl.searchParams.get('preview');
+  const preview = previewAllowed() ? request.nextUrl.searchParams.get('preview') : null;
   const snapshot = params.datasetSlug === 'btc-etf-flowboard' && preview === 'jun8-outflow'
     ? buildBtcEtfJun8OutflowPreview()
     : params.datasetSlug === 'btc-etf-flowboard' && preview === 'oct30-outflow'
       ? buildBtcEtfOct30OutflowPreview()
-      : await buildChartSnapshot(params.datasetSlug, period);
+      : await readPublicChartSnapshot(params.datasetSlug, period);
   if (!snapshot) return NextResponse.json({ error: 'Dataset not found' }, { status: 404 });
-  return NextResponse.json(snapshot);
+  return NextResponse.json(snapshot, { headers: { "Cache-Control": PUBLIC_CACHE_CONTROL } });
 }
