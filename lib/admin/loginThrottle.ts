@@ -20,10 +20,10 @@ function emptyBucket(now: number): Bucket {
   return { failures: 0, windowStarted: now, blockedUntil: 0 };
 }
 
-function clientKey() {
+function clientIp() {
   const forwarded = headers().get("x-forwarded-for") || headers().get("x-real-ip") || "unknown";
   const ip = forwarded.split(",")[0]?.trim() || "unknown";
-  return { ip: `ip:${ip}`, global: "global" };
+  return `ip:${ip}`;
 }
 
 async function ensureTable() {
@@ -98,33 +98,29 @@ function blocked(state: Bucket, now: number) {
 
 export async function assertLoginAllowed() {
   const now = Date.now();
-  const keys = clientKey();
-  for (const bucket of [keys.global, keys.ip]) {
-    const local = readMemory(bucket, now);
-    const remote = await readDb(bucket, now);
-    if (blocked(local, now) || (remote && blocked(remote, now))) {
-      throw new Error("Too many login attempts. Try again in a minute.");
-    }
+  const bucket = clientIp();
+  const local = readMemory(bucket, now);
+  const remote = await readDb(bucket, now);
+  if (blocked(local, now) || (remote && blocked(remote, now))) {
+    throw new Error("Too many login attempts. Try again in a minute.");
   }
 }
 
 export async function recordLoginFailure() {
   const now = Date.now();
-  const keys = clientKey();
-  for (const bucket of [keys.global, keys.ip]) {
-    const current = readMemory(bucket, now);
-    const next: Bucket = {
-      failures: current.failures + 1,
-      windowStarted: current.failures === 0 ? now : current.windowStarted,
-      blockedUntil: now + delayFor(current.failures + 1),
-    };
-    memory.set(bucket, next);
-    await writeDb(bucket, next);
-  }
+  const bucket = clientIp();
+  const current = readMemory(bucket, now);
+  const next: Bucket = {
+    failures: current.failures + 1,
+    windowStarted: current.failures === 0 ? now : current.windowStarted,
+    blockedUntil: now + delayFor(current.failures + 1),
+  };
+  memory.set(bucket, next);
+  await writeDb(bucket, next);
 }
 
 export async function recordLoginSuccess() {
-  const { ip } = clientKey();
+  const ip = clientIp();
   memory.delete(ip);
   if (!hasDatabaseConfig()) return;
   try {

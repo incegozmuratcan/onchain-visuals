@@ -8,7 +8,8 @@ import {
 } from '@/lib/onchain/btcEthEtfMonthlyPreview';
 import { buildChainRevenueDailyLongNamesPreview } from '@/lib/onchain/chainRevenueDailyPreview';
 import { getPublicBrandSettings } from '@/lib/brandSettings';
-import { readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
+import { PublicDataUnavailableError, readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
+import type { ChartSnapshot } from '@/lib/onchain/types';
 import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
 export default async function DatasetPage({params, searchParams}:{params:{slug:string};searchParams?:{period?:string;preview?:string;capture?:string}}){
@@ -28,10 +29,26 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
             : params.slug === 'chain-revenue-daily' && preview === 'long-names'
               ? buildChainRevenueDailyLongNamesPreview()
               : null;
-  // capture=1 still builds live, which is what the X workflows screenshot.
-  const data = previewData || (capture
-    ? await buildChartSnapshot(params.slug, searchParams?.period)
-    : await readPublicChartSnapshot(params.slug, searchParams?.period));
+  // GitHub Actions does not set VERCEL, so X renders still build live.
+  // A public capture=1 request on Vercel only reads the stored snapshot.
+  const live = capture && !process.env.VERCEL;
+  let data: ChartSnapshot | null = previewData;
+  if (!data) {
+    try {
+      data = live
+        ? await buildChartSnapshot(params.slug, searchParams?.period)
+        : await readPublicChartSnapshot(params.slug, searchParams?.period);
+    } catch (error) {
+      if (!(error instanceof PublicDataUnavailableError)) throw error;
+      return (
+        <main className="mx-auto flex min-h-[50vh] max-w-3xl flex-col justify-center p-8">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">Onchain Visuals</p>
+          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950">Data unavailable</h1>
+          <p className="mt-3 text-slate-600">This chart has no stored snapshot yet. It will show up after the next refresh.</p>
+        </main>
+      );
+    }
+  }
   if (!data) notFound();
   const brand = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily'
     ? await getPublicBrandSettings()

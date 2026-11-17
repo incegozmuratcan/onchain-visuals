@@ -6,6 +6,22 @@ import { importTs } from "./load-ts.mjs";
 const read = (path) => readFile(new URL(path, import.meta.url), "utf8");
 const equal = await importTs("../lib/security/timingSafeEqual.ts");
 
+const bounded = await importTs("../lib/onchain/boundedCache.ts");
+
+test("stored-read fallback cache drops the oldest entries", () => {
+  const map = new Map();
+  for (let i = 0; i < 55; i += 1) bounded.touchBounded(map, String(i), i, 50);
+  assert.equal(map.size, 50);
+  assert.equal(map.has("0"), false);
+  assert.equal(map.has("5"), true);
+  bounded.touchBounded(map, "5", 5, 50);
+  bounded.touchBounded(map, "newest", 1, 50);
+  assert.equal(map.size, 50);
+  assert.equal(map.has("5"), true);
+  assert.equal(map.has("6"), false);
+  assert.equal(map.has("newest"), true);
+});
+
 test("timing-safe compare does not throw on different lengths", () => {
   assert.equal(equal.timingSafeEqualText("a", "ab"), false);
   assert.equal(equal.timingSafeEqualText("same", "same"), true);
@@ -22,10 +38,20 @@ test("public chart reads use the stored snapshot and capture still builds live",
   assert.match(charts, /PUBLIC_CACHE_CONTROL/);
   const cache = await read("../lib/onchain/publicSnapshot.ts");
   assert.match(cache, /s-maxage=300, stale-while-revalidate=600/);
+  assert.match(cache, /normalizeChartPeriod/);
+  assert.match(cache, /supportedPeriods\.includes/);
+  assert.match(cache, /defaultPeriod/);
+  assert.match(cache, /process\.env\.VERCEL/);
+  assert.match(cache, /FALLBACK_LIMIT = 50/);
+  assert.match(cache, /PublicDataUnavailableError/);
   assert.match(charts, /VERCEL_ENV !== "production"/);
   assert.match(charts, /export const dynamic = "force-dynamic"/);
-  assert.match(page, /capture\s*\?[\s\S]*buildChartSnapshot/);
+  assert.match(page, /const live = capture && !process\.env\.VERCEL/);
+  assert.match(page, /live[\s\S]*buildChartSnapshot/);
   assert.match(page, /readPublicChartSnapshot/);
+  assert.match(page, /if \(capture\) return chart/);
+  assert.match(page, /Data unavailable/);
+  assert.match(charts, /status: 503/);
   assert.match(page, /VERCEL_ENV === 'production'/);
   assert.doesNotMatch(chain, /buildChartSnapshot/);
   assert.match(chain, /readPublicChartSnapshot/);
@@ -62,6 +88,9 @@ test("admin session secret fails closed in production and login is throttled", a
   assert.match(auth, /ADMIN_SESSION_SECRET is required in production/);
   assert.match(auth, /timingSafeEqualText/);
   assert.match(auth, /isProduction\(\)/);
+  const throttle = await read("../lib/admin/loginThrottle.ts");
+  assert.doesNotMatch(throttle, /global/);
+  assert.match(throttle, /recordLoginSuccess/);
   assert.match(actions, /assertLoginAllowed/);
   assert.match(actions, /timingSafeEqualText\(token, process\.env\.ADMIN_SETUP_TOKEN\)/);
   assert.match(refresh, /timingSafeEqualText/);

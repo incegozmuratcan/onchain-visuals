@@ -4,7 +4,7 @@ import { getDepinRevenue } from "@/lib/depinpulse";
 import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
 import { approvedLogoCandidateOverlay, approvedLogoCandidateSlugs, logoSlug } from "@/lib/admin/logoDb";
-import { PUBLIC_CACHE_CONTROL, readPublicChartSnapshot } from "@/lib/onchain/publicSnapshot";
+import { PUBLIC_CACHE_CONTROL, PublicDataUnavailableError, readPublicChartSnapshot } from "@/lib/onchain/publicSnapshot";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -134,6 +134,12 @@ export async function GET(request: NextRequest) {
       ...(process.env.NODE_ENV === "development" ? { _debug: { approvedLogoOverlayCount } } : {}),
     }, { headers: PUBLIC_HEADERS });
   } catch (error) {
+    if (error instanceof PublicDataUnavailableError) {
+      return NextResponse.json(
+        { ok: false, error: "Stored chart data is unavailable.", query: parsed },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Unknown error", query: parsed },
       { status: 500, headers: { "Cache-Control": "no-store, max-age=0" } }
