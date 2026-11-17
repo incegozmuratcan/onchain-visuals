@@ -55,9 +55,9 @@ function requirePanel(panel: CaptionPanel | undefined, asset: "BTC" | "ETH") {
 }
 
 /**
- * Caption for the combined daily card: one plain question with the Farside
- * session date shown on the card ("What were the net flows of Bitcoin and
- * Ethereum ETFs on Nov 14?"). The date is explicit because a Monday post
+ * Caption for the combined daily card: one plain sentence with the Farside
+ * session date shown on the card ("Here are the Bitcoin and Ethereum ETF
+ * flows for Nov 14."). The date is explicit because a Monday post
  * carries Friday's session, so "yesterday" would be wrong. Simple English
  * keeps X's translation clean. No amounts, cashtags, or hashtags; the card
  * carries the numbers. BTC and ETH must be the same completed session.
@@ -74,5 +74,5 @@ export function buildBtcEthEtfDailyCaption(snapshot: CaptionSnapshot) {
   if (btcDate !== ethDate) {
     throw new Error(`BTC+ETH ETF caption requires one session; BTC is ${btcDate} and ETH is ${ethDate}.`);
   }
-  return `What were the net flows of Bitcoin and Ethereum ETFs on ${shortDate(btcDate)}?`;
+  return `Here are the Bitcoin and Ethereum ETF flows for ${shortDate(btcDate)}.`;
 }
