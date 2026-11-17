@@ -89,156 +89,53 @@ function assertShortCaption(caption) {
   assert.ok(xWeightedLength(caption) <= 280, `${xWeightedLength(caption)} ${caption}`);
 }
 
-test("combined caption is the date plus BTC and ETH net flows", () => {
+const QUESTION = (date) => `What were the net flows of Bitcoin and Ethereum ETFs on ${date}?`;
+
+test("combined caption is one question with the Farside date on the card", () => {
   const caption = buildBtcEthEtfDailyCaption(snapshot());
-  assert.equal(
-    caption,
-    [
-      "ETF Daily Flowboard — Oct 30, 2026",
-      "",
-      "Bitcoin ETFs: -$643.2M net outflow",
-      "",
-      "Ethereum ETFs: -$89.4M net outflow",
-    ].join("\n"),
-  );
+  assert.equal(caption, QUESTION("Oct 30"));
+  assert.doesNotMatch(caption, /\n/);
+  assert.equal((caption.match(/[.?!]/g) || []).length, 1, "one sentence only");
   assertShortCaption(caption);
 });
 
-test("inflow captions use the sign of each net flow", () => {
-  const caption = buildBtcEthEtfDailyCaption(
-    snapshot({
-      btc: panel("BTC", {
-        date: "2026-10-29",
-        netFlow: 120_400_000,
-        formattedNet: "+$120.4M",
-        largest: { ticker: "FBTC", issuer: "Fidelity", value: 80_100_000, formattedValue: "+$80M" },
-        issuers: [
-          { ticker: "FBTC", name: "Fidelity", value: 80_100_000, formattedValue: "+$80M" },
-          { ticker: "IBIT", name: "BlackRock", value: 40_000_000, formattedValue: "+$40M" },
-        ],
-      }),
-      eth: panel("ETH", {
-        date: "2026-10-29",
-        netFlow: 15_000_000,
-        formattedNet: "+$15.0M",
-        largest: { ticker: "ETHA", issuer: "BlackRock", value: 12_000_000, formattedValue: "+$12M" },
-        issuers: [
-          { ticker: "ETHA", name: "BlackRock", value: 12_000_000, formattedValue: "+$12M" },
-          { ticker: "FETH", name: "Fidelity", value: 3_000_000, formattedValue: "+$3M" },
-        ],
-      }),
-    }),
-  );
-  assert.equal(
-    caption,
-    [
-      "ETF Daily Flowboard — Oct 29, 2026",
-      "",
-      "Bitcoin ETFs: +$120.4M net inflow",
-      "",
-      "Ethereum ETFs: +$15.0M net inflow",
-    ].join("\n"),
-  );
-  assertShortCaption(caption);
-});
-
-test("issuer rows stay off the combined caption", () => {
-  const short = {
-    date: "2026-10-29",
-    formattedCumulative: "+$1B",
-    cumulative: 1_000_000_000,
-  };
-  const caption = buildBtcEthEtfDailyCaption({
-    title: "ETF",
-    metadata: {
-      latestCompletedDate: "2026-10-29",
-      ethLatestCompletedDate: "2026-10-29",
-    },
-    series: {
-      cards: [
-        panel("BTC", {
-          ...short,
-          netFlow: 3_000_000,
-          formattedNet: "+$3M",
-          largest: { ticker: "FBTC", issuer: "Fidelity", value: 2_000_000, formattedValue: "+$2M" },
-          issuers: [
-            { ticker: "FBTC", name: "Fidelity", value: 2_000_000, formattedValue: "+$2M" },
-            { ticker: "IBIT", name: "BlackRock", value: 1_000_000, formattedValue: "+$1M" },
-          ],
-        }),
-        panel("ETH", {
-          ...short,
-          netFlow: 2_000_000,
-          formattedNet: "+$2M",
-          largest: { ticker: "ETHA", issuer: "BlackRock", value: 2_000_000, formattedValue: "+$2M" },
-          issuers: [
-            { ticker: "ETHA", name: "BlackRock", value: 2_000_000, formattedValue: "+$2M" },
-            { ticker: "FETH", name: "Fidelity", value: 1_000_000, formattedValue: "+$1M" },
-          ],
-        }),
-      ],
-    },
+test("the caption names the session date, not the post date", () => {
+  // A Monday post carries Friday's session.
+  const friday = snapshot({
+    btc: panel("BTC", { date: "2026-11-13" }),
+    eth: panel("ETH", { date: "2026-11-13" }),
   });
-  assert.equal(
-    caption,
-    [
-      "ETF — Oct 29, 2026",
-      "",
-      "Bitcoin ETFs: +$3M net inflow",
-      "",
-      "Ethereum ETFs: +$2M net inflow",
-    ].join("\n"),
-  );
-  assert.doesNotMatch(caption, /IBIT|FETH|ETHA|FBTC/);
-  assertShortCaption(caption);
+  assert.equal(buildBtcEthEtfDailyCaption(friday), QUESTION("Nov 13"));
+  const singleDigit = snapshot({
+    btc: panel("BTC", { date: "2026-12-01" }),
+    eth: panel("ETH", { date: "2026-12-01" }),
+  });
+  assert.equal(buildBtcEthEtfDailyCaption(singleDigit), QUESTION("Dec 1"));
 });
 
-test("different completed dates are both named", () => {
-  const caption = buildBtcEthEtfDailyCaption(
-    snapshot({
-      eth: panel("ETH", { date: "2026-10-29" }),
-    }),
-  );
-  assert.match(caption, /BTC Oct 30, 2026/);
-  assert.match(caption, /ETH Oct 29, 2026/);
-  assert.ok(xWeightedLength(caption) <= 280, caption);
-});
-
-test("issuer detail never lengthens the combined caption", () => {
+test("amounts, direction words, and issuers stay off the caption", () => {
   const issuers = Array.from({ length: 12 }, (_, index) => ({
     ticker: `T${index}`,
     name: `Issuer ${index} with a long display name`,
-    value: -1_000_000 * (index + 1),
-    formattedValue: `-$${index + 1}M`,
+    value: 1_000_000 * (index + 1),
+    formattedValue: `+$${index + 1}M`,
   }));
   const caption = buildBtcEthEtfDailyCaption(
     snapshot({
-      btc: panel("BTC", {
-        netFlow: -10_000_000,
-        formattedNet: "-$10.0M",
-        largest: { ticker: "T11", issuer: issuers[11].name, value: -12_000_000, formattedValue: "-$12M" },
-        issuers,
-      }),
-      eth: panel("ETH", {
-        netFlow: -8_000_000,
-        formattedNet: "-$8.0M",
-        largest: { ticker: "T11", issuer: issuers[11].name, value: -12_000_000, formattedValue: "-$12M" },
-        issuers,
-      }),
+      btc: panel("BTC", { netFlow: 120_400_000, formattedNet: "+$120.4M", issuers }),
+      eth: panel("ETH", { netFlow: -8_000_000, formattedNet: "-$8.0M", issuers }),
     }),
   );
-  assert.equal(
-    caption,
-    [
-      "ETF Daily Flowboard — Oct 30, 2026",
-      "",
-      "Bitcoin ETFs: -$10.0M net outflow",
-      "",
-      "Ethereum ETFs: -$8.0M net outflow",
-    ].join("\n"),
-  );
-  assert.doesNotMatch(caption, /Issuer|T11/);
+  assert.equal(caption, QUESTION("Oct 30"));
+  assert.doesNotMatch(caption, /\$|inflow|outflow|Issuer|T11|IBIT|ETHA|Flowboard/);
   assertShortCaption(caption);
+});
+
+test("different BTC and ETH sessions stop the caption", () => {
+  assert.throws(
+    () => buildBtcEthEtfDailyCaption(snapshot({ eth: panel("ETH", { date: "2026-10-29" }) })),
+    /one session; BTC is 2026-10-30 and ETH is 2026-10-29/,
+  );
 });
 
 test("caption builder rejects a panel that is not ready to post", () => {

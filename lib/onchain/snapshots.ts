@@ -30,6 +30,17 @@ import {
   fetchPerpProtocols,
   fetchCexTransparency,
 } from "./sources/defillama";
+import { fetchChainRevenueDaily } from "./sources/chainRevenue";
+import {
+  assessChainRevenueDay,
+  formatChainRevenueAmount,
+  formatChainRevenueShare,
+  latestCompleteChainRevenueDay,
+  latestCompletedUtcDay,
+  rankChainRevenueDay,
+  type RevenueChain,
+  type RevenueDays,
+} from "./chainRevenueDaily";
 import {
   fetchBtcEtfFlows,
   fetchEthEtfFlows,
@@ -1352,6 +1363,115 @@ async function buildEtfFlowSnapshot(
     return buildBtcEtfDailyCard(d, period || "daily", flowResult, undefined, asset);
   });
 }
+/**
+ * Chain Revenue Daily card. The card day is the newest UTC calendar day that
+ * passes the completeness gate (usually yesterday). A day that DefiLlama is
+ * still filling never reaches the card, so the site never shows a partial day.
+ */
+export function buildChainRevenueDailyCard(
+  d: DatasetRegistryItem,
+  period: string,
+  result: { url?: string | null; warnings?: string[]; data: { chains: RevenueChain[]; days: RevenueDays; failed?: string[]; fetchedAt?: string } },
+  now: Date = new Date(),
+) {
+  const { chains, days } = result.data;
+  const latest = latestCompletedUtcDay(now);
+  const latestAssessment = assessChainRevenueDay(days, latest);
+  const assessment = latestAssessment.complete ? latestAssessment : latestCompleteChainRevenueDay(days, latest);
+  if (!assessment) {
+    throw new Error(`No complete DefiLlama chain revenue day on or before ${latest}. ${latestAssessment.message}`);
+  }
+  const ranking = rankChainRevenueDay(days, assessment.date, chains);
+  if (ranking.rows.length < 10) {
+    throw new Error(`Chain revenue ${assessment.date} has ${ranking.rows.length} chains with revenue; the card needs 10.`);
+  }
+  const leader = ranking.rows[0];
+  const formattedTotal = formatChainRevenueAmount(ranking.total);
+  const formattedLeaderShare = formatChainRevenueShare(leader.share);
+  return {
+    ...sourceSafeBase(
+      d,
+      period,
+      "Chain Revenue",
+      "Revenue captured by the blockchains themselves on the latest completed UTC day.",
+    ),
+    date: assessment.date,
+    sourceLabel: "DefiLlama",
+    exportFormats: ["1600x900" as const],
+    status: "active" as const,
+    freshness: {
+      status: "fresh" as const,
+      lastUpdatedAt: result.data.fetchedAt || new Date().toISOString(),
+      source: "DefiLlama",
+      fallbackUsed: false,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: [
+      metric("Total chain revenue", ranking.total, formattedTotal),
+      metric(`#1 share · ${leader.name}`, leader.share, formattedLeaderShare),
+      metric("Chains reporting", ranking.chainCount, String(ranking.chainCount)),
+    ],
+    series: {
+      ...emptySeries(),
+      bars: ranking.rows.map((row) => ({
+        rank: row.rank,
+        slug: row.slug,
+        name: row.name,
+        logo: row.logo,
+        value: row.value,
+        formattedValue: row.formattedValue,
+        barPercent: row.barPercent,
+        share: row.share,
+      })),
+    },
+    insights: [
+      `${ranking.chainCount} chains generated ${formattedTotal} in revenue on ${humanDate(assessment.date)}.`,
+      `${leader.name} captured ${formattedLeaderShare} of all chain revenue.`,
+    ],
+    sourceUrl: result.url || null,
+    warnings: [
+      ...(result.warnings || []),
+      ...(latestAssessment.complete ? [] : [latestAssessment.message]),
+    ],
+    metadata: {
+      ...base(d, period).metadata,
+      layout: "chain-revenue-daily",
+      view: "daily",
+      latestCompletedDate: assessment.date,
+      totalRevenue: ranking.total,
+      formattedTotal,
+      chainCount: ranking.chainCount,
+      leader: {
+        slug: leader.slug,
+        name: leader.name,
+        logo: leader.logo,
+        share: leader.share,
+        formattedShare: formattedLeaderShare,
+      },
+      coverage: {
+        date: assessment.date,
+        complete: assessment.complete,
+        chainCount: assessment.chainCount,
+        threshold: assessment.threshold,
+        priorDates: assessment.priorDates,
+        priorCounts: assessment.priorCounts,
+        priorTop: assessment.priorTop,
+        missingPriorTop: assessment.missingPriorTop,
+        message: assessment.message,
+      },
+      failedChains: result.data.failed || [],
+      defaultExportFormat: "1536x1134",
+    },
+  };
+}
+async function buildChainRevenueDaily(d: DatasetRegistryItem, period: string) {
+  return withFallback(d, period, async () => {
+    const started = new Date().toISOString();
+    const result: any = await resultOrThrow(d.slug, "DefiLlama", started, await fetchChainRevenueDaily());
+    return buildChainRevenueDailyCard(d, period, result);
+  });
+}
 async function buildBtcEthWeeklySplit(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const started = new Date().toISOString();
@@ -1701,6 +1821,8 @@ export async function buildChartSnapshot(
         fetchCexTransparency,
         "exchange reserves",
       );
+    case "chain-revenue-daily":
+      return buildChainRevenueDaily(d, p);
     case "btc-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "BTC");
     case "btc-eth-etf-daily-flowboard":
