@@ -89,11 +89,11 @@ function assertShortCaption(caption) {
   assert.ok(xWeightedLength(caption) <= 280, `${xWeightedLength(caption)} ${caption}`);
 }
 
-const QUESTION = (date) => `What were the net flows of Bitcoin and Ethereum ETFs on ${date}?`;
+const CAPTION = (date) => `Here are the Bitcoin and Ethereum ETF flows for ${date}.`;
 
-test("combined caption is one question with the Farside date on the card", () => {
+test("combined caption is one sentence with the Farside date on the card", () => {
   const caption = buildBtcEthEtfDailyCaption(snapshot());
-  assert.equal(caption, QUESTION("Oct 30"));
+  assert.equal(caption, CAPTION("Oct 30"));
   assert.doesNotMatch(caption, /\n/);
   assert.equal((caption.match(/[.?!]/g) || []).length, 1, "one sentence only");
   assertShortCaption(caption);
@@ -105,12 +105,12 @@ test("the caption names the session date, not the post date", () => {
     btc: panel("BTC", { date: "2026-11-13" }),
     eth: panel("ETH", { date: "2026-11-13" }),
   });
-  assert.equal(buildBtcEthEtfDailyCaption(friday), QUESTION("Nov 13"));
+  assert.equal(buildBtcEthEtfDailyCaption(friday), CAPTION("Nov 13"));
   const singleDigit = snapshot({
     btc: panel("BTC", { date: "2026-12-01" }),
     eth: panel("ETH", { date: "2026-12-01" }),
   });
-  assert.equal(buildBtcEthEtfDailyCaption(singleDigit), QUESTION("Dec 1"));
+  assert.equal(buildBtcEthEtfDailyCaption(singleDigit), CAPTION("Dec 1"));
 });
 
 test("amounts, direction words, and issuers stay off the caption", () => {
@@ -126,7 +126,7 @@ test("amounts, direction words, and issuers stay off the caption", () => {
       eth: panel("ETH", { netFlow: -8_000_000, formattedNet: "-$8.0M", issuers }),
     }),
   );
-  assert.equal(caption, QUESTION("Oct 30"));
+  assert.equal(caption, CAPTION("Oct 30"));
   assert.doesNotMatch(caption, /\$|inflow|outflow|Issuer|T11|IBIT|ETHA|Flowboard/);
   assertShortCaption(caption);
 });
