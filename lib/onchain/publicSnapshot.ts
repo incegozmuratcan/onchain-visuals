@@ -1,7 +1,10 @@
+import { waitUntil } from "@vercel/functions";
 import { datasetRegistry } from "./registry";
 import { buildChartSnapshot } from "./snapshots";
 import { loadStoredChartSnapshot } from "./storage";
 import { touchBounded } from "./boundedCache";
+import { tryClaimPublicRefresh } from "./refreshLock";
+import { freshnessTtlMs, planPublicRead, publicDatasetMayBuild, snapshotIsStale } from "./publicRefreshPlan";
 import type { ChartSnapshot } from "./types";
 
 const FALLBACK_TTL_MS = 300_000;
@@ -10,11 +13,13 @@ const fallbackCache = new Map<string, { at: number; snapshot: ChartSnapshot }>()
 
 export class PublicDataUnavailableError extends Error {
   readonly slug: string;
+  readonly updating: boolean;
 
-  constructor(slug: string) {
-    super("Stored chart data is unavailable.");
+  constructor(slug: string, updating = false) {
+    super(updating ? "Stored chart data is unavailable. Updating." : "Stored chart data is unavailable.");
     this.name = "PublicDataUnavailableError";
     this.slug = slug;
+    this.updating = updating;
   }
 }
 
@@ -27,27 +32,77 @@ export function normalizeChartPeriod(slug: string, period?: string | null) {
   return dataset.defaultPeriod;
 }
 
-/**
- * Public pages and APIs read the latest stored snapshot. They do not refresh
- * upstream sources and they do not write. Off Vercel, a cold cache with
- * nothing stored builds once and keeps that result for five minutes.
- * On Vercel a missing row is an error: a public request must not build.
- */
-export async function readPublicChartSnapshot(slug: string, period?: string): Promise<ChartSnapshot | null> {
-  const normalized = normalizeChartPeriod(slug, period);
-  if (!normalized) return null;
-  const stored = await loadStoredChartSnapshot(slug, normalized);
+function schedulePublicRebuild(slug: string, period: string) {
+  const task = buildChartSnapshot(slug, period).catch((error) => {
+    console.warn(
+      `[public-refresh] ${slug} ${period} failed`,
+      error instanceof Error ? error.message : error,
+    );
+  });
+  waitUntil(task);
+}
+
+/** A database failure is "unavailable", not a reason to fetch upstream. */
+async function loadStoredPublicSnapshot(slug: string, period: string) {
+  try {
+    return await loadStoredChartSnapshot(slug, period);
+  } catch (error) {
+    console.warn(
+      `[public-refresh] stored read failed for ${slug} ${period}`,
+      error instanceof Error ? error.message : error,
+    );
+    throw new PublicDataUnavailableError(slug, false);
+  }
+}
+
+async function readStoredOrFallback(slug: string, period: string): Promise<ChartSnapshot | null> {
+  const stored = await loadStoredPublicSnapshot(slug, period);
   if (stored) return stored;
-  if (process.env.VERCEL) throw new PublicDataUnavailableError(slug);
-  const key = `${slug}\n${normalized}`;
+  const key = `${slug}\n${period}`;
   const hit = fallbackCache.get(key);
   if (hit && Date.now() - hit.at < FALLBACK_TTL_MS) {
     touchBounded(fallbackCache, key, hit, FALLBACK_LIMIT);
     return hit.snapshot;
   }
-  const built = await buildChartSnapshot(slug, normalized, { persist: false });
+  const built = await buildChartSnapshot(slug, period, { persist: false });
   if (built) touchBounded(fallbackCache, key, { at: Date.now(), snapshot: built }, FALLBACK_LIMIT);
   return built;
 }
 
-export const PUBLIC_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=600";
+/**
+ * Public pages and APIs read the latest stored snapshot.
+ * Off Vercel, a missing row builds once without writing and stays in a 50-entry cache.
+ * On Vercel, a missing or stale row starts at most one rebuild per 15 minutes.
+ */
+export async function readPublicChartSnapshot(slug: string, period?: string): Promise<ChartSnapshot | null> {
+  const normalized = normalizeChartPeriod(slug, period);
+  if (!normalized) return null;
+  if (!process.env.VERCEL) return readStoredOrFallback(slug, normalized);
+
+  const dataset = datasetRegistry.find((item) => item.slug === slug);
+  const stored = await loadStoredPublicSnapshot(slug, normalized);
+  const mayBuild = publicDatasetMayBuild(dataset?.status);
+  const stale = !stored || snapshotIsStale(stored.freshness.lastUpdatedAt, Date.now(), freshnessTtlMs(dataset?.refreshPolicy));
+  const lockAcquired = mayBuild && stale ? await tryClaimPublicRefresh(slug, normalized) : false;
+  const plan = planPublicRead({ mayBuild, hasStored: Boolean(stored), stale, lockAcquired });
+  if (plan.action === "unavailable") throw new PublicDataUnavailableError(slug, plan.updating);
+  if (plan.action === "build") {
+    const built = await buildChartSnapshot(slug, normalized);
+    if (!built || built.status !== "active") throw new PublicDataUnavailableError(slug, false);
+    return built;
+  }
+  if (plan.refresh) schedulePublicRebuild(slug, normalized);
+  return stored;
+}
+
+export const PUBLIC_CDN_CACHE_CONTROL = "s-maxage=300, stale-while-revalidate=600";
+export const PUBLIC_CACHE_CONTROL = `public, ${PUBLIC_CDN_CACHE_CONTROL}`;
+
+/** Next rewrites Cache-Control on force-dynamic routes. The CDN headers are what Vercel keeps. */
+export function publicCacheHeaders() {
+  return {
+    "Cache-Control": PUBLIC_CACHE_CONTROL,
+    "CDN-Cache-Control": PUBLIC_CDN_CACHE_CONTROL,
+    "Vercel-CDN-Cache-Control": PUBLIC_CDN_CACHE_CONTROL,
+  };
+}

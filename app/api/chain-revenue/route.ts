@@ -4,12 +4,12 @@ import { getDepinRevenue } from "@/lib/depinpulse";
 import { getBenjiValueByNetwork, getBuidlValueByNetwork, getChainRevenue, getChainTvl, getStablecoinSupplyByChain } from "@/lib/defillama";
 import { parsePrompt } from "@/lib/parser";
 import { approvedLogoCandidateOverlay, approvedLogoCandidateSlugs, logoSlug } from "@/lib/admin/logoDb";
-import { PUBLIC_CACHE_CONTROL, PublicDataUnavailableError, readPublicChartSnapshot } from "@/lib/onchain/publicSnapshot";
+import { PublicDataUnavailableError, publicCacheHeaders, readPublicChartSnapshot } from "@/lib/onchain/publicSnapshot";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-const PUBLIC_HEADERS = { "Cache-Control": PUBLIC_CACHE_CONTROL };
+const PUBLIC_HEADERS = publicCacheHeaders();
 const metricCache = new Map<string, { at: number; value: Awaited<ReturnType<typeof getChainRevenue>> }>();
 
 async function cachedMetric<T>(key: string, load: () => Promise<T>): Promise<T> {
