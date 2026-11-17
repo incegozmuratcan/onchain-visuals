@@ -33,6 +33,16 @@ export function snapshotIsStale(storedAt: string | null | undefined, now: number
   return now - at >= ttlMs;
 }
 
+/** An active row follows the cadence. Anything else is due for another try. */
+export function publicReadIsStale(
+  stored: { status?: string; freshness?: { lastUpdatedAt?: string | null } } | null | undefined,
+  now: number,
+  ttlMs: number,
+) {
+  if (!stored || stored.status !== "active") return true;
+  return snapshotIsStale(stored.freshness?.lastUpdatedAt, now, ttlMs);
+}
+
 export function publicDatasetMayBuild(status: string | undefined) {
   return status !== "disabled" && status !== "source_config_required";
 }

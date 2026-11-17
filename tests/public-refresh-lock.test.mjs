@@ -25,6 +25,15 @@ test("a snapshot is stale when it is missing or older than the TTL", () => {
   assert.equal(plan.snapshotIsStale("2026-11-17T10:00:00.000Z", now, HOUR), true);
 });
 
+test("a non-active public snapshot is always due for another locked try", () => {
+  const now = Date.parse("2026-11-17T12:00:00.000Z");
+  const recent = "2026-11-17T11:59:00.000Z";
+  assert.equal(plan.publicReadIsStale(null, now, HOUR), true);
+  assert.equal(plan.publicReadIsStale({ status: "active", freshness: { lastUpdatedAt: recent } }, now, HOUR), false);
+  assert.equal(plan.publicReadIsStale({ status: "source_error", freshness: { lastUpdatedAt: recent } }, now, HOUR), true);
+  assert.equal(plan.publicReadIsStale({ status: "stale", freshness: { lastUpdatedAt: recent } }, now, HOUR), true);
+});
+
 test("disabled and unconfigured datasets never build", () => {
   assert.equal(plan.publicDatasetMayBuild("active"), true);
   assert.equal(plan.publicDatasetMayBuild("disabled"), false);
@@ -76,7 +85,13 @@ test("the refresh lock upsert only replaces a claim older than 15 minutes", asyn
   assert.match(reader, /import \{ waitUntil \} from "@vercel\/functions"/);
   assert.doesNotMatch(reader, /import\("@vercel\/functions"\)/);
   assert.match(reader, /built\.status !== "active"/);
+  assert.match(reader, /rememberPublicSnapshot/);
+  assert.match(reader, /publicReadIsStale/);
+  assert.match(reader, /function publicSnapshotHeaders/);
+  assert.match(reader, /no-store/);
   assert.match(reader, /loadStoredPublicSnapshot/);
+  const storage = await readFile(new URL("../lib/onchain/storage.ts", import.meta.url), "utf8");
+  assert.match(storage, /freshness_status not in \('source_error', 'disabled', 'source_config_required'\)/);
   const page = await readFile(new URL("../app/onchain/[slug]/page.tsx", import.meta.url), "utf8");
   const charts = await readFile(new URL("../app/api/charts/[datasetSlug]/route.ts", import.meta.url), "utf8");
   assert.match(page, /export const maxDuration = 60/);

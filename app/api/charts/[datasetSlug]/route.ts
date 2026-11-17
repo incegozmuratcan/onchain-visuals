@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildBtcEtfJun8OutflowPreview, buildBtcEtfOct30OutflowPreview } from '@/lib/onchain/btcEtfPreview';
-import { PublicDataUnavailableError, publicCacheHeaders, readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
+import { PublicDataUnavailableError, publicSnapshotHeaders, readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
 
 // Stays dynamic so the X capture server sees the snapshot it just refreshed.
 // The CDN still caches public responses via Cache-Control. Next's data cache
@@ -33,5 +33,5 @@ export async function GET(request: NextRequest, { params }: { params: { datasetS
     throw error;
   }
   if (!snapshot) return NextResponse.json({ error: 'Dataset not found' }, { status: 404 });
-  return NextResponse.json(snapshot, { headers: publicCacheHeaders() });
+  return NextResponse.json(snapshot, { headers: publicSnapshotHeaders(snapshot.status) });
 }

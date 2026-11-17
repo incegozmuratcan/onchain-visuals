@@ -35,7 +35,7 @@ test("public chart reads use the stored snapshot and capture still builds live",
   const home = await read("../app/page.tsx");
   const layout = await read("../app/layout.tsx");
   assert.match(charts, /readPublicChartSnapshot/);
-  assert.match(charts, /publicCacheHeaders/);
+  assert.match(charts, /publicSnapshotHeaders/);
   const cache = await read("../lib/onchain/publicSnapshot.ts");
   assert.match(cache, /Vercel-CDN-Cache-Control/);
   assert.match(cache, /s-maxage=300, stale-while-revalidate=600/);

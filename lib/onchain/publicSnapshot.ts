@@ -1,10 +1,10 @@
 import { waitUntil } from "@vercel/functions";
 import { datasetRegistry } from "./registry";
 import { buildChartSnapshot } from "./snapshots";
-import { loadStoredChartSnapshot } from "./storage";
+import { loadStoredChartSnapshot, saveChartSnapshot } from "./storage";
 import { touchBounded } from "./boundedCache";
 import { tryClaimPublicRefresh } from "./refreshLock";
-import { freshnessTtlMs, planPublicRead, publicDatasetMayBuild, snapshotIsStale } from "./publicRefreshPlan";
+import { freshnessTtlMs, planPublicRead, publicDatasetMayBuild, publicReadIsStale } from "./publicRefreshPlan";
 import type { ChartSnapshot } from "./types";
 
 const FALLBACK_TTL_MS = 300_000;
@@ -82,17 +82,32 @@ export async function readPublicChartSnapshot(slug: string, period?: string): Pr
   const dataset = datasetRegistry.find((item) => item.slug === slug);
   const stored = await loadStoredPublicSnapshot(slug, normalized);
   const mayBuild = publicDatasetMayBuild(dataset?.status);
-  const stale = !stored || snapshotIsStale(stored.freshness.lastUpdatedAt, Date.now(), freshnessTtlMs(dataset?.refreshPolicy));
+  const stale = publicReadIsStale(stored, Date.now(), freshnessTtlMs(dataset?.refreshPolicy));
   const lockAcquired = mayBuild && stale ? await tryClaimPublicRefresh(slug, normalized) : false;
   const plan = planPublicRead({ mayBuild, hasStored: Boolean(stored), stale, lockAcquired });
   if (plan.action === "unavailable") throw new PublicDataUnavailableError(slug, plan.updating);
   if (plan.action === "build") {
     const built = await buildChartSnapshot(slug, normalized);
-    if (!built || built.status !== "active") throw new PublicDataUnavailableError(slug, false);
+    if (!built) throw new PublicDataUnavailableError(slug, false);
+    // Keep the 15-minute lock. A source_error or stale card is stored so the
+    // next request can show it, and the following rebuild waits for the lock.
+    if (built.status !== "active") await rememberPublicSnapshot(built);
     return built;
   }
   if (plan.refresh) schedulePublicRebuild(slug, normalized);
   return stored;
+}
+
+/** Remember a finished non-active build without extending the refresh lock. */
+async function rememberPublicSnapshot(snapshot: ChartSnapshot) {
+  try {
+    await saveChartSnapshot(snapshot);
+  } catch (error) {
+    console.warn(
+      `[public-refresh] could not store ${snapshot.datasetSlug} ${snapshot.period}`,
+      error instanceof Error ? error.message : error,
+    );
+  }
 }
 
 export const PUBLIC_CDN_CACHE_CONTROL = "s-maxage=300, stale-while-revalidate=600";
@@ -104,5 +119,17 @@ export function publicCacheHeaders() {
     "Cache-Control": PUBLIC_CACHE_CONTROL,
     "CDN-Cache-Control": PUBLIC_CDN_CACHE_CONTROL,
     "Vercel-CDN-Cache-Control": PUBLIC_CDN_CACHE_CONTROL,
+  };
+}
+
+const PUBLIC_ERROR_CACHE_CONTROL = "no-store";
+
+/** Active charts use the CDN. A source error or stale card must not be cached. */
+export function publicSnapshotHeaders(status?: string) {
+  if (status === "active") return publicCacheHeaders();
+  return {
+    "Cache-Control": PUBLIC_ERROR_CACHE_CONTROL,
+    "CDN-Cache-Control": PUBLIC_ERROR_CACHE_CONTROL,
+    "Vercel-CDN-Cache-Control": PUBLIC_ERROR_CACHE_CONTROL,
   };
 }
