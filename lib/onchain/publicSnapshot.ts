@@ -4,7 +4,7 @@ import { buildChartSnapshot } from "./snapshots";
 import { loadStoredChartSnapshot, saveChartSnapshot } from "./storage";
 import { touchBounded } from "./boundedCache";
 import { tryClaimPublicRefresh } from "./refreshLock";
-import { freshnessTtlMs, planPublicRead, publicDatasetMayBuild, publicReadIsStale } from "./publicRefreshPlan";
+import { freshnessTtlMs, planPublicRead, publicDatasetMayBuild, publicReadIsStale, shouldRememberPublicSnapshot } from "./publicRefreshPlan";
 import type { ChartSnapshot } from "./types";
 
 const FALLBACK_TTL_MS = 300_000;
@@ -89,9 +89,9 @@ export async function readPublicChartSnapshot(slug: string, period?: string): Pr
   if (plan.action === "build") {
     const built = await buildChartSnapshot(slug, normalized);
     if (!built) throw new PublicDataUnavailableError(slug, false);
-    // Keep the 15-minute lock. A source_error or stale card is stored so the
-    // next request can show it, and the following rebuild waits for the lock.
-    if (built.status !== "active") await rememberPublicSnapshot(built);
+    // Keep the 15-minute lock. Store a real error for this period so the next
+    // request can show it. A stale fallback copied from another period is not stored.
+    if (shouldRememberPublicSnapshot(built, normalized)) await rememberPublicSnapshot(built);
     return built;
   }
   if (plan.refresh) schedulePublicRebuild(slug, normalized);

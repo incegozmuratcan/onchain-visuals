@@ -25,6 +25,24 @@ test("a snapshot is stale when it is missing or older than the TTL", () => {
   assert.equal(plan.snapshotIsStale("2026-11-17T10:00:00.000Z", now, HOUR), true);
 });
 
+test("only a real error for the requested period is stored", () => {
+  const requested = "monthly";
+  assert.equal(
+    plan.shouldRememberPublicSnapshot(
+      { status: "stale", period: "daily", freshness: { fallbackUsed: true } },
+      requested,
+    ),
+    false,
+  );
+  assert.equal(
+    plan.shouldRememberPublicSnapshot(
+      { status: "source_error", period: "monthly", freshness: { fallbackUsed: false } },
+      requested,
+    ),
+    true,
+  );
+});
+
 test("a non-active public snapshot is always due for another locked try", () => {
   const now = Date.parse("2026-11-17T12:00:00.000Z");
   const recent = "2026-11-17T11:59:00.000Z";
@@ -84,7 +102,7 @@ test("the refresh lock upsert only replaces a claim older than 15 minutes", asyn
   const reader = await readFile(new URL("../lib/onchain/publicSnapshot.ts", import.meta.url), "utf8");
   assert.match(reader, /import \{ waitUntil \} from "@vercel\/functions"/);
   assert.doesNotMatch(reader, /import\("@vercel\/functions"\)/);
-  assert.match(reader, /built\.status !== "active"/);
+  assert.match(reader, /shouldRememberPublicSnapshot\(built, normalized\)/);
   assert.match(reader, /rememberPublicSnapshot/);
   assert.match(reader, /publicReadIsStale/);
   assert.match(reader, /function publicSnapshotHeaders/);
