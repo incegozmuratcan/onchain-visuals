@@ -6,11 +6,12 @@ import { importTs } from "./load-ts.mjs";
 const plan = await importTs("../lib/onchain/publicRefreshPlan.ts");
 const HOUR = 60 * 60 * 1000;
 
-test("freshness TTL follows the dataset cadence and otherwise is one hour", () => {
+test("freshness TTL follows the dataset cadence and never exceeds six hours", () => {
   assert.equal(plan.freshnessTtlMs("6h snapshot"), 6 * HOUR);
-  assert.equal(plan.freshnessTtlMs("daily refresh"), 24 * HOUR);
-  assert.equal(plan.freshnessTtlMs("weekly refresh"), 7 * 24 * HOUR);
-  assert.equal(plan.freshnessTtlMs("monthly refresh"), 30 * 24 * HOUR);
+  assert.equal(plan.freshnessTtlMs("12h snapshot"), 6 * HOUR);
+  assert.equal(plan.freshnessTtlMs("daily refresh"), 6 * HOUR);
+  assert.equal(plan.freshnessTtlMs("weekly refresh"), 6 * HOUR);
+  assert.equal(plan.freshnessTtlMs("monthly refresh"), 6 * HOUR);
   assert.equal(plan.freshnessTtlMs("hourly snapshot"), HOUR);
   assert.equal(plan.freshnessTtlMs("external collector snapshot"), HOUR);
   assert.equal(plan.freshnessTtlMs(""), HOUR);
@@ -71,4 +72,13 @@ test("the refresh lock upsert only replaces a claim older than 15 minutes", asyn
   const schema = await readFile(new URL("../db/schema.sql", import.meta.url), "utf8");
   assert.match(schema, /create table if not exists refresh_locks/i);
   assert.match(schema, /primary key \(dataset_slug, period\)/);
+  const reader = await readFile(new URL("../lib/onchain/publicSnapshot.ts", import.meta.url), "utf8");
+  assert.match(reader, /import \{ waitUntil \} from "@vercel\/functions"/);
+  assert.doesNotMatch(reader, /import\("@vercel\/functions"\)/);
+  assert.match(reader, /built\.status !== "active"/);
+  assert.match(reader, /loadStoredPublicSnapshot/);
+  const page = await readFile(new URL("../app/onchain/[slug]/page.tsx", import.meta.url), "utf8");
+  const charts = await readFile(new URL("../app/api/charts/[datasetSlug]/route.ts", import.meta.url), "utf8");
+  assert.match(page, /export const maxDuration = 60/);
+  assert.match(charts, /export const maxDuration = 60/);
 });

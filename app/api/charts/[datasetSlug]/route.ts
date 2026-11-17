@@ -7,6 +7,7 @@ import { PublicDataUnavailableError, publicCacheHeaders, readPublicChartSnapshot
 // is not used here: the workflow calls this URL before and after refresh.
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 60;
 
 function previewAllowed() {
   return process.env.VERCEL_ENV !== "production";

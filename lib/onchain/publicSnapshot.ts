@@ -1,3 +1,4 @@
+import { waitUntil } from "@vercel/functions";
 import { datasetRegistry } from "./registry";
 import { buildChartSnapshot } from "./snapshots";
 import { loadStoredChartSnapshot } from "./storage";
@@ -38,13 +39,24 @@ function schedulePublicRebuild(slug: string, period: string) {
       error instanceof Error ? error.message : error,
     );
   });
-  void import("@vercel/functions")
-    .then(({ waitUntil }) => waitUntil(task))
-    .catch(() => undefined);
+  waitUntil(task);
+}
+
+/** A database failure is "unavailable", not a reason to fetch upstream. */
+async function loadStoredPublicSnapshot(slug: string, period: string) {
+  try {
+    return await loadStoredChartSnapshot(slug, period);
+  } catch (error) {
+    console.warn(
+      `[public-refresh] stored read failed for ${slug} ${period}`,
+      error instanceof Error ? error.message : error,
+    );
+    throw new PublicDataUnavailableError(slug, false);
+  }
 }
 
 async function readStoredOrFallback(slug: string, period: string): Promise<ChartSnapshot | null> {
-  const stored = await loadStoredChartSnapshot(slug, period);
+  const stored = await loadStoredPublicSnapshot(slug, period);
   if (stored) return stored;
   const key = `${slug}\n${period}`;
   const hit = fallbackCache.get(key);
@@ -68,7 +80,7 @@ export async function readPublicChartSnapshot(slug: string, period?: string): Pr
   if (!process.env.VERCEL) return readStoredOrFallback(slug, normalized);
 
   const dataset = datasetRegistry.find((item) => item.slug === slug);
-  const stored = await loadStoredChartSnapshot(slug, normalized);
+  const stored = await loadStoredPublicSnapshot(slug, normalized);
   const mayBuild = publicDatasetMayBuild(dataset?.status);
   const stale = !stored || snapshotIsStale(stored.freshness.lastUpdatedAt, Date.now(), freshnessTtlMs(dataset?.refreshPolicy));
   const lockAcquired = mayBuild && stale ? await tryClaimPublicRefresh(slug, normalized) : false;
@@ -76,7 +88,7 @@ export async function readPublicChartSnapshot(slug: string, period?: string): Pr
   if (plan.action === "unavailable") throw new PublicDataUnavailableError(slug, plan.updating);
   if (plan.action === "build") {
     const built = await buildChartSnapshot(slug, normalized);
-    if (!built) throw new PublicDataUnavailableError(slug, false);
+    if (!built || built.status !== "active") throw new PublicDataUnavailableError(slug, false);
     return built;
   }
   if (plan.refresh) schedulePublicRebuild(slug, normalized);

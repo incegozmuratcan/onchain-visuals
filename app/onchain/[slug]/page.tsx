@@ -12,6 +12,8 @@ import { PublicDataUnavailableError, readPublicChartSnapshot } from '@/lib/oncha
 import type { ChartSnapshot } from '@/lib/onchain/types';
 import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
+export const maxDuration = 60;
+
 export default async function DatasetPage({params, searchParams}:{params:{slug:string};searchParams?:{period?:string;preview?:string;capture?:string}}){
   const capture = searchParams?.capture === '1';
   // GitHub Actions renders on a local server, where VERCEL_ENV is unset.

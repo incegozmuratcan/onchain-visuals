@@ -11,16 +11,19 @@ RETURNING dataset_slug`;
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-/** Per-dataset cadence from refreshPolicy. Unspecified policies refresh hourly. */
+const MAX_FRESHNESS_TTL_MS = 6 * HOUR_MS;
+
+/** Per-dataset cadence from refreshPolicy, never longer than 6 hours. */
 export function freshnessTtlMs(refreshPolicy?: string | null) {
   const text = String(refreshPolicy || "").toLowerCase();
   const hours = text.match(/(\d+)\s*h\b/);
-  if (hours) return Number(hours[1]) * HOUR_MS;
-  if (/\bmonthly\b/.test(text)) return 30 * DAY_MS;
-  if (/\bweekly\b/.test(text)) return 7 * DAY_MS;
-  if (/\bdaily\b/.test(text)) return DAY_MS;
-  if (/\bhourly\b/.test(text)) return HOUR_MS;
-  return HOUR_MS;
+  let parsed = HOUR_MS;
+  if (hours) parsed = Number(hours[1]) * HOUR_MS;
+  else if (/\bmonthly\b/.test(text)) parsed = 30 * DAY_MS;
+  else if (/\bweekly\b/.test(text)) parsed = 7 * DAY_MS;
+  else if (/\bdaily\b/.test(text)) parsed = DAY_MS;
+  else if (/\bhourly\b/.test(text)) parsed = HOUR_MS;
+  return Math.min(parsed, MAX_FRESHNESS_TTL_MS);
 }
 
 export function snapshotIsStale(storedAt: string | null | undefined, now: number, ttlMs: number) {
