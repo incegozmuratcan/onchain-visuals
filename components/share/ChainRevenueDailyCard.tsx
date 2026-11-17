@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type Ref } from "react";
 import type { ChartSnapshot } from "@/lib/onchain/types";
+import { allowedChainLogoUrl, sanitizeChainName } from "@/lib/onchain/chainRevenueDaily";
 import { ShareCardFrame, type ShareCardBrand } from "./ShareCardFrame";
 import { chainRevenueInter } from "./chainRevenueFont";
 
@@ -145,9 +146,16 @@ export function ChainRevenueDailyCard({
   brand?: ShareCardBrand;
   cardRef?: Ref<HTMLDivElement>;
 }) {
-  const rows = ((data.series?.bars || []) as ChainRevenueBar[]).slice(0, 10);
+  const rows = ((data.series?.bars || []) as ChainRevenueBar[]).slice(0, 10).map((row) => ({
+    ...row,
+    name: sanitizeChainName(row.name),
+    logo: allowedChainLogoUrl(row.logo),
+  }));
   const meta = data.metadata || {};
-  const leader = (meta.leader || null) as Leader | null;
+  const rawLeader = (meta.leader || null) as Leader | null;
+  const leader = rawLeader
+    ? { ...rawLeader, name: sanitizeChainName(rawLeader.name), logo: allowedChainLogoUrl(rawLeader.logo) }
+    : null;
   const { day, year } = dayParts(meta.latestCompletedDate || data.date);
   const { ref: fitRef, ready } = useFittedNames([rows.map((row) => row.name).join("|")]);
 

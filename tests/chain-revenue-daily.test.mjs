@@ -230,3 +230,21 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.match(pkg, /"x:chain-revenue-daily": "node scripts\/x-chain-revenue-daily\.mjs"/);
   assert.match(docs, /How much revenue did blockchains generate yesterday\?/);
 });
+
+test("chain names and logos used on the card are constrained", () => {
+  assert.equal(cr.sanitizeChainName("Robinhood Chain"), "Robinhood Chain");
+  assert.equal(cr.sanitizeChainName("Hyperliquid L1"), "Hyperliquid L1");
+  assert.equal(cr.sanitizeChainName("Gravity by Galxe"), "Gravity by Galxe");
+  assert.equal(cr.sanitizeChainName("Tron\u0000\n<script>"), "Tronscript");
+  assert.equal(cr.sanitizeChainName("A".repeat(80)).length, 32);
+  assert.equal(cr.sanitizeChainName("   "), "Chain");
+  assert.equal(cr.chainDisplayName("bsc", "BSC"), "BNB Chain");
+  assert.equal(
+    cr.allowedChainLogoUrl("https://icons.llamao.fi/icons/chains/rsz_tron?w=96"),
+    "https://icons.llamao.fi/icons/chains/rsz_tron?w=96",
+  );
+  assert.equal(cr.allowedChainLogoUrl("/logos/chain-revenue/tron.png"), "/logos/chain-revenue/tron.png");
+  assert.equal(cr.allowedChainLogoUrl("https://evil.example/tron.png"), null);
+  assert.equal(cr.allowedChainLogoUrl("http://icons.llamao.fi/icons/chains/rsz_tron"), null);
+  assert.equal(cr.allowedChainLogoUrl("//icons.llamao.fi/icons/chains/rsz_tron"), null);
+});

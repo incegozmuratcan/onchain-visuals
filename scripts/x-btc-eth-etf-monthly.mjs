@@ -23,6 +23,7 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
 import { decideMonthlyEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-monthly-gate.mjs";
+import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4176);
@@ -214,13 +215,9 @@ function assertPublishable(snapshot, monthStart) {
   if (snapshot.metadata?.view !== "monthly" || snapshot.metadata?.layout !== "btc-eth-monthly-split") {
     throw new Error("Snapshot is not the monthly split Flowboard.");
   }
-  if (snapshot.status !== "active" || snapshot.freshness?.status === "source_error") {
-    throw new Error(
-      snapshot.freshness?.message ||
-        `Monthly ETF snapshot is not publishable (status ${snapshot.status}, freshness ${snapshot.freshness?.status}).`,
-    );
-  }
-  if (snapshot.metadata?.monthStart !== monthStart) {
+  const skip = notFreshMessage(snapshot);
+  if (skip) return skip;
+  if (!monthStart || snapshot.metadata?.monthStart !== monthStart) {
     throw new Error(
       `Monthly snapshot month ${snapshot.metadata?.monthStart} does not match the filled Farside month ${monthStart}.`,
     );
@@ -423,15 +420,21 @@ async function main() {
   try {
     await waitForServer(child, `/api/charts/${datasetSlug}?period=monthly`);
     const refreshed = await refreshMonthly(secret);
-    if (refreshed?.status && refreshed.status !== "active") {
-      throw new Error(refreshed?.freshness?.message || `Refresh returned status ${refreshed.status}.`);
+    const refreshSkip = notFreshMessage(refreshed);
+    if (refreshSkip) {
+      await writeNotFreshSkip(outDir, refreshSkip, { dryRun });
+      return;
     }
     const chartResponse = await fetch(`${base}/api/charts/${datasetSlug}?period=monthly`);
     const snapshot = await chartResponse.json().catch(() => null);
     if (!chartResponse.ok) {
       throw new Error(snapshot?.error || `Chart fetch failed with HTTP ${chartResponse.status}.`);
     }
-    assertPublishable(snapshot, share.decision.date);
+    const notFresh = assertPublishable(snapshot, share.decision.date);
+    if (typeof notFresh === "string") {
+      await writeNotFreshSkip(outDir, notFresh, { dryRun, date: share.decision.date });
+      return;
+    }
     const { buildBtcEthEtfMonthlyCaption } = await loadCaptionBuilder();
     const caption = buildBtcEthEtfMonthlyCaption(snapshot);
     const pageUrl = `${base}/onchain/${datasetSlug}?period=monthly&capture=1`;

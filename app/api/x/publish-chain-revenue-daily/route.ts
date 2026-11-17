@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { buildChartSnapshot } from "@/lib/onchainData";
 import { buildChainRevenueDailyCaption } from "@/lib/onchain/chainRevenueCaption";
 import { oauth1AuthorizationHeader, type OAuth1Credentials } from "@/lib/x/oauth1";
+import { openLiveXPost } from "@/lib/x/postLedger";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -158,6 +159,7 @@ async function createTweet(mediaId: string, text: string) {
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL) return new NextResponse(null, { status: 404 });
   if (!authorize(request)) {
     return jsonError(401, "unauthorized", "Unauthorized publish request.");
   }
@@ -202,7 +204,7 @@ export async function POST(request: NextRequest) {
 
   const imageHash = crypto.createHash("sha256").update(imageBuffer).digest("hex");
   const existing = publishedByDay.get(date);
-  if (existing && !body?.force) {
+  if (existing) {
     return NextResponse.json({
       success: true,
       duplicate: true,
@@ -226,7 +228,24 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const ledger = await openLiveXPost(DATASET_SLUG, date);
+  if (ledger.outcome === "duplicate") {
+    return NextResponse.json({
+      success: true,
+      duplicate: true,
+      dryRun: false,
+      tweetText,
+      postId: ledger.postId,
+      postUrl: ledger.postUrl,
+      image: { width: dims.width, height: dims.height, sha256: imageHash },
+    });
+  }
+  if (ledger.outcome === "in_progress") {
+    return jsonError(409, "x_post_failed", "A live publish for this dataset and date is already in progress.");
+  }
+
   if (!oauth1Credentials()) {
+    await ledger.release();
     return jsonError(
       500,
       "missing_x_credentials",
@@ -239,6 +258,7 @@ export async function POST(request: NextRequest) {
     const postId = await createTweet(mediaId, tweetText);
     const postUrl = `https://x.com/OnchainVis/status/${postId}`;
     publishedByDay.set(date, { postId, postUrl, imageHash, publishedAt: new Date().toISOString() });
+    await ledger.record(postId, postUrl);
     return NextResponse.json({
       success: true,
       dryRun: false,
@@ -248,6 +268,7 @@ export async function POST(request: NextRequest) {
       image: { width: dims.width, height: dims.height, sha256: imageHash },
     });
   } catch (error) {
+    await ledger.release();
     const message = error instanceof Error ? error.message : "X publish failed.";
     const code: PublishErrorCode = message.startsWith("X media upload") ? "x_media_upload_failed" : "x_post_failed";
     return jsonError(502, code, message);
