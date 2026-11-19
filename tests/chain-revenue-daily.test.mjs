@@ -45,6 +45,30 @@ function history(target) {
   };
 }
 
+/** 19:59 and 20:00 Europe/Istanbul on the run day. */
+const beforeCutoff = new Date("2026-11-17T19:59:00+03:00");
+const afterCutoff = new Date("2026-11-17T20:00:00+03:00");
+
+/** Prior day has quai in the top 10; the target day does not report it. */
+function daysMissingQuai() {
+  const days = history(day({ small: 100 }));
+  days["2026-11-15"].quai = 9_000_000;
+  return days;
+}
+
+function shareFor(days, now) {
+  const assessment = cr.assessChainRevenueDay(days, "2026-11-16", now);
+  return {
+    assessment,
+    decision: decideChainRevenueShare({
+      assessment,
+      expectedDate: "2026-11-16",
+      dryRun: false,
+      posts: [],
+    }),
+  };
+}
+
 test("the share day is the latest completed UTC day", () => {
   assert.equal(cr.latestCompletedUtcDay(new Date("2026-11-17T13:00:00Z")), "2026-11-16");
   assert.equal(cr.latestCompletedUtcDay(new Date("2026-11-17T00:00:01Z")), "2026-11-16");
@@ -67,7 +91,7 @@ test("the gate needs 95% of the prior three-day median chain count", () => {
 });
 
 test("the gate needs every chain from the previous day's top 10", () => {
-  const missing = cr.assessChainRevenueDay(history(day({ small: 100, drop: ["robinhood-chain"] })), "2026-11-16");
+  const missing = cr.assessChainRevenueDay(history(day({ small: 100, drop: ["robinhood-chain"] })), "2026-11-16", beforeCutoff);
   assert.ok(missing.chainCount >= missing.threshold);
   assert.equal(missing.complete, false);
   assert.deepEqual(missing.missingPriorTop, ["robinhood-chain"]);
@@ -75,7 +99,47 @@ test("the gate needs every chain from the previous day's top 10", () => {
 
   const zero = day({ small: 100 });
   zero.tron = 0; // a point of 0 is not revenue for a top chain
-  assert.deepEqual(cr.assessChainRevenueDay(history(zero), "2026-11-16").missingPriorTop, ["tron"]);
+  assert.deepEqual(cr.assessChainRevenueDay(history(zero), "2026-11-16", beforeCutoff).missingPriorTop, ["tron"]);
+});
+
+test("before the Istanbul cutoff a missing small previous top-10 chain still skips", () => {
+  assert.equal(cr.CHAIN_REVENUE_MISSING_TOP_CUTOFF, "20:00");
+  const { assessment, decision } = shareFor(daysMissingQuai(), beforeCutoff);
+  assert.deepEqual(assessment.missingPriorTop, ["quai"]);
+  assert.equal(assessment.complete, false);
+  assert.equal(decision.proceed, false);
+  assert.equal(decision.skipped, true);
+  assert.equal(decision.reason, "incomplete");
+  assert.match(decision.message, /missing 2026-11-15 top-10 chains quai/);
+});
+
+test("after the Istanbul cutoff a missing small previous top-10 chain proceeds and logs it", () => {
+  const lines = [];
+  const original = console.log;
+  console.log = (...args) => lines.push(args.map(String).join(" "));
+  try {
+    const { assessment, decision } = shareFor(daysMissingQuai(), afterCutoff);
+    assert.deepEqual(assessment.missingPriorTop, ["quai"]);
+    assert.equal(assessment.complete, true);
+    assert.equal(decision.proceed, true);
+    assert.equal(decision.skipped, false);
+    assert.equal(decision.reason, null);
+    assert.match(decision.message, /ignoring missing 2026-11-15 top-10 chains quai after 20:00 Europe\/Istanbul/);
+    assert.match(lines.join("\n"), /ignoring missing 2026-11-15 top-10 chains quai after 20:00 Europe\/Istanbul/);
+  } finally {
+    console.log = original;
+  }
+});
+
+test("after the Istanbul cutoff a missing core chain still skips", () => {
+  for (const slug of ["tron", "ethereum", "solana"]) {
+    const { assessment, decision } = shareFor(history(day({ small: 100, drop: [slug] })), afterCutoff);
+    assert.deepEqual(assessment.missingPriorTop, [slug]);
+    assert.equal(assessment.complete, false);
+    assert.equal(decision.proceed, false);
+    assert.equal(decision.reason, "incomplete");
+    assert.match(decision.message, new RegExp(`missing 2026-11-15 top-10 chains ${slug}`));
+  }
 });
 
 test("a morning-after partial day is incomplete and the card falls back to the newest complete day", () => {
