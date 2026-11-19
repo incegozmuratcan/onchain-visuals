@@ -10,6 +10,9 @@
  * only when (1) its chain count reaches COVERAGE_RATIO of the median count of
  * the previous PRIOR_DAYS days, and (2) every chain from the previous day's
  * top 10 has a positive value on it. Anything less is incomplete, not small.
+ * After CHAIN_REVENUE_MISSING_TOP_CUTOFF Europe/Istanbul on the run day, a
+ * missing previous top-10 chain no longer blocks when tron, ethereum, and
+ * solana are present if they were in that top 10. The ignored chains are logged.
  *
  * This file has no imports so the share scripts can transpile it on its own.
  */
@@ -24,6 +27,14 @@ export function chainRevenueSummaryUrl(slug: string) {
 export const COVERAGE_RATIO = 0.95;
 export const PRIOR_DAYS = 3;
 export const TOP_COUNT = 10;
+/**
+ * Europe/Istanbul clock time on the run day. Before this, a missing previous-day
+ * top-10 chain still blocks. At and after it, only a missing core chain does.
+ */
+export const CHAIN_REVENUE_MISSING_TOP_CUTOFF = "20:00";
+const CHAIN_REVENUE_CUTOFF_TIME_ZONE = "Europe/Istanbul";
+/** Large chains that still block after the cutoff when they were in the previous top 10. */
+const CORE_PRIOR_TOP_CHAINS = ["tron", "ethereum", "solana"];
 /** More failed summary fetches than this fraction makes the whole fetch a source error. */
 export const MAX_FAILED_FETCH_RATIO = 0.05;
 
@@ -191,13 +202,29 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
+function minutesInTimeZone(now: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
+  return read("hour") * 60 + read("minute");
+}
+
+function atOrAfterMissingTopCutoff(now: Date) {
+  const [hour, minute] = CHAIN_REVENUE_MISSING_TOP_CUTOFF.split(":").map(Number);
+  return minutesInTimeZone(now, CHAIN_REVENUE_CUTOFF_TIME_ZONE) >= hour * 60 + minute;
+}
+
 function ranked(day: Record<string, number> | undefined) {
   return Object.entries(day || {})
     .filter(([, value]) => Number.isFinite(value))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
-export function assessChainRevenueDay(days: RevenueDays, date: string): ChainRevenueAssessment {
+export function assessChainRevenueDay(days: RevenueDays, date: string, now: Date = new Date()): ChainRevenueAssessment {
   const target = days[date] || {};
   const chainCount = Object.keys(target).length;
   const priorDates = Array.from({ length: PRIOR_DAYS }, (_, i) => addUtcDays(date, -(i + 1)));
@@ -210,16 +237,33 @@ export function assessChainRevenueDay(days: RevenueDays, date: string): ChainRev
     .map(([slug]) => slug);
   const missingPriorTop = priorTop.filter((slug) => !(Number(target[slug]) > 0));
   const total = Object.values(target).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  const badDate = !DATE_RE.test(date);
+  const priorMissing = priorCounts.some((count) => count === 0);
+  const coverageShort = chainCount < threshold || chainCount === 0;
+  const missingCore = missingPriorTop.some((slug) => CORE_PRIOR_TOP_CHAINS.includes(slug));
+  const waiveMissingTop =
+    missingPriorTop.length > 0 &&
+    !missingCore &&
+    !badDate &&
+    !priorMissing &&
+    !coverageShort &&
+    atOrAfterMissingTopCutoff(now);
   const problems: string[] = [];
-  if (!DATE_RE.test(date)) problems.push(`${date} is not a YYYY-MM-DD day`);
-  if (priorCounts.some((count) => count === 0)) {
+  if (badDate) problems.push(`${date} is not a YYYY-MM-DD day`);
+  if (priorMissing) {
     problems.push(`prior days ${priorDates.join(", ")} have counts ${priorCounts.join(", ")}`);
   }
-  if (chainCount < threshold || chainCount === 0) {
+  if (coverageShort) {
     problems.push(`${chainCount} chains reported; need ${threshold} (${Math.round(COVERAGE_RATIO * 100)}% of median ${priorMedian})`);
   }
-  if (missingPriorTop.length) {
+  if (missingPriorTop.length && !waiveMissingTop) {
     problems.push(`missing ${priorDates[0]} top-10 chains ${missingPriorTop.join(", ")}`);
+  }
+  const ignoredMissingTop = waiveMissingTop ? missingPriorTop : [];
+  if (ignoredMissingTop.length) {
+    console.log(
+      `Chain revenue ${date}: ignoring missing ${priorDates[0]} top-10 chains ${ignoredMissingTop.join(", ")} after ${CHAIN_REVENUE_MISSING_TOP_CUTOFF} ${CHAIN_REVENUE_CUTOFF_TIME_ZONE}.`,
+    );
   }
   const complete = problems.length === 0;
   return {
@@ -235,7 +279,9 @@ export function assessChainRevenueDay(days: RevenueDays, date: string): ChainRev
     total,
     problems,
     message: complete
-      ? `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), all ${priorTop.length} prior top-10 chains present.`
+      ? ignoredMissingTop.length
+        ? `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), ignoring missing ${priorDates[0]} top-10 chains ${ignoredMissingTop.join(", ")} after ${CHAIN_REVENUE_MISSING_TOP_CUTOFF} ${CHAIN_REVENUE_CUTOFF_TIME_ZONE}.`
+        : `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), all ${priorTop.length} prior top-10 chains present.`
       : `Chain revenue ${date} is not complete yet: ${problems.join("; ")}.`,
   };
 }
