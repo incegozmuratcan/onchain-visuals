@@ -17,6 +17,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
+import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4173);
@@ -124,12 +125,8 @@ function assertPublishable(snapshot) {
   if (snapshot.metadata?.view !== "daily") {
     throw new Error("Snapshot is not the daily Flowboard.");
   }
-  if (snapshot.status !== "active" || snapshot.freshness?.status === "source_error") {
-    throw new Error(
-      snapshot.freshness?.message ||
-        `BTC ETF snapshot is not publishable (status ${snapshot.status}, freshness ${snapshot.freshness?.status}).`,
-    );
-  }
+  const skip = notFreshMessage(snapshot);
+  if (skip) return skip;
   if (!snapshot.metadata?.latestCompletedDate) {
     throw new Error("BTC ETF snapshot is missing latestCompletedDate.");
   }
@@ -236,10 +233,10 @@ async function main() {
     await waitForServer(child);
     if (!preview) {
       const refreshed = await refreshDaily(secret);
-      if (refreshed?.status && refreshed.status !== "active") {
-        throw new Error(
-          refreshed?.freshness?.message || `Refresh returned status ${refreshed.status}.`,
-        );
+      const refreshSkip = notFreshMessage(refreshed);
+      if (refreshSkip) {
+        await writeNotFreshSkip(outDir, refreshSkip, { dryRun });
+        return;
       }
     }
     const chartUrl = preview
@@ -250,7 +247,11 @@ async function main() {
     if (!chartResponse.ok) {
       throw new Error(snapshot?.error || `Chart fetch failed with HTTP ${chartResponse.status}.`);
     }
-    assertPublishable(snapshot);
+    const notFresh = assertPublishable(snapshot);
+    if (typeof notFresh === "string") {
+      await writeNotFreshSkip(outDir, notFresh, { dryRun });
+      return;
+    }
     const { buildBtcEtfDailyCaption } = await loadCaptionBuilder();
     const caption = buildBtcEtfDailyCaption(snapshot);
     const pageUrl = preview

@@ -107,8 +107,39 @@ export function latestCompletedUtcDay(now: Date = new Date()) {
   return addUtcDays(utcDay(now), -1);
 }
 
+/**
+ * Names drawn from DefiLlama. Control characters are removed, then anything
+ * outside letters, digits, spaces, and .-&'()/+ is dropped. Unicode letters
+ * stay. The result is capped so a hostile label cannot blow out the card.
+ */
+export function sanitizeChainName(raw: string) {
+  const cleaned = String(raw || "")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, "")
+    .replace(/[^\p{L}\p{N} .&\-'()/+]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 32);
+  return cleaned || "Chain";
+}
+
 export function chainDisplayName(slug: string, name: string) {
-  return DISPLAY_NAMES[slug] || String(name || slug).trim();
+  return sanitizeChainName(DISPLAY_NAMES[slug] || String(name || slug));
+}
+
+const CHAIN_LOGO_HOSTS = new Set(["icons.llamao.fi"]);
+
+/** DefiLlama icons or this repo's own /logos assets. Anything else is rejected. */
+export function allowedChainLogoUrl(src: unknown) {
+  const raw = String(src || "").trim();
+  if (!raw || raw.includes("\\") || raw.includes("\0")) return null;
+  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== "https:" || !CHAIN_LOGO_HOSTS.has(url.hostname)) return null;
+    return raw;
+  } catch {
+    return null;
+  }
 }
 
 function logoKeyFrom(logo: unknown, slug: string) {
@@ -331,8 +362,8 @@ export function rankChainRevenueDay(
     return {
       rank: index + 1,
       slug,
-      name: chain?.name || slug,
-      logo: chainRevenueLogoUrl(slug, chain?.logoKey || slug),
+      name: sanitizeChainName(chain?.name || slug),
+      logo: allowedChainLogoUrl(chainRevenueLogoUrl(slug, chain?.logoKey || slug)) || "",
       value,
       formattedValue: formatChainRevenueAmount(value),
       barPercent: chainRevenueBarPercent(value, max),

@@ -10,6 +10,7 @@ import { buildChainRevenueDailyLongNamesPreview } from '@/lib/onchain/chainReven
 import { getPublicBrandSettings } from '@/lib/brandSettings';
 import { PublicDataUnavailableError, readPublicChartSnapshot } from '@/lib/onchain/publicSnapshot';
 import type { ChartSnapshot } from '@/lib/onchain/types';
+import { defaultShareCardBrand } from '@/components/share/ShareCardFrame';
 import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
 export const maxDuration = 60;
@@ -56,8 +57,15 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
     }
   }
   if (!data) notFound();
-  const brand = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily'
-    ? await getPublicBrandSettings()
+  const shareBrandSlug = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily';
+  // capture=1 is the X render. Freeze the card chrome to code defaults so an
+  // admin-panel edit cannot change a posted card. Production currently stores
+  // cardFooterText "Created with" and createdWithText "Onchain Visuals", which
+  // shareFooterCredit draws as the same "Created with · Onchain Visuals" line
+  // as these defaults. The watermark mark is empty and these cards do not draw
+  // brand logos.
+  const brand = shareBrandSlug
+    ? (capture ? defaultShareCardBrand : await getPublicBrandSettings())
     : undefined;
   const chart = <DatasetChartClient data={data} capture={capture} brand={brand} />;
   if (capture) return chart;

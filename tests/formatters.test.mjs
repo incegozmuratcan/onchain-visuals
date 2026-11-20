@@ -64,6 +64,20 @@ test('shareFooterCredit keeps the approved default and custom brand copy', () =>
     }),
     { prefix: 'Desk note · ', emphasis: 'Printed by OV' },
   );
+  // Production brand settings store these two strings. They draw the same
+  // footer as the code defaults, so capture=1 can freeze the defaults.
+  assert.deepEqual(
+    f.shareFooterCredit({
+      shortName: 'Onchain Visuals',
+      cardFooterText: 'Created with',
+      createdWithText: 'Onchain Visuals',
+    }),
+    f.shareFooterCredit({
+      shortName: 'Onchain Visuals',
+      cardFooterText: 'Source-backed DeFi market card',
+      createdWithText: 'Created with Onchain Visuals',
+    }),
+  );
 });
 test('formatShareUpdated uses the card footer clock in UTC', () => {
   assert.equal(f.formatShareUpdated('2026-11-13T14:02:00.000Z'), 'Nov 13, 2026, 02:02 PM UTC');
