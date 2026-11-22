@@ -33,14 +33,25 @@ import {
 import { fetchChainRevenueDaily } from "./sources/chainRevenue";
 import {
   assessChainRevenueDay,
+  assessChainRevenuePeriod,
+  CHAIN_REVENUE_MONTH_KEEP_DAYS,
+  CHAIN_REVENUE_WEEK_KEEP_DAYS,
   formatChainRevenueAmount,
   formatChainRevenueShare,
+  lastCompletedUtcMonth,
+  lastCompletedUtcWeek,
   latestCompleteChainRevenueDay,
   latestCompletedUtcDay,
+  previousUtcMonth,
+  previousUtcWeek,
   rankChainRevenueDay,
+  rankChainRevenuePeriod,
+  sumChainRevenue,
+  topChainSlugs,
   type RevenueChain,
   type RevenueDays,
 } from "./chainRevenueDaily";
+import { chainRevenueMonthCopy, chainRevenueWeekCopy } from "./chainRevenueCaption";
 import {
   fetchBtcEtfFlows,
   fetchEthEtfFlows,
@@ -1473,6 +1484,132 @@ async function buildChainRevenueDaily(d: DatasetRegistryItem, period: string) {
     return buildChainRevenueDailyCard(d, period, result);
   });
 }
+/**
+ * Weekly or monthly Chain Revenue card. Same v17 shell as the daily card.
+ * Each chain's value is the sum of its dailyRevenue points. The period posts
+ * only when every UTC day passes the daily completeness gate.
+ */
+export function buildChainRevenuePeriodCard(
+  d: DatasetRegistryItem,
+  period: string,
+  kind: "weekly" | "monthly",
+  result: { url?: string | null; warnings?: string[]; data: { chains: RevenueChain[]; days: RevenueDays; failed?: string[]; fetchedAt?: string } },
+  now: Date = new Date(),
+) {
+  const { chains, days } = result.data;
+  const range = kind === "weekly" ? lastCompletedUtcWeek(now) : lastCompletedUtcMonth(now);
+  const prior = kind === "weekly" ? previousUtcWeek(range.start) : previousUtcMonth(range.start);
+  const assessment = assessChainRevenuePeriod(days, range.start, range.end, now);
+  if (!assessment.complete) throw new Error(assessment.message);
+  const priorTop = topChainSlugs(sumChainRevenue(days, prior.start, prior.end));
+  const ranking = rankChainRevenuePeriod(days, range.start, range.end, chains, priorTop);
+  if (ranking.rows.length < 10) {
+    throw new Error(`Chain revenue ${range.start} through ${range.end} has ${ranking.rows.length} chains with revenue; the card needs 10.`);
+  }
+  const copy = kind === "weekly" ? chainRevenueWeekCopy(range.start, range.end) : chainRevenueMonthCopy(range.start);
+  const leader = ranking.rows[0];
+  const formattedTotal = formatChainRevenueAmount(ranking.total);
+  const formattedLeaderShare = formatChainRevenueShare(leader.share);
+  const titleBadge = kind === "weekly" ? "7D" : "1M";
+  const layout = kind === "weekly" ? "chain-revenue-weekly" : "chain-revenue-monthly";
+  return {
+    ...sourceSafeBase(d, period, "Chain Revenue", copy.subtitle),
+    date: range.end,
+    sourceLabel: "DefiLlama",
+    exportFormats: ["1600x900" as const],
+    status: "active" as const,
+    freshness: {
+      status: "fresh" as const,
+      lastUpdatedAt: result.data.fetchedAt || new Date().toISOString(),
+      source: "DefiLlama",
+      fallbackUsed: false,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: [
+      metric("Total chain revenue", ranking.total, formattedTotal),
+      metric(`#1 share · ${leader.name}`, leader.share, formattedLeaderShare),
+      metric("Chains reporting", ranking.chainCount, String(ranking.chainCount)),
+    ],
+    series: {
+      ...emptySeries(),
+      bars: ranking.rows.map((row) => ({
+        rank: row.rank,
+        slug: row.slug,
+        name: row.name,
+        logo: row.logo,
+        value: row.value,
+        formattedValue: row.formattedValue,
+        barPercent: row.barPercent,
+        share: row.share,
+        rankChange: row.rankChange,
+      })),
+    },
+    insights: [
+      `${ranking.chainCount} chains generated ${formattedTotal} in revenue for ${copy.panelDay} ${copy.panelYear}.`,
+      `${leader.name} captured ${formattedLeaderShare} of all chain revenue.`,
+    ],
+    sourceUrl: result.url || null,
+    warnings: result.warnings || [],
+    metadata: {
+      ...base(d, period).metadata,
+      layout,
+      view: kind,
+      titleBadge,
+      periodStart: range.start,
+      periodEnd: range.end,
+      priorPeriodStart: prior.start,
+      priorPeriodEnd: prior.end,
+      panelDay: copy.panelDay,
+      panelYear: copy.panelYear,
+      latestCompletedDate: range.end,
+      totalRevenue: ranking.total,
+      formattedTotal,
+      chainCount: ranking.chainCount,
+      leader: {
+        slug: leader.slug,
+        name: leader.name,
+        logo: leader.logo,
+        share: leader.share,
+        formattedShare: formattedLeaderShare,
+      },
+      coverage: {
+        start: assessment.start,
+        end: assessment.end,
+        complete: assessment.complete,
+        dates: assessment.dates,
+        incompleteDates: assessment.incompleteDates,
+        message: assessment.message,
+      },
+      failedChains: result.data.failed || [],
+      defaultExportFormat: "1536x1134",
+    },
+  };
+}
+async function buildChainRevenueWeekly(d: DatasetRegistryItem, period: string) {
+  return withFallback(d, period, async () => {
+    const now = new Date();
+    const result: any = await resultOrThrow(
+      d.slug,
+      "DefiLlama",
+      now.toISOString(),
+      await fetchChainRevenueDaily(now, CHAIN_REVENUE_WEEK_KEEP_DAYS),
+    );
+    return buildChainRevenuePeriodCard(d, period, "weekly", result, now);
+  });
+}
+async function buildChainRevenueMonthly(d: DatasetRegistryItem, period: string) {
+  return withFallback(d, period, async () => {
+    const now = new Date();
+    const result: any = await resultOrThrow(
+      d.slug,
+      "DefiLlama",
+      now.toISOString(),
+      await fetchChainRevenueDaily(now, CHAIN_REVENUE_MONTH_KEEP_DAYS),
+    );
+    return buildChainRevenuePeriodCard(d, period, "monthly", result, now);
+  });
+}
 async function buildBtcEthWeeklySplit(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const started = new Date().toISOString();
@@ -1828,6 +1965,10 @@ export async function buildChartSnapshot(
       );
     case "chain-revenue-daily":
       return buildChainRevenueDaily(d, p);
+    case "chain-revenue-weekly":
+      return buildChainRevenueWeekly(d, p);
+    case "chain-revenue-monthly":
+      return buildChainRevenueMonthly(d, p);
     case "btc-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "BTC");
     case "btc-eth-etf-daily-flowboard":

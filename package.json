@@ -24,7 +24,9 @@
     "x:btc-eth-etf-daily": "node scripts/x-btc-eth-etf-daily.mjs",
     "x:btc-eth-etf-weekly": "node scripts/x-btc-eth-etf-weekly.mjs",
     "x:btc-eth-etf-monthly": "node scripts/x-btc-eth-etf-monthly.mjs",
-    "x:chain-revenue-daily": "node scripts/x-chain-revenue-daily.mjs"
+    "x:chain-revenue-daily": "node scripts/x-chain-revenue-daily.mjs",
+    "x:chain-revenue-weekly": "node scripts/x-chain-revenue-period.mjs weekly",
+    "x:chain-revenue-monthly": "node scripts/x-chain-revenue-period.mjs monthly"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",

@@ -19,7 +19,7 @@ export default function DatasetChartClient({ data, capture = false, brand }: { d
     if (data.status === 'disabled') return <DisabledState data={data}/>;
     if (data.status === 'source_config_required' || data?.freshness?.status === 'source_config_required') return <SourceConfigRequiredState missingConfig={data.freshness?.missingConfig||[]} message={data.freshness?.message}/>;
     if (!hasRenderableData) return <SourceErrorState data={{...data, freshness:{...data.freshness, message:'No usable series is available for this dataset. Empty chart panels are suppressed until a real snapshot exists.'}}}/>;
-    if (template === 'chain_revenue_daily' || data?.metadata?.layout === 'chain-revenue-daily') return <ChainRevenueDaily data={data} capture={capture} brand={brand}/>;
+    if (template === 'chain_revenue_daily' || data?.metadata?.layout === 'chain-revenue-daily' || data?.metadata?.layout === 'chain-revenue-weekly' || data?.metadata?.layout === 'chain-revenue-monthly') return <ChainRevenueDaily data={data} capture={capture} brand={brand}/>;
     if (template === 'monthly_flowboard' || data?.metadata?.layout === 'btc-eth-monthly-split') return <MonthlyFlowboard data={data} capture={capture} brand={brand}/>;
     if (template === 'weekly_flowboard' || data?.metadata?.layout === 'btc-eth-weekly-split') return <WeeklyFlowboard data={data} capture={capture} brand={brand}/>;
     if (template === 'split_flowboard' || data?.metadata?.layout === 'btc-eth-split') return <SplitFlowboard data={data} capture={capture} brand={brand}/>;
@@ -41,7 +41,9 @@ export default function DatasetChartClient({ data, capture = false, brand }: { d
       template === "monthly_flowboard" ||
       data?.metadata?.layout === "btc-eth-monthly-split" ||
       template === "chain_revenue_daily" ||
-      data?.metadata?.layout === "chain-revenue-daily") &&
+      data?.metadata?.layout === "chain-revenue-daily" ||
+      data?.metadata?.layout === "chain-revenue-weekly" ||
+      data?.metadata?.layout === "chain-revenue-monthly") &&
     data.status !== "source_error" &&
     data?.freshness?.status !== "source_error" &&
     data.status !== "disabled" &&

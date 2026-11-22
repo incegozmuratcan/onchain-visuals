@@ -96,7 +96,7 @@ The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `C
 
 ### Completeness gate
 
-DefiLlama fills a finished UTC day late, chain by chain. At 00:25 UTC the next day only about 45 of about 100 chains have a point. The share day is always the latest completed UTC day, so the caption's "yesterday" is true. A pass shares only when that day is complete:
+DefiLlama fills a finished UTC day late, chain by chain. At 00:25 UTC the next day only about 45 of about 100 chains have a point. The share day is always the latest completed UTC day. A pass shares only when that day is complete:
 
 1. The number of chains with a point for the day is at least 95% of the median count of the previous three days (normal days have about 96–109).
 2. Every chain in the previous day's top 10 has revenue on the day.
@@ -105,7 +105,7 @@ An incomplete pass exits successfully with `reason: "incomplete"` and the covera
 
 ### Caption
 
-`How much revenue did blockchains generate yesterday?` Plain English with no hashtags or cashtags, so X's translation reads cleanly.
+`How much revenue did blockchains generate on November 21?` The date is the UTC day on the card, with the full month name. Plain English with no hashtags or cashtags, so X's translation reads cleanly.
 
 ### Schedule
 

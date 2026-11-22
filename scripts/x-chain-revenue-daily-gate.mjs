@@ -1,8 +1,8 @@
 /**
  * Skip rules for the Chain Revenue Daily X share.
  *
- * The share day is always the latest completed UTC day (yesterday in UTC), so
- * the caption's "yesterday" stays true. It posts only when DefiLlama has filled
+ * The share day is always the latest completed UTC day. The caption names that
+ * day. It posts only when DefiLlama has filled
  * that day: the chain count reaches 95% of the median of the previous three
  * days AND every chain from the previous day's top 10 has revenue on it. An
  * incomplete day skips with exit 0 so a later trigger can try again. An older

@@ -25,9 +25,9 @@ export function ChainRevenueDaily({
       cacheBust: true,
       backgroundColor: "#ffffff",
     });
-    const date = data?.metadata?.latestCompletedDate || "latest";
+    const date = data?.metadata?.periodStart || data?.metadata?.latestCompletedDate || "latest";
     const link = document.createElement("a");
-    link.download = `chain-revenue-daily-${date}.png`;
+    link.download = `${data?.datasetSlug || "chain-revenue-daily"}-${date}.png`;
     link.href = dataUrl;
     link.click();
   }

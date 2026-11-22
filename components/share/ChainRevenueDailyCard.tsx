@@ -6,6 +6,11 @@ import { allowedChainLogoUrl, sanitizeChainName } from "@/lib/onchain/chainReven
 import { ShareCardFrame, type ShareCardBrand } from "./ShareCardFrame";
 import { chainRevenueInter } from "./chainRevenueFont";
 
+export type ChainRevenueRankChange = {
+  kind: "up" | "down" | "new";
+  places?: number;
+};
+
 export type ChainRevenueBar = {
   rank: number;
   slug: string;
@@ -15,6 +20,7 @@ export type ChainRevenueBar = {
   formattedValue: string;
   barPercent: number;
   share: number;
+  rankChange?: ChainRevenueRankChange | null;
 };
 
 type Leader = {
@@ -115,6 +121,22 @@ function useFittedNames(deps: unknown[]) {
   return { ref, ready };
 }
 
+/** Rank move versus the previous period. Daily rows omit this. The chip sits in the name column. */
+function RankChangeBadge({ change }: { change: ChainRevenueRankChange }) {
+  const up = change.kind === "up";
+  const down = change.kind === "down";
+  return (
+    <span
+      data-rank-badge={change.kind}
+      className="inline-flex h-[30px] shrink-0 items-center justify-center gap-[3px] rounded-[8px] bg-[#d5d9e0] px-2 text-[21px] font-bold leading-none"
+    >
+      {up ? <span style={{ color: "#127a45" }}>▲</span> : null}
+      {down ? <span style={{ color: "#b0153f" }}>▼</span> : null}
+      <span className="text-[#1f2937]">{change.kind === "new" ? "NEW" : change.places}</span>
+    </span>
+  );
+}
+
 function ShareRing({ share }: { share: number }) {
   const arc = Math.max(0, Math.min(1, Number(share) || 0)) * RING_LENGTH;
   return (
@@ -156,8 +178,12 @@ export function ChainRevenueDailyCard({
   const leader = rawLeader
     ? { ...rawLeader, name: sanitizeChainName(rawLeader.name), logo: allowedChainLogoUrl(rawLeader.logo) }
     : null;
-  const { day, year } = dayParts(meta.latestCompletedDate || data.date);
-  const { ref: fitRef, ready } = useFittedNames([rows.map((row) => row.name).join("|")]);
+  const fallbackDate = dayParts(meta.latestCompletedDate || data.date);
+  const day = meta.panelDay ? String(meta.panelDay) : fallbackDate.day;
+  const year = meta.panelDay ? String(meta.panelYear || "") : fallbackDate.year;
+  const { ref: fitRef, ready } = useFittedNames([
+    rows.map((row) => `${row.name}:${row.rankChange?.kind || ""}:${row.rankChange?.places || ""}`).join("|"),
+  ]);
 
   return (
     <div className={`${chainRevenueInter.className} flex h-full min-h-0 w-full min-w-0 flex-1`}>
@@ -167,7 +193,7 @@ export function ChainRevenueDailyCard({
       density="weekly"
       eyebrow="Onchain Economy · Top 10 Chains"
       title={data.title || "Chain Revenue"}
-      titleBadge="24H"
+      titleBadge={String(meta.titleBadge || "24H")}
       spacedFooterMeta
       description={
         data.subtitle || "Revenue captured by the blockchains themselves on the latest completed UTC day."
@@ -236,12 +262,19 @@ export function ChainRevenueDailyCard({
               </span>
               <ChainLogo src={row.logo} name={row.name} size={44} />
               <span
-                data-chain-name={row.name}
-                className="block min-w-0 overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-none tracking-[-0.035em] text-[#111]"
+                className={`grid w-full min-w-0 items-center gap-2 ${
+                  row.rankChange ? "grid-cols-[minmax(0,auto)_auto]" : "grid-cols-[minmax(0,auto)]"
+                }`}
               >
-                {row.name}
+                <span
+                  data-chain-name={row.name}
+                  className="block min-w-0 overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-none tracking-[-0.035em] text-[#111]"
+                >
+                  {row.name}
+                </span>
+                {row.rankChange ? <RankChangeBadge change={row.rankChange} /> : null}
               </span>
-              <div className="h-3 rounded-[6px] bg-[#e8eaee]">
+              <div data-bar-track={row.slug} className="h-3 rounded-[6px] bg-[#e8eaee]">
                 <div
                   data-chain-bar={row.slug}
                   className="h-3 rounded-[6px] bg-[#1b8f58]"

@@ -358,10 +358,10 @@ test("same-week skip blocks a repeated dry-run and still allows the live post", 
   assert.equal(stored.find((post) => post.mode === "live").postId, "9");
 });
 
-test("caption v3 picks inflow or outflow and has no cashtag, hashtag, or link", () => {
+test("the weekly caption names the first and last trading day and has no amount", () => {
   const caption = captionLib.buildBtcEthEtfWeeklyCaption({
     title: "ETF Weekly Flowboard",
-    metadata: { captionRange: "Nov 2–6, 2026" },
+    metadata: { tradingDays: ["2026-11-02", "2026-11-03", "2026-11-04", "2026-11-05", "2026-11-06"] },
     series: {
       cards: [
         { asset: "BTC", netFlow: -1_280_000_000, formattedNet: "-$1.28B" },
@@ -369,17 +369,9 @@ test("caption v3 picks inflow or outflow and has no cashtag, hashtag, or link", 
       ],
     },
   });
-  assert.equal(
-    caption,
-    [
-      "ETF Weekly Flowboard — Nov 2–6, 2026",
-      "",
-      "US spot Bitcoin ETFs: -$1.28B net outflow",
-      "US spot Ethereum ETFs: -$365.2M net outflow",
-    ].join("\n"),
-  );
-  const inflow = captionLib.buildBtcEthEtfWeeklyCaption({
-    metadata: { captionRange: "Sep 29–Oct 3, 2026" },
+  assert.equal(caption, "Here are the Bitcoin and Ethereum ETF flows for the week of Nov 2 – Nov 6.");
+  const crossMonth = captionLib.buildBtcEthEtfWeeklyCaption({
+    metadata: { tradingDays: ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02", "2026-10-03"] },
     series: {
       cards: [
         { asset: "BTC", netFlow: 2_500_000_000, formattedNet: "+$2.50B" },
@@ -387,11 +379,13 @@ test("caption v3 picks inflow or outflow and has no cashtag, hashtag, or link", 
       ],
     },
   });
-  assert.match(inflow, /ETF Weekly Flowboard — Sep 29–Oct 3, 2026/);
-  assert.match(inflow, /US spot Bitcoin ETFs: \+\$2\.50B net inflow/);
-  assert.match(inflow, /US spot Ethereum ETFs: \+\$80\.4M net inflow/);
-  assert.doesNotMatch(inflow, /\$[A-Za-z]|#|https?:/);
-  assert.doesNotMatch(caption, /\$[A-Za-z]|#|https?:/);
+  assert.equal(crossMonth, "Here are the Bitcoin and Ethereum ETF flows for the week of Sep 29 – Oct 3.");
+  assert.doesNotMatch(caption, /\$|inflow|outflow|#|https?:/);
+  assert.doesNotMatch(crossMonth, /\$|inflow|outflow|#|https?:/);
+  assert.throws(
+    () => captionLib.buildBtcEthEtfWeeklyCaption({ metadata: {}, series: { cards: [] } }),
+    /BTC panel/,
+  );
 });
 
 test("the weekly card builder formats with the shared flow helpers", async () => {
@@ -477,15 +471,8 @@ test("the weekly card builder formats with the shared flow helpers", async () =>
   assert.equal(card.series.cards[1].formattedNet, "-$365.2M");
   assert.equal(card.series.cards[1].issuers[1].name, "BlackRock Staked");
   const text = captionLib.buildBtcEthEtfWeeklyCaption(card);
-  assert.equal(
-    text,
-    [
-      "ETF Weekly Flowboard — Nov 2–6, 2026",
-      "",
-      "US spot Bitcoin ETFs: -$1.28B net outflow",
-      "US spot Ethereum ETFs: -$365.2M net outflow",
-    ].join("\n"),
-  );
+  assert.equal(text, "Here are the Bitcoin and Ethereum ETF flows for the week of Nov 2 – Nov 6.");
+  assert.doesNotMatch(text, /\$|inflow|outflow/);
 });
 
 test("weekly workflow stays a dry-run and uses its own Sunday schedule", async () => {
