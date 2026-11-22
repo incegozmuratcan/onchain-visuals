@@ -282,6 +282,7 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.match(script, /process\.argv\.includes\("--preflight"\)/);
   assert.match(script, /decideChainRevenueShare/);
   assert.match(script, /recordShare/);
+  assert.match(script, /ensureShareTimestamps/);
   assert.match(script, /1536/);
   assert.match(script, /1134/);
   assert.match(script, /\/api\/x\/publish-chain-revenue-daily/);

@@ -24,6 +24,11 @@ name: X Chain Revenue weekly
 # rolling total24h is never used. A pass shares only when every day of the
 # week passes the daily completeness gate. An incomplete pass exits
 # successfully without posting. A week already shared is skipped.
+# This workflow also restores the daily job's posted-state.json. The weekly
+# posts only after the daily for Sunday (the week's last day) is recorded
+# there and at least 60 minutes have passed. A Sunday daily with no timestamp
+# is given one, and that run waits. The Monday 16:00–23:30 passes after the
+# first are what clear the hour.
 #
 # Dry-run stays the default. The schedule follows vars.X_DRY_RUN (unset or
 # true = dry run; false = live). Manual runs use workflow_dispatch and stay
@@ -157,6 +162,53 @@ jobs:
             echo "Restored post state from artifact ${ARTIFACT_ID}."
           else
             echo "Latest artifact ${ARTIFACT_ID} has no post state yet."
+          fi
+
+      - name: Restore the daily post state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/x-chain-revenue-daily
+          if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GH_TOKEN:-}" ]; then
+            echo "No Actions artifact API. Keeping any local daily post state."
+            exit 0
+          fi
+          LIST=$(curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100&name=chain-revenue-daily")
+          ARTIFACT_ID=$(printf '%s' "$LIST" | node --input-type=module -e '
+            let raw = "";
+            process.stdin.setEncoding("utf8");
+            process.stdin.on("data", (chunk) => { raw += chunk; });
+            process.stdin.on("end", () => {
+              const payload = JSON.parse(raw);
+              const rows = (payload.artifacts || []).filter((row) => row && row.name === "chain-revenue-daily" && !row.expired);
+              rows.sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
+              if (rows[0]) process.stdout.write(String(rows[0].id));
+            });
+          ')
+          if [ -z "$ARTIFACT_ID" ]; then
+            echo "No earlier daily share record."
+            exit 0
+          fi
+          TMP=$(mktemp -d)
+          curl -fsSL \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -L \
+            -o "$TMP/artifact.zip" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip"
+          unzip -q "$TMP/artifact.zip" -d "$TMP/unzip"
+          FOUND=$(find "$TMP/unzip" -name posted-state.json -print -quit)
+          if [ -n "$FOUND" ]; then
+            cp "$FOUND" artifacts/x-chain-revenue-daily/posted-state.json
+            echo "Restored daily post state from artifact ${ARTIFACT_ID}."
+          else
+            echo "Latest daily artifact ${ARTIFACT_ID} has no post state yet."
           fi
 
       - name: Choose dry-run or live post
