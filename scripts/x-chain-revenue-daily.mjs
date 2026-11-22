@@ -43,6 +43,7 @@ const outDir = path.join(root, "artifacts", "x-chain-revenue-daily");
 const statePath = process.env.X_CHAIN_REVENUE_POST_STATE
   ? path.resolve(process.env.X_CHAIN_REVENUE_POST_STATE)
   : path.join(outDir, "posted-state.json");
+process.env.CHAIN_REVENUE_LOGO_STATE = statePath;
 const datasetSlug = "chain-revenue-daily";
 const useDev = process.argv.includes("--dev");
 const preflightOnly = process.argv.includes("--preflight");
@@ -342,9 +343,12 @@ async function captureCard(pageUrl) {
     }
     const overflow = fit.values.filter((item) => item.clipped || !item.text || /…/.test(item.text));
     const overlapping = fit.nameOverlap.filter((gap) => gap > -4);
-    const broken = fit.images.filter((img) => !img.loaded);
-    if (overflow.length || overlapping.length || broken.length || fit.frameClipped) {
-      throw new Error(`Chain revenue values do not fit the share card: ${JSON.stringify({ overflow, overlapping, broken, frameClipped: fit.frameClipped })}`);
+    const brokenLogos = fit.images.filter((img) => !img.loaded);
+    if (brokenLogos.length) {
+      console.warn(`Chain revenue logos failed to load and the card kept an initial badge: ${brokenLogos.map((img) => img.alt).join(", ")}`);
+    }
+    if (overflow.length || overlapping.length || fit.frameClipped) {
+      throw new Error(`Chain revenue values do not fit the share card: ${JSON.stringify({ overflow, overlapping, frameClipped: fit.frameClipped })}`);
     }
     const box = await card.boundingBox();
     if (!box) throw new Error("Share card bounding box is missing.");
@@ -477,6 +481,7 @@ async function main() {
       })),
       names: captured.names,
       logoFallbacks: captured.logoFallbacks,
+      logoSources: snapshot.metadata?.logoSources || [],
       barX: captured.barX,
       image: {
         path: "chain-revenue-daily.png",
@@ -537,6 +542,7 @@ async function main() {
       result.shareRecorded = false;
     }
     await writeFile(resultPath, `${JSON.stringify(result, null, 2)}\n`);
+    for (const warning of snapshot.metadata?.logoWarnings || []) console.warn(warning);
     console.log(
       JSON.stringify(
         {
@@ -546,6 +552,7 @@ async function main() {
           total: result.total,
           chainCount: result.chainCount,
           logoFallbacks: result.logoFallbacks,
+          logoSources: result.logoSources,
           barX: result.barX,
           image: result.image,
           captionPath: "artifacts/x-chain-revenue-daily/caption.txt",

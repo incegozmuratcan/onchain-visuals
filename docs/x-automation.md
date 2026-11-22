@@ -92,7 +92,7 @@ The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `C
 - Chains: `https://api.llama.fi/overview/fees?excludeTotalDataChart=true&excludeTotalDataChartBreakdown=true&dataType=dailyRevenue`, keeping `protocolType: "chain"` with `category: "Chain"` (about 115).
 - Values: each chain's `https://api.llama.fi/summary/fees/{slug}?dataType=dailyRevenue` `totalDataChart` point for the exact UTC calendar day. `total24h` is never read, because it is a rolling window that mixes two days.
 - Card: top 10 by revenue, total of every chain with a point that day, the chain count, and the #1 chain's share. Bars use a square-root scale so small chains stay visible.
-- Logos: the ten chains on the approved v17 card use the reviewed marks in `public/logos/chain-revenue/`. Every other chain uses its DefiLlama icon, `https://icons.llamao.fi/icons/chains/rsz_<name>?w=96`, where `<name>` comes from the overview logo file name (`op mainnet`, `zksync era`, …). The old `icons.llamao.fi/chains/rsz_*.jpg` paths in the overview 404. A missing icon draws a neutral initial circle.
+- Logos, in order: Logo Manager approved logo, the copy cached in this job's `posted-state.json`, the fixed marks in `public/logos/chain-revenue/`, the DefiLlama icon `https://icons.llamao.fi/icons/chains/rsz_<name>?w=96`, then a circle with the chain's initial. A missing or invalid logo falls through and never skips the card. `result.json` records the source for each chain.
 
 ### Completeness gate
 

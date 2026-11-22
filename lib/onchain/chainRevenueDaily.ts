@@ -148,16 +148,108 @@ export function chainPeriodDisplayName(slug: string, name: string) {
   return display;
 }
 
-const CHAIN_LOGO_HOSTS = new Set(["icons.llamao.fi"]);
+/** Largest logo bytes we will cache or draw. Larger responses fall through. */
+export const CHAIN_LOGO_MAX_BYTES = 512 * 1024;
 
-/** DefiLlama icons or this repo's own /logos assets. Anything else is rejected. */
+/**
+ * Hosts Logo Manager actually stores for an approved chain logo, plus DefiLlama.
+ * Exact hosts only. Vercel Blob public URLs are a single store label under
+ * public.blob.vercel-storage.com.
+ */
+const CHAIN_LOGO_HOSTS = new Set([
+  "icons.llamao.fi",
+  "token-icons.llamao.fi",
+  "assets.coingecko.com",
+  "coin-images.coingecko.com",
+  "s2.coinmarketcap.com",
+  "s3.coinmarketcap.com",
+]);
+
+function chainLogoHostAllowed(hostname: string) {
+  const host = String(hostname || "").toLowerCase();
+  if (CHAIN_LOGO_HOSTS.has(host)) return true;
+  const suffix = ".public.blob.vercel-storage.com";
+  if (!host.endsWith(suffix)) return false;
+  const label = host.slice(0, -suffix.length);
+  return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label);
+}
+
+export type ChainLogoImageType = "image/png" | "image/jpeg" | "image/webp" | "image/svg+xml";
+
+export function normalizeImageContentType(value: unknown): ChainLogoImageType | null {
+  const base = String(value || "").split(";")[0].trim().toLowerCase();
+  if (base === "image/jpg") return "image/jpeg";
+  if (base === "image/png" || base === "image/jpeg" || base === "image/webp" || base === "image/svg+xml") return base;
+  return null;
+}
+
+/** Magic bytes, or an SVG document with no script. Anything else is not a logo. */
+export function sniffChainLogo(bytes: Uint8Array): ChainLogoImageType | null {
+  if (!bytes || bytes.byteLength < 8 || bytes.byteLength > CHAIN_LOGO_MAX_BYTES) return null;
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+  if (
+    bytes.byteLength >= 12 &&
+    bytes[0] === 0x52 &&
+    bytes[1] === 0x49 &&
+    bytes[2] === 0x46 &&
+    bytes[3] === 0x46 &&
+    bytes[8] === 0x57 &&
+    bytes[9] === 0x45 &&
+    bytes[10] === 0x42 &&
+    bytes[11] === 0x50
+  ) {
+    return "image/webp";
+  }
+  let text = "";
+  try {
+    text = new TextDecoder().decode(bytes);
+  } catch {
+    return null;
+  }
+  const trimmed = text.trimStart();
+  if (!/^<\?xml[\s>]|^<svg[\s>]/i.test(trimmed) || !/<svg[\s>]/i.test(text)) return null;
+  if (/<script|javascript:|on[a-z]+\s*=/i.test(text)) return null;
+  return "image/svg+xml";
+}
+
+function dataUrlBytes(payload: string, base64: boolean) {
+  try {
+    if (base64) {
+      const binary = atob(payload.replace(/\s/g, ""));
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    }
+    return new TextEncoder().encode(decodeURIComponent(payload));
+  } catch {
+    return null;
+  }
+}
+
+function allowedChainLogoDataUrl(raw: string) {
+  if (raw.length > CHAIN_LOGO_MAX_BYTES * 2) return null;
+  const match = raw.match(/^data:(image\/(?:png|jpeg|webp|svg\+xml))(;base64)?,([\s\S]*)$/i);
+  if (!match) return null;
+  const declared = normalizeImageContentType(match[1]);
+  const bytes = dataUrlBytes(match[3], Boolean(match[2]));
+  if (!declared || !bytes || bytes.byteLength <= 0 || bytes.byteLength > CHAIN_LOGO_MAX_BYTES) return null;
+  if (sniffChainLogo(bytes) !== declared) return null;
+  return raw;
+}
+
+/**
+ * https logo hosts, this repo's /logos files, or a validated image data URL.
+ * http, protocol-relative, and unknown hosts are rejected.
+ */
 export function allowedChainLogoUrl(src: unknown) {
   const raw = String(src || "").trim();
   if (!raw || raw.includes("\\") || raw.includes("\0")) return null;
-  if (raw.startsWith("/") && !raw.startsWith("//")) return raw;
+  if (raw.startsWith("data:")) return allowedChainLogoDataUrl(raw);
+  if (raw.startsWith("/") && !raw.startsWith("//") && !raw.includes("..")) return raw;
   try {
     const url = new URL(raw);
-    if (url.protocol !== "https:" || !CHAIN_LOGO_HOSTS.has(url.hostname)) return null;
+    if (url.protocol !== "https:" || !chainLogoHostAllowed(url.hostname)) return null;
     return raw;
   } catch {
     return null;
@@ -179,8 +271,8 @@ export function defillamaChainLogoUrl(logoKey: string) {
 
 /**
  * Reviewed brand marks for the chains that hold the top 10, as drawn on the
- * approved v17 card (public/logos/chain-revenue). Every other chain uses its
- * DefiLlama icon; the card falls back to an initial circle if that fails.
+ * approved v17 card (public/logos/chain-revenue). Kept as the fixed fallback
+ * after Logo Manager and the posted-state cache.
  */
 export const CURATED_CHAIN_LOGOS: Record<string, string> = {
   tron: "/logos/chain-revenue/tron.png",
@@ -197,6 +289,148 @@ export const CURATED_CHAIN_LOGOS: Record<string, string> = {
 
 export function chainRevenueLogoUrl(slug: string, logoKey: string = slug) {
   return CURATED_CHAIN_LOGOS[slug] || defillamaChainLogoUrl(logoKey);
+}
+
+export type ChainLogoSourceName = "approved" | "cache" | "fixed" | "defillama" | "initial";
+
+/** A copy of the last approved logo, stored in the workflow's posted-state.json. */
+export type ChainLogoCacheEntry = {
+  slug: string;
+  name: string;
+  approvedUrl: string;
+  contentType: string;
+  dataUrl: string;
+  byteLength: number;
+  updatedAt: string;
+};
+
+/** A logo that already passed the https/local, content-type, and size checks. */
+export type CheckedChainLogo = {
+  contentType: string;
+  byteLength: number;
+  renderUrl: string;
+};
+
+export type ChainLogoPlanChain = {
+  slug: string;
+  name: string;
+  logoKey: string;
+  /** False for a cached chain that is not on this card. Its cache is still updated. */
+  onCard?: boolean;
+};
+
+export function chainInitialLetter(name: string) {
+  const match = sanitizeChainName(name).match(/\p{L}|\p{N}/u);
+  return (match ? match[0] : "C").toUpperCase();
+}
+
+function escapeXml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+/** Circular initial, the same 96px box the other logos use. Never a question mark. */
+export function chainInitialBadgeDataUrl(name: string) {
+  const letter = escapeXml(chainInitialLetter(name));
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">` +
+    `<circle cx="48" cy="48" r="46" fill="#dfe2e7" stroke="#e3e6eb" stroke-width="3"/>` +
+    `<text x="48" y="50" text-anchor="middle" dominant-baseline="central" ` +
+    `font-family="Inter,Arial,sans-serif" font-size="42" font-weight="900" fill="#5b616b">${letter}</text>` +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+export function chainLogoCacheEntryUsable(entry: ChainLogoCacheEntry | null | undefined) {
+  if (!entry || !entry.approvedUrl || !entry.dataUrl) return false;
+  if (!Number.isFinite(entry.byteLength) || entry.byteLength <= 0 || entry.byteLength > CHAIN_LOGO_MAX_BYTES) return false;
+  return Boolean(allowedChainLogoUrl(entry.dataUrl));
+}
+
+function checkedLogoUsable(checked: CheckedChainLogo | null | undefined) {
+  if (!checked) return false;
+  if (!Number.isFinite(checked.byteLength) || checked.byteLength <= 0 || checked.byteLength > CHAIN_LOGO_MAX_BYTES) return false;
+  return Boolean(allowedChainLogoUrl(checked.renderUrl));
+}
+
+/**
+ * Logo order for one card: approved, cached copy, fixed file, DefiLlama, initial.
+ * Every on-card chain gets a url. An invalid image falls to the next source.
+ * Cache entries are replaced when the approved URL or byte length changes, and
+ * removed only when the database is up and that chain is no longer approved.
+ */
+export function planChainRevenueLogos(input: {
+  chains: ChainLogoPlanChain[];
+  dbAvailable: boolean;
+  approvedUrlBySlug: Record<string, string | null | undefined>;
+  cache: Record<string, ChainLogoCacheEntry | undefined>;
+  images: Record<string, CheckedChainLogo | null | undefined>;
+  now?: string;
+}) {
+  const now = input.now || new Date().toISOString();
+  const seen = new Set(input.chains.map((chain) => chain.slug));
+  const nextCache: Record<string, ChainLogoCacheEntry> = {};
+  for (const [slug, entry] of Object.entries(input.cache || {})) {
+    if (!seen.has(slug) && chainLogoCacheEntryUsable(entry)) nextCache[slug] = entry as ChainLogoCacheEntry;
+  }
+  const choices: { slug: string; name: string; source: ChainLogoSourceName; url: string }[] = [];
+  const warnings: string[] = [];
+
+  for (const chain of input.chains) {
+    const approvedUrl = input.dbAvailable ? String(input.approvedUrlBySlug?.[chain.slug] || "") : "";
+    const cached = input.cache?.[chain.slug];
+    const approved = approvedUrl ? input.images?.[approvedUrl] : null;
+    let choice: { source: ChainLogoSourceName; url: string } | null = null;
+
+    if (input.dbAvailable && approvedUrl && checkedLogoUsable(approved) && String(approved?.renderUrl || "").startsWith("data:")) {
+      const checked = approved as CheckedChainLogo;
+      const sameCopy =
+        chainLogoCacheEntryUsable(cached) &&
+        cached!.approvedUrl === approvedUrl &&
+        cached!.byteLength === checked.byteLength;
+      if (sameCopy) {
+        nextCache[chain.slug] = { ...cached!, name: chain.name };
+        choice = { source: "approved", url: cached!.dataUrl };
+      } else {
+        nextCache[chain.slug] = {
+          slug: chain.slug,
+          name: chain.name,
+          approvedUrl,
+          contentType: checked.contentType,
+          dataUrl: checked.renderUrl,
+          byteLength: checked.byteLength,
+          updatedAt: now,
+        };
+        choice = { source: "approved", url: checked.renderUrl };
+      }
+    } else if (!(input.dbAvailable && !approvedUrl) && chainLogoCacheEntryUsable(cached)) {
+      nextCache[chain.slug] = cached as ChainLogoCacheEntry;
+      choice = { source: "cache", url: cached!.dataUrl };
+    }
+
+    if (!choice) {
+      const fixed = CURATED_CHAIN_LOGOS[chain.slug];
+      if (fixed && checkedLogoUsable(input.images?.[fixed])) choice = { source: "fixed", url: fixed };
+    }
+    if (!choice) {
+      const llama = defillamaChainLogoUrl(chain.logoKey || chain.slug);
+      if (checkedLogoUsable(input.images?.[llama])) {
+        choice = { source: "defillama", url: llama };
+        if (chain.onCard !== false) warnings.push(`Chain revenue logo for ${chain.slug} fell back to DefiLlama.`);
+      }
+    }
+    if (!choice) {
+      choice = { source: "initial", url: chainInitialBadgeDataUrl(chain.name) };
+      if (chain.onCard !== false) warnings.push(`Chain revenue logo for ${chain.slug} fell back to an initial badge.`);
+    }
+    if (chain.onCard !== false) choices.push({ slug: chain.slug, name: chain.name, source: choice.source, url: choice.url });
+  }
+
+  return { choices, cache: nextCache, warnings };
 }
 
 export function listRevenueChains(overview: any): RevenueChain[] {

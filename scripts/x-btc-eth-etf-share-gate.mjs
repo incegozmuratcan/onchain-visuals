@@ -163,17 +163,23 @@ export function decideEtfShare({ btc, eth, dryRun, posts }) {
   };
 }
 
-export async function readPostState(file) {
+async function readPostStateDocument(file) {
   let raw = "";
   try {
     raw = await readFile(file, "utf8");
   } catch (error) {
-    if (error && error.code === "ENOENT") return [];
+    if (error && error.code === "ENOENT") return {};
     throw error;
   }
-  if (!raw.trim()) return [];
+  if (!raw.trim()) return {};
   const parsed = JSON.parse(raw);
-  return Array.isArray(parsed?.posts) ? parsed.posts : [];
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  return parsed;
+}
+
+export async function readPostState(file) {
+  const doc = await readPostStateDocument(file);
+  return Array.isArray(doc.posts) ? doc.posts : [];
 }
 
 export async function recordShare(file, entry) {
@@ -183,7 +189,8 @@ export async function recordShare(file, entry) {
   if (entry.mode !== "live" && entry.mode !== "dry-run") {
     throw new Error("Share state mode must be live or dry-run.");
   }
-  const posts = (await readPostState(file)).filter(
+  const doc = await readPostStateDocument(file);
+  const posts = (Array.isArray(doc.posts) ? doc.posts : []).filter(
     (post) => !(post?.date === entry.date && post?.mode === entry.mode),
   );
   posts.push({
@@ -198,7 +205,7 @@ export async function recordShare(file, entry) {
   );
   const trimmed = posts.slice(-80);
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify({ posts: trimmed }, null, 2)}\n`);
+  await writeFile(file, `${JSON.stringify({ ...doc, posts: trimmed }, null, 2)}\n`);
   return trimmed;
 }
 
@@ -227,7 +234,8 @@ export async function ensureShareTimestamps(file, posts, at) {
     return { ...post, at: stamp };
   });
   if (!stamped.length) return { posts: list, stamped };
+  const doc = await readPostStateDocument(file);
   await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify({ posts: next }, null, 2)}\n`);
+  await writeFile(file, `${JSON.stringify({ ...doc, posts: next }, null, 2)}\n`);
   return { posts: next, stamped };
 }

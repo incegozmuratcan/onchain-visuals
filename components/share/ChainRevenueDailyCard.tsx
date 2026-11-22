@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Ref } from "react";
 import type { ChartSnapshot } from "@/lib/onchain/types";
-import { allowedChainLogoUrl, sanitizeChainName } from "@/lib/onchain/chainRevenueDaily";
+import { allowedChainLogoUrl, chainInitialLetter, sanitizeChainName } from "@/lib/onchain/chainRevenueDaily";
 import { ShareCardFrame, type ShareCardBrand } from "./ShareCardFrame";
 import { chainRevenueInter } from "./chainRevenueFont";
 
@@ -43,12 +43,12 @@ function dayParts(date?: string | null) {
 }
 
 function initialOf(name: string) {
-  return (String(name || "?").trim()[0] || "?").toUpperCase();
+  return chainInitialLetter(name);
 }
 
 /**
- * DefiLlama chain icon with a neutral initial circle when the icon is missing
- * or fails to load. A failed image never leaves an empty hole on the card.
+ * Chain logo. A missing or failed image becomes a circle with the chain's
+ * initial, the same size as the logo. It is never a question mark.
  */
 function ChainLogo({ src, name, size }: { src?: string | null; name: string; size: number }) {
   const [failed, setFailed] = useState(!src);

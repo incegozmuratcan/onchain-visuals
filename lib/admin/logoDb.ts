@@ -406,8 +406,12 @@ function orderedPublicSourceUrls(logo: Pick<AdminLogo, "approved_source_id">, so
   return uniqueSlugs(ordered.map((source) => (source ? sourcePublicUrl(source) || "" : "")));
 }
 
-export async function approvedLogoCandidateOverlay(names: string[]) {
-  if (!hasDatabaseConfig() || names.length === 0) return new Map<string, string[]>();
+export async function approvedLogoCandidateOverlay(names: string[], options?: { throwOnError?: boolean }) {
+  if (!names.length) return new Map<string, string[]>();
+  if (!hasDatabaseConfig()) {
+    if (options?.throwOnError) throw new Error("DATABASE_URL is not set");
+    return new Map<string, string[]>();
+  }
   try {
     const candidatesByName = names.map((name) => approvedLogoCandidateSlugs(name));
     const slugs = uniqueSlugs(candidatesByName.flat());
@@ -452,6 +456,7 @@ export async function approvedLogoCandidateOverlay(names: string[]) {
     }
     return overlay;
   } catch (error) {
+    if (options?.throwOnError) throw error;
     console.warn("Approved logo candidate overlay unavailable", error);
     return new Map<string, string[]>();
   }
