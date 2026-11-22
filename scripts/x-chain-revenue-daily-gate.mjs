@@ -11,9 +11,9 @@
  * A recorded live post blocks every later run of that day. A recorded dry-run
  * blocks later dry-runs only, so a same-day live post can still go out.
  */
-import { blockingPosts, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
+import { blockingPosts, ensureShareTimestamps, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
 
-export { readPostState, recordShare };
+export { ensureShareTimestamps, readPostState, recordShare };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 

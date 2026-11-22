@@ -28,6 +28,7 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 - 2026-11-22: Merged #184 site hardening, #185 bounded refresh + CDN cache, #186 public `source_error` cards, #187 ETF daily caption, #188 Chain Revenue gate.
 - 2026-11-22: Chain Revenue weekly and monthly cards (7D / 1M), rank-change badges, period gates, and the caption updates for Chain Revenue daily plus ETF weekly and monthly.
 - 2026-11-22: ETF daily retries the oldest unposted ready NYSE session, including a Sun–Mon catch-up. ETF weekly posts Sun–Tue and waits when a daily post is due.
+- 2026-11-22: Chain Revenue weekly waits until Sunday's daily has been posted for 60 minutes.
 
 ## Sıradakiler
 

@@ -5,7 +5,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
-import { decideChainRevenuePeriodShare } from "../scripts/x-chain-revenue-period-gate.mjs";
+import {
+  decideChainRevenuePeriodShare,
+  ensureShareTimestamps,
+  readPostState,
+} from "../scripts/x-chain-revenue-period-gate.mjs";
 
 async function loadTs(path) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
@@ -168,6 +172,78 @@ test("period share gate skips an incomplete or already shared period", () => {
   assert.equal(decideChainRevenuePeriodShare({ ...base, dryRun: false, posts: dry }).proceed, true);
 });
 
+test("weekly waits until Sunday's daily has been posted for 60 minutes", () => {
+  const complete = { start: "2026-11-16", end: "2026-11-22", complete: true, dates: [], message: "ok" };
+  const now = new Date("2026-11-23T14:00:00.000Z");
+  const base = { assessment: complete, expectedStart: "2026-11-16", dryRun: false, posts: [], label: "week", now };
+  const sunday = (at) => [{ date: "2026-11-22", mode: "live", ...(at ? { at } : {}) }];
+
+  const notPosted = decideChainRevenuePeriodShare({ ...base, dailyPosts: [] });
+  assert.equal(notPosted.proceed, false);
+  assert.equal(notPosted.reason, "daily_first");
+
+  const recent = decideChainRevenuePeriodShare({
+    ...base,
+    dailyPosts: sunday("2026-11-23T13:00:01.000Z"),
+  });
+  assert.equal(recent.proceed, false);
+  assert.equal(recent.reason, "daily_recent");
+
+  const unstamped = decideChainRevenuePeriodShare({ ...base, dailyPosts: sunday() });
+  assert.equal(unstamped.proceed, false);
+  assert.equal(unstamped.reason, "daily_recent");
+  assert.equal(unstamped.dailyPostedAt, null);
+
+  const ready = decideChainRevenuePeriodShare({
+    ...base,
+    dailyPosts: sunday("2026-11-23T13:00:00.000Z"),
+  });
+  assert.equal(ready.proceed, true);
+  assert.equal(ready.date, "2026-11-16");
+
+  const again = decideChainRevenuePeriodShare({
+    ...base,
+    posts: [{ date: "2026-11-16", mode: "live" }],
+    dailyPosts: sunday("2026-11-23T12:00:00.000Z"),
+  });
+  assert.equal(again.proceed, false);
+  assert.equal(again.reason, "already_posted");
+
+  const partial = decideChainRevenuePeriodShare({
+    ...base,
+    assessment: { ...complete, complete: false, message: "missing a day" },
+    dailyPosts: sunday("2026-11-23T12:00:00.000Z"),
+  });
+  assert.equal(partial.reason, "incomplete");
+});
+
+test("a daily post with no timestamp is stored once and is not treated as an hour old", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "chain-revenue-daily-state-"));
+  const file = join(dir, "posted-state.json");
+  await writeFile(file, `${JSON.stringify({ posts: [{ date: "2026-11-22", mode: "live" }] }, null, 2)}\n`);
+  const first = await ensureShareTimestamps(file, await readPostState(file), "2026-11-23T13:00:00.000Z");
+  assert.deepEqual(first.stamped, ["2026-11-22"]);
+  assert.equal(first.posts[0].at, "2026-11-23T13:00:00.000Z");
+  const saved = await readPostState(file);
+  assert.equal(saved[0].at, "2026-11-23T13:00:00.000Z");
+  const second = await ensureShareTimestamps(file, saved, "2026-11-23T18:00:00.000Z");
+  assert.deepEqual(second.stamped, []);
+  assert.equal(second.posts[0].at, "2026-11-23T13:00:00.000Z");
+
+  const now = new Date("2026-11-23T13:30:00.000Z");
+  const waited = decideChainRevenuePeriodShare({
+    assessment: { start: "2026-11-16", end: "2026-11-22", complete: true, dates: [], message: "ok" },
+    expectedStart: "2026-11-16",
+    dryRun: false,
+    posts: [],
+    label: "week",
+    now,
+    dailyPosts: second.posts,
+  });
+  assert.equal(waited.proceed, false);
+  assert.equal(waited.reason, "daily_recent");
+});
+
 test("weekly and monthly workflows, pages, and scripts are wired", async () => {
   const [weekly, monthly, script, registry, snapshots, page, pkg] = await Promise.all([
     read("../.github/workflows/x-chain-revenue-weekly.yml"),
@@ -196,6 +272,10 @@ test("weekly and monthly workflows, pages, and scripts are wired", async () => {
   assert.match(script, /assessChainRevenuePeriod/);
   assert.match(script, /decideChainRevenuePeriodShare/);
   assert.match(script, /recordShare/);
+  assert.match(script, /ensureShareTimestamps/);
+  assert.match(script, /X_CHAIN_REVENUE_DAILY_POST_STATE/);
+  assert.match(weekly, /Restore the daily post state/);
+  assert.match(weekly, /name=chain-revenue-daily/);
   assert.match(registry, /slug:'chain-revenue-weekly'/);
   assert.match(registry, /slug:'chain-revenue-monthly'/);
   assert.match(snapshots, /case "chain-revenue-weekly"/);
