@@ -74,6 +74,8 @@ test("publish routes settle the claim instead of always releasing it", async () 
     "../app/api/x/publish-btc-eth-etf-weekly/route.ts",
     "../app/api/x/publish-btc-eth-etf-monthly/route.ts",
     "../app/api/x/publish-chain-revenue-daily/route.ts",
+    "../app/api/x/publish-chain-revenue-weekly/route.ts",
+    "../app/api/x/publish-chain-revenue-monthly/route.ts",
   ];
   for (const path of routes) {
     const source = await readFile(new URL(path, import.meta.url), "utf8");

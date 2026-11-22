@@ -312,6 +312,7 @@ async function captureCard(pageUrl) {
         range.selectNodeContents(name);
         return range.getBoundingClientRect().right - bar.getBoundingClientRect().left;
       });
+      const tracks = [...document.querySelectorAll("[data-bar-track]")].map((el) => Math.round(el.getBoundingClientRect().x));
       const names = [...document.querySelectorAll("[data-chain-name]")].map((el) => ({
         name: el.getAttribute("data-chain-name"),
         fontSize: getComputedStyle(el).fontSize,
@@ -329,10 +330,13 @@ async function captureCard(pageUrl) {
       const frameClipped = frame
         ? frame.scrollHeight > frame.clientHeight + 2 || frame.scrollWidth > frame.clientWidth + 2
         : true;
-      return { values, nameOverlap, names, images, fallbacks, rows, frameClipped };
+      return { values, nameOverlap, tracks, names, images, fallbacks, rows, frameClipped };
     });
     if (fit.rows !== rowCount) {
       throw new Error(`Chain revenue card drew ${fit.rows} rows; expected ${rowCount}.`);
+    }
+    if (fit.tracks?.length && new Set(fit.tracks).size !== 1) {
+      throw new Error(`Chain revenue bar columns do not share one x: ${fit.tracks.join(", ")}.`);
     }
     const overflow = fit.values.filter((item) => item.clipped || !item.text || /…/.test(item.text));
     const overlapping = fit.nameOverlap.filter((gap) => gap > -4);
@@ -355,7 +359,7 @@ async function captureCard(pageUrl) {
     if (dims.width !== cardWidth || dims.height !== cardHeight) {
       throw new Error(`PNG is ${dims.width}×${dims.height}; expected ${cardWidth}×${cardHeight}.`);
     }
-    return { png, dims, values: fit.values, names: fit.names, logoFallbacks: fit.fallbacks };
+    return { png, dims, values: fit.values, names: fit.names, logoFallbacks: fit.fallbacks, barX: fit.tracks?.[0] ?? null };
   } finally {
     await browser.close();
   }
@@ -471,6 +475,7 @@ async function main() {
       })),
       names: captured.names,
       logoFallbacks: captured.logoFallbacks,
+      barX: captured.barX,
       image: {
         path: "chain-revenue-daily.png",
         width: captured.dims.width,
@@ -539,6 +544,7 @@ async function main() {
           total: result.total,
           chainCount: result.chainCount,
           logoFallbacks: result.logoFallbacks,
+          barX: result.barX,
           image: result.image,
           captionPath: "artifacts/x-chain-revenue-daily/caption.txt",
         },

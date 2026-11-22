@@ -37,6 +37,10 @@ const CHAIN_REVENUE_CUTOFF_TIME_ZONE = "Europe/Istanbul";
 const CORE_PRIOR_TOP_CHAINS = ["tron", "ethereum", "solana"];
 /** More failed summary fetches than this fraction makes the whole fetch a source error. */
 export const MAX_FAILED_FETCH_RATIO = 0.05;
+/** Days of history the weekly card needs: the week, the prior week, and the gate's 3-day lookback. */
+export const CHAIN_REVENUE_WEEK_KEEP_DAYS = 28;
+/** Days of history the monthly card needs: the month, the prior month, and the gate's lookback. */
+export const CHAIN_REVENUE_MONTH_KEEP_DAYS = 120;
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 86_400_000;
@@ -62,6 +66,12 @@ export type RevenueChain = {
 /** Day (YYYY-MM-DD) → chain slug → revenue in USD. */
 export type RevenueDays = Record<string, Record<string, number>>;
 
+export type ChainRevenueRankChange = {
+  kind: "up" | "down" | "new";
+  /** Places gained or lost versus the previous period's top 10. Omitted for NEW. */
+  places?: number;
+};
+
 export type ChainRevenueRow = {
   rank: number;
   slug: string;
@@ -72,6 +82,8 @@ export type ChainRevenueRow = {
   /** Bar width in percent of the track. Square-root scale so small chains stay visible. */
   barPercent: number;
   share: number;
+  /** Weekly and monthly cards only. Null when the rank did not change. */
+  rankChange?: ChainRevenueRankChange | null;
 };
 
 export type ChainRevenueAssessment = {
@@ -124,6 +136,16 @@ export function sanitizeChainName(raw: string) {
 
 export function chainDisplayName(slug: string, name: string) {
   return sanitizeChainName(DISPLAY_NAMES[slug] || String(name || slug));
+}
+
+/**
+ * Weekly and monthly cards shorten Robinhood Chain so the rank badge fits in
+ * the same 330px name column as the daily card. The daily card keeps the full name.
+ */
+export function chainPeriodDisplayName(slug: string, name: string) {
+  const display = chainDisplayName(slug, name);
+  if (slug === "robinhood-chain" || display === "Robinhood Chain") return "Robinhood";
+  return display;
 }
 
 const CHAIN_LOGO_HOSTS = new Set(["icons.llamao.fi"]);
@@ -344,6 +366,137 @@ export function formatChainRevenueShare(share: number) {
 export function chainRevenueBarPercent(value: number, max: number) {
   if (!(max > 0) || !(value > 0)) return 0;
   return Math.round(1000 * Math.sqrt(Math.min(1, value / max))) / 10;
+}
+
+export function utcDaysInclusive(start: string, end: string) {
+  if (!DATE_RE.test(start) || !DATE_RE.test(end) || start > end) return [];
+  const dates: string[] = [];
+  for (let day = start; day <= end; day = addUtcDays(day, 1)) dates.push(day);
+  return dates;
+}
+
+/** Last completed Monday–Sunday UTC week. The week that contains today is not used. */
+export function lastCompletedUtcWeek(now: Date = new Date()) {
+  const yesterday = latestCompletedUtcDay(now);
+  const sundayOffset = new Date(`${yesterday}T00:00:00Z`).getUTCDay();
+  const end = addUtcDays(yesterday, -sundayOffset);
+  return { start: addUtcDays(end, -6), end };
+}
+
+/** Last completed calendar month in UTC. The month that contains today is not used. */
+export function lastCompletedUtcMonth(now: Date = new Date()) {
+  const [year, month] = utcDay(now).split("-").map(Number);
+  const startDate = new Date(Date.UTC(year, month - 2, 1));
+  const endDate = new Date(Date.UTC(year, month - 1, 0));
+  return { start: utcDay(startDate), end: utcDay(endDate) };
+}
+
+export function previousUtcWeek(start: string) {
+  return { start: addUtcDays(start, -7), end: addUtcDays(start, -1) };
+}
+
+export function previousUtcMonth(start: string) {
+  const [year, month] = start.split("-").map(Number);
+  const startDate = new Date(Date.UTC(year, month - 2, 1));
+  const endDate = new Date(Date.UTC(year, month - 1, 0));
+  return { start: utcDay(startDate), end: utcDay(endDate) };
+}
+
+/** Sum of each chain's dailyRevenue points from start through end, inclusive. */
+export function sumChainRevenue(days: RevenueDays, start: string, end: string) {
+  const totals: Record<string, number> = {};
+  for (const date of utcDaysInclusive(start, end)) {
+    for (const [slug, value] of Object.entries(days[date] || {})) {
+      if (!Number.isFinite(value)) continue;
+      totals[slug] = (totals[slug] || 0) + value;
+    }
+  }
+  return totals;
+}
+
+export function topChainSlugs(totals: Record<string, number>, count = TOP_COUNT) {
+  return Object.entries(totals)
+    .filter(([, value]) => value > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, count)
+    .map(([slug]) => slug);
+}
+
+/**
+ * Rank versus the previous period's top 10.
+ * Up and down carry the place count. A chain outside that top 10 is NEW.
+ * The same rank returns null so the card draws no badge.
+ */
+export function chainRevenueRankChange(slug: string, rank: number, priorTop: string[]): ChainRevenueRankChange | null {
+  const priorIndex = priorTop.indexOf(slug);
+  if (priorIndex < 0) return { kind: "new" };
+  const priorRank = priorIndex + 1;
+  if (priorRank === rank) return null;
+  if (rank < priorRank) return { kind: "up", places: priorRank - rank };
+  return { kind: "down", places: rank - priorRank };
+}
+
+export type ChainRevenuePeriodAssessment = {
+  start: string;
+  end: string;
+  complete: boolean;
+  dates: string[];
+  incompleteDates: string[];
+  problems: string[];
+  message: string;
+};
+
+/** The period is complete only when every UTC day passes the daily gate. */
+export function assessChainRevenuePeriod(
+  days: RevenueDays,
+  start: string,
+  end: string,
+  now: Date = new Date(),
+): ChainRevenuePeriodAssessment {
+  const dates = utcDaysInclusive(start, end);
+  const expected = dates.length;
+  const assessments = dates.map((date) => assessChainRevenueDay(days, date, now));
+  const incomplete = assessments.filter((item) => !item.complete);
+  const problems = incomplete.slice(0, 3).map((item) => `${item.date}: ${item.problems.join("; ") || item.message}`);
+  if (!expected) problems.unshift(`${start} through ${end} is not a day range`);
+  const complete = expected > 0 && incomplete.length === 0;
+  return {
+    start,
+    end,
+    complete,
+    dates,
+    incompleteDates: incomplete.map((item) => item.date),
+    problems,
+    message: complete
+      ? `Chain revenue ${start} through ${end} is complete: ${expected} days passed the daily gate.`
+      : `Chain revenue ${start} through ${end} is not complete (${incomplete.length} of ${expected} days): ${problems.join(" | ")}.`,
+  };
+}
+
+export function rankChainRevenuePeriod(
+  days: RevenueDays,
+  start: string,
+  end: string,
+  chains: RevenueChain[],
+  priorTop: string[] = [],
+  count = TOP_COUNT,
+) {
+  const named = chains.map((chain) => ({
+    ...chain,
+    name: chainPeriodDisplayName(chain.slug, chain.name),
+  }));
+  const ranked = rankChainRevenueDay({ period: sumChainRevenue(days, start, end) }, "period", named, count);
+  return {
+    ...ranked,
+    date: end,
+    start,
+    end,
+    priorTop,
+    rows: ranked.rows.map((row) => ({
+      ...row,
+      rankChange: chainRevenueRankChange(row.slug, row.rank, priorTop),
+    })),
+  };
 }
 
 export function rankChainRevenueDay(

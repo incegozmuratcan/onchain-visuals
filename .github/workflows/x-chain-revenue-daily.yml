@@ -21,8 +21,8 @@ name: X Chain Revenue daily
 # both restore the same posted-state.json artifact, so a day already shared
 # by either path is skipped by the other.
 #
-# The share day is always the latest completed UTC day (yesterday in UTC), so
-# the caption's "yesterday" is true. Each value is that chain's summary
+# The share day is always the latest completed UTC day. The caption names that
+# day with the full month name. Each value is that chain's summary
 # totalDataChart point for that exact UTC day; the rolling total24h is never
 # used. DefiLlama fills a finished day late, chain by chain, so a pass shares
 # only when the day is complete:

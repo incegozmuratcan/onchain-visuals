@@ -217,11 +217,14 @@ test("ranking returns the top 10 with names, logos, shares, and the full-day tot
   assert.ok(Math.abs(ranked.rows[0].share - 600_000 / sum) < 1e-12);
 });
 
-test("the caption is the exact plain question", () => {
-  assert.equal(caption.CHAIN_REVENUE_DAILY_CAPTION, "How much revenue did blockchains generate yesterday?");
-  const text = caption.buildChainRevenueDailyCaption({ metadata: { latestCompletedDate: "2026-11-16" } });
-  assert.equal(text, "How much revenue did blockchains generate yesterday?");
-  assert.doesNotMatch(text, /[#$]/);
+test("the caption names the UTC day with the full month", () => {
+  const text = caption.buildChainRevenueDailyCaption({ metadata: { latestCompletedDate: "2026-11-21" } });
+  assert.equal(text, "How much revenue did blockchains generate on November 21?");
+  assert.equal(
+    caption.buildChainRevenueDailyCaption({ metadata: { latestCompletedDate: "2026-11-16" } }),
+    "How much revenue did blockchains generate on November 16?",
+  );
+  assert.doesNotMatch(text, /[#$]|yesterday/);
   assert.throws(() => caption.buildChainRevenueDailyCaption({ metadata: {} }));
 });
 
@@ -265,7 +268,8 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.match(snapshots, /case "chain-revenue-daily"/);
   assert.doesNotMatch(snapshots.slice(snapshots.indexOf("function buildChainRevenueDailyCard")), /^.*total24h.*$/m);
   assert.match(card, /ShareCardFrame/);
-  assert.match(card, /titleBadge="24H"/);
+  assert.match(card, /titleBadge=\{String\(meta\.titleBadge \|\| "24H"\)\}/);
+  assert.match(card, /grid-cols-\[34px_44px_330px_minmax\(0,1fr\)_196px\]/);
   assert.match(card, /data-chain-logo-fallback/);
   assert.match(card, /data-name-fit/);
   assert.match(frame, /titleBadge\?: string/);
@@ -292,7 +296,7 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.ok(workflow.indexOf("id: gate") < workflow.indexOf("npm run build"));
   assert.match(workflow, /X_CONSUMER_KEY: \$\{\{ secrets\.X_CONSUMER_KEY \}\}/);
   assert.match(pkg, /"x:chain-revenue-daily": "node scripts\/x-chain-revenue-daily\.mjs"/);
-  assert.match(docs, /How much revenue did blockchains generate yesterday\?/);
+  assert.match(docs, /How much revenue did blockchains generate on November 21\?/);
 });
 
 test("chain names and logos used on the card are constrained", () => {

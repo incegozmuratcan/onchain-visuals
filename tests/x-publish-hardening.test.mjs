@@ -11,6 +11,8 @@ const routes = [
   "../app/api/x/publish-btc-eth-etf-weekly/route.ts",
   "../app/api/x/publish-btc-eth-etf-monthly/route.ts",
   "../app/api/x/publish-chain-revenue-daily/route.ts",
+  "../app/api/x/publish-chain-revenue-weekly/route.ts",
+  "../app/api/x/publish-chain-revenue-monthly/route.ts",
 ];
 
 const workflows = [
@@ -19,6 +21,8 @@ const workflows = [
   "../.github/workflows/x-btc-eth-etf-weekly.yml",
   "../.github/workflows/x-btc-eth-etf-monthly.yml",
   "../.github/workflows/x-chain-revenue-daily.yml",
+  "../.github/workflows/x-chain-revenue-weekly.yml",
+  "../.github/workflows/x-chain-revenue-monthly.yml",
 ];
 
 test("publish routes stay off Vercel, reject fixtures, and require a fresh exact day", async () => {

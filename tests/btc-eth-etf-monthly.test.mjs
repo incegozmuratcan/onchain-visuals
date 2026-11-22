@@ -420,7 +420,7 @@ test("same-month skip blocks a repeated dry-run and still allows the live post",
   assert.equal(stored[0].date, "2026-10-01");
 });
 
-test("caption v3 matches the weekly shape with the month name", () => {
+test("the monthly caption names the month and has no amount", () => {
   const caption = captionLib.buildBtcEthEtfMonthlyCaption({
     title: "ETF Monthly Flowboard",
     metadata: { captionRange: "October 2026" },
@@ -431,13 +431,8 @@ test("caption v3 matches the weekly shape with the month name", () => {
       ],
     },
   });
-  assert.equal(
-    caption,
-    ["ETF Monthly Flowboard — October 2026", "", "US spot Bitcoin ETFs: -$515.9M net outflow", "US spot Ethereum ETFs: -$1.61B net outflow"].join(
-      "\n",
-    ),
-  );
-  assert.doesNotMatch(caption, /\$[A-Za-z]|#|https?:/);
+  assert.equal(caption, "Here are the Bitcoin and Ethereum ETF flows for the month of October 2026.");
+  assert.doesNotMatch(caption, /\$|inflow|outflow|#|https?:/);
   assert.throws(
     () => captionLib.buildBtcEthEtfMonthlyCaption({ metadata: {}, series: { cards: [] } }),
     /month label/,

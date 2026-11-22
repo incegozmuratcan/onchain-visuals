@@ -57,7 +57,7 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
     }
   }
   if (!data) notFound();
-  const shareBrandSlug = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily';
+  const shareBrandSlug = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily' || params.slug === 'chain-revenue-weekly' || params.slug === 'chain-revenue-monthly';
   // capture=1 is the X render. Freeze the card chrome to code defaults so an
   // admin-panel edit cannot change a posted card. Production currently stores
   // cardFooterText "Created with" and createdWithText "Onchain Visuals", which
