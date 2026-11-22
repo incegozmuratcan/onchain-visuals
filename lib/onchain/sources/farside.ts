@@ -147,38 +147,33 @@ function finiteFlow(value: number | null | undefined) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function issuersOn(rows: EtfFlowRow[], day: string) {
+  const byTicker = new Map<string, EtfFlowRow>();
+  for (const row of rows) {
+    if (row.date !== day || row.isTotal) continue;
+    const prior = byTicker.get(row.ticker);
+    if (!prior || (prior.flowUsd == null && row.flowUsd != null)) byTicker.set(row.ticker, row);
+  }
+  return byTicker;
+}
+
+function isPlaceholderDay(rows: EtfFlowRow[], day: string) {
+  const issuers = issuersOn(rows, day);
+  return !issuers.size || [...issuers.values()].every((row) => !finiteFlow(row.flowUsd));
+}
+
+const emptySession: EtfSessionFill = { date: null, complete: false, missingTickers: [], totalReady: false };
+
 /**
- * The session to share is the newest row that actually has issuer numbers.
- * Farside often appends the next date as dashes with a total of 0.0 before
- * that print exists. That shell is not a session: dashes are not zeros, and
- * it does not hide the previous filled row. A row that has started to print
- * (at least one real issuer number, including an explicit 0) is the session,
- * and every issuer cell plus the total must be a real number or it is incomplete.
+ * One session row. Expected tickers are the cells on this date plus the
+ * previous row, so a column Farside dropped still counts as missing.
+ * Explicit 0 is filled. A dash, blank, or missing cell is not.
  */
-export function assessLatestEtfSession(rows: EtfFlowRow[]): EtfSessionFill {
-  const dates = [...new Set(rows.map((row) => row.date))].sort();
-  if (!dates.length) return { date: null, complete: false, missingTickers: [], totalReady: false };
-  const issuersOn = (day: string) => {
-    const byTicker = new Map<string, EtfFlowRow>();
-    for (const row of rows) {
-      if (row.date !== day || row.isTotal) continue;
-      const prior = byTicker.get(row.ticker);
-      if (!prior || (prior.flowUsd == null && row.flowUsd != null)) byTicker.set(row.ticker, row);
-    }
-    return byTicker;
-  };
-  const placeholder = (day: string) => {
-    const issuers = issuersOn(day);
-    return !issuers.size || [...issuers.values()].every((row) => !finiteFlow(row.flowUsd));
-  };
-  let index = dates.length - 1;
-  while (index > 0 && placeholder(dates[index])) index -= 1;
-  const date = dates[index];
-  const latest = issuersOn(date);
-  const previous = index > 0 ? dates[index - 1] : null;
+export function assessEtfSession(rows: EtfFlowRow[], date: string, previous: string | null): EtfSessionFill {
+  const latest = issuersOn(rows, date);
   const expected = new Set(latest.keys());
   if (previous) {
-    for (const ticker of issuersOn(previous).keys()) expected.add(ticker);
+    for (const ticker of issuersOn(rows, previous).keys()) expected.add(ticker);
   }
   const missingTickers = [...expected].filter((ticker) => !finiteFlow(latest.get(ticker)?.flowUsd)).sort();
   const totalReady = rows.some((row) => row.date === date && row.isTotal && finiteFlow(row.flowUsd));
@@ -188,6 +183,38 @@ export function assessLatestEtfSession(rows: EtfFlowRow[]): EtfSessionFill {
     missingTickers,
     totalReady,
   };
+}
+
+/**
+ * Every row that has started to print, oldest first. A trailing (or middle)
+ * shell of only dashes is omitted: dashes are not zeros, and that shell is
+ * not a session.
+ */
+export function assessEtfSessions(rows: EtfFlowRow[]): EtfSessionFill[] {
+  const dates = [...new Set(rows.map((row) => row.date))].sort();
+  const sessions: EtfSessionFill[] = [];
+  for (let index = 0; index < dates.length; index += 1) {
+    if (isPlaceholderDay(rows, dates[index])) continue;
+    sessions.push(assessEtfSession(rows, dates[index], index > 0 ? dates[index - 1] : null));
+  }
+  return sessions;
+}
+
+/**
+ * The newest row that actually has issuer numbers.
+ * Farside often appends the next date as dashes with a total of 0.0 before
+ * that print exists. That shell is not a session. A row that has started to
+ * print (at least one real issuer number, including an explicit 0) is the
+ * session, and every issuer cell plus the total must be a real number or it
+ * is incomplete.
+ */
+export function assessLatestEtfSession(rows: EtfFlowRow[]): EtfSessionFill {
+  const dates = [...new Set(rows.map((row) => row.date))].sort();
+  if (!dates.length) return emptySession;
+  let index = dates.length - 1;
+  while (index > 0 && isPlaceholderDay(rows, dates[index])) index -= 1;
+  if (isPlaceholderDay(rows, dates[index])) return emptySession;
+  return assessEtfSession(rows, dates[index], index > 0 ? dates[index - 1] : null);
 }
 
 export function parseFarsideEtfTable(html: string, asset: EtfAsset): { rows: EtfFlowRow[]; warnings: string[] } {

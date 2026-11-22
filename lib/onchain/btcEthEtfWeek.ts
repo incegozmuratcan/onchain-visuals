@@ -47,6 +47,8 @@ export type WeekDecision = {
   open: boolean;
   /** The week has ended (or a session started printing) but it is not shareable. */
   blocked: boolean;
+  /** True when Europe/Istanbul is outside Sunday–Tuesday. */
+  outsideWindow?: boolean;
   weekStart: string | null;
   weekEnd: string | null;
   tradingDays: string[];
@@ -93,6 +95,23 @@ export function nyDate(now: Date) {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+}
+
+export function istanbulDate(now: Date) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Istanbul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
+export function istanbulWeekday(now: Date) {
+  const name = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Istanbul",
+    weekday: "short",
+  }).format(now);
+  return WEEKDAY_LABELS.indexOf(name);
 }
 
 export function mondayOf(isoDate: string) {
@@ -345,7 +364,43 @@ export function selectLatestCompletedWeek(
 }
 
 /**
- * Week the Sunday job is allowed to share.
+ * Sunday–Tuesday in Europe/Istanbul, for the Mon–Fri week that just ended.
+ * Sunday is 6 days after that Monday, Monday is 7, Tuesday is 8.
+ * The X weekly job uses this. `selectPostingWeek` stays the older Sunday-only
+ * lookup used by tests of the fallback rule.
+ */
+export function weeklyPostWindow(now: Date) {
+  const today = istanbulDate(now);
+  const weekday = istanbulWeekday(now);
+  if (weekday < 0 || weekday > 2) {
+    return { open: false, weekStart: null as string | null, today, weekday };
+  }
+  const back = weekday === 0 ? 6 : weekday + 6;
+  return { open: true, weekStart: addDays(today, -back), today, weekday };
+}
+
+/**
+ * Week the X job may share: the previous Mon–Fri week, and only on Sun–Tue TR.
+ * An incomplete target is retried on the next run. It does not fall back to an
+ * older week. Once the next Sunday arrives, that older week is no longer returned.
+ */
+export function selectShareWeek(
+  btcRows: EtfFlowInput[],
+  ethRows: EtfFlowInput[],
+  now: Date = new Date(),
+): WeekDecision {
+  const window = weeklyPostWindow(now);
+  if (!window.open || !window.weekStart) {
+    const message = "ETF weekly posts Sunday through Tuesday (Europe/Istanbul) for the previous trading week.";
+    return { ...emptyDecision(message), outsideWindow: true };
+  }
+  const week = assessWeek(btcRows, ethRows, window.weekStart, now);
+  if (week.complete) return { ...week, blocked: false, outsideWindow: false };
+  return { ...week, complete: false, blocked: true, outsideWindow: false };
+}
+
+/**
+ * Older Sunday lookup. The X job uses `selectShareWeek` instead.
  * An in-progress week is skipped so the previous completed week can be rendered.
  * A week that has already ended, but is missing a trading day, blocks the run.
  * Falling through would republish the prior week while this one is still incomplete.

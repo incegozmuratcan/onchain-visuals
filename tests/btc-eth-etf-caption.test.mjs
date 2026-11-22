@@ -185,9 +185,10 @@ test("combined workflow is the daily X schedule and stays a dry run by default",
     new URL("../.github/workflows/x-btc-etf-daily.yml", import.meta.url),
     "utf8",
   );
-  assert.match(workflow, /cron: "30 5 \* \* 2-6"/);
-  assert.match(workflow, /cron: "30 7 \* \* 2-6"/);
-  assert.match(workflow, /cron: "30 10 \* \* 2-6"/);
+  assert.match(workflow, /cron: "30 5 \* \* 0-6"/);
+  assert.match(workflow, /cron: "30 7 \* \* 0-6"/);
+  assert.match(workflow, /cron: "30 10 \* \* 0-6"/);
+  assert.match(workflow, /Sun–Mon catch-up/);
   assert.equal((workflow.match(/^\s*- cron:/gm) || []).length, 3);
   assert.match(workflow, /Europe\/Istanbul/);
   assert.match(workflow, /explicit 0/);
@@ -208,8 +209,9 @@ test("combined workflow is the daily X schedule and stays a dry run by default",
   assert.match(workflow, /scripts\/x-btc-eth-etf-daily\.mjs/);
   assert.match(script, /X_DRY_RUN \?\? "true"/);
   assert.match(script, /process\.argv\.includes\("--preflight"\)/);
-  assert.match(script, /assessLatestEtfSession/);
-  assert.match(script, /decideEtfShare/);
+  assert.match(script, /assessEtfSessions/);
+  assert.match(script, /selectDailyEtfSession/);
+  assert.match(script, /ETF_DAILY_SESSION/);
   assert.match(script, /recordShare/);
   assert.match(script, /if \(!share\.decision\.proceed\)/);
   assert.match(script, /Refusing to post a preview fixture/);

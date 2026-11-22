@@ -20,17 +20,17 @@ A live post runs only when dry-run is explicitly off **and** `ONCHAIN_PUBLISH_SE
 
 ## Schedule
 
-The combined workflow runs three times, Tuesday through Saturday, after the previous US cash session. Times are Europe/Istanbul (UTC+3, no daylight saving):
+cron-job.org job 8833197 is the primary trigger: every 30 minutes from 08:00 through 23:30 Europe/Istanbul (UTC+3, no daylight saving), Tuesday through Saturday, plus Sunday and Monday so a late Friday session can still post. The required cron is `*/30 8-23 * * *` in the Europe/Istanbul timezone. The GitHub crons are only a backup:
 
 | Istanbul | UTC cron | Pass |
 | --- | --- | --- |
-| 08:30 | `30 5 * * 2-6` | Primary |
-| 10:30 | `30 7 * * 2-6` | Retry if the primary did not share |
-| 13:30 | `30 10 * * 2-6` | Second retry |
+| 08:30 | `30 5 * * 0-6` | Backup |
+| 10:30 | `30 7 * * 0-6` | Backup |
+| 13:30 | `30 10 * * 0-6` | Backup |
 
-A pass shares only when the newest real Farside session for Bitcoin and the newest real session for Ethereum are the same date, and every issuer cell on both rows is a real number or an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero. Farside often appends the next date as dashes with a total of 0 before that print exists. That shell is not a session, so the previous filled day can still be shared. Once any issuer number is on the new row, that row is the session, and a partial fill does not post. An incomplete pass exits successfully without calling X, writes `reason: "incomplete"` into `result.json`, and leaves the later pass free to share once the row is filled.
+A pass posts at most one session: the oldest NYSE session newer than the latest date in `posted-state.json` that is fully filled on both Bitcoin and Ethereum. Every issuer cell is a real number or an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero. Farside often appends the next date as dashes with a total of 0 before that print exists. That shell is not a session. An unready session exits successfully without calling X, writes `reason: "incomplete"` into `result.json`, and the next pass retries it. If a newer session is fully ready while an older one is still unready, the older one is skipped for good and the newer one is posted. A session older than the latest posted date is never posted.
 
-If that session date was already shared, or Farside has no newer row than the last success (a holiday or an empty day), the pass exits successfully with `reason: "already_posted"` or `reason: "no_new_session"`. Successful runs record the date in `artifacts/x-btc-eth-etf-daily/posted-state.json`. The workflow uploads that file and the next run restores it from the previous artifact. A live post blocks every later run of that date. A dry-run success blocks later dry-runs only, so turning live posting on the same day can still publish once.
+If that session date was already shared, or Farside has no newer session than the last success, the pass exits successfully with `reason: "already_posted"` or `reason: "no_new_session"`. Successful runs record the date in `artifacts/x-btc-eth-etf-daily/posted-state.json`. The workflow uploads that file and the next run restores it from the previous artifact. A live post blocks every later run of that date. A dry-run success blocks later dry-runs only, so turning live posting on the same day can still publish once. The card is pinned to the chosen session (`ETF_DAILY_SESSION`) so a catch-up post shows that date, not a later session that is already filled.
 
 `workflow_dispatch` is always available and defaults to a dry run.
 

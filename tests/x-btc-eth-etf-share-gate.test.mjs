@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { decideEtfShare, readPostState, recordShare } from "../scripts/x-btc-eth-etf-share-gate.mjs";
+import { decideEtfShare, selectDailyEtfSession, readPostState, recordShare } from "../scripts/x-btc-eth-etf-share-gate.mjs";
 
 function fill(date, overrides = {}) {
   return {
@@ -89,6 +89,119 @@ test("a recorded dry-run blocks another dry-run and still allows the live post",
   });
   assert.equal(live.proceed, true);
   assert.equal(live.date, "2026-11-03");
+});
+
+function session(date, complete, missing = []) {
+  return {
+    date,
+    complete,
+    missingTickers: missing,
+    totalReady: complete || missing.length > 0,
+  };
+}
+
+const postedThursday = [{ date: "2026-11-19", mode: "live", at: "2026-11-20T05:40:00.000Z" }];
+
+test("a late Friday session stays unposted until both assets are filled, then posts that Friday", () => {
+  const late = selectDailyEtfSession({
+    btcSessions: [session("2026-11-19", true), session("2026-11-20", false, ["IBIT"])],
+    ethSessions: [session("2026-11-19", true), session("2026-11-20", false, ["ETHA", "ETHB", "FETH"])],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-22",
+  });
+  assert.equal(late.proceed, false);
+  assert.equal(late.reason, "incomplete");
+  assert.equal(late.noNewSession, false);
+  assert.equal(late.date, "2026-11-20");
+  assert.match(late.message, /IBIT/);
+  assert.match(late.message, /ETHA/);
+
+  const ready = selectDailyEtfSession({
+    btcSessions: [session("2026-11-19", true), session("2026-11-20", true)],
+    ethSessions: [session("2026-11-19", true), session("2026-11-20", true)],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-23",
+  });
+  assert.equal(ready.proceed, true);
+  assert.equal(ready.date, "2026-11-20");
+  assert.deepEqual(ready.skippedDates, []);
+});
+
+test("a newer ready session skips an older unready one, and nothing older than the latest post is shared", () => {
+  const skipped = selectDailyEtfSession({
+    btcSessions: [
+      session("2026-11-19", true),
+      session("2026-11-20", false, ["IBIT"]),
+      session("2026-11-23", true),
+    ],
+    ethSessions: [
+      session("2026-11-19", true),
+      session("2026-11-20", false, ["ETHA", "ETHB", "FETH"]),
+      session("2026-11-23", true),
+    ],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-24",
+  });
+  assert.equal(skipped.proceed, true);
+  assert.equal(skipped.date, "2026-11-23");
+  assert.deepEqual(skipped.skippedDates, ["2026-11-20"]);
+
+  const bothReady = selectDailyEtfSession({
+    btcSessions: [session("2026-11-20", true), session("2026-11-23", true)],
+    ethSessions: [session("2026-11-20", true), session("2026-11-23", true)],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-24",
+  });
+  assert.equal(bothReady.proceed, true);
+  assert.equal(bothReady.date, "2026-11-20");
+
+  const tooOld = selectDailyEtfSession({
+    btcSessions: [session("2026-11-20", true), session("2026-11-23", true)],
+    ethSessions: [session("2026-11-20", true), session("2026-11-23", true)],
+    dryRun: false,
+    posts: [{ date: "2026-11-23", mode: "live" }],
+    today: "2026-11-24",
+  });
+  assert.equal(tooOld.proceed, false);
+  assert.equal(tooOld.reason, "no_new_session");
+  assert.equal(tooOld.date, "2026-11-23");
+});
+
+test("an unready session is retried, and a holiday is not the session", () => {
+  const waiting = selectDailyEtfSession({
+    btcSessions: [session("2026-11-20", false, ["IBIT"])],
+    ethSessions: [session("2026-11-20", false, ["ETHA"])],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-22",
+  });
+  assert.equal(waiting.reason, "incomplete");
+  assert.equal(waiting.date, "2026-11-20");
+
+  const again = selectDailyEtfSession({
+    btcSessions: [session("2026-11-20", false, ["IBIT"])],
+    ethSessions: [session("2026-11-20", false, ["ETHA"])],
+    dryRun: false,
+    posts: postedThursday,
+    today: "2026-11-23",
+  });
+  assert.equal(again.proceed, false);
+  assert.equal(again.reason, "incomplete");
+
+  const afterHoliday = selectDailyEtfSession({
+    btcSessions: [session("2026-11-25", true), session("2026-11-26", true), session("2026-11-27", true)],
+    ethSessions: [session("2026-11-25", true), session("2026-11-26", true), session("2026-11-27", true)],
+    dryRun: false,
+    posts: [{ date: "2026-11-25", mode: "live" }],
+    today: "2026-11-28",
+    isTradingDay: (date) => date !== "2026-11-26",
+  });
+  assert.equal(afterHoliday.proceed, true);
+  assert.equal(afterHoliday.date, "2026-11-27");
 });
 
 test("share state round-trips the ETF date and mode", async () => {

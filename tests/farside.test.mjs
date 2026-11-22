@@ -94,6 +94,23 @@ test('a trailing all-dash row is not the session, and a started row does not fal
   assert.deepEqual(started.missingTickers, ['FBTC']);
 });
 
+test('older incomplete sessions stay visible when a newer session is already filled', () => {
+  const rows = mod.parseFarsideEtfTable(btcSessionTable([
+    ['19 Nov 2026', '1.0', '1.0', '2.0'],
+    ['20 Nov 2026', '-', '1.0', '1.0'],
+    ['23 Nov 2026', '0.0', '0.0', '0.0'],
+    ['24 Nov 2026', '-', '-', '0.0'],
+  ]), 'BTC').rows;
+  const sessions = mod.assessEtfSessions(rows);
+  assert.deepEqual(sessions.map((row) => [row.date, row.complete, row.missingTickers.join(',')]), [
+    ['2026-11-19', true, ''],
+    ['2026-11-20', false, 'IBIT'],
+    ['2026-11-23', true, ''],
+  ]);
+  assert.equal(mod.assessLatestEtfSession(rows).date, '2026-11-23');
+  assert.equal(mod.assessLatestEtfSession(rows).complete, true);
+});
+
 test('explicit zero fills an issuer cell, and a dash total does not', () => {
   const zeros = mod.assessLatestEtfSession(mod.parseFarsideEtfTable(btcSessionTable([
     ['01 Nov 2026', '-', '1.0', '1.0'],

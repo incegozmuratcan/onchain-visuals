@@ -7,10 +7,13 @@
  * false (or 0 / off), ONCHAIN_PUBLISH_SECRET is set, the four OAuth 1.0a
  * secrets below are set, and --preview is unset.
  *
- * The share runs only when every NYSE trading day of the target week has a
- * total and issuer numbers in both the BTC and ETH Farside tables. A week
- * that has ended but is still incomplete exits 0 without posting. A week
- * already recorded in posted-state.json is not posted again.
+ * The share runs Sunday through Tuesday (Europe/Istanbul) for the previous
+ * Mon–Fri week, and only when every NYSE trading day of that week has a
+ * total and issuer numbers in both Farside tables. An incomplete week exits
+ * 0 so a later pass in the window can retry. A week already recorded in
+ * posted-state.json is not posted again. If a daily post is due, this run
+ * waits so the daily goes out first. A week is not posted once the following
+ * week's weekly is due or a later week is already posted.
  *
  * --preview=holiday-week renders the synthetic 4-day Thanksgiving fixture and
  * never posts or records a share.
@@ -22,6 +25,7 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
 import { decideWeeklyEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-weekly-gate.mjs";
+import { selectDailyEtfSession } from "./x-btc-eth-etf-share-gate.mjs";
 import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -32,6 +36,9 @@ const outDir = path.join(root, "artifacts", "x-btc-eth-etf-weekly");
 const statePath = process.env.X_ETF_WEEKLY_POST_STATE
   ? path.resolve(process.env.X_ETF_WEEKLY_POST_STATE)
   : path.join(outDir, "posted-state.json");
+const dailyStatePath = process.env.X_ETF_POST_STATE
+  ? path.resolve(process.env.X_ETF_POST_STATE)
+  : path.join(root, "artifacts", "x-btc-eth-etf-daily", "posted-state.json");
 const datasetSlug = "btc-eth-etf-weekly-flowboard";
 const useDev = process.argv.includes("--dev");
 const preflightOnly = process.argv.includes("--preflight");
@@ -105,10 +112,31 @@ async function evaluateShare(dryRun) {
   ]);
   if (!btcResult?.ok) throw new Error(btcResult?.message || "BTC Farside fetch failed.");
   if (!ethResult?.ok) throw new Error(ethResult?.message || "ETH Farside fetch failed.");
-  const week = weekLib.selectPostingWeek(btcResult.data.rows, ethResult.data.rows, new Date());
+  const now = new Date();
+  const btcRows = btcResult.data.rows;
+  const ethRows = ethResult.data.rows;
+  const week = weekLib.selectShareWeek(btcRows, ethRows, now);
+  const dailyPosts = await readPostState(dailyStatePath);
+  const dailyDecision = selectDailyEtfSession({
+    btcSessions: farside.assessEtfSessions(btcRows),
+    ethSessions: farside.assessEtfSessions(ethRows),
+    dryRun,
+    posts: dailyPosts,
+    today: weekLib.nyDate(now),
+    isTradingDay: (date) => {
+      const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+      return day !== 0 && day !== 6 && !weekLib.isNyseHoliday(date);
+    },
+  });
   const posts = await readPostState(statePath);
-  const decision = decideWeeklyEtfShare({ week, dryRun, posts });
-  return { dryRun, week, decision };
+  const decision = decideWeeklyEtfShare({
+    week,
+    dryRun,
+    posts,
+    now,
+    dailyDue: dailyDecision.proceed,
+  });
+  return { dryRun, week, decision, dailyDue: dailyDecision.proceed };
 }
 
 async function writeGithubProceed(proceed) {
@@ -128,6 +156,7 @@ async function writeSkipArtifact(share) {
     date: share.decision.date,
     tradingDays: share.decision.tradingDays || share.week?.tradingDays || [],
     message: share.decision.message,
+    dailyDue: Boolean(share.dailyDue),
     problems: share.week?.problems || [],
   };
   await writeFile(path.join(outDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
