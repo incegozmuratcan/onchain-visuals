@@ -325,6 +325,19 @@ async function captureCard(pageUrl) {
         return range.getBoundingClientRect().right - bar.getBoundingClientRect().left;
       });
       const tracks = [...document.querySelectorAll("[data-bar-track]")].map((el) => Math.round(el.getBoundingClientRect().x));
+      const badges = [...document.querySelectorAll("[data-rank-badge]")].map((el) => {
+        const name = el.parentElement?.querySelector("[data-chain-name]");
+        const range = document.createRange();
+        if (name) range.selectNodeContents(name);
+        const nameRight = name ? range.getBoundingClientRect().right : 0;
+        const box = el.getBoundingClientRect();
+        return {
+          kind: el.getAttribute("data-rank-badge"),
+          width: Math.round(box.width),
+          height: Math.round(box.height),
+          gap: name ? Math.round(box.left - nameRight) : null,
+        };
+      });
       const names = [...document.querySelectorAll("[data-chain-name]")].map((el) => ({
         name: el.getAttribute("data-chain-name"),
         fontSize: getComputedStyle(el).fontSize,
@@ -343,12 +356,18 @@ async function captureCard(pageUrl) {
         ? frame.scrollHeight > frame.clientHeight + 2 || frame.scrollWidth > frame.clientWidth + 2
         : true;
       const badge = document.querySelector("[data-title-badge]")?.getAttribute("data-title-badge") || "";
-      return { values, nameOverlap, tracks, names, images, fallbacks, rows, frameClipped, badge };
+      return { values, nameOverlap, tracks, badges, names, images, fallbacks, rows, frameClipped, badge };
     });
     if (fit.rows !== rowCount) throw new Error(`Chain revenue card drew ${fit.rows} rows; expected ${rowCount}.`);
     if (fit.badge !== spec.badge) throw new Error(`Title badge is ${fit.badge}; expected ${spec.badge}.`);
     if (new Set(fit.tracks).size !== 1) {
       throw new Error(`Chain revenue bar columns do not share one x: ${fit.tracks.join(", ")}.`);
+    }
+    const stretched = (fit.badges || []).filter(
+      (badge) => badge.width > 88 || badge.height < 28 || badge.height > 34 || badge.gap == null || Math.abs(badge.gap - 10) > 3,
+    );
+    if (stretched.length) {
+      throw new Error(`Rank badges are not compact pills after the name: ${JSON.stringify(stretched)}.`);
     }
     const overflow = fit.values.filter((item) => item.clipped || !item.text || /…/.test(item.text));
     const overlapping = fit.nameOverlap.filter((gap) => gap > -4);

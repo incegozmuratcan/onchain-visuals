@@ -128,7 +128,7 @@ function RankChangeBadge({ change }: { change: ChainRevenueRankChange }) {
   return (
     <span
       data-rank-badge={change.kind}
-      className="inline-flex h-[30px] shrink-0 items-center justify-center gap-[3px] rounded-[8px] bg-[#d5d9e0] px-2 text-[21px] font-bold leading-none"
+      className="inline-flex h-[30px] w-fit flex-none items-center justify-center gap-[3px] whitespace-nowrap rounded-full bg-[#d5d9e0] px-[10px] text-[21px] font-bold leading-none"
     >
       {up ? <span style={{ color: "#127a45" }}>▲</span> : null}
       {down ? <span style={{ color: "#b0153f" }}>▼</span> : null}
@@ -261,14 +261,10 @@ export function ChainRevenueDailyCard({
                 {row.rank}
               </span>
               <ChainLogo src={row.logo} name={row.name} size={44} />
-              <span
-                className={`grid w-full min-w-0 items-center gap-2 ${
-                  row.rankChange ? "grid-cols-[minmax(0,auto)_auto]" : "grid-cols-[minmax(0,auto)]"
-                }`}
-              >
+              <span className="flex w-full min-w-0 items-center justify-start gap-[10px]">
                 <span
                   data-chain-name={row.name}
-                  className="block min-w-0 overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-none tracking-[-0.035em] text-[#111]"
+                  className="block min-w-0 shrink overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-none tracking-[-0.035em] text-[#111]"
                 >
                   {row.name}
                 </span>
