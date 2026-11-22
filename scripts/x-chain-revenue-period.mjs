@@ -76,6 +76,7 @@ const statePath = process.env.X_CHAIN_REVENUE_POST_STATE
 const dailyStatePath = process.env.X_CHAIN_REVENUE_DAILY_POST_STATE
   ? path.resolve(process.env.X_CHAIN_REVENUE_DAILY_POST_STATE)
   : path.join(root, "artifacts", "x-chain-revenue-daily", "posted-state.json");
+process.env.CHAIN_REVENUE_LOGO_STATE = statePath;
 const preflightOnly = process.argv.includes("--preflight");
 const cardWidth = 1536;
 const cardHeight = 1134;
@@ -389,10 +390,13 @@ async function captureCard(pageUrl) {
     }
     const overflow = fit.values.filter((item) => item.clipped || !item.text || /…/.test(item.text));
     const overlapping = fit.nameOverlap.filter((gap) => gap > -4);
-    const broken = fit.images.filter((img) => !img.loaded);
-    if (overflow.length || overlapping.length || broken.length || fit.frameClipped) {
+    const brokenLogos = fit.images.filter((img) => !img.loaded);
+    if (brokenLogos.length) {
+      console.warn(`Chain revenue logos failed to load and the card kept an initial badge: ${brokenLogos.map((img) => img.alt).join(", ")}`);
+    }
+    if (overflow.length || overlapping.length || fit.frameClipped) {
       throw new Error(
-        `Chain revenue values do not fit the share card: ${JSON.stringify({ overflow, overlapping, broken, frameClipped: fit.frameClipped })}`,
+        `Chain revenue values do not fit the share card: ${JSON.stringify({ overflow, overlapping, frameClipped: fit.frameClipped })}`,
       );
     }
     const box = await card.boundingBox();
@@ -482,6 +486,7 @@ async function main() {
       })),
       names: captured.names,
       logoFallbacks: captured.logoFallbacks,
+      logoSources: snapshot.metadata?.logoSources || [],
       image: { path: pngName, width: captured.dims.width, height: captured.dims.height, bytes: captured.png.length },
     };
     if (!dryRun) {
@@ -523,6 +528,7 @@ async function main() {
     });
     result.shareRecorded = true;
     await writeFile(path.join(outDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
+    for (const warning of snapshot.metadata?.logoWarnings || []) console.warn(warning);
     console.log(
       JSON.stringify(
         {
@@ -533,6 +539,7 @@ async function main() {
           caption: result.caption,
           total: result.total,
           barX: result.barX,
+          logoSources: result.logoSources,
           rows: result.rows.map((row) => ({ rank: row.rank, name: row.name, rankChange: row.rankChange, formattedValue: row.formattedValue })),
           image: result.image,
         },

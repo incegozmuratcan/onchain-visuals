@@ -52,6 +52,7 @@ import {
   type RevenueDays,
 } from "./chainRevenueDaily";
 import { chainRevenueMonthCopy, chainRevenueWeekCopy } from "./chainRevenueCaption";
+import { applyChainRevenueCardLogos } from "./chainRevenueLogos";
 import {
   fetchBtcEtfFlows,
   fetchEthEtfFlows,
@@ -1495,7 +1496,7 @@ async function buildChainRevenueDaily(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const started = new Date().toISOString();
     const result: any = await resultOrThrow(d.slug, "DefiLlama", started, await fetchChainRevenueDaily());
-    return buildChainRevenueDailyCard(d, period, result);
+    return applyChainRevenueCardLogos(buildChainRevenueDailyCard(d, period, result), result.data.chains);
   });
 }
 /**
@@ -1609,7 +1610,7 @@ async function buildChainRevenueWeekly(d: DatasetRegistryItem, period: string) {
       now.toISOString(),
       await fetchChainRevenueDaily(now, CHAIN_REVENUE_WEEK_KEEP_DAYS),
     );
-    return buildChainRevenuePeriodCard(d, period, "weekly", result, now);
+    return applyChainRevenueCardLogos(buildChainRevenuePeriodCard(d, period, "weekly", result, now), result.data.chains);
   });
 }
 async function buildChainRevenueMonthly(d: DatasetRegistryItem, period: string) {
@@ -1621,7 +1622,7 @@ async function buildChainRevenueMonthly(d: DatasetRegistryItem, period: string) 
       now.toISOString(),
       await fetchChainRevenueDaily(now, CHAIN_REVENUE_MONTH_KEEP_DAYS),
     );
-    return buildChainRevenuePeriodCard(d, period, "monthly", result, now);
+    return applyChainRevenueCardLogos(buildChainRevenuePeriodCard(d, period, "monthly", result, now), result.data.chains);
   });
 }
 async function buildBtcEthWeeklySplit(d: DatasetRegistryItem, period: string) {

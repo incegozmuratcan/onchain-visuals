@@ -24,6 +24,7 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 
 ## Son yapılanlar
 
+- 2026-11-22: Chain Revenue cards take logos from Logo Manager, then the posted-state cache, the fixed set, DefiLlama, and an initial badge. A logo no longer skips the card.
 - 2026-11-22: Owner merged #183 (X publishing pipeline: post ledger, freshness gates, scoped secrets).
 - 2026-11-22: Merged #184 site hardening, #185 bounded refresh + CDN cache, #186 public `source_error` cards, #187 ETF daily caption, #188 Chain Revenue gate.
 - 2026-11-22: Chain Revenue weekly and monthly cards (7D / 1M), rank-change badges, period gates, and the caption updates for Chain Revenue daily plus ETF weekly and monthly.
@@ -59,4 +60,5 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 - Check chain logos before a card ships.
 - Anything posted on X also goes on the site. The X account is the site's portfolio.
 - Stay lean: read `STATUS.md` and `docs/DESIGN.md` instead of long history. Update `STATUS.md` at the end of each task.
+- Use APIs/connectors first, browser as little as possible.
 - cron-job.org and other services are managed via API/connectors; minimize browser use.
