@@ -88,8 +88,11 @@ on:
 
 permissions:
   contents: read
-  # Read the previous run's share record and upload this run's artifact.
-  actions: write
+  # List and download the previous run's posted-state artifact. Upload uses
+  # actions/upload-artifact@v4, which authenticates with the runner runtime
+  # token and does not need actions: write. The BTC ETF workflow already
+  # uploads with actions left unset.
+  actions: read
 
 concurrency:
   group: x-btc-eth-etf-daily
@@ -100,18 +103,6 @@ jobs:
     name: Render combined BTC+ETH ETF daily card
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      ONCHAIN_PUBLISH_SECRET: ${{ secrets.ONCHAIN_PUBLISH_SECRET }}
-      X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
-      X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
-      X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
-      X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
-      X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
-      X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
-      X_USER_REFRESH_TOKEN: ${{ secrets.X_USER_REFRESH_TOKEN }}
-      ONCHAIN_REFRESH_SECRET: ${{ secrets.ONCHAIN_REFRESH_SECRET }}
-      CRON_SECRET: ${{ secrets.CRON_SECRET }}
 
     steps:
       - name: Checkout repository
@@ -175,12 +166,16 @@ jobs:
 
       - name: Choose dry-run or live post
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          VAR_X_DRY_RUN: ${{ vars.X_DRY_RUN }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            RAW="${{ inputs.dry_run }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RAW="$INPUT_DRY_RUN"
           else
-            RAW="${{ vars.X_DRY_RUN }}"
+            RAW="$VAR_X_DRY_RUN"
           fi
           case "$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]')" in
             false|0|off)
@@ -226,6 +221,15 @@ jobs:
 
       - name: Refresh, capture, and prepare the post
         if: steps.gate.outputs.proceed == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONCHAIN_PUBLISH_SECRET: ${{ secrets.ONCHAIN_PUBLISH_SECRET }}
+          ONCHAIN_REFRESH_SECRET: ${{ secrets.ONCHAIN_REFRESH_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
         run: node scripts/x-btc-eth-etf-daily.mjs
 
       - name: Upload PNG and caption

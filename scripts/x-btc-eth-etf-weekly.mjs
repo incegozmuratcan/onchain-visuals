@@ -22,6 +22,7 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
 import { decideWeeklyEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-weekly-gate.mjs";
+import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4174);
@@ -203,13 +204,9 @@ function assertPublishable(snapshot, weekStart) {
   if (snapshot.metadata?.view !== "weekly" || snapshot.metadata?.layout !== "btc-eth-weekly-split") {
     throw new Error("Snapshot is not the weekly split Flowboard.");
   }
-  if (snapshot.status !== "active" || snapshot.freshness?.status === "source_error") {
-    throw new Error(
-      snapshot.freshness?.message ||
-        `Weekly ETF snapshot is not publishable (status ${snapshot.status}, freshness ${snapshot.freshness?.status}).`,
-    );
-  }
-  if (snapshot.metadata?.weekStart !== weekStart) {
+  const skip = notFreshMessage(snapshot);
+  if (skip) return skip;
+  if (!weekStart || snapshot.metadata?.weekStart !== weekStart) {
     throw new Error(
       `Weekly snapshot week ${snapshot.metadata?.weekStart} does not match the filled Farside week ${weekStart}.`,
     );
@@ -392,15 +389,21 @@ async function main() {
   try {
     await waitForServer(child, `/api/charts/${datasetSlug}?period=weekly`);
     const refreshed = await refreshWeekly(secret);
-    if (refreshed?.status && refreshed.status !== "active") {
-      throw new Error(refreshed?.freshness?.message || `Refresh returned status ${refreshed.status}.`);
+    const refreshSkip = notFreshMessage(refreshed);
+    if (refreshSkip) {
+      await writeNotFreshSkip(outDir, refreshSkip, { dryRun });
+      return;
     }
     const chartResponse = await fetch(`${base}/api/charts/${datasetSlug}?period=weekly`);
     const snapshot = await chartResponse.json().catch(() => null);
     if (!chartResponse.ok) {
       throw new Error(snapshot?.error || `Chart fetch failed with HTTP ${chartResponse.status}.`);
     }
-    assertPublishable(snapshot, share.decision.date);
+    const notFresh = assertPublishable(snapshot, share.decision.date);
+    if (typeof notFresh === "string") {
+      await writeNotFreshSkip(outDir, notFresh, { dryRun, date: share.decision.date });
+      return;
+    }
     const { buildBtcEthEtfWeeklyCaption } = await loadCaptionBuilder();
     const caption = buildBtcEthEtfWeeklyCaption(snapshot);
     const pageUrl = `${base}/onchain/${datasetSlug}?period=weekly&capture=1`;

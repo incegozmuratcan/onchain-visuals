@@ -3,6 +3,8 @@ import crypto from "crypto";
 import { buildChartSnapshot } from "@/lib/onchainData";
 import { buildBtcEthEtfMonthlyCaption } from "@/lib/onchain/btcEthEtfMonthlyCaption";
 import { oauth1AuthorizationHeader, type OAuth1Credentials } from "@/lib/x/oauth1";
+import { openLiveXPost } from "@/lib/x/postLedger";
+import { XPublishError, fetchX, settleLivePostFailure } from "@/lib/x/publishFailure";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -108,7 +110,7 @@ function validateSnapshot(snapshot: any, monthStart: string) {
   if (snapshot.metadata?.view !== "monthly" || snapshot.metadata?.layout !== "btc-eth-monthly-split") {
     throw new Error("Only the monthly BTC+ETH split Flowboard can be published.");
   }
-  if (snapshot.status !== "active" || snapshot.freshness?.status === "source_error") {
+  if (snapshot.status !== "active" || snapshot.freshness?.status !== "fresh") {
     throw new Error("Combined ETF monthly data is not in a publishable active/fresh state.");
   }
   if (snapshot.metadata?.monthStart !== monthStart) {
@@ -157,40 +159,33 @@ async function uploadMediaToX(buffer: Buffer) {
   form.set("media_type", "image/png");
   const mediaBytes = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
   form.set("media", new Blob([mediaBytes], { type: "image/png" }), "btc-eth-etf-monthly-flowboard.png");
-  const response = await fetch(url, {
+  const payload = await fetchX("media", "X media upload", url, {
     method: "POST",
     headers: { Authorization: xAuthorization("POST", url) },
     body: form,
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(xFailureMessage(payload, "X media upload", response.status));
-  }
+  }, xFailureMessage);
   const mediaId = payload?.data?.id || payload?.media_id_string || payload?.media_id;
-  if (!mediaId) throw new Error("X media upload response did not include a media id.");
+  if (!mediaId) throw new XPublishError("media", "X media upload response did not include a media id.");
   return String(mediaId);
 }
 
 async function createTweet(mediaId: string, text: string) {
   const url = "https://api.x.com/2/tweets";
-  const response = await fetch(url, {
+  const payload = await fetchX("tweet", "X post creation", url, {
     method: "POST",
     headers: {
       Authorization: xAuthorization("POST", url),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ text, media: { media_ids: [mediaId] } }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(xFailureMessage(payload, "X post creation", response.status));
-  }
+  }, xFailureMessage);
   const postId = payload?.data?.id;
-  if (!postId) throw new Error("X post response did not include a post id.");
+  if (!postId) throw new XPublishError("tweet", "X post response did not include a post id.");
   return String(postId);
 }
 
 export async function POST(request: NextRequest) {
+  if (process.env.VERCEL) return new NextResponse(null, { status: 404 });
   if (!authorize(request)) {
     return jsonError(401, "unauthorized", "Unauthorized publish request.");
   }
@@ -235,7 +230,7 @@ export async function POST(request: NextRequest) {
 
   const imageHash = crypto.createHash("sha256").update(imageBuffer).digest("hex");
   const existing = publishedByMonth.get(monthStart);
-  if (existing && !body?.force) {
+  if (existing) {
     return NextResponse.json({
       success: true,
       duplicate: true,
@@ -259,7 +254,26 @@ export async function POST(request: NextRequest) {
     });
   }
 
+  const ledger = await openLiveXPost(DATASET_SLUG, monthStart);
+  if (ledger.outcome === "duplicate") {
+    return NextResponse.json({
+      success: true,
+      duplicate: true,
+      dryRun: false,
+      tweetText,
+      postId: ledger.postId,
+      postUrl: ledger.postUrl,
+      image: { width: dims.width, height: dims.height, sha256: imageHash },
+    });
+  }
+  if (ledger.outcome === "in_progress" || ledger.outcome === "uncertain") {
+    return jsonError(409, "x_post_failed", ledger.outcome === "uncertain"
+      ? "A previous publish attempt may have posted. Check X before retrying."
+      : "A live publish for this dataset and date is already in progress.");
+  }
+
   if (!oauth1Credentials()) {
+    await ledger.release();
     return jsonError(
       500,
       "missing_x_credentials",
@@ -272,6 +286,7 @@ export async function POST(request: NextRequest) {
     const postId = await createTweet(mediaId, tweetText);
     const postUrl = `https://x.com/OnchainVis/status/${postId}`;
     publishedByMonth.set(monthStart, { postId, postUrl, imageHash, publishedAt: new Date().toISOString() });
+    await ledger.record(postId, postUrl);
     return NextResponse.json({
       success: true,
       dryRun: false,
@@ -281,8 +296,7 @@ export async function POST(request: NextRequest) {
       image: { width: dims.width, height: dims.height, sha256: imageHash },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "X publish failed.";
-    const code: PublishErrorCode = message.startsWith("X media upload") ? "x_media_upload_failed" : "x_post_failed";
-    return jsonError(502, code, message);
+    const settled = await settleLivePostFailure(ledger, error);
+    return jsonError(settled.status, settled.code, settled.message);
   }
 }

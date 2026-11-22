@@ -142,3 +142,20 @@ create table if not exists refresh_locks (
   last_started_at timestamptz not null default now(),
   primary key (dataset_slug, period)
 );
+
+-- Durable X post ledger. Created at runtime as well (CREATE TABLE IF NOT EXISTS)
+-- so a workflow does not need a manual migration before the first live post.
+create table if not exists x_published_posts (
+  dataset_slug text not null,
+  data_date date not null,
+  tweet_id text,
+  post_url text,
+  claim_token text,
+  claimed_at timestamptz,
+  posted_at timestamptz,
+  uncertain boolean not null default false,
+  created_at timestamptz not null default now(),
+  primary key (dataset_slug, data_date)
+);
+
+alter table x_published_posts add column if not exists uncertain boolean not null default false;

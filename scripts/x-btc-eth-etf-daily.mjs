@@ -29,6 +29,7 @@ import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
 import { decideEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
+import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4173);
@@ -209,12 +210,8 @@ function assertPublishable(snapshot) {
   if (snapshot.metadata?.view !== "daily" || snapshot.metadata?.layout !== "btc-eth-split") {
     throw new Error("Snapshot is not the daily split Flowboard.");
   }
-  if (snapshot.status !== "active" || snapshot.freshness?.status === "source_error") {
-    throw new Error(
-      snapshot.freshness?.message ||
-        `Combined ETF snapshot is not publishable (status ${snapshot.status}, freshness ${snapshot.freshness?.status}).`,
-    );
-  }
+  const skip = notFreshMessage(snapshot);
+  if (skip) return skip;
   const btcDate = snapshot.metadata?.latestCompletedDate;
   const ethDate = snapshot.metadata?.ethLatestCompletedDate;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(btcDate || "")) || !/^\d{4}-\d{2}-\d{2}$/.test(String(ethDate || ""))) {
@@ -229,7 +226,7 @@ function assertPublishable(snapshot) {
     if (!panel?.issuers?.length || !panel?.largest?.ticker || !panel?.formattedNet || !panel?.formattedCumulative) {
       throw new Error(`Combined ETF snapshot is missing the ${asset} panel.`);
     }
-    if (panel.date && panel.date !== btcDate) {
+    if (panel.date !== btcDate) {
       throw new Error(`${asset} panel date ${panel.date} does not match ${btcDate}.`);
     }
   }
@@ -358,10 +355,10 @@ async function main() {
   try {
     await waitForServer(child);
     const refreshed = await refreshCombinedDaily(secret);
-    if (refreshed?.status && refreshed.status !== "active") {
-      throw new Error(
-        refreshed?.freshness?.message || `Refresh returned status ${refreshed.status}.`,
-      );
+    const refreshSkip = notFreshMessage(refreshed);
+    if (refreshSkip) {
+      await writeNotFreshSkip(outDir, refreshSkip, { dryRun });
+      return;
     }
     const chartUrl = `${base}/api/charts/${datasetSlug}?period=daily`;
     const chartResponse = await fetch(chartUrl);
@@ -369,7 +366,11 @@ async function main() {
     if (!chartResponse.ok) {
       throw new Error(snapshot?.error || `Chart fetch failed with HTTP ${chartResponse.status}.`);
     }
-    assertPublishable(snapshot);
+    const notFresh = assertPublishable(snapshot);
+    if (typeof notFresh === "string") {
+      await writeNotFreshSkip(outDir, notFresh, { dryRun, date: share.decision.date });
+      return;
+    }
     if (
       snapshot.metadata.latestCompletedDate !== share.decision.date ||
       snapshot.metadata.ethLatestCompletedDate !== share.decision.date
