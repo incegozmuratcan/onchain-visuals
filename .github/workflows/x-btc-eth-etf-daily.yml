@@ -9,25 +9,25 @@ name: X BTC+ETH ETF daily
 # Daily X sharing is this combined card only. The BTC-only workflow no longer
 # has a schedule.
 #
-# Schedule (Europe/Istanbul, UTC+3, no daylight saving). Tuesday–Saturday
-# only, after the previous US cash session:
-# - 08:30 TR (05:30 UTC) is the primary pass.
-# - 10:30 TR (07:30 UTC) retries when the first pass did not share.
-# - 13:30 TR (10:30 UTC) is the second retry.
+# Schedule (Europe/Istanbul, UTC+3, no daylight saving). cron-job.org job
+# 8833197 is the primary trigger: every 30 minutes from 08:00 through 23:30,
+# Tuesday–Saturday, plus Sunday–Monday catch-up so a late Friday session can
+# still post. The crons below are the GitHub backup at 08:30, 10:30, and
+# 13:30 TR on those same days (05:30, 07:30, and 10:30 UTC).
 #
-# Each pass shares only when the newest real Farside session for both BTC and
-# ETH is the same date and fully filled: every issuer cell is a real number or
-# an explicit 0. A dash, a blank, or a missing cell is incomplete, not zero.
-# Farside often adds the next date as a row of dashes with a total of 0 before
-# that print exists. That shell is ignored, so the previous filled session can
-# still be shared. Once any issuer number is present, that row is the session
-# and a partial fill does not post. An incomplete pass exits successfully
-# without posting, so a later pass can share once the row is filled. A pass
-# also skips when that ETF date was already shared (a live post, or a dry-run
-# that already recorded a success for the date) or when Farside has no newer
-# session than the last success
-# (holiday or empty day). The recorded dates live in posted-state.json, which
-# this workflow restores from the previous run's artifact.
+# Each pass posts at most one session: the oldest NYSE session newer than the
+# latest date in posted-state.json that is fully filled on both BTC and ETH.
+# Every issuer cell is a real number or an explicit 0. A dash, a blank, or a
+# missing cell is incomplete, not zero. Farside often adds the next date as a
+# row of dashes with a total of 0 before that print exists. That shell is not
+# a session. An unready session exits successfully without posting, and the
+# next pass retries it. If a newer session is fully ready while an older one
+# is still unready, the older one is skipped for good (it only appears on the
+# weekly card) and the newer one is posted. A session older than the latest
+# posted date is never posted. A date already shared (a live post, or a
+# dry-run that already recorded a success for the date) is skipped. The
+# recorded dates live in posted-state.json, which this workflow restores from
+# the previous run's artifact.
 #
 # Dry-run stays the default. The schedule follows vars.X_DRY_RUN (unset or
 # true = dry run; false = live). Manual runs use workflow_dispatch and stay
@@ -73,12 +73,12 @@ name: X BTC+ETH ETF daily
 
 on:
   schedule:
-    # 08:30 Europe/Istanbul
-    - cron: "30 5 * * 2-6"
+    # 08:30 Europe/Istanbul. Tue–Sat, plus Sun–Mon catch-up.
+    - cron: "30 5 * * 0-6"
     # 10:30 Europe/Istanbul
-    - cron: "30 7 * * 2-6"
+    - cron: "30 7 * * 0-6"
     # 13:30 Europe/Istanbul
-    - cron: "30 10 * * 2-6"
+    - cron: "30 10 * * 0-6"
   workflow_dispatch:
     inputs:
       dry_run:

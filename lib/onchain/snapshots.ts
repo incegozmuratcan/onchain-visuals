@@ -705,14 +705,28 @@ function splitFlowPanel(asset: "BTC" | "ETH", summary: ReturnType<typeof summari
     })),
   };
 }
+function clipEtfRows(rows: EtfFlowRow[], sessionDate?: string | null) {
+  if (!sessionDate || !/^\d{4}-\d{2}-\d{2}$/.test(sessionDate)) return rows;
+  return rows.filter((row) => row.date <= sessionDate);
+}
+
 export function buildBtcEthEtfDailyCard(
   d: DatasetRegistryItem,
   period: string,
   btcResult: any,
   ethResult: any,
+  sessionDate?: string | null,
 ) {
-  const btc = summarizeEtf(btcResult.data.rows, "BTC");
-  const eth = summarizeEtf(ethResult.data.rows, "ETH");
+  const btc = summarizeEtf(clipEtfRows(btcResult.data.rows, sessionDate), "BTC");
+  const eth = summarizeEtf(clipEtfRows(ethResult.data.rows, sessionDate), "ETH");
+  if (
+    sessionDate &&
+    (btc.latestCompletedDate !== sessionDate || eth.latestCompletedDate !== sessionDate)
+  ) {
+    throw new Error(
+      `Combined ETF snapshot does not include a completed BTC and ETH session on ${sessionDate}.`,
+    );
+  }
   if (!btc.latest) {
     throw new Error("BTC ETF flow parser found no completed total + issuer rows");
   }
@@ -1649,7 +1663,10 @@ async function buildBtcEthDailySplit(d: DatasetRegistryItem, period: string) {
       resultOrThrow(d.slug, "Farside", started, btcRaw),
       resultOrThrow(d.slug, "Farside", started, ethRaw),
     ]);
-    return buildBtcEthEtfDailyCard(d, period, btc, eth);
+    const sessionDate = /^\d{4}-\d{2}-\d{2}$/.test(String(process.env.ETF_DAILY_SESSION || "").trim())
+      ? String(process.env.ETF_DAILY_SESSION).trim()
+      : null;
+    return buildBtcEthEtfDailyCard(d, period, btc, eth, sessionDate);
   });
 }
 async function buildBtcEth(d: DatasetRegistryItem, period: string) {

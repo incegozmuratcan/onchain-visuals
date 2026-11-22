@@ -466,7 +466,7 @@ test("the monthly snapshot card is registered beside the weekly card", async () 
   assert.match(card, /1134/);
 });
 
-test("monthly workflow is a days 1–5 dry-run and leaves the weekly schedule alone", async () => {
+test("monthly workflow is a days 1–5 dry-run and does not reuse the weekly days", async () => {
   const workflow = await readFile(new URL("../.github/workflows/x-btc-eth-etf-monthly.yml", import.meta.url), "utf8");
   const weeklyWorkflow = await readFile(new URL("../.github/workflows/x-btc-eth-etf-weekly.yml", import.meta.url), "utf8");
   const daily = await readFile(new URL("../.github/workflows/x-btc-eth-etf-daily.yml", import.meta.url), "utf8");
@@ -493,8 +493,8 @@ test("monthly workflow is a days 1–5 dry-run and leaves the weekly schedule al
   assert.match(card, /min\(\$\{width\}%, calc\(50% - 12px\)\)/);
   assert.match(card, /monthTimeline \? `min\(\$\{width\}%, calc\(50% - 12px\)\)` : `\$\{width\}%`/);
   assert.match(card, /IssuerFlowRow/);
-  assert.match(weeklyWorkflow, /cron: "30 5 \* \* 0"/);
-  assert.match(weeklyWorkflow, /cron: "30 8 \* \* 0"/);
+  assert.match(weeklyWorkflow, /cron: "30 5 \* \* 0-2"/);
+  assert.match(weeklyWorkflow, /cron: "30 8 \* \* 0-2"/);
   assert.doesNotMatch(weeklyWorkflow, /1-5/);
   assert.doesNotMatch(daily, /btc-eth-etf-monthly/);
 });

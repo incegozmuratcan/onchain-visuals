@@ -475,20 +475,123 @@ test("the weekly card builder formats with the shared flow helpers", async () =>
   assert.doesNotMatch(text, /\$|inflow|outflow/);
 });
 
-test("weekly workflow stays a dry-run and uses its own Sunday schedule", async () => {
+function filledDays(asset, dates, ticker, brokenDate) {
+  return rows(
+    asset,
+    dates.map((date) => [date, -1_000_000, [[ticker, ticker, date === brokenDate ? null : -1_000_000]]]),
+  );
+}
+
+test("weekly posts Sunday through Tuesday for the previous week, then closes", () => {
+  const days = week.expectedTradingDays("2026-11-16");
+  const btc = filledDays("BTC", days, "IBIT");
+  const eth = filledDays("ETH", days, "ETHA");
+  const sunday = new Date("2026-11-22T05:00:00.000Z");
+  const monday = new Date("2026-11-23T07:00:00.000Z");
+  const tuesdayLate = new Date("2026-11-24T20:30:00.000Z");
+  const wednesdayEarly = new Date("2026-11-24T21:30:00.000Z");
+  for (const now of [sunday, monday, tuesdayLate]) {
+    const share = week.selectShareWeek(btc, eth, now);
+    assert.equal(share.complete, true, now.toISOString());
+    assert.equal(share.weekStart, "2026-11-16");
+    assert.equal(share.outsideWindow, false);
+    assert.equal(
+      decideWeeklyEtfShare({ week: share, dryRun: false, posts: [], now, dailyDue: false }).proceed,
+      true,
+    );
+  }
+  assert.equal(week.istanbulDate(wednesdayEarly), "2026-11-25");
+  const closed = week.selectShareWeek(btc, eth, wednesdayEarly);
+  assert.equal(closed.outsideWindow, true);
+  assert.equal(closed.complete, false);
+  const closedDecision = decideWeeklyEtfShare({
+    week: { complete: true, weekStart: "2026-11-16", tradingDays: days, message: "ready" },
+    dryRun: false,
+    posts: [],
+    now: wednesdayEarly,
+  });
+  assert.equal(closedDecision.proceed, false);
+  assert.equal(closedDecision.reason, "outside_window");
+
+  const nextSunday = new Date("2026-11-29T05:00:00.000Z");
+  const movedOn = week.selectShareWeek(btc, eth, nextSunday);
+  assert.equal(movedOn.weekStart, "2026-11-23");
+  assert.equal(movedOn.complete, false);
+  const superseded = decideWeeklyEtfShare({
+    week: { complete: true, weekStart: "2026-11-16", tradingDays: days, message: "ready" },
+    dryRun: false,
+    posts: [],
+    now: nextSunday,
+  });
+  assert.equal(superseded.proceed, false);
+  assert.equal(superseded.reason, "superseded");
+  const alreadyLater = decideWeeklyEtfShare({
+    week: { complete: true, weekStart: "2026-11-16", tradingDays: days, message: "ready" },
+    dryRun: false,
+    posts: [{ date: "2026-11-23", mode: "live" }],
+    now: sunday,
+  });
+  assert.equal(alreadyLater.reason, "no_new_session");
+
+  const december = new Date("2026-12-01T05:00:00.000Z");
+  const thanksgivingWeek = week.expectedTradingDays("2026-11-23");
+  const decShare = week.selectShareWeek(
+    filledDays("BTC", thanksgivingWeek, "IBIT"),
+    filledDays("ETH", thanksgivingWeek, "ETHA"),
+    december,
+  );
+  assert.equal(decShare.complete, true);
+  assert.equal(decShare.weekStart, "2026-11-23");
+  assert.equal(thanksgivingWeek.includes("2026-11-26"), false);
+});
+
+test("an incomplete week retries through Tuesday, and a due daily post goes first", () => {
+  const days = week.expectedTradingDays("2026-11-16");
+  const sunday = new Date("2026-11-22T05:00:00.000Z");
+  const tuesday = new Date("2026-11-24T09:00:00.000Z");
+  const btc = filledDays("BTC", days, "IBIT", "2026-11-20");
+  const eth = filledDays("ETH", days, "ETHA", "2026-11-20");
+  for (const now of [sunday, tuesday]) {
+    const share = week.selectShareWeek(btc, eth, now);
+    assert.equal(share.complete, false);
+    assert.equal(share.weekStart, "2026-11-16");
+    const decision = decideWeeklyEtfShare({ week: share, dryRun: false, posts: [], now, dailyDue: true });
+    assert.equal(decision.proceed, false);
+    assert.equal(decision.reason, "incomplete");
+  }
+  const ready = week.selectShareWeek(
+    filledDays("BTC", days, "IBIT"),
+    filledDays("ETH", days, "ETHA"),
+    sunday,
+  );
+  const waited = decideWeeklyEtfShare({ week: ready, dryRun: false, posts: [], now: sunday, dailyDue: true });
+  assert.equal(waited.proceed, false);
+  assert.equal(waited.reason, "daily_first");
+  assert.equal(waited.noNewSession, false);
+  assert.equal(waited.date, "2026-11-16");
+  const go = decideWeeklyEtfShare({ week: ready, dryRun: false, posts: [], now: sunday, dailyDue: false });
+  assert.equal(go.proceed, true);
+  assert.equal(go.date, "2026-11-16");
+});
+
+test("weekly workflow stays a dry-run and posts Sunday through Tuesday", async () => {
   const workflow = await readFile(new URL("../.github/workflows/x-btc-eth-etf-weekly.yml", import.meta.url), "utf8");
   const script = await readFile(new URL("../scripts/x-btc-eth-etf-weekly.mjs", import.meta.url), "utf8");
   const daily = await readFile(new URL("../.github/workflows/x-btc-eth-etf-daily.yml", import.meta.url), "utf8");
   assert.match(workflow, /workflow_dispatch:/);
   assert.match(workflow, /dry_run:[\s\S]*default:\s*true/);
-  assert.match(workflow, /cron: "30 5 \* \* 0"/);
-  assert.match(workflow, /cron: "30 8 \* \* 0"/);
+  assert.match(workflow, /cron: "30 5 \* \* 0-2"/);
+  assert.match(workflow, /cron: "30 8 \* \* 0-2"/);
+  assert.match(workflow, /Restore the daily post state/);
+  assert.match(workflow, /btc-eth-etf-daily/);
   assert.match(workflow, /scripts\/x-btc-eth-etf-weekly\.mjs/);
   assert.match(workflow, /name: btc-eth-etf-weekly/);
   assert.match(script, /datasetSlug = "btc-eth-etf-weekly-flowboard"/);
   assert.match(script, /1536/);
   assert.match(script, /1134/);
-  assert.match(script, /selectPostingWeek/);
+  assert.match(script, /selectShareWeek/);
+  assert.match(script, /selectDailyEtfSession/);
+  assert.match(script, /dailyDue: dailyDecision\.proceed/);
   assert.match(script, /\/api\/x\/publish-btc-eth-etf-weekly/);
   assert.match(script, /holiday-week/);
   assert.doesNotMatch(daily, /btc-eth-etf-weekly/);

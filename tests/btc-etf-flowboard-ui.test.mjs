@@ -830,6 +830,39 @@ test("ETH ETF daily weekly and monthly cards reuse the BTC share-card contract",
   assert.equal(monthly.series.bars.length, 2);
 });
 
+test("a pinned daily session renders that date when a newer session is also filled", () => {
+  const dataset = {
+    ...btcDataset,
+    id: "btc-eth-etf-daily-flowboard",
+    slug: "btc-eth-etf-daily-flowboard",
+    name: "ETF Daily Flowboard",
+    sourceLabel: "Farside",
+    chartTemplates: ["split_flowboard"],
+  };
+  const btcRows = flowRows("BTC", [
+    ["2026-11-19", -10_000_000, [["BlackRock", "IBIT", -10_000_000]]],
+    ["2026-11-20", -20_000_000, [["BlackRock", "IBIT", -20_000_000]]],
+    ["2026-11-23", -30_000_000, [["BlackRock", "IBIT", -30_000_000]]],
+  ]);
+  const ethRows = flowRows("ETH", [
+    ["2026-11-19", -1_000_000, [["BlackRock", "ETHA", -1_000_000]]],
+    ["2026-11-20", -2_000_000, [["BlackRock", "ETHA", -2_000_000]]],
+    ["2026-11-23", -3_000_000, [["BlackRock", "ETHA", -3_000_000]]],
+  ]);
+  const pinned = snapshotBuilders.buildBtcEthEtfDailyCard(
+    dataset,
+    "daily",
+    { url: "https://farside.co.uk/btc/", data: { warnings: [], rows: btcRows } },
+    { url: "https://farside.co.uk/eth/", data: { warnings: [], rows: ethRows } },
+    "2026-11-20",
+  );
+  assert.equal(pinned.metadata.latestCompletedDate, "2026-11-20");
+  assert.equal(pinned.metadata.ethLatestCompletedDate, "2026-11-20");
+  assert.equal(pinned.series.cards[0].date, "2026-11-20");
+  assert.equal(pinned.series.cards[1].date, "2026-11-20");
+  assert.equal(pinned.series.cards[0].priorDay.date, "2026-11-19");
+});
+
 test("monthly flow report uses the latest completed month when the calendar month is empty", () => {
   const monthly = snapshotBuilders.buildBtcEtfMonthlyIssuerCard(
     btcDataset,

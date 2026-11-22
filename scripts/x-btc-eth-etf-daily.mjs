@@ -11,12 +11,16 @@
  * Farside BTC and ETH tables together in buildBtcEthDailySplit. The card does
  * not read the separate btc-etf-flowboard or eth-etf-flowboard snapshots.
  *
- * The share runs only when the newest real BTC session and the newest real ETH
- * session are the same date and every issuer cell on both rows is a real
- * number or an explicit 0. A dash, blank, or missing cell is incomplete.
- * A trailing row of only dashes is Farside's empty next-day shell and is not
- * the session. A partial row skips with exit 0 so a later pass can try again.
- * A date already recorded in posted-state.json is not posted again.
+ * Each run posts at most one session: the oldest NYSE session that is newer
+ * than the latest date in posted-state.json and is fully filled on both BTC
+ * and ETH. Every issuer cell must be a real number or an explicit 0. A dash,
+ * blank, or missing cell is incomplete. A trailing row of only dashes is
+ * Farside's empty next-day shell and is not a session. An unready session
+ * exits 0 so the next pass can retry it. If a newer session is fully ready
+ * while an older one is still unready, the older one is skipped for good.
+ * A session older than the latest posted date is never posted. The card and
+ * caption use that chosen session date, even when a later session already
+ * exists (ETF_DAILY_SESSION).
  *
  * X_CONSUMER_KEY, X_CONSUMER_SECRET, X_ACCESS_TOKEN, and
  * X_ACCESS_TOKEN_SECRET are the @OnchainVis OAuth 1.0 Keys (Read and write).
@@ -28,7 +32,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
-import { decideEtfShare, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
+import { selectDailyEtfSession, readPostState, recordShare } from "./x-btc-eth-etf-share-gate.mjs";
 import { notFreshMessage, writeNotFreshSkip } from "./x-not-fresh.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -57,6 +61,7 @@ function pngSize(buffer) {
 }
 
 let farsideModule;
+let weekModule;
 
 async function loadFarsideModule() {
   if (!farsideModule) {
@@ -79,6 +84,28 @@ async function loadFarsideModule() {
   return farsideModule;
 }
 
+async function loadWeekModule() {
+  if (!weekModule) {
+    const source = await readFile(path.join(root, "lib/onchain/btcEthEtfWeek.ts"), "utf8");
+    const js = ts.transpileModule(source, {
+      compilerOptions: {
+        module: ts.ModuleKind.ES2022,
+        target: ts.ScriptTarget.ES2022,
+      },
+    }).outputText;
+    const dir = await mkdtemp(path.join(tmpdir(), "btc-eth-etf-week-"));
+    const file = path.join(dir, "week.mjs");
+    await writeFile(file, js);
+    weekModule = import(pathToFileURL(file).href);
+  }
+  return weekModule;
+}
+
+function isNyseSession(weekLib, date) {
+  const day = new Date(`${date}T00:00:00Z`).getUTCDay();
+  return day !== 0 && day !== 6 && !weekLib.isNyseHoliday(date);
+}
+
 function sessionSummary(fill) {
   return {
     date: fill?.date || null,
@@ -96,11 +123,20 @@ async function evaluateShare(dryRun) {
   ]);
   if (!btcResult?.ok) throw new Error(btcResult?.message || "BTC Farside fetch failed.");
   if (!ethResult?.ok) throw new Error(ethResult?.message || "ETH Farside fetch failed.");
-  const btc = farside.assessLatestEtfSession(btcResult.data.rows);
-  const eth = farside.assessLatestEtfSession(ethResult.data.rows);
+  const weekLib = await loadWeekModule();
+  const now = new Date();
+  const btcSessions = farside.assessEtfSessions(btcResult.data.rows);
+  const ethSessions = farside.assessEtfSessions(ethResult.data.rows);
   const posts = await readPostState(statePath);
-  const decision = decideEtfShare({ btc, eth, dryRun, posts });
-  return { dryRun, btc, eth, decision };
+  const decision = selectDailyEtfSession({
+    btcSessions,
+    ethSessions,
+    dryRun,
+    posts,
+    today: weekLib.nyDate(now),
+    isTradingDay: (date) => isNyseSession(weekLib, date),
+  });
+  return { dryRun, btcSessions, ethSessions, decision };
 }
 
 async function writeGithubProceed(proceed) {
@@ -119,8 +155,9 @@ async function writeSkipArtifact(share) {
     noNewSession: share.decision.noNewSession,
     date: share.decision.date,
     message: share.decision.message,
-    btc: sessionSummary(share.btc),
-    eth: sessionSummary(share.eth),
+    skippedDates: share.decision.skippedDates || [],
+    btc: sessionSummary((share.btcSessions || []).find((row) => row?.date === share.decision.date)),
+    eth: sessionSummary((share.ethSessions || []).find((row) => row?.date === share.decision.date)),
   };
   await writeFile(path.join(outDir, "result.json"), `${JSON.stringify(result, null, 2)}\n`);
   return result;
@@ -350,6 +387,7 @@ async function main() {
     process.env.ONCHAIN_PUBLISH_SECRET = `local-${process.pid}`;
   }
   const secret = refreshSecret();
+  process.env.ETF_DAILY_SESSION = share.decision.date;
   await mkdir(outDir, { recursive: true });
   const child = startServer();
   try {
@@ -395,6 +433,7 @@ async function main() {
       reason: null,
       date: snapshot.metadata.latestCompletedDate,
       ethDate: snapshot.metadata.ethLatestCompletedDate,
+      skippedDates: share.decision.skippedDates || [],
       caption,
       values: captured.values,
       image: {

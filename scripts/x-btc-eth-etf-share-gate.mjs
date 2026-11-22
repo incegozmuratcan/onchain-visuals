@@ -34,6 +34,90 @@ export function blockingPosts(posts, dryRun) {
   });
 }
 
+/**
+ * One daily post: the oldest NYSE session that is newer than the latest
+ * posted date and fully ready on both BTC and ETH. An unready session is
+ * left unposted so the next run can retry it. If a newer session is ready
+ * first, the older unready dates are skipped for good. With no posted
+ * history, only the latest started session is eligible, so a first run does
+ * not walk back through the archive. `today` is the America/New_York date.
+ */
+export function selectDailyEtfSession({ btcSessions, ethSessions, dryRun, posts, today, isTradingDay }) {
+  const tradingDay = typeof isTradingDay === "function" ? isTradingDay : () => true;
+  const btcByDate = sessionByDate(btcSessions);
+  const ethByDate = sessionByDate(ethSessions);
+  const dates = [...new Set([...btcByDate.keys(), ...ethByDate.keys()])]
+    .filter((date) => (!today || date <= today) && tradingDay(date))
+    .sort();
+  const rows = dates.map((date) => ({
+    date,
+    btc: btcByDate.get(date) || null,
+    eth: ethByDate.get(date) || null,
+  }));
+  const ready = (row) => Boolean(row.btc?.complete && row.eth?.complete);
+  const blocking = blockingPosts(posts, dryRun);
+  const newest = blocking.map((post) => post.date).sort().at(-1) || null;
+  const pool = newest ? rows.filter((row) => row.date > newest) : rows.slice(-1);
+
+  const target = pool.find(ready) || null;
+  if (!target) {
+    if (!pool.length) {
+      return {
+        proceed: false,
+        skipped: true,
+        reason: newest ? "no_new_session" : "incomplete",
+        noNewSession: Boolean(newest),
+        date: newest,
+        skippedDates: [],
+        message: newest
+          ? `No new Farside session after ${newest}. Not posting an older session.`
+          : "Farside has no ETF session to share.",
+      };
+    }
+    const pending = pool[0];
+    const parts = [assetProblem("BTC", pending.btc), assetProblem("ETH", pending.eth)].filter(Boolean);
+    return {
+      proceed: false,
+      skipped: true,
+      reason: "incomplete",
+      noNewSession: false,
+      date: pending.date,
+      skippedDates: [],
+      message: `Farside session ${pending.date} is not ready to share. ${parts.join(". ")}.`,
+    };
+  }
+  if (newest && target.date <= newest) {
+    return {
+      proceed: false,
+      skipped: true,
+      reason: "no_new_session",
+      noNewSession: true,
+      date: target.date,
+      skippedDates: [],
+      message: `No new Farside session after ${newest}. Not posting ${target.date}.`,
+    };
+  }
+  const skippedDates = pool.filter((row) => row.date < target.date).map((row) => row.date);
+  const skippedText = skippedDates.length ? ` Skipping unready ${skippedDates.join(", ")}.` : "";
+  return {
+    proceed: true,
+    skipped: false,
+    reason: null,
+    noNewSession: false,
+    date: target.date,
+    skippedDates,
+    message: `Sharing ETF session ${target.date}.${skippedText}`,
+  };
+}
+
+function sessionByDate(sessions) {
+  const map = new Map();
+  for (const row of Array.isArray(sessions) ? sessions : []) {
+    if (row && DATE.test(String(row.date || ""))) map.set(String(row.date), row);
+  }
+  return map;
+}
+
 export function decideEtfShare({ btc, eth, dryRun, posts }) {
   const sessionDate = [btc?.date, eth?.date].filter(Boolean).sort().at(-1) || null;
   const sameSession = Boolean(btc?.date && eth?.date && btc.date === eth.date);
