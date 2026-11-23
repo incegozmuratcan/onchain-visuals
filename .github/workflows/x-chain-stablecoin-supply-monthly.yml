@@ -1,0 +1,128 @@
+name: X Stablecoin supply monthly
+
+# Dry-run by default. Renders the stablecoin supply card for the last
+# completed UTC calendar month at 1536×1134. It does not call X unless
+# dry-run is off and the OAuth 1.0a secrets are present.
+#
+# cron-job.org is the primary trigger and is not enabled. Do not create that
+# job until the owner says this card is live.
+#   POST /repos/incegozmuratcan/onchain-visuals/actions/workflows/x-chain-stablecoin-supply-monthly.yml/dispatches
+#   ref: main
+#   inputs: { "dry_run": false }
+#
+# Intended cron-job.org schedule (Europe/Istanbul, UTC+3, no DST):
+#   */30 16-23 2-5 * *
+#   Days 2–5 every 30 minutes from 16:00 through 23:30.
+# The first slot is the 2nd at 16:00. When the 2nd is a Tuesday, the server
+# gate holds this card until 4 hours after the weekly stablecoin post
+# (20:00 if the weekly posted at 16:00). Days 3–5 retry a missed evening.
+# GitHub backup: 16:30, 19:30, and 20:30 Istanbul on days 2–5.
+# A month already shared is skipped via this job's posted-state.json.
+
+on:
+  schedule:
+    - cron: "30 13 2-5 * *"
+    - cron: "30 16 2-5 * *"
+    - cron: "30 17 2-5 * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (PNG + caption only). Leave true until live posting is intentional."
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: x-chain-stablecoin-supply-monthly
+  cancel-in-progress: false
+
+jobs:
+  stablecoin-supply-monthly:
+    name: Render stablecoin supply monthly card
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore the last shared stablecoin month
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/restore-posted-state.mjs chain-stablecoin-supply-monthly artifacts/x-chain-stablecoin-supply-monthly
+
+      - name: Restore the sibling weekly post time
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/restore-posted-state.mjs chain-stablecoin-supply-weekly artifacts/x-chain-stablecoin-supply-weekly
+
+      - name: Choose dry-run or live post
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          VAR_X_DRY_RUN: ${{ vars.X_DRY_RUN }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RAW="$INPUT_DRY_RUN"
+          else
+            RAW="$VAR_X_DRY_RUN"
+          fi
+          case "$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]')" in
+            false|0|off)
+              echo "X_DRY_RUN=false" >> "$GITHUB_ENV"
+              echo "Live post requested."
+              ;;
+            *)
+              echo "X_DRY_RUN=true" >> "$GITHUB_ENV"
+              echo "Dry run. X will not be called."
+              ;;
+          esac
+
+      - name: Check whether the last UTC month is complete and unshared
+        id: gate
+        run: node scripts/x-stablecoin-supply-period.mjs monthly --preflight
+
+      - name: Install Playwright Chromium
+        if: steps.gate.outputs.proceed == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Next.js app
+        if: steps.gate.outputs.proceed == 'true'
+        run: npm run build
+
+      - name: Refresh, capture, and prepare the post
+        if: steps.gate.outputs.proceed == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ONCHAIN_PUBLISH_SECRET: ${{ secrets.ONCHAIN_PUBLISH_SECRET }}
+          ONCHAIN_REFRESH_SECRET: ${{ secrets.ONCHAIN_REFRESH_SECRET }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: node scripts/x-stablecoin-supply-period.mjs monthly
+
+      - name: Upload PNG and caption
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chain-stablecoin-supply-monthly
+          path: artifacts/x-chain-stablecoin-supply-monthly/
+          if-no-files-found: warn
+          retention-days: 45

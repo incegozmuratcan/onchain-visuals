@@ -74,6 +74,10 @@ on:
     - cron: "30 13 1-5 * *"
     # Days 1–5, 19:30 Europe/Istanbul (backup)
     - cron: "30 16 1-5 * *"
+    # Days 1–5, 20:30 Europe/Istanbul. On a Monday the same-day gate holds
+    # this card until 4 hours after the weekly post, so 16:30 and 19:30 can
+    # skip. cron-job.org already runs every 30 minutes through 23:30.
+    - cron: "30 17 1-5 * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -158,6 +162,12 @@ jobs:
           else
             echo "Latest artifact ${ARTIFACT_ID} has no post state yet."
           fi
+
+      - name: Restore the sibling weekly post time
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/restore-posted-state.mjs chain-revenue-weekly artifacts/x-chain-revenue-weekly
 
       - name: Choose dry-run or live post
         shell: bash

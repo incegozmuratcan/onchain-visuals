@@ -15,7 +15,7 @@ import DatasetChartClient from '@/components/onchain/DatasetChartClient';
 
 export const maxDuration = 60;
 
-export default async function DatasetPage({params, searchParams}:{params:{slug:string};searchParams?:{period?:string;preview?:string;capture?:string}}){
+export default async function DatasetPage({params, searchParams}:{params:{slug:string};searchParams?:{period?:string;preview?:string;capture?:string;asof?:string}}){
   const capture = searchParams?.capture === '1';
   // GitHub Actions renders on a local server, where VERCEL_ENV is unset.
   const preview = process.env.VERCEL_ENV === 'production' ? undefined : searchParams?.preview;
@@ -35,11 +35,14 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
   // GitHub Actions does not set VERCEL, so X renders still build live.
   // A public capture=1 request on Vercel only reads the stored snapshot.
   const live = capture && !process.env.VERCEL;
+  const asof = !process.env.VERCEL && /^\d{4}-\d{2}-\d{2}$/.test(String(searchParams?.asof || ""))
+    ? new Date(`${searchParams?.asof}T12:00:00Z`)
+    : undefined;
   let data: ChartSnapshot | null = previewData;
   if (!data) {
     try {
       data = live
-        ? await buildChartSnapshot(params.slug, searchParams?.period)
+        ? await buildChartSnapshot(params.slug, searchParams?.period, asof ? { persist: false, now: asof } : undefined)
         : await readPublicChartSnapshot(params.slug, searchParams?.period);
     } catch (error) {
       if (!(error instanceof PublicDataUnavailableError)) throw error;
@@ -57,7 +60,7 @@ export default async function DatasetPage({params, searchParams}:{params:{slug:s
     }
   }
   if (!data) notFound();
-  const shareBrandSlug = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily' || params.slug === 'chain-revenue-weekly' || params.slug === 'chain-revenue-monthly';
+  const shareBrandSlug = params.slug === 'btc-eth-etf-daily-flowboard' || params.slug === 'btc-eth-etf-weekly-flowboard' || params.slug === 'btc-eth-etf-monthly-flowboard' || params.slug === 'chain-revenue-daily' || params.slug === 'chain-revenue-weekly' || params.slug === 'chain-revenue-monthly' || params.slug === 'chain-stablecoin-supply-weekly' || params.slug === 'chain-stablecoin-supply-monthly';
   // capture=1 is the X render. Freeze the card chrome to code defaults so an
   // admin-panel edit cannot change a posted card. Production currently stores
   // cardFooterText "Created with" and createdWithText "Onchain Visuals", which

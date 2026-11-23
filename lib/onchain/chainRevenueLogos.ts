@@ -20,6 +20,8 @@ const STATE_FILES: Record<string, string> = {
   "chain-revenue-daily": "artifacts/x-chain-revenue-daily/posted-state.json",
   "chain-revenue-weekly": "artifacts/x-chain-revenue-weekly/posted-state.json",
   "chain-revenue-monthly": "artifacts/x-chain-revenue-monthly/posted-state.json",
+  "chain-stablecoin-supply-weekly": "artifacts/x-chain-stablecoin-supply-weekly/posted-state.json",
+  "chain-stablecoin-supply-monthly": "artifacts/x-chain-stablecoin-supply-monthly/posted-state.json",
 };
 
 type LogoCard = {

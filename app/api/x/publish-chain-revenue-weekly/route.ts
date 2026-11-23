@@ -5,6 +5,8 @@ import { buildChainRevenueWeeklyCaption } from "@/lib/onchain/chainRevenueCaptio
 import { oauth1AuthorizationHeader, type OAuth1Credentials } from "@/lib/x/oauth1";
 import { openLiveXPost } from "@/lib/x/postLedger";
 import { XPublishError, fetchX, settleLivePostFailure } from "@/lib/x/publishFailure";
+import { ISTANBUL_MONDAY } from "@/lib/onchain/sameDaySpacing";
+import { siblingSpacingBlock } from "@/lib/x/siblingPostSpacing";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -22,7 +24,8 @@ type PublishErrorCode =
   | "render_validation_failed"
   | "missing_x_credentials"
   | "x_media_upload_failed"
-  | "x_post_failed";
+  | "x_post_failed"
+  | "sibling_spacing";
 
 function jsonError(status: number, code: PublishErrorCode, message: string, details?: Record<string, unknown>) {
   return NextResponse.json({ success: false, error: { code, message, details } }, { status });
@@ -224,6 +227,13 @@ export async function POST(request: NextRequest) {
       image: { width: dims.width, height: dims.height, bytes: imageBuffer.length, sha256: imageHash },
     });
   }
+
+  const spacing = await siblingSpacingBlock({
+    role: "weekly",
+    weeklyPostWeekday: ISTANBUL_MONDAY,
+    siblingStatePath: "artifacts/x-chain-revenue-monthly/posted-state.json",
+  });
+  if (!spacing.proceed) return jsonError(409, "sibling_spacing", spacing.message);
 
   const ledger = await openLiveXPost(DATASET_SLUG, date);
   if (ledger.outcome === "duplicate") {

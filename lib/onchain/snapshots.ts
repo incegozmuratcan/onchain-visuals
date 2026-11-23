@@ -53,6 +53,21 @@ import {
 } from "./chainRevenueDaily";
 import { chainRevenueMonthCopy, chainRevenueWeekCopy } from "./chainRevenueCaption";
 import { applyChainRevenueCardLogos } from "./chainRevenueLogos";
+import { createChainMention } from "@/lib/share/chain-x-handles";
+import {
+  buildStablecoinSupplyCaption,
+  fetchStablecoinHistory,
+  periodRange,
+  priorPeriodRange,
+  rankStablecoinPeriod,
+  stablecoinMonthCopy,
+  stablecoinWeekCopy,
+  formatSupplyCompact,
+  formatSignedSupplyPercent,
+  type FetchJson,
+  type StablecoinHistory,
+  type StablecoinPeriodKind,
+} from "./stablecoinSupply";
 import {
   fetchBtcEtfFlows,
   fetchEthEtfFlows,
@@ -1601,6 +1616,139 @@ export function buildChainRevenuePeriodCard(
     },
   };
 }
+async function fetchJsonStablecoin(url: string, options?: { timeoutMs?: number; retries?: number }) {
+  const timeoutMs = options?.timeoutMs ?? 30_000;
+  const retries = options?.retries ?? 2;
+  let last: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
+      return await response.json();
+    } catch (error) {
+      last = error;
+      if (attempt < retries) await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+    }
+  }
+  throw last instanceof Error ? last : new Error(`Stablecoin fetch failed: ${url}`);
+}
+
+function buildStablecoinSupplySnapshot(
+  d: DatasetRegistryItem,
+  period: string,
+  kind: StablecoinPeriodKind,
+  history: StablecoinHistory,
+  now: Date,
+) {
+  const ranking = rankStablecoinPeriod(history, kind, now);
+  const range = periodRange(kind, now);
+  const prior = priorPeriodRange(kind, range.start);
+  const copy = kind === "weekly" ? stablecoinWeekCopy(range.start, range.end) : stablecoinMonthCopy(range.start);
+  const titleBadge = kind === "weekly" ? "7D" : "1M";
+  const layout = kind === "weekly" ? "stablecoin-supply-weekly" : "stablecoin-supply-monthly";
+  const totalUp = ranking.totalChange > 0;
+  const caption = buildStablecoinSupplyCaption({
+    kind,
+    start: range.start,
+    end: range.end,
+    total: ranking.total,
+    previousTotal: ranking.previousTotal,
+    highlight: ranking.highlight,
+    newcomers: ranking.newcomers,
+    ranksUnchanged: ranking.ranksUnchanged,
+  }, createChainMention());
+  return {
+    ...sourceSafeBase(d, period, "Stablecoin Supply by Chain", copy.subtitle),
+    date: range.end,
+    sourceLabel: "DefiLlama",
+    exportFormats: ["1600x900" as const],
+    status: "active" as const,
+    freshness: {
+      status: "fresh" as const,
+      lastUpdatedAt: history.fetchedAt,
+      source: "DefiLlama",
+      fallbackUsed: false,
+      missingConfig: [],
+      message: null,
+    },
+    headlineMetrics: [
+      metric("Total stablecoin supply", ranking.total, formatSupplyCompact(ranking.total)),
+      metric(ranking.highlight.kind === "gain" ? "Biggest gain" : "Biggest loss", ranking.highlight.change, ranking.highlight.formattedChange),
+      metric("Chains reporting", ranking.chainCount, String(ranking.chainCount)),
+    ],
+    series: {
+      ...emptySeries(),
+      bars: ranking.rows.map((row) => ({
+        rank: row.rank,
+        slug: row.slug,
+        name: row.name,
+        logo: row.logo,
+        value: row.value,
+        formattedValue: row.formattedValue,
+        formattedPercent: row.formattedPercent,
+        percentValue: row.percentValue,
+        change: row.change,
+        rankChange: row.rankChange,
+      })),
+    },
+    insights: [caption],
+    sourceUrl: history.url,
+    warnings: history.failed.length ? [`Stablecoin charts failed for ${history.failed.slice(0, 5).join(", ")}.`] : [],
+    metadata: {
+      ...base(d, period).metadata,
+      layout,
+      view: kind,
+      titleBadge,
+      periodStart: range.start,
+      periodEnd: range.end,
+      priorPeriodStart: prior.start,
+      priorPeriodEnd: prior.end,
+      close: ranking.assessment.close,
+      previousClose: ranking.assessment.previousClose,
+      panelDay: copy.panelDay,
+      panelYear: copy.panelYear,
+      latestCompletedDate: range.end,
+      totalSupply: ranking.total,
+      previousTotal: ranking.previousTotal,
+      totalChange: ranking.totalChange,
+      formattedTotal: formatSupplyCompact(ranking.total),
+      formattedTotalChange: formatSupplyCompact(ranking.totalChange),
+      formattedTotalPercent: formatSignedSupplyPercent(ranking.totalChange, ranking.previousTotal),
+      totalDirection: totalUp ? "up" : "down",
+      chainCount: ranking.chainCount,
+      highlightKind: ranking.highlight.kind,
+      formattedHighlight: ranking.highlight.formattedChange,
+      newcomers: ranking.newcomers,
+      ranksUnchanged: ranking.ranksUnchanged,
+      caption,
+      leader: {
+        slug: ranking.highlight.slug,
+        name: ranking.highlight.name,
+        logo: ranking.highlight.logo,
+      },
+      coverage: {
+        start: ranking.assessment.start,
+        end: ranking.assessment.end,
+        complete: ranking.assessment.complete,
+        message: ranking.assessment.message,
+      },
+      failedChains: history.failed,
+      defaultExportFormat: "1536x1134",
+    },
+  };
+}
+
+async function buildStablecoinSupplyPeriod(d: DatasetRegistryItem, period: string, kind: StablecoinPeriodKind, now = new Date()) {
+  return withFallback(d, period, async () => {
+    const history = await fetchStablecoinHistory(fetchJsonStablecoin as FetchJson);
+    const card = buildStablecoinSupplySnapshot(d, period, kind, history, now);
+    return applyChainRevenueCardLogos(
+      card,
+      history.chains.map((chain) => ({ slug: chain.slug, name: chain.rawName, logoKey: chain.logoKey })),
+    );
+  });
+}
+
 async function buildChainRevenueWeekly(d: DatasetRegistryItem, period: string) {
   return withFallback(d, period, async () => {
     const now = new Date();
@@ -1922,10 +2070,10 @@ function configSnapshot(
 export async function buildChartSnapshot(
   slug: string,
   period?: string,
-  options?: { persist?: boolean },
+  options?: { persist?: boolean; now?: Date },
 ): Promise<ChartSnapshot | null> {
   if (options?.persist === false) {
-    return withoutSnapshotWrites(() => buildChartSnapshot(slug, period));
+    return withoutSnapshotWrites(() => buildChartSnapshot(slug, period, { now: options.now }));
   }
   const d = datasetRegistry.find((x) => x.slug === slug);
   if (!d) return null;
@@ -1987,6 +2135,10 @@ export async function buildChartSnapshot(
       return buildChainRevenueWeekly(d, p);
     case "chain-revenue-monthly":
       return buildChainRevenueMonthly(d, p);
+    case "chain-stablecoin-supply-weekly":
+      return buildStablecoinSupplyPeriod(d, p, "weekly", options?.now);
+    case "chain-stablecoin-supply-monthly":
+      return buildStablecoinSupplyPeriod(d, p, "monthly", options?.now);
     case "btc-etf-flowboard":
       return buildEtfFlowSnapshot(d, p, "BTC");
     case "btc-eth-etf-daily-flowboard":

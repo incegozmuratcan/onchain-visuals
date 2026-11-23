@@ -161,6 +161,12 @@ jobs:
             echo "Latest artifact ${ARTIFACT_ID} has no post state yet."
           fi
 
+      - name: Restore the sibling monthly post time
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/restore-posted-state.mjs chain-revenue-monthly artifacts/x-chain-revenue-monthly
+
       - name: Choose dry-run or live post
         shell: bash
         env:

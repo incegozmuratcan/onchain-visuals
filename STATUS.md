@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-23. Read this and `docs/DESIGN.md` before older history.
+Updated 2026-11-24. Read this and `docs/DESIGN.md` before older history.
 
 ## Live X posts
 
@@ -19,11 +19,13 @@ Updated 2026-11-23. Read this and `docs/DESIGN.md` before older history.
 - ETF Monthly: `*/30 8-23 1-5 * *`, job 8869747. GitHub backup 08:30 and 11:30 TR on days 1–5.
 - Chain Revenue Daily: job 8880708 is disabled on cron-job.org and has no GitHub backup cron.
 - Chain Revenue Weekly: `*/30 16-23 * * 1`, job 8919886. Mondays 16:00–23:30 TR. GitHub backup 16:30 and 19:30 TR. The weekly no longer waits for the daily.
-- Chain Revenue Monthly: `*/30 16-23 1-5 * *`, job 8919887. Days 1–5, 16:00–23:30 TR. GitHub backup 16:30 and 19:30 TR.
+- Chain Revenue Monthly: `*/30 16-23 1-5 * *`, job 8919887. Days 1–5, 16:00–23:30 TR. GitHub backup 16:30, 19:30, and 20:30 TR. On a Monday the server gate holds it until 4 hours after the weekly post. No cron-job.org schedule change.
+- Stablecoin supply weekly and monthly workflows are in the repo and are not on cron-job.org yet. Weekly: new job, `*/30 16-23 * * 2`, Tuesdays 16:00–23:30 TR, workflow `x-chain-stablecoin-supply-weekly.yml`. Monthly: new job, `*/30 16-23 2-5 * *`, days 2–5, workflow `x-chain-stablecoin-supply-monthly.yml`. On a Tuesday the monthly gate waits 4 hours after the weekly post.
 - GitHub backup crons follow repo var `X_DRY_RUN` (unset, or anything other than `false` / `0` / `off`, is a dry run). Owner reports `X_DRY_RUN=false`.
 
 ## Son yapılanlar
 
+- 2026-11-24: Stablecoin supply weekly and monthly cards (7D / 1M), captions, handles, and the 4-hour same-day gate for Chain Revenue and stablecoin.
 - 2026-11-23: Chain Revenue daily stopped on X (site only). Weekly posts as soon as the Mon–Sun week passes the gate.
 - 2026-11-23: Chain Revenue gate uses each day's own 20:00 TR cutoff and only waits for top-10 chains that had revenue on all 3 prior days (quai spike fix).
 - 2026-11-22: Chain Revenue cards take logos from Logo Manager, then the posted-state cache, the fixed set, DefiLlama, and an initial badge. A logo no longer skips the card.
@@ -34,8 +36,9 @@ Updated 2026-11-23. Read this and `docs/DESIGN.md` before older history.
 
 ## Sıradakiler
 
+- X bio and banner for @OnchainVis. The banner tagline is cut on mobile, and the title font should match the cards' bold sans-serif (Inter, weight 900).
 - Fix the Farside 403, DefiLlama `/cexs`, and derivatives 402 sources.
-- Redesign the @OnchainVis X banner: the tagline is cut on mobile, and the title font should match the cards' bold sans-serif (Inter, weight 900).
+- Possible pie-chart card.
 
 ## Known issues
 
