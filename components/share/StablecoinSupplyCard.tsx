@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import type { ChartSnapshot } from "@/lib/onchain/types";
-import { allowedChainLogoUrl, chainInitialLetter, sanitizeChainName } from "@/lib/onchain/chainRevenueDaily";
+import { allowedChainLogoUrl, chainInitialLetter, chainRevenueBarPercent, sanitizeChainName } from "@/lib/onchain/chainRevenueDaily";
 import { ShareCardFrame, type ShareCardBrand } from "./ShareCardFrame";
 import { chainRevenueInter } from "./chainRevenueFont";
 
@@ -13,6 +13,7 @@ type SupplyRow = {
   slug: string;
   name: string;
   logo?: string | null;
+  value?: number;
   formattedValue: string;
   formattedPercent: string;
   percentValue?: number | null;
@@ -23,7 +24,7 @@ const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "
 const LOGO_RING = "0 0 0 1.5px rgba(15,23,42,.07)";
 const GREEN = "#127a45";
 const RED = "#b0153f";
-const ROW_GRID = "grid grid-cols-[34px_44px_minmax(0,1fr)_220px_128px] items-center gap-x-5";
+const ROW_GRID = "grid grid-cols-[34px_44px_330px_minmax(0,1fr)_196px_128px] items-center gap-x-5";
 
 function dayParts(date?: string | null) {
   const match = String(date || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
@@ -113,31 +114,6 @@ function RankChangeBadge({ change }: { change: RankChange }) {
   );
 }
 
-function SummaryBox({
-  tone,
-  children,
-  chip,
-}: {
-  tone: "grey" | "gain" | "loss";
-  chip: string;
-  children: ReactNode;
-}) {
-  const palette = {
-    grey: { background: "#e8eaee", border: "#d3d6dc" },
-    gain: { background: "#d3ecdd", border: "#a9d8bc" },
-    loss: { background: "#f0d3db", border: "#e1a7b7" },
-  }[tone];
-  return (
-    <div
-      data-chip={chip}
-      className="box-border flex h-[101px] w-[643px] shrink-0 flex-col justify-center overflow-hidden rounded-[14px] px-[18px]"
-      style={{ background: palette.background, boxShadow: `inset 0 0 0 1.5px ${palette.border}` }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function StablecoinSupplyCard({
   data,
   brand,
@@ -147,10 +123,13 @@ export function StablecoinSupplyCard({
   brand?: ShareCardBrand;
   cardRef?: Ref<HTMLDivElement>;
 }) {
-  const rows = ((data.series?.bars || []) as SupplyRow[]).slice(0, 10).map((row) => ({
+  const rawRows = ((data.series?.bars || []) as SupplyRow[]).slice(0, 10);
+  const barMax = Math.max(0, ...rawRows.map((row) => Number(row.value) || 0));
+  const rows = rawRows.map((row) => ({
     ...row,
     name: sanitizeChainName(row.name),
     logo: allowedChainLogoUrl(row.logo),
+    barPercent: chainRevenueBarPercent(Number(row.value) || 0, barMax),
   }));
   const meta = data.metadata || {};
   const leaderRaw = (meta.leader || null) as { slug?: string; name?: string; logo?: string | null } | null;
@@ -165,11 +144,11 @@ export function StablecoinSupplyCard({
   const { ref: fitRef, ready } = useFittedNames([
     rows.map((row) => `${row.name}:${row.rankChange?.kind || ""}:${row.rankChange?.places || ""}`).join("|"),
   ]);
-  const amountColor = rose ? RED : GREEN;
   const pillStyle = rose
-    ? { background: "#f0d3db", color: RED }
-    : { background: "#d3ecdd", color: GREEN };
-  const highlightColor = gain ? GREEN : RED;
+    ? { background: "#f4e6ea", boxShadow: "inset 0 0 0 1.5px #e4c3cc", color: RED }
+    : { background: "#d3ecdd", boxShadow: "inset 0 0 0 1.5px #a9d8bc", color: GREEN };
+  const deltaColor = rose ? RED : GREEN;
+  const signedHighlight = `${gain ? "+" : "-"}${String(meta.formattedHighlight || "").replace(/^[+-]/, "")}`;
 
   return (
     <div className={`${chainRevenueInter.className} flex h-full min-h-0 w-full min-w-0 flex-1`}>
@@ -178,10 +157,10 @@ export function StablecoinSupplyCard({
         brand={brand}
         density="weekly"
         eyebrow="Onchain Economy · Top 10 Chains"
-        title={data.title || "Stablecoin Supply"}
+        title={data.title || "Stablecoin Supply by Chain"}
         titleBadge={String(meta.titleBadge || "7D")}
         spacedFooterMeta
-        description={data.subtitle || "Stablecoin supply by chain."}
+        description={data.subtitle || "Stablecoin supply sitting on each blockchain."}
         source={String(data.sourceLabel || "DefiLlama").replace(/^Source:\s*/i, "")}
         updatedAt={data.freshness?.lastUpdatedAt}
       >
@@ -198,66 +177,80 @@ export function StablecoinSupplyCard({
             <span className="text-[18px] font-extrabold tracking-[0.02em] text-[#a7acb4]">{year}</span>
           </div>
 
-          <div className="flex gap-[18px]">
-            <SummaryBox tone="grey" chip="total">
-              <div className="flex items-center justify-between gap-3">
+          <div className="flex gap-4">
+            <div
+              data-chip="total"
+              className="box-border flex h-[101px] w-[643px] shrink-0 items-center gap-4 overflow-hidden rounded-[14px] bg-[#e8eaee] px-[22px] py-4"
+              style={{ boxShadow: "inset 0 0 0 1.5px #d3d6dc" }}
+            >
+              <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-2">
-                  <span className="whitespace-nowrap text-[13px] font-extrabold uppercase tracking-[1.6px] text-[#6b7079]">
+                  <div className="text-[15px] font-extrabold uppercase tracking-[2px] text-[#6b7079]">
                     All Chains · Total Supply
-                  </span>
+                  </div>
                   <span
-                    data-total-percent
-                    className="inline-flex h-[26px] items-center rounded-full px-[8px] text-[18px] font-bold leading-none"
+                    data-total-pct={String(meta.formattedTotalPercent || "")}
+                    className="-my-1 inline-flex h-[26px] flex-none items-center whitespace-nowrap rounded-full px-[11px] text-[18px] font-extrabold leading-none tabular-nums tracking-[-0.02em]"
                     style={pillStyle}
                   >
                     {String(meta.formattedTotalPercent || "—")}
                   </span>
                 </div>
-                <span data-chain-count className="shrink-0 text-[18px] font-extrabold text-[#111]">
-                  <b className="font-black">{meta.chainCount ?? "—"}</b> chains
-                </span>
-              </div>
-              <div
-                data-total-supply
-                className="mt-[2px] text-[36px] font-black leading-none tabular-nums tracking-[-0.03em] text-[#111]"
-              >
-                {String(meta.formattedTotal || "—")}
-              </div>
-              <div
-                data-total-change
-                className="mt-[6px] text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em]"
-                style={{ color: amountColor }}
-              >
-                {rose ? "▼" : "▲"} {String(meta.formattedTotalChange || "—")}
-              </div>
-            </SummaryBox>
-            <SummaryBox tone={gain ? "gain" : "loss"} chip="highlight">
-              <div
-                className="text-[13px] font-extrabold uppercase tracking-[1.6px]"
-                style={{ color: highlightColor }}
-              >
-                {gain ? "Biggest Gain · Top 10" : "Biggest Loss · Top 10"}
-              </div>
-              <div className="mt-[6px] flex items-center gap-3">
-                {leader ? <ChainLogo src={leader.logo} name={leader.name || ""} size={40} /> : null}
-                <div className="min-w-0">
-                  <div
-                    data-highlight-name
-                    className="truncate text-[28px] font-black leading-[1.2] tracking-[-0.03em]"
-                    style={{ color: highlightColor }}
-                  >
-                    {leader?.name || "—"}
-                  </div>
-                  <div
-                    data-highlight-amount
-                    className="text-[26px] font-bold leading-none tabular-nums tracking-[-0.02em]"
-                    style={{ color: highlightColor }}
-                  >
-                    {String(meta.formattedHighlight || "—")}
-                  </div>
+                <div className="mt-[5px] flex items-center justify-between gap-[14px] whitespace-nowrap font-black tabular-nums tracking-[-0.03em] text-[#111]">
+                  <span className="flex min-w-0 items-center gap-4">
+                    <span data-total-revenue className="text-[36px] font-black tracking-[-0.03em] text-[#111]">
+                      {String(meta.formattedTotal || "—")}
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[22px] font-bold leading-none" style={{ color: deltaColor }}>
+                        {rose ? "▼" : "▲"}
+                      </span>
+                      <span
+                        data-total-usd={String(meta.formattedTotalChange || "")}
+                        className="text-[26px] font-extrabold leading-none tabular-nums tracking-[-0.03em]"
+                        style={{ color: deltaColor }}
+                      >
+                        {String(meta.formattedTotalChange || "—")}
+                      </span>
+                    </span>
+                  </span>
+                  <span data-chain-count className="text-[22px] font-extrabold tracking-normal text-[#111]">
+                    <b className="font-black">{meta.chainCount ?? "—"}</b> chains
+                  </span>
                 </div>
               </div>
-            </SummaryBox>
+            </div>
+            <div
+              data-chip="highlight"
+              className="box-border flex h-[101px] w-[643px] shrink-0 items-center gap-4 overflow-hidden rounded-[14px] px-[22px] py-4"
+              style={
+                gain
+                  ? { background: "#d3ecdd", boxShadow: "inset 0 0 0 1.5px #a9d8bc" }
+                  : { background: "#f0d3db", boxShadow: "inset 0 0 0 1.5px #e1a7b7" }
+              }
+            >
+              {leader ? <ChainLogo src={leader.logo} name={leader.name || ""} size={52} /> : null}
+              <div className="min-w-0 flex-1">
+                <div
+                  className="text-[15px] font-extrabold uppercase tracking-[2px]"
+                  style={{ color: gain ? GREEN : RED }}
+                >
+                  {gain ? "Biggest Gain · Top 10" : "Biggest Loss · Top 10"}
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-[14px] whitespace-nowrap">
+                  <span data-leader-name className="min-w-0 overflow-hidden text-[28px] font-black text-[#111]">
+                    {leader?.name || "—"}
+                  </span>
+                  <span
+                    data-gain-usd={signedHighlight}
+                    className="text-[36px] font-black tabular-nums tracking-[-0.03em]"
+                    style={{ color: gain ? GREEN : RED }}
+                  >
+                    {signedHighlight}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <ol className="mt-6 flex flex-auto flex-col justify-between">
@@ -279,12 +272,22 @@ export function StablecoinSupplyCard({
                     </span>
                     {row.rankChange ? <RankChangeBadge change={row.rankChange} /> : null}
                   </span>
-                  <span className="whitespace-nowrap text-right text-[34px] font-extrabold leading-[1.2] tabular-nums tracking-[-0.03em] text-[#111]">
+                  <div data-bar-track={row.slug} className="h-3 rounded-[6px] bg-[#e8eaee]">
+                    <div
+                      data-chain-bar={row.slug}
+                      className="h-3 rounded-[6px] bg-[#1b8f58]"
+                      style={{ width: `${Math.max(0, Math.min(100, row.barPercent))}%` }}
+                    />
+                  </div>
+                  <span
+                    data-chain-amount={row.formattedValue}
+                    className="whitespace-nowrap text-right text-[40px] font-extrabold leading-none tabular-nums tracking-[-0.03em] text-[#111]"
+                  >
                     {row.formattedValue}
                   </span>
                   <span
-                    data-chain-percent={row.formattedPercent}
-                    className="whitespace-nowrap text-right text-[28px] font-extrabold leading-[1.2] tabular-nums tracking-[-0.03em]"
+                    data-chain-pct={row.formattedPercent}
+                    className="whitespace-nowrap text-right text-[32px] font-extrabold leading-none tabular-nums tracking-[-0.03em]"
                     style={{ color: up ? GREEN : down ? RED : "#6b7079" }}
                   >
                     {row.formattedPercent}

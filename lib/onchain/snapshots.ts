@@ -1658,7 +1658,7 @@ function buildStablecoinSupplySnapshot(
     ranksUnchanged: ranking.ranksUnchanged,
   }, createChainMention());
   return {
-    ...sourceSafeBase(d, period, "Stablecoin Supply", copy.subtitle),
+    ...sourceSafeBase(d, period, "Stablecoin Supply by Chain", copy.subtitle),
     date: range.end,
     sourceLabel: "DefiLlama",
     exportFormats: ["1600x900" as const],

@@ -218,7 +218,7 @@ export function stablecoinWeekCopy(start: string, end: string) {
     ? `${SHORT_MONTHS[first.month]} ${first.date} – ${SHORT_MONTHS[last.month]} ${last.date}`
     : `${SHORT_MONTHS[first.month]} ${first.date}, ${first.year} – ${SHORT_MONTHS[last.month]} ${last.date}, ${last.year}`;
   return {
-    subtitle: `Stablecoin supply by chain, ${subtitleRange}.`,
+    subtitle: `Stablecoin supply sitting on each blockchain, ${subtitleRange}.`,
     panelDay,
     panelYear: sameYear ? String(first.year) : `${first.year}–${last.year}`,
     captionHeading: `Stablecoin supply by chain (${captionRange})`,
@@ -229,7 +229,7 @@ export function stablecoinMonthCopy(start: string) {
   const parsed = parts(start);
   const full = `${FULL_MONTHS[parsed.month]} ${parsed.year}`;
   return {
-    subtitle: `Stablecoin supply by chain, ${full}.`,
+    subtitle: `Stablecoin supply sitting on each blockchain, ${full}.`,
     panelDay: PANEL_MONTHS[parsed.month],
     panelYear: String(parsed.year),
     captionHeading: `Stablecoin supply by chain (${full})`,
