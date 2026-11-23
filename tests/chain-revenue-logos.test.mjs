@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
-import { ensureShareTimestamps, readPostState, recordShare } from "../scripts/x-btc-eth-etf-share-gate.mjs";
+import { readPostState, recordShare } from "../scripts/x-btc-eth-etf-share-gate.mjs";
 
 async function loadTs(path) {
   const source = await readFile(new URL(path, import.meta.url), "utf8");
@@ -238,16 +238,7 @@ test("recording a share keeps the logo cache in posted-state", async () => {
   assert.equal(saved.logos.tron.dataUrl, cached);
   assert.equal(saved.logoSources[0].source, "approved");
   assert.equal((await readPostState(file)).length, 1);
-
-  const stamped = await ensureShareTimestamps(
-    file,
-    [{ date: "2026-11-20", mode: "live" }],
-    "2026-11-22T13:00:00.000Z",
-  );
-  assert.deepEqual(stamped.stamped, ["2026-11-20"]);
-  const afterStamp = JSON.parse(await readFile(file, "utf8"));
-  assert.equal(afterStamp.logos.tron.dataUrl, cached);
-  assert.equal(afterStamp.posts.find((post) => post.date === "2026-11-20").at, "2026-11-22T13:00:00.000Z");
+  assert.equal(saved.posts[0].date, "2026-11-21");
 });
 
 test("the card, scripts, and snapshot builder use the logo order and never skip on a logo", async () => {

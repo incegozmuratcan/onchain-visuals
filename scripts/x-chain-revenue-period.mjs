@@ -10,11 +10,11 @@
  *
  * The period is the last completed Monday–Sunday UTC week, or the last
  * completed UTC calendar month. Each chain's value is the sum of its
- * dailyRevenue points. The period is shared only when every day passes
- * assessChainRevenueDay. A period already recorded in this job's
- * posted-state.json is not posted again. The weekly card also reads the
- * daily posted-state.json and waits until Sunday's daily has been posted
- * for 60 minutes. A daily post with no timestamp is stamped, then the run waits.
+ * dailyRevenue points. The period is shared only when the whole period
+ * passes assessChainRevenuePeriod (every day passes the daily gate,
+ * including Sunday, which uses that day's own Monday 20:00 TR cutoff).
+ * A period already recorded in this job's posted-state.json is not posted
+ * again. Neither card reads the daily posted-state.
  */
 import { spawn } from "node:child_process";
 import { appendFile, mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
@@ -24,7 +24,6 @@ import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
 import {
   decideChainRevenuePeriodShare,
-  ensureShareTimestamps,
   readPostState,
   recordShare,
 } from "./x-chain-revenue-period-gate.mjs";
@@ -73,9 +72,6 @@ const outDir = path.join(root, "artifacts", `x-${spec.artifact}`);
 const statePath = process.env.X_CHAIN_REVENUE_POST_STATE
   ? path.resolve(process.env.X_CHAIN_REVENUE_POST_STATE)
   : path.join(outDir, "posted-state.json");
-const dailyStatePath = process.env.X_CHAIN_REVENUE_DAILY_POST_STATE
-  ? path.resolve(process.env.X_CHAIN_REVENUE_DAILY_POST_STATE)
-  : path.join(root, "artifacts", "x-chain-revenue-daily", "posted-state.json");
 process.env.CHAIN_REVENUE_LOGO_STATE = statePath;
 const preflightOnly = process.argv.includes("--preflight");
 const cardWidth = 1536;
@@ -140,11 +136,6 @@ async function fetchJson(url, { timeoutMs = 30_000, retries = 2 } = {}) {
 async function evaluateShare(dryRun) {
   const lib = await loadRevenueModule();
   const now = new Date();
-  let dailyPosts;
-  if (kind === "weekly") {
-    const storedDaily = await readPostState(dailyStatePath);
-    dailyPosts = (await ensureShareTimestamps(dailyStatePath, storedDaily, now.toISOString())).posts;
-  }
   const fetched = await lib.fetchChainRevenueDays(fetchJson, { now, keepDays: lib[spec.keep] });
   const range = spec.select(lib, now);
   const assessment = lib.assessChainRevenuePeriod(fetched.days, range.start, range.end, now);
@@ -155,8 +146,6 @@ async function evaluateShare(dryRun) {
     dryRun,
     posts,
     label: spec.label,
-    dailyPosts,
-    now,
   });
   return { dryRun, now: now.toISOString(), range, assessment, failed: fetched.failed, decision };
 }
@@ -179,7 +168,6 @@ async function writeSkipArtifact(share) {
     periodEnd: share.range?.end || null,
     checkedAt: share.now,
     message: share.decision.message,
-    dailyPostedAt: share.decision.dailyPostedAt || null,
     coverage: share.decision.coverage,
     failedChains: share.failed || [],
   };

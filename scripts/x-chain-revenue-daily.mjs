@@ -16,8 +16,7 @@
  * days and every chain from the previous day's top 10 has revenue on it.
  * DefiLlama fills a day late, so an incomplete pass exits 0 without posting and
  * a later pass tries again. A day already recorded in posted-state.json is not
- * posted again. A recorded post with no timestamp is given one on the next
- * run, so the weekly card can measure the hour after Sunday's daily.
+ * posted again.
  *
  * --preview=long-names renders the synthetic long-name fixture and never posts.
  * --as-of=<ISO time> runs the gate as if it were that time (dry-run only), to
@@ -32,7 +31,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL, fileURLToPath } from "node:url";
 import ts from "typescript";
-import { decideChainRevenueShare, ensureShareTimestamps, readPostState, recordShare } from "./x-chain-revenue-daily-gate.mjs";
+import { decideChainRevenueShare, readPostState, recordShare } from "./x-chain-revenue-daily-gate.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const port = Number(process.env.PORT || 4177);
@@ -120,8 +119,7 @@ async function fetchJson(url, { timeoutMs = 30_000, retries = 2 } = {}) {
 async function evaluateShare(dryRun) {
   const lib = await loadRevenueModule();
   const now = runNow();
-  const stored = await readPostState(statePath);
-  const posts = (await ensureShareTimestamps(statePath, stored, new Date().toISOString())).posts;
+  const posts = await readPostState(statePath);
   const fetched = await lib.fetchChainRevenueDays(fetchJson, { now });
   const expectedDate = lib.latestCompletedUtcDay(now);
   const assessment = lib.assessChainRevenueDay(fetched.days, expectedDate);
