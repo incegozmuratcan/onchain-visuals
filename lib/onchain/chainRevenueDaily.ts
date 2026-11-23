@@ -8,11 +8,19 @@
  *
  * DefiLlama fills a finished UTC day late, chain by chain. A day is complete
  * only when (1) its chain count reaches COVERAGE_RATIO of the median count of
- * the previous PRIOR_DAYS days, and (2) every chain from the previous day's
- * top 10 has a positive value on it. Anything less is incomplete, not small.
- * After CHAIN_REVENUE_MISSING_TOP_CUTOFF Europe/Istanbul on the run day, a
- * missing previous top-10 chain no longer blocks when tron, ethereum, and
- * solana are present if they were in that top 10. The ignored chains are logged.
+ * the previous PRIOR_DAYS days, and (2) every stable chain from the previous
+ * day's top 10 has a positive value on it. A chain is stable when it had a
+ * positive value on all PRIOR_DAYS prior days. A chain that only spiked into
+ * the top 10 is still counted in totals and rankings, but it is not required.
+ * Anything less is incomplete, not small.
+ * The missing-top-10 waiver is CHAIN_REVENUE_MISSING_TOP_CUTOFF Europe/Istanbul
+ * on that day's own run day (the UTC date plus one day), not today's wall clock.
+ * At and after that instant, a missing stable previous top-10 chain no longer
+ * blocks when tron, ethereum, and solana are present if they were in that top 10.
+ * An older day in a weekly or monthly check is already past its own cutoff, so
+ * a missing small chain is waived. The daily card is assessed on the next day,
+ * so before that cutoff it still blocks. Ignored chains and skipped unstable
+ * chains are logged.
  *
  * This file has no imports so the share scripts can transpile it on its own.
  */
@@ -28,8 +36,9 @@ export const COVERAGE_RATIO = 0.95;
 export const PRIOR_DAYS = 3;
 export const TOP_COUNT = 10;
 /**
- * Europe/Istanbul clock time on the run day. Before this, a missing previous-day
- * top-10 chain still blocks. At and after it, only a missing core chain does.
+ * Europe/Istanbul clock time on the day's own run day (the UTC date plus one
+ * day). Before that instant, a missing stable previous-day top-10 chain still
+ * blocks. At and after it, only a missing core chain does.
  */
 export const CHAIN_REVENUE_MISSING_TOP_CUTOFF = "20:00";
 const CHAIN_REVENUE_CUTOFF_TIME_ZONE = "Europe/Istanbul";
@@ -489,20 +498,38 @@ function median(values: number[]) {
   return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
-function minutesInTimeZone(now: Date, timeZone: string) {
+function timeZoneOffsetMs(instant: Date, timeZone: string) {
   const parts = new Intl.DateTimeFormat("en-GB", {
     timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(now);
+  }).formatToParts(instant);
   const read = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
-  return read("hour") * 60 + read("minute");
+  const asUtc = Date.UTC(read("year"), read("month") - 1, read("day"), read("hour"), read("minute"), read("second"));
+  return asUtc - instant.getTime();
 }
 
-function atOrAfterMissingTopCutoff(now: Date) {
+/** CHAIN_REVENUE_MISSING_TOP_CUTOFF Europe/Istanbul on the UTC day after `date`. */
+function missingTopCutoff(date: string) {
+  const runDay = addUtcDays(date, 1);
   const [hour, minute] = CHAIN_REVENUE_MISSING_TOP_CUTOFF.split(":").map(Number);
-  return minutesInTimeZone(now, CHAIN_REVENUE_CUTOFF_TIME_ZONE) >= hour * 60 + minute;
+  const guess = new Date(
+    `${runDay}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00Z`,
+  );
+  const offset = timeZoneOffsetMs(guess, CHAIN_REVENUE_CUTOFF_TIME_ZONE);
+  const utc = new Date(guess.getTime() - offset);
+  const offsetAtUtc = timeZoneOffsetMs(utc, CHAIN_REVENUE_CUTOFF_TIME_ZONE);
+  return offsetAtUtc === offset ? utc : new Date(guess.getTime() - offsetAtUtc);
+}
+
+function atOrAfterMissingTopCutoff(date: string, now: Date) {
+  if (!DATE_RE.test(date)) return false;
+  return now.getTime() >= missingTopCutoff(date).getTime();
 }
 
 function ranked(day: Record<string, number> | undefined) {
@@ -522,7 +549,11 @@ export function assessChainRevenueDay(days: RevenueDays, date: string, now: Date
     .filter(([, value]) => value > 0)
     .slice(0, TOP_COUNT)
     .map(([slug]) => slug);
-  const missingPriorTop = priorTop.filter((slug) => !(Number(target[slug]) > 0));
+  const stablePriorTop = new Set(
+    priorTop.filter((slug) => priorDates.every((day) => Number(days[day]?.[slug]) > 0)),
+  );
+  const skippedUnstable = priorTop.filter((slug) => !stablePriorTop.has(slug) && !(Number(target[slug]) > 0));
+  const missingPriorTop = priorTop.filter((slug) => stablePriorTop.has(slug) && !(Number(target[slug]) > 0));
   const total = Object.values(target).reduce((sum, value) => sum + (Number(value) || 0), 0);
   const badDate = !DATE_RE.test(date);
   const priorMissing = priorCounts.some((count) => count === 0);
@@ -534,7 +565,7 @@ export function assessChainRevenueDay(days: RevenueDays, date: string, now: Date
     !badDate &&
     !priorMissing &&
     !coverageShort &&
-    atOrAfterMissingTopCutoff(now);
+    atOrAfterMissingTopCutoff(date, now);
   const problems: string[] = [];
   if (badDate) problems.push(`${date} is not a YYYY-MM-DD day`);
   if (priorMissing) {
@@ -552,6 +583,23 @@ export function assessChainRevenueDay(days: RevenueDays, date: string, now: Date
       `Chain revenue ${date}: ignoring missing ${priorDates[0]} top-10 chains ${ignoredMissingTop.join(", ")} after ${CHAIN_REVENUE_MISSING_TOP_CUTOFF} ${CHAIN_REVENUE_CUTOFF_TIME_ZONE}.`,
     );
   }
+  if (skippedUnstable.length) {
+    console.log(
+      `Chain revenue ${date}: not waiting for ${priorDates[0]} top-10 chains ${skippedUnstable.join(", ")} without revenue on all ${PRIOR_DAYS} prior days.`,
+    );
+  }
+  const notes: string[] = [];
+  if (ignoredMissingTop.length) {
+    notes.push(
+      `ignoring missing ${priorDates[0]} top-10 chains ${ignoredMissingTop.join(", ")} after ${CHAIN_REVENUE_MISSING_TOP_CUTOFF} ${CHAIN_REVENUE_CUTOFF_TIME_ZONE}`,
+    );
+  }
+  if (skippedUnstable.length) {
+    notes.push(
+      `not waiting for ${priorDates[0]} top-10 chains ${skippedUnstable.join(", ")} without revenue on all ${PRIOR_DAYS} prior days`,
+    );
+  }
+  if (!notes.length) notes.push(`all ${priorTop.length} prior top-10 chains present`);
   const complete = problems.length === 0;
   return {
     date,
@@ -566,9 +614,7 @@ export function assessChainRevenueDay(days: RevenueDays, date: string, now: Date
     total,
     problems,
     message: complete
-      ? ignoredMissingTop.length
-        ? `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), ignoring missing ${priorDates[0]} top-10 chains ${ignoredMissingTop.join(", ")} after ${CHAIN_REVENUE_MISSING_TOP_CUTOFF} ${CHAIN_REVENUE_CUTOFF_TIME_ZONE}.`
-        : `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), all ${priorTop.length} prior top-10 chains present.`
+      ? `Chain revenue ${date} is complete: ${chainCount} chains (need ${threshold}), ${notes.join("; ")}.`
       : `Chain revenue ${date} is not complete yet: ${problems.join("; ")}.`,
   };
 }
