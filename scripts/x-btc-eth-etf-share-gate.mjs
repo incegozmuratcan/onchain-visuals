@@ -208,34 +208,3 @@ export async function recordShare(file, entry) {
   await writeFile(file, `${JSON.stringify({ ...doc, posts: trimmed }, null, 2)}\n`);
   return trimmed;
 }
-
-/** Milliseconds since epoch, or null when the stored post time is missing or not a date. */
-export function sharePostedAtMs(value) {
-  if (value == null || value === "") return null;
-  const ms = Date.parse(String(value));
-  return Number.isFinite(ms) ? ms : null;
-}
-
-/**
- * Fill `at` on recorded posts that have none. An existing timestamp is left
- * as stored. Returns the dates that were stamped on this call.
- */
-export async function ensureShareTimestamps(file, posts, at) {
-  const list = Array.isArray(posts) ? posts : [];
-  const stampMs = sharePostedAtMs(at);
-  const stamp = stampMs == null ? new Date().toISOString() : new Date(stampMs).toISOString();
-  const stamped = [];
-  const next = list.map((post) => {
-    if (!post || typeof post !== "object") return post;
-    if (!DATE.test(String(post.date || ""))) return post;
-    if (post.mode !== "live" && post.mode !== "dry-run") return post;
-    if (sharePostedAtMs(post.at) != null) return post;
-    stamped.push(String(post.date));
-    return { ...post, at: stamp };
-  });
-  if (!stamped.length) return { posts: list, stamped };
-  const doc = await readPostStateDocument(file);
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, `${JSON.stringify({ ...doc, posts: next }, null, 2)}\n`);
-  return { posts: next, stamped };
-}

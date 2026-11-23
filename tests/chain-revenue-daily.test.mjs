@@ -377,7 +377,7 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.match(script, /process\.argv\.includes\("--preflight"\)/);
   assert.match(script, /decideChainRevenueShare/);
   assert.match(script, /recordShare/);
-  assert.match(script, /ensureShareTimestamps/);
+  assert.doesNotMatch(script, /ensureShareTimestamps/);
   assert.match(script, /1536/);
   assert.match(script, /1134/);
   assert.match(script, /\/api\/x\/publish-chain-revenue-daily/);
@@ -385,8 +385,9 @@ test("dataset, card, route, script, and workflow are wired like the ETF jobs", a
   assert.match(workflow, /default: true/);
   assert.match(workflow, /inputs\.dry_run/);
   assert.match(workflow, /vars\.X_DRY_RUN/);
-  assert.match(workflow, /\*\/30 16-23 \* \* \*/);
-  assert.match(workflow, /x-chain-revenue-daily\.yml\/dispatches/);
+  assert.match(workflow, /no schedule/);
+  assert.doesNotMatch(workflow, /^\s*schedule:/m);
+  assert.doesNotMatch(workflow, /^\s*- cron:/m);
   assert.match(workflow, /concurrency:\n  group: x-chain-revenue-daily/);
   assert.match(workflow, /name: chain-revenue-daily/);
   assert.ok(workflow.indexOf("id: gate") < workflow.indexOf("npm run build"));

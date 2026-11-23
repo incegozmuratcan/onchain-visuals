@@ -85,7 +85,7 @@ The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `C
 
 ## Chain Revenue daily
 
-`.github/workflows/x-chain-revenue-daily.yml` posts the Chain Revenue card (top 10 chains by revenue for the latest completed UTC day). It follows the ETF jobs: dry run by default, the same secrets, its own `posted-state.json` in the `chain-revenue-daily` artifact, and `POST /api/x/publish-chain-revenue-daily` for the live post.
+The Chain Revenue card (top 10 chains by revenue for the latest completed UTC day) stays on the site at `/onchain/chain-revenue-daily`. It is not posted on X (since 2026-11-23). `.github/workflows/x-chain-revenue-daily.yml` is a manual emergency dispatch: dry run by default, the same secrets, its own `posted-state.json` in the `chain-revenue-daily` artifact, and `POST /api/x/publish-chain-revenue-daily` only when a live run is requested. It has no schedule.
 
 ### Data
 
@@ -109,7 +109,7 @@ An incomplete pass exits successfully with `reason: "incomplete"` and the covera
 
 ### Schedule
 
-cron-job.org is the primary trigger, every 30 minutes from 16:00 to 23:30 Europe/Istanbul (`*/30 16-23 * * *`), sending `POST /repos/incegozmuratcan/onchain-visuals/actions/workflows/x-chain-revenue-daily.yml/dispatches` with `{"ref":"main","inputs":{"dry_run":false}}`. The first pass at 16:00 is the intended post time; later passes only post if 16:00 found the day incomplete. GitHub crons at 16:30 and 19:30 Istanbul are a backup and follow `vars.X_DRY_RUN`.
+The daily card is site only and is not posted on X (since 2026-11-23). `.github/workflows/x-chain-revenue-daily.yml` has no schedule. cron-job.org job 8880708 is disabled. A manual emergency run uses `workflow_dispatch` and leaves `dry_run` at true. Weekly and monthly Chain Revenue still post on X.
 
 ### Local dry run
 

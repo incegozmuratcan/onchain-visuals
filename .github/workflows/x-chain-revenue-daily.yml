@@ -1,25 +1,19 @@
 name: X Chain Revenue daily
 
+# Manual emergency use only. The Chain Revenue daily card stays on the site
+# at /onchain/chain-revenue-daily. It is not posted on X (since 2026-11-23).
+# This workflow has no schedule, so it cannot post on a timer. cron-job.org
+# job 8880708 is disabled. Do not add a GitHub cron and do not turn that job
+# back on. Weekly and monthly Chain Revenue still post on X.
+#
 # Dry-run by default. This job reads DefiLlama chain revenue (dailyRevenue,
 # protocolType chain) for the latest completed UTC day, renders the Chain
 # Revenue card at 1536×1134, and uploads the PNG plus caption as artifacts.
 # It does not call X unless a run explicitly sets dry-run off AND the secrets
 # below are present. The X user token must be for @OnchainVis.
 #
-# cron-job.org is the primary daily trigger. The GitHub schedule below is only
-# a backup. Both use this workflow file:
-#   POST /repos/incegozmuratcan/onchain-visuals/actions/workflows/x-chain-revenue-daily.yml/dispatches
-#   ref: main
-#   inputs: { "dry_run": false } for a live post, true to render only
-#
-# Live cron-job.org schedule (Europe/Istanbul, UTC+3, no DST):
-#   */30 16-23 * * *
-#   Every day every 30 minutes from 16:00 through 23:30 (13:00–20:30 UTC).
-#   16:00 is the intended post time; the later passes are retries.
-# The GitHub crons below stay as backup only (16:30 and 19:30 Istanbul).
-# Both triggers run this same workflow. The concurrency group queues them, and
-# both restore the same posted-state.json artifact, so a day already shared
-# by either path is skipped by the other.
+# Manual runs use workflow_dispatch and stay dry-run unless dry_run is set
+# to false.
 #
 # The share day is always the latest completed UTC day. The caption names that
 # day with the full month name. Each value is that chain's summary
@@ -29,17 +23,15 @@ name: X Chain Revenue daily
 #   - the number of chains with a point for the day is at least 95% of the
 #     median count of the previous three days, AND
 #   - every chain in the previous day's top 10 has revenue on the day.
-# An incomplete pass exits successfully without posting, so a later pass can
-# share once DefiLlama has filled the day. An older day is never posted late.
-# A pass also skips when that day was already shared (a live post, or a
-# dry-run that already recorded a success for the day). The recorded days live
-# in posted-state.json, which this workflow restores from the previous run's
-# artifact. That state is separate from the ETF cards.
+# An incomplete pass exits successfully without posting, so a later manual
+# pass can share once DefiLlama has filled the day. An older day is never
+# posted late. A pass also skips when that day was already shared (a live
+# post, or a dry-run that already recorded a success for the day). The
+# recorded days live in posted-state.json, which this workflow restores from
+# the previous run's artifact. That state is separate from the ETF cards.
 #
-# Dry-run stays the default. The schedule follows vars.X_DRY_RUN (unset or
-# true = dry run; false = live). Manual runs use workflow_dispatch and stay
-# dry-run unless dry_run is set to false. A recorded dry-run does not block
-# a later live post of the same day.
+# Dry-run stays the default. A recorded dry-run does not block a later live
+# post of the same day.
 #
 # GitHub Actions secrets — same set as the daily BTC+ETH job
 # - ONCHAIN_PUBLISH_SECRET
@@ -74,17 +66,10 @@ name: X Chain Revenue daily
 #
 # Repository variable (optional)
 # - X_DRY_RUN
-#     Schedule only. Leave unset or set to true to keep the dry run.
-#     Set to false only when live posts should run on the schedule.
-#     This is the same variable the ETF jobs read.
+#     Unused for a timer, because this workflow no longer has one.
 #     workflow_dispatch uses its dry_run input instead, which defaults to true.
 
 on:
-  schedule:
-    # 16:30 Europe/Istanbul (backup)
-    - cron: "30 13 * * *"
-    # 19:30 Europe/Istanbul (backup)
-    - cron: "30 16 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
