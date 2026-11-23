@@ -264,7 +264,7 @@ export function ChainRevenueDailyCard({
               <span className="flex w-full min-w-0 items-center justify-start gap-[10px]">
                 <span
                   data-chain-name={row.name}
-                  className="block min-w-0 shrink overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-none tracking-[-0.035em] text-[#111]"
+                  className="block min-w-0 shrink overflow-hidden whitespace-nowrap text-[38px] font-extrabold leading-[1.2] tracking-[-0.035em] text-[#111]"
                 >
                   {row.name}
                 </span>

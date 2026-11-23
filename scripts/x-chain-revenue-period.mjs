@@ -48,6 +48,9 @@ const spec = {
     keep: "CHAIN_REVENUE_WEEK_KEEP_DAYS",
     select: (lib, now) => lib.lastCompletedUtcWeek(now),
     caption: (builders, start, end) => builders.buildChainRevenueWeeklyCaption(start, end),
+    role: "weekly",
+    weeklyWeekday: 1,
+    siblingState: "artifacts/x-chain-revenue-monthly/posted-state.json",
   },
   monthly: {
     kind: "monthly",
@@ -62,6 +65,9 @@ const spec = {
     keep: "CHAIN_REVENUE_MONTH_KEEP_DAYS",
     select: (lib, now) => lib.lastCompletedUtcMonth(now),
     caption: (builders, start) => builders.buildChainRevenueMonthlyCaption(start),
+    role: "monthly",
+    weeklyWeekday: 1,
+    siblingState: "artifacts/x-chain-revenue-weekly/posted-state.json",
   },
 }[kind];
 
@@ -111,6 +117,12 @@ function loadRevenueModule() {
   return revenueModule;
 }
 
+let spacingModule;
+function loadSpacing() {
+  spacingModule ||= importTs("lib/onchain/sameDaySpacing.ts", "same-day-spacing-");
+  return spacingModule;
+}
+
 function loadCaptionBuilder() {
   return importTs("lib/onchain/chainRevenueCaption.ts", `chain-revenue-${kind}-caption-`);
 }
@@ -140,13 +152,36 @@ async function evaluateShare(dryRun) {
   const range = spec.select(lib, now);
   const assessment = lib.assessChainRevenuePeriod(fetched.days, range.start, range.end, now);
   const posts = await readPostState(statePath);
-  const decision = decideChainRevenuePeriodShare({
+  let decision = decideChainRevenuePeriodShare({
     assessment,
     expectedStart: range.start,
     dryRun,
     posts,
     label: spec.label,
   });
+  if (!dryRun && decision.proceed) {
+    const spacing = await loadSpacing();
+    const siblingPath = process.env.X_SIBLING_POST_STATE
+      ? path.resolve(process.env.X_SIBLING_POST_STATE)
+      : path.join(root, spec.siblingState);
+    const siblingPosts = await readPostState(siblingPath);
+    const gate = spacing.assessSameDaySpacing({
+      now,
+      role: spec.role,
+      siblingPosts,
+      weeklyPostWeekday: spec.weeklyWeekday,
+    });
+    if (!gate.proceed) {
+      decision = {
+        ...decision,
+        proceed: false,
+        skipped: true,
+        reason: gate.reason,
+        noNewSession: false,
+        message: gate.message,
+      };
+    }
+  }
   return { dryRun, now: now.toISOString(), range, assessment, failed: fetched.failed, decision };
 }
 

@@ -13,6 +13,7 @@ const routes = [
   "../app/api/x/publish-chain-revenue-daily/route.ts",
   "../app/api/x/publish-chain-revenue-weekly/route.ts",
   "../app/api/x/publish-chain-revenue-monthly/route.ts",
+  "../lib/x/publishStablecoinSupply.ts",
 ];
 
 const workflows = [
@@ -23,6 +24,8 @@ const workflows = [
   "../.github/workflows/x-chain-revenue-daily.yml",
   "../.github/workflows/x-chain-revenue-weekly.yml",
   "../.github/workflows/x-chain-revenue-monthly.yml",
+  "../.github/workflows/x-chain-stablecoin-supply-weekly.yml",
+  "../.github/workflows/x-chain-stablecoin-supply-monthly.yml",
 ];
 
 test("publish routes stay off Vercel, reject fixtures, and require a fresh exact day", async () => {
