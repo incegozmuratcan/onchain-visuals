@@ -11,7 +11,6 @@
 export const STABLECOIN_CHAINS_URL = "https://stablecoins.llama.fi/stablecoinchains";
 export const STABLECOIN_CHART_ALL_URL = "https://stablecoins.llama.fi/stablecoincharts/all";
 export const STABLECOIN_TOP_COUNT = 10;
-export const STABLECOIN_MAX_FAILED_RATIO = 0.05;
 
 export function stablecoinChartUrl(chain: string) {
   return `https://stablecoins.llama.fi/stablecoincharts/${encodeURIComponent(chain)}`;
@@ -244,9 +243,12 @@ export function assessStablecoinPeriod(history: StablecoinHistory, kind: Stablec
   const close = range.end;
   const previousClose = prior.end;
   const problems: string[] = [];
-  const failedRatio = history.chainListCount ? history.failed.length / history.chainListCount : 1;
-  if (failedRatio > STABLECOIN_MAX_FAILED_RATIO) {
-    problems.push(`${history.failed.length} of ${history.chainListCount} chain charts failed`);
+  // A failed chart has no close value, so it can still be inside the top 10.
+  // Any failure blocks the card. A 5% allowance would publish the wrong ranking.
+  if (history.failed.length) {
+    const shown = history.failed.slice(0, 5).join(", ");
+    const more = history.failed.length > 5 ? `, and ${history.failed.length - 5} more` : "";
+    problems.push(`${history.failed.length} chain chart${history.failed.length === 1 ? "" : "s"} failed (${shown}${more})`);
   }
   if (history.totals[close] == null) problems.push(`no total snapshot on ${close}`);
   if (history.totals[previousClose] == null) problems.push(`no total snapshot on ${previousClose}`);

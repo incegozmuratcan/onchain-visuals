@@ -136,6 +136,23 @@ test("an all-negative top 10 selects the largest outflow", () => {
   assert.equal(again.reason, "already_posted");
 });
 
+test("one failed chain chart blocks the ranking even when the rest succeed", () => {
+  const history = {
+    chains: ["Ethereum", "Tron", "Solana", "BSC", "Base", "Arbitrum", "Polygon", "Avalanche", "Sui", "Aptos"].map((name, index) =>
+      chain(name, { "2026-11-15": (20 - index) * 1e9, "2026-11-22": (20 - index) * 1e9 }),
+    ),
+    totals: { "2026-11-15": 200e9, "2026-11-22": 200e9 },
+    failed: ["Hyperliquid L1"],
+    chainListCount: 200,
+    fetchedAt: "2026-11-23T00:00:00Z",
+    url: "https://stablecoins.llama.fi/stablecoincharts/all",
+  };
+  const assessment = supply.assessStablecoinPeriod(history, "weekly", new Date("2026-11-23T15:00:00Z"));
+  assert.equal(assessment.complete, false);
+  assert.match(assessment.message, /Hyperliquid L1/);
+  assert.throws(() => supply.rankStablecoinPeriod(history, "weekly", new Date("2026-11-23T15:00:00Z")), /Hyperliquid L1/);
+});
+
 test("monthly waits 4 hours after the weekly post on the shared weekday", () => {
   const tuesdayMorning = new Date("2026-11-24T13:00:00Z");
   const waiting = assessSameDaySpacing({
