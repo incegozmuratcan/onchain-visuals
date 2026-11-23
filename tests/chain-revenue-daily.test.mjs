@@ -49,10 +49,28 @@ function history(target) {
 const beforeCutoff = new Date("2026-11-17T19:59:00+03:00");
 const afterCutoff = new Date("2026-11-17T20:00:00+03:00");
 
-/** Prior day has quai in the top 10; the target day does not report it. */
+/** Quai had revenue on all three prior days and ranks in the previous top 10. The target day does not report it. */
 function daysMissingQuai() {
   const days = history(day({ small: 100 }));
+  days["2026-11-13"].quai = 9_000_000;
+  days["2026-11-14"].quai = 9_000_000;
   days["2026-11-15"].quai = 9_000_000;
+  return days;
+}
+
+/**
+ * Quai is 0 on most days and positive only on 2026-11-16 and 2026-11-17,
+ * the same shape as the DefiLlama spike (0, then 26678, 26939, then 0).
+ * The fixture value is high enough to enter this fixture's top 10.
+ */
+function quaiSpikeDays() {
+  const days = {};
+  for (const date of cr.utcDaysInclusive("2026-11-13", "2026-11-22")) days[date] = day({ small: 90 });
+  for (const date of ["2026-11-13", "2026-11-14", "2026-11-15", "2026-11-18", "2026-11-19", "2026-11-20", "2026-11-21", "2026-11-22"]) {
+    days[date].quai = 0;
+  }
+  days["2026-11-16"].quai = 9_000_000;
+  days["2026-11-17"].quai = 9_000_000;
   return days;
 }
 
@@ -129,6 +147,83 @@ test("after the Istanbul cutoff a missing small previous top-10 chain proceeds a
   } finally {
     console.log = original;
   }
+});
+
+test("the daily for D still blocks before 20:00 TR on D+1 when a stable top-10 chain is missing", () => {
+  const now = new Date("2026-11-17T17:00:00+03:00");
+  const { assessment, decision } = shareFor(daysMissingQuai(), now);
+  assert.ok(assessment.priorTop.includes("quai"));
+  assert.deepEqual(assessment.missingPriorTop, ["quai"]);
+  assert.equal(assessment.complete, false);
+  assert.equal(decision.proceed, false);
+  assert.equal(decision.reason, "incomplete");
+  assert.match(decision.message, /missing 2026-11-15 top-10 chains quai/);
+});
+
+test("the quai spike passes the weekly period at 17:00 TR on 2026-11-23", () => {
+  const now = new Date("2026-11-23T17:00:00+03:00");
+  const days = quaiSpikeDays();
+  const lines = [];
+  const original = console.log;
+  console.log = (...args) => lines.push(args.map(String).join(" "));
+  try {
+    const period = cr.assessChainRevenuePeriod(days, "2026-11-16", "2026-11-22", now);
+    assert.equal(period.complete, true, period.message);
+    assert.deepEqual(period.incompleteDates, []);
+    const spikeDay = cr.assessChainRevenueDay(days, "2026-11-18", now);
+    assert.ok(spikeDay.priorTop.includes("quai"));
+    assert.equal(spikeDay.missingPriorTop.includes("quai"), false);
+    assert.equal(spikeDay.complete, true, spikeDay.message);
+    assert.match(lines.join("\n"), /Chain revenue 2026-11-18: not waiting for 2026-11-17 top-10 chains quai without revenue on all 3 prior days/);
+  } finally {
+    console.log = original;
+  }
+});
+
+test("an unstable spike chain does not block before that day's cutoff and still counts", () => {
+  const days = quaiSpikeDays();
+  const now = new Date("2026-11-19T17:00:00+03:00");
+  const lines = [];
+  const original = console.log;
+  console.log = (...args) => lines.push(args.map(String).join(" "));
+  try {
+    const assessment = cr.assessChainRevenueDay(days, "2026-11-18", now);
+    assert.ok(assessment.priorTop.includes("quai"));
+    assert.equal(assessment.missingPriorTop.includes("quai"), false);
+    assert.equal(assessment.complete, true, assessment.message);
+    assert.match(assessment.message, /not waiting for 2026-11-17 top-10 chains quai without revenue on all 3 prior days/);
+    assert.match(lines.join("\n"), /not waiting for 2026-11-17 top-10 chains quai without revenue on all 3 prior days/);
+  } finally {
+    console.log = original;
+  }
+
+  const chains = TOP.concat("quai").map((slug) => ({ slug, name: slug, logoKey: slug }));
+  const ranked = cr.rankChainRevenueDay(days, "2026-11-17", chains);
+  assert.equal(ranked.rows[0].slug, "quai");
+  const withoutQuai = Object.values({ ...days["2026-11-17"], quai: 0 }).reduce((sum, value) => sum + value, 0);
+  assert.equal(ranked.total, withoutQuai + 9_000_000);
+});
+
+test("a missing core chain still blocks an older day", () => {
+  const days = {};
+  for (const date of cr.utcDaysInclusive("2026-11-15", "2026-11-18")) {
+    days[date] = date === "2026-11-18" ? day({ small: 90, drop: ["tron"] }) : day({ small: 90 });
+  }
+  const assessment = cr.assessChainRevenueDay(days, "2026-11-18", new Date("2026-11-23T17:00:00+03:00"));
+  assert.deepEqual(assessment.missingPriorTop, ["tron"]);
+  assert.equal(assessment.complete, false);
+  assert.match(assessment.message, /missing 2026-11-17 top-10 chains tron/);
+});
+
+test("an older day waives a stable missing small chain before today's 20:00 TR", () => {
+  const days = {};
+  for (const date of cr.utcDaysInclusive("2026-11-15", "2026-11-18")) {
+    days[date] = date === "2026-11-18" ? day({ small: 90, drop: ["robinhood-chain"] }) : day({ small: 90 });
+  }
+  const assessment = cr.assessChainRevenueDay(days, "2026-11-18", new Date("2026-11-23T17:00:00+03:00"));
+  assert.deepEqual(assessment.missingPriorTop, ["robinhood-chain"]);
+  assert.equal(assessment.complete, true, assessment.message);
+  assert.match(assessment.message, /ignoring missing 2026-11-17 top-10 chains robinhood-chain after 20:00 Europe\/Istanbul/);
 });
 
 test("after the Istanbul cutoff a missing core chain still skips", () => {

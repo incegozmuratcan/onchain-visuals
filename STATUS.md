@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
+Updated 2026-11-23. Read this and `docs/DESIGN.md` before older history.
 
 ## Live X posts
 
@@ -14,8 +14,8 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 ## Schedules
 
 - cron-job.org dispatches `workflow_dispatch` with `{"ref":"main","inputs":{"dry_run":false}}`. A period already shared is skipped via that job's `posted-state.json`.
-- ETF Daily: job 8833197. Required window is every 30 min, 08:00–23:30 TR, Tue–Sat plus Sun–Mon catch-up (`*/30 8-23 * * *`). GitHub backup is 08:30, 10:30, and 13:30 TR those days. cron-job.org still needs the Sun–Mon days; this change does not edit that job.
-- ETF Weekly: job 8859799. Required window is every 30 min, 08:00–23:30 TR, Sunday–Tuesday (`*/30 8-23 * * 0-2`). GitHub backup is 08:30 and 11:30 TR those days. cron-job.org is still Sunday-only until that job is updated.
+- ETF Daily: job 8833197, `*/30 8-23 * * *`, is updated on cron-job.org (every 30 min, 08:00–23:30 TR, including the Sun–Mon catch-up). GitHub backup is 08:30, 10:30, and 13:30 TR those days.
+- ETF Weekly: job 8859799, `*/30 8-23 * * 0-2`, is updated on cron-job.org (every 30 min, 08:00–23:30 TR, Sunday–Tuesday). GitHub backup is 08:30 and 11:30 TR those days.
 - ETF Monthly: `*/30 8-23 1-5 * *`, job 8869747. GitHub backup 08:30 and 11:30 TR on days 1–5.
 - Chain Revenue Daily: `*/30 16-23 * * *`, job 8880708. GitHub backup 16:30 and 19:30 TR.
 - Chain Revenue Weekly: `*/30 16-23 * * 1`, job 8919886. Mondays 16:00–23:30 TR. GitHub backup 16:30 and 19:30 TR.
@@ -24,6 +24,7 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 
 ## Son yapılanlar
 
+- 2026-11-23: Chain Revenue gate uses each day's own 20:00 TR cutoff and only waits for top-10 chains that had revenue on all 3 prior days (quai spike fix).
 - 2026-11-22: Chain Revenue cards take logos from Logo Manager, then the posted-state cache, the fixed set, DefiLlama, and an initial badge. A logo no longer skips the card.
 - 2026-11-22: Owner merged #183 (X publishing pipeline: post ledger, freshness gates, scoped secrets).
 - 2026-11-22: Merged #184 site hardening, #185 bounded refresh + CDN cache, #186 public `source_error` cards, #187 ETF daily caption, #188 Chain Revenue gate.
@@ -33,13 +34,12 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 
 ## Sıradakiler
 
-- Update cron-job.org ETF daily 8833197 to `*/30 8-23 * * *` (Tue–Sat plus Sun–Mon catch-up, 08:00–23:30 TR) and ETF weekly 8859799 to `*/30 8-23 * * 0-2` (Sun–Tue 08:00–23:30 TR).
 - Fix the Farside 403, DefiLlama `/cexs`, and derivatives 402 sources.
 - Redesign the @OnchainVis X banner: the tagline is cut on mobile, and the title font should match the cards' bold sans-serif (Inter, weight 900).
 
 ## Known issues
 
-- Chain Revenue gate (#188): before 20:00 TR a missing previous-day top-10 chain blocks. At and after 20:00 TR a missing small chain no longer blocks when tron, ethereum, and solana are present if they were in that top 10. The 95% coverage check still applies.
+- Chain Revenue gate: a missing previous-day top-10 chain blocks only when that chain had revenue on all 3 prior days. The 20:00 Europe/Istanbul waiver is that day's own run day (the UTC date plus one day), so older days in a weekly or monthly check are waived any time. Before 20:00 TR on the next day, the daily still blocks for a stable missing chain. A missing tron, ethereum, or solana still blocks. The 95% coverage check still applies.
 - Farside returns 403 from Vercel, so the ETH ETF, ETF monthly, BTC-vs-ETH, and issuer monthly site pages fail there. The X jobs fetch Farside from GitHub Actions.
 - Farside blocks Node `fetch` from some hosts with a Cloudflare 403. `curl` from those hosts worked.
 - DefiLlama `/cexs` field change breaks `cex-transparency` (`fetchCexTransparency` reads `json.cexs`).
@@ -62,3 +62,6 @@ Updated 2026-11-22. Read this and `docs/DESIGN.md` before older history.
 - Stay lean: read `STATUS.md` and `docs/DESIGN.md` instead of long history. Update `STATUS.md` at the end of each task.
 - Use APIs/connectors first, browser as little as possible.
 - cron-job.org and other services are managed via API/connectors; minimize browser use.
+- Cloud coding agents always run with Fast off. Effort is Medium for small tasks and High for complex multi-file tasks. Say the task and rough cost and get owner approval first.
+- Captions are in English. The English must be correct and natural first, then X's translate button must give a good Turkish translation. Show the owner the Turkish meaning of any proposed English text.
+- cron-job.org API: api.cron-job.org, key in env CRONJOB_API_KEY (never print it).

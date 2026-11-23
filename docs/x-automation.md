@@ -99,7 +99,7 @@ The BTC-only command `npm run x:btc-etf-daily` still works for a manual card. `C
 DefiLlama fills a finished UTC day late, chain by chain. At 00:25 UTC the next day only about 45 of about 100 chains have a point. The share day is always the latest completed UTC day. A pass shares only when that day is complete:
 
 1. The number of chains with a point for the day is at least 95% of the median count of the previous three days (normal days have about 96–109).
-2. Every chain in the previous day's top 10 has revenue on the day.
+2. Every previous-day top-10 chain that had revenue on all three prior days has revenue on the day. A chain that only spiked into the top 10 is counted in the total and the ranking, and it is not required. The 20:00 Europe/Istanbul waiver for a missing small chain is measured on that day's own next day. A missing tron, ethereum, or solana still blocks.
 
 An incomplete pass exits successfully with `reason: "incomplete"` and the coverage numbers in `result.json`. A later pass shares once the day is filled. An older day is never posted late. A day already shared skips with `reason: "already_posted"`. The site page shows the newest complete day, never a partial one.
 
