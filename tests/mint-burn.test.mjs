@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { importTs } from "./load-ts.mjs";
 import { renderCardHtml, APPROVED_CARD_CSS } from "../lib/mint-burn/card.mjs";
 import { FIXED_LOGOS, planMintBurnLogos } from "../lib/mint-burn/logos.mjs";
-import { redactUrl, scanAll, scanEthereumUsdt, scanPolygonUsdc, scanSolana, scanTronUsdt, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
+import { readSecrets, redactUrl, scanAll, scanEthereumUsdt, scanPolygonUsdc, scanSolana, scanTronUsdt, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
 import {
   QUIET_MS,
   THRESHOLDS_USD,
@@ -374,6 +374,7 @@ test("secret redaction and the workflow stay dry-run and unscheduled", async () 
   assert.match(workflow, /restore-posted-state\.mjs mint-burn/);
   assert.match(workflow, /ETHERSCAN_API_KEY/);
   assert.match(workflow, /TRONGRID_API_KEY/);
+  assert.match(workflow, /TRONSCAN_API_KEY: \$\{\{ secrets\.TRONSCAN_API_KEY \}\}/);
   assert.match(workflow, /HELIUS_API_KEY/);
   assert.match(script, /X_DRY_RUN \?\? "true"/);
   assert.match(script, /Refusing to post a caption that contains a URL/);
@@ -740,6 +741,229 @@ test("a tron failure keeps its cursor, logs a redacted body, and a keyless 429 c
     }
   } finally {
     console.warn = originalWarn;
+    setEtherscanPace();
+  }
+});
+
+test("tronscan is the primary tron usdt source and trongrid is the fallback", async () => {
+  const scanKey = "test-tronscan-key";
+  const tronKey = "test-trongrid-key";
+  const cursorMs = 1_700_000_000_000;
+  const cursor = { timestampMs: cursorMs, primed: true };
+  const calls = [];
+  const logs = [];
+  const original = { log: console.log, warn: console.warn };
+  let clock = 0;
+  const waits = [];
+  let mode = "success";
+
+  function row(name, id, timestampMs, amount) {
+    return {
+      event_name: name,
+      contract_address: TOKEN_CONTRACTS.tron.USDT,
+      transaction_id: id,
+      block_timestamp: timestampMs,
+      block_number: 1,
+      result: { amount },
+    };
+  }
+
+  function jsonResponse(status, body, headers) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: (name) => headers?.[String(name).toLowerCase()] ?? null },
+      json: async () => body,
+    };
+  }
+
+  function install() {
+    clock = 0;
+    waits.length = 0;
+    calls.length = 0;
+    setEtherscanPace({
+      now: () => clock,
+      sleep: async (ms) => {
+        waits.push(ms);
+        clock += ms;
+      },
+      fetch: async (url, init) => {
+        const href = String(url);
+        calls.push({ url: href, init });
+        if (href.includes("tronscanapi.com")) {
+          const body = JSON.parse(init.body);
+          if (mode === "fail") {
+            return jsonResponse(429, {
+              Error: "request rate exceeded",
+              detail: `blocked ${scanKey} at the edge`,
+            });
+          }
+          if (body.term === "Issue") {
+            return jsonResponse(200, {
+              event_list: [
+                row("Issue", "issue-new", cursorMs + 300_000, "500000000000000"),
+                row("Issue", "issue-equal", cursorMs, "900000000000000"),
+                row("Issue", "issue-old", cursorMs - 1_000_000, "800000000000000"),
+                row("Issue", "shared", cursorMs + 100_000, "250000000000000"),
+              ],
+            });
+          }
+          return jsonResponse(200, {
+            event_list: [
+              row("Redeem", "redeem-new", cursorMs + 200_000, "300000000000000"),
+              row("Redeem", "shared", cursorMs + 100_000, "250000000000000"),
+            ],
+          });
+        }
+        if (href.includes("trongrid.io")) {
+          const event = new URL(href).searchParams.get("event_name");
+          if (mode === "grid" || mode === "fail") {
+            return jsonResponse(200, {
+              success: true,
+              data: event === "Redeem" ? [row("Redeem", "grid-only", cursorMs + 5_000, "250000000000000")] : [],
+            });
+          }
+          return jsonResponse(200, { success: true, data: [] });
+        }
+        if (href.includes("etherscan.io")) return jsonResponse(200, { jsonrpc: "2.0", result: "0x10" });
+        if (href.includes("helius.xyz")) return jsonResponse(200, []);
+        throw new Error(`unexpected mint/burn url ${href}`);
+      },
+    });
+  }
+
+  function tronscanCalls() {
+    return calls.filter((call) => call.url.includes("tronscanapi.com"));
+  }
+
+  function assertScanKey(call) {
+    assert.equal(call.init.method, "POST");
+    assert.equal(call.init.headers["TRON-PRO-API-KEY"], scanKey);
+    assert.equal(call.init.headers.accept, "application/json");
+    assert.equal(call.init.headers["content-type"], "application/json");
+    const body = JSON.parse(call.init.body);
+    assert.equal(body.contractAddress, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+    assert.equal(call.url.includes(scanKey), false);
+  }
+
+  console.log = (...args) => logs.push(args.map(String).join(" "));
+  console.warn = (...args) => logs.push(args.map(String).join(" "));
+
+  try {
+    const present = readSecrets({
+      ETHERSCAN_API_KEY: "etherscan-secret",
+      TRONGRID_API_KEY: "trongrid-secret",
+      HELIUS_API_KEY: "helius-secret",
+      TRONSCAN_API_KEY: "  tronscan-secret  ",
+    });
+    assert.equal(present.tronscan, "tronscan-secret");
+    assert.deepEqual(present.missing, []);
+    const absent = readSecrets({
+      ETHERSCAN_API_KEY: "etherscan-secret",
+      TRONGRID_API_KEY: "trongrid-secret",
+      HELIUS_API_KEY: "helius-secret",
+    });
+    assert.equal(absent.tronscan, "");
+    assert.deepEqual(absent.missing, []);
+
+    mode = "success";
+    install();
+    logs.length = 0;
+    const first = await scanTronUsdt(null, tronKey, scanKey);
+    assert.equal(first.cursor.primed, false);
+    assert.deepEqual(first.events, []);
+    assert.equal(calls.length, 0);
+    assert.equal(logs.some((line) => /Tronscan|TronGrid/.test(line)), false);
+
+    install();
+    logs.length = 0;
+    const scanned = await scanTronUsdt(cursor, tronKey, `  ${scanKey}  `);
+    const posted = tronscanCalls();
+    assert.equal(posted.length, 2);
+    for (const call of posted) assertScanKey(call);
+    assert.deepEqual(posted.map((call) => JSON.parse(call.init.body).term), ["Issue", "Redeem"]);
+    assert.equal(calls.some((call) => call.url.includes("trongrid.io")), false);
+    assert.deepEqual(waits, [400]);
+    assert.deepEqual(scanned.events.map((event) => ({
+      kind: event.kind,
+      txHash: event.txHash,
+      amountUsd: event.amountUsd,
+      timestampMs: event.timestampMs,
+    })), [
+      { kind: "mint", txHash: "shared", amountUsd: 250_000_000, timestampMs: cursorMs + 100_000 },
+      { kind: "burn", txHash: "redeem-new", amountUsd: 300_000_000, timestampMs: cursorMs + 200_000 },
+      { kind: "mint", txHash: "issue-new", amountUsd: 500_000_000, timestampMs: cursorMs + 300_000 },
+    ]);
+    assert.equal(scanned.cursor.primed, true);
+    assert.equal(JSON.stringify(scanned).includes(scanKey), false);
+    assert.equal(logs.join("\n").includes("Tron USDT scan used Tronscan."), true);
+    for (const line of logs) assert.equal(line.includes(scanKey), false, line);
+
+    mode = "fail";
+    install();
+    logs.length = 0;
+    const fallback = await scanTronUsdt(cursor, tronKey, scanKey);
+    const failedPosts = tronscanCalls();
+    assert.equal(failedPosts.length, 3);
+    for (const call of failedPosts) {
+      assertScanKey(call);
+      assert.equal(JSON.parse(call.init.body).term, "Issue");
+    }
+    const gridCalls = calls.filter((call) => call.url.includes("trongrid.io"));
+    assert.deepEqual(gridCalls.map((call) => ({
+      event: new URL(call.url).searchParams.get("event_name"),
+      hasKey: call.init.headers["TRON-PRO-API-KEY"] === tronKey,
+    })), [
+      { event: "Issue", hasKey: true },
+      { event: "Redeem", hasKey: true },
+    ]);
+    assert.deepEqual(waits, [1500, 3000, 350]);
+    assert.equal(fallback.events.length, 1);
+    assert.equal(fallback.events[0].txHash, "grid-only");
+    assert.equal(fallback.events[0].kind, "burn");
+    assert.equal(fallback.events[0].amountUsd, 250_000_000);
+    assert.equal(logs.some((line) => line.includes("Body:") && line.includes("blocked [redacted] at the edge")), true);
+    assert.equal(logs.some((line) => line.includes("Tronscan USDT scan failed; using TronGrid.")), true);
+    assert.equal(logs.some((line) => line.includes("Tron USDT scan used TronGrid.")), true);
+    for (const line of logs) {
+      assert.equal(line.includes(scanKey), false, line);
+      assert.equal(line.includes(tronKey), false, line);
+    }
+
+    mode = "grid";
+    install();
+    logs.length = 0;
+    const grid = await scanTronUsdt(cursor, tronKey);
+    assert.equal(tronscanCalls().length, 0);
+    assert.equal(grid.events.length, 1);
+    assert.equal(grid.events[0].txHash, "grid-only");
+    assert.equal(grid.events[0].kind, "burn");
+    assert.equal(grid.events[0].amountUsd, 250_000_000);
+    assert.equal(logs.join("\n").includes("Tron USDT scan used TronGrid."), true);
+    assert.equal(logs.some((line) => /Tronscan/.test(line)), false);
+
+    mode = "success";
+    install();
+    logs.length = 0;
+    const wired = await scanAll({ cursors: { "tron-usdt": cursor } }, {
+      etherscan: "etherscan-secret",
+      tron: tronKey,
+      helius: "helius-secret",
+      tronscan: scanKey,
+      missing: [],
+    });
+    assert.equal(tronscanCalls().length, 2);
+    assert.equal(calls.some((call) => call.url.includes("trongrid.io")), false);
+    assert.deepEqual(wired.events.map((event) => event.txHash), ["shared", "redeem-new", "issue-new"]);
+    assert.equal(wired.failures.length, 0);
+    assert.equal(logs.join("\n").includes("Tron USDT scan used Tronscan."), true);
+    for (const line of logs) {
+      assert.equal(line.includes(scanKey), false, line);
+      assert.equal(line.includes(tronKey), false, line);
+    }
+  } finally {
+    console.log = original.log;
+    console.warn = original.warn;
     setEtherscanPace();
   }
 });
