@@ -7,8 +7,9 @@ import { openLiveXPost } from "@/lib/x/postLedger";
 import { XPublishError, fetchX, settleLivePostFailure } from "@/lib/x/publishFailure";
 import { siblingSpacingBlock } from "@/lib/x/siblingPostSpacing";
 
-const EXPECTED_WIDTH = 1536;
-const EXPECTED_HEIGHT = 1134;
+const EXPECTED_WIDTH = 1536 * 2;
+const EXPECTED_HEIGHT = 1134 * 2;
+const X_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 
 const SPEC = {
   weekly: {
@@ -212,6 +213,9 @@ export async function publishStablecoinSupplyCard(request: NextRequest, kind: Ki
     dims = pngDimensions(imageBuffer);
     if (dims.width !== EXPECTED_WIDTH || dims.height !== EXPECTED_HEIGHT) {
       throw new Error(`PNG dimensions were ${dims.width}x${dims.height}; expected ${EXPECTED_WIDTH}x${EXPECTED_HEIGHT}.`);
+    }
+    if (imageBuffer.length > X_IMAGE_MAX_BYTES) {
+      throw new Error(`PNG is ${imageBuffer.length} bytes; X's image limit is 5 MB.`);
     }
   } catch (error) {
     return jsonError(422, "render_validation_failed", error instanceof Error ? error.message : "PNG validation failed.");

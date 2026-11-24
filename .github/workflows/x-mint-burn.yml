@@ -1,7 +1,7 @@
 name: X Mint and burn alerts
 
 # Dry-run by default. Watches treasury USDT and USDC mints and burns and
-# writes a 1200×675 card. It does not call X unless dry-run is off and the
+# writes a 2400×1350 PNG of the 1200×675 card. It does not call X unless dry-run is off and the
 # OAuth 1.0a secrets are present. The post is the image and caption only.
 #
 # cron-job.org is the primary trigger and is not created yet. Do not create

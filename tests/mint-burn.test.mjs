@@ -209,7 +209,7 @@ test("Solana treasury mints group, and CCTP program ids are excluded", () => {
   assert.equal(v1, null);
 });
 
-test("Solana and Tron wait 30 minutes and then post one group; Ethereum posts per tx", () => {
+test("Solana and Tron wait 5 minutes and then post one group; Ethereum posts per tx", () => {
   const start = Date.parse("2026-11-23T19:00:00Z");
   const solana = (minute, hash) => ({
     chain: "solana", token: "USDC", kind: "mint", amountUsd: 250_000_000,
@@ -234,7 +234,9 @@ test("Solana and Tron wait 30 minutes and then post one group; Ethereum posts pe
       txHash: "0xe2", timestampMs: start + 60_000,
     },
   ]);
-  assert.equal(readyAlerts(state, start + 20 * 60_000, "live").length, 2);
+  assert.equal(QUIET_MS, 5 * 60 * 1000);
+  assert.equal(readyAlerts(state, start + QUIET_MS - 1, "live").length, 2);
+  assert.equal(readyAlerts(state, start + 20 * 60_000, "live").length, 4);
   assert.equal(readyAlerts(state, start + 10 * 60_000 + QUIET_MS - 1, "live").filter((alert) => alert.chain === "solana").length, 0);
   const ready = readyAlerts(state, start + 10 * 60_000 + QUIET_MS, "live");
   const grouped = ready.find((alert) => alert.chain === "solana");

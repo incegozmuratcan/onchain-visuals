@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Render the combined BTC+ETH ETF daily Flowboard at 1536×1024 and write a caption.
+ * Render the combined BTC+ETH ETF daily Flowboard (CSS 1536×1024, PNG at 2×) and write a caption.
  *
  * Dry-run by default: writes artifacts/x-btc-eth-etf-daily/{png,caption,result}
  * and does not call X. A live post happens only when X_DRY_RUN is exactly
@@ -275,7 +275,7 @@ async function captureCard(pageUrl) {
   try {
     const context = await browser.newContext({
       viewport: { width: 1536, height: 1024 },
-      deviceScaleFactor: 1,
+      deviceScaleFactor: 2,
     });
     const page = await context.newPage();
     await page.goto(pageUrl, { waitUntil: "networkidle", timeout: 120_000 });
@@ -351,8 +351,13 @@ async function captureCard(pageUrl) {
       clip: { x: box.x, y: box.y, width: 1536, height: 1024 },
     });
     const dims = pngSize(png);
-    if (dims.width !== 1536 || dims.height !== 1024) {
-      throw new Error(`PNG is ${dims.width}×${dims.height}; expected 1536×1024.`);
+    const pngWidth = 1536 * 2;
+    const pngHeight = 1024 * 2;
+    if (dims.width !== pngWidth || dims.height !== pngHeight) {
+      throw new Error(`PNG is ${dims.width}×${dims.height}; expected ${pngWidth}×${pngHeight}.`);
+    }
+    if (png.length > 5 * 1024 * 1024) {
+      throw new Error(`PNG is ${png.length} bytes; X's image limit is 5 MB.`);
     }
     return { png, dims, values: fit.values };
   } finally {

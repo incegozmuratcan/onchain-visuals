@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Render the stablecoin supply weekly or monthly card at 1536×1134.
+ * Render the stablecoin supply weekly or monthly card (CSS 1536×1134, PNG at 2×).
  *
  * Usage: node scripts/x-stablecoin-supply-period.mjs weekly|monthly [--preflight]
  *
@@ -274,7 +274,7 @@ async function captureCard(pageUrl) {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch({ headless: true });
   try {
-    const context = await browser.newContext({ viewport: { width: cardWidth, height: cardHeight }, deviceScaleFactor: 1 });
+    const context = await browser.newContext({ viewport: { width: cardWidth, height: cardHeight }, deviceScaleFactor: 2 });
     const page = await context.newPage();
     await page.goto(pageUrl, { waitUntil: "networkidle", timeout: 120_000 });
     const card = page.locator("[data-capture='share-card']");
@@ -340,8 +340,13 @@ async function captureCard(pageUrl) {
       clip: { x: box.x, y: box.y, width: cardWidth, height: cardHeight },
     });
     const dims = pngSize(png);
-    if (dims.width !== cardWidth || dims.height !== cardHeight) {
-      throw new Error(`PNG is ${dims.width}×${dims.height}; expected ${cardWidth}×${cardHeight}.`);
+    const pngWidth = cardWidth * 2;
+    const pngHeight = cardHeight * 2;
+    if (dims.width !== pngWidth || dims.height !== pngHeight) {
+      throw new Error(`PNG is ${dims.width}×${dims.height}; expected ${pngWidth}×${pngHeight}.`);
+    }
+    if (png.length > 5 * 1024 * 1024) {
+      throw new Error(`PNG is ${png.length} bytes; X's image limit is 5 MB.`);
     }
     return { png, dims, logoFallbacks: fit.fallbacks, names: fit.names };
   } finally {

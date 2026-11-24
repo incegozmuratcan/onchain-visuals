@@ -389,14 +389,16 @@ export function ChartShell({
     try {
       const dataUrl = await toPng(ref.current, {
         cacheBust: true,
-        pixelRatio: 1,
+        pixelRatio: singleFormat ? 2 : 1,
         width: dims.width,
         height: dims.height,
         canvasWidth: dims.width,
         canvasHeight: dims.height,
         backgroundColor: singleFormat ? "#f5f8fb" : "#ffffff",
       });
-      if (singleFormat) await assertPngDimensions(dataUrl, dims);
+      if (singleFormat) {
+        await assertPngDimensions(dataUrl, { width: dims.width * 2, height: dims.height * 2 });
+      }
       return dataUrl;
     } finally {
       if (ref.current) ref.current.style.transform = previousTransform;
@@ -414,7 +416,7 @@ export function ChartShell({
   };
   const onShareX = async () => {
     if (!singleFormat || publishState.status === "loading") return;
-    setPublishState({ status: "loading", message: "Rendering 1536×1024 PNG…" });
+    setPublishState({ status: "loading", message: "Rendering the Flowboard PNG…" });
     try {
       const dataUrl = await renderPng();
       if (!dataUrl) throw new Error("Unable to render the Flowboard PNG.");
@@ -488,7 +490,7 @@ export function ChartShell({
             <div>
               <div className="text-sm font-bold text-slate-950">Share on X</div>
               <p className="mt-1 text-sm text-slate-500">
-                Posts the 1536×1024 Flowboard image to @OnchainVis.
+                Posts the 2× Flowboard image to @OnchainVis.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

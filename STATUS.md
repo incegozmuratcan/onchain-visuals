@@ -1,6 +1,6 @@
 # STATUS
 
-Updated 2026-11-24. Read this and `docs/DESIGN.md` before older history.
+Updated 2026-11-25. Read this and `docs/DESIGN.md` before older history.
 
 ## Live X posts
 
@@ -23,7 +23,7 @@ Kod hazır, canlı değil (onay bekliyor). Workflow `.github/workflows/x-mint-bu
 | Solana | USDC | >= $250M |
 | Polygon | native USDC | >= $10M |
 
-- No Polygon USDT. Only treasury issuance. Bridge mints and burns are excluded (CCTP V2 TokenMinter `0xfd78EE91…D002` and TokenMessengerV2 `0x28b5a0e9…cf5d`, CCTP V1 TokenMinter per chain including Polygon `0x10f7835F…2D2EC`, GatewayMinter `0x2222222d…C205`). Solana and Tron wait 30 quiet minutes, then one grouped card. Ethereum and Polygon post per transaction. There is no site page yet.
+- No Polygon USDT. Only treasury issuance. Bridge mints and burns are excluded (CCTP V2 TokenMinter `0xfd78EE91…D002` and TokenMessengerV2 `0x28b5a0e9…cf5d`, CCTP V1 TokenMinter per chain including Polygon `0x10f7835F…2D2EC`, GatewayMinter `0x2222222d…C205`). Solana and Tron wait 5 quiet minutes, then one grouped card. Ethereum and Polygon post per transaction. There is no site page yet.
 
 ## Schedules
 
@@ -39,14 +39,13 @@ Kod hazır, canlı değil (onay bekliyor). Workflow `.github/workflows/x-mint-bu
 
 ## Son yapılanlar
 
+- 2026-11-25: mint/burn Solana/Tron bekleme 30->5 dk; tüm kartlar 2x render
 - 2026-11-24: Tron USDT basım/yakım verisi Tronscan'den çekiliyor, TronGrid yedek.
 - 2026-11-24: Mint/burn taramasında bir ağ hata verirse diğerleri devam ediyor; TronGrid 429'da anahtarsız yedek deneme.
 - 2026-11-24: Mint/burn TronGrid ve Helius istekleri de aralıklı atılıyor, 429'da tekrar deneniyor.
 - 2026-11-24: Mint/burn Etherscan istekleri ~400 ms aralıkla atılıyor, 3/sn limit hatasında 2 kez tekrar deneniyor.
 - 2026-11-24: Mint/Burn alert cards, captions, and the dry-run workflow. Not live; cron-job.org is not created.
 - 2026-11-24: Stablecoin supply weekly and monthly cards (7D / 1M), captions, handles, and the 4-hour same-day gate for Chain Revenue and stablecoin.
-- 2026-11-23: Chain Revenue daily stopped on X (site only). Weekly posts as soon as the Mon–Sun week passes the gate.
-- 2026-11-23: Chain Revenue gate uses each day's own 20:00 TR cutoff and only waits for top-10 chains that had revenue on all 3 prior days (quai spike fix).
 
 ## Sıradakiler
 
