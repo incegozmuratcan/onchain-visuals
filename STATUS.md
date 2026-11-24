@@ -39,6 +39,7 @@ Kod hazır, canlı değil (onay bekliyor). Workflow `.github/workflows/x-mint-bu
 
 ## Son yapılanlar
 
+- 2026-11-24: Mint/burn Etherscan istekleri ~400 ms aralıkla atılıyor, 3/sn limit hatasında 2 kez tekrar deneniyor.
 - 2026-11-24: Mint/Burn alert cards, captions, and the dry-run workflow. Not live; cron-job.org is not created.
 - 2026-11-24: Stablecoin supply weekly and monthly cards (7D / 1M), captions, handles, and the 4-hour same-day gate for Chain Revenue and stablecoin.
 - 2026-11-23: Chain Revenue daily stopped on X (site only). Weekly posts as soon as the Mon–Sun week passes the gate.
