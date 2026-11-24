@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { importTs } from "./load-ts.mjs";
 import { renderCardHtml, APPROVED_CARD_CSS } from "../lib/mint-burn/card.mjs";
 import { FIXED_LOGOS, planMintBurnLogos } from "../lib/mint-burn/logos.mjs";
-import { redactUrl } from "../lib/mint-burn/sources.mjs";
+import { redactUrl, scanEthereumUsdt, scanPolygonUsdc, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
 import {
   QUIET_MS,
   THRESHOLDS_USD,
@@ -378,4 +378,92 @@ test("secret redaction and the workflow stay dry-run and unscheduled", async () 
   assert.match(script, /X_DRY_RUN \?\? "true"/);
   assert.match(script, /Refusing to post a caption that contains a URL/);
   assert.doesNotMatch(workflow, /super-secret|api-key=/);
+});
+
+test("etherscan spaces calls and retries a rate limit", async () => {
+  const key = "test-etherscan-key";
+  let clock = 0;
+  const waits = [];
+  const calls = [];
+
+  function jsonResponse(body) {
+    return { ok: true, status: 200, json: async () => body };
+  }
+
+  function install(handler) {
+    clock = 0;
+    waits.length = 0;
+    calls.length = 0;
+    setEtherscanPace({
+      now: () => clock,
+      sleep: async (ms) => {
+        waits.push(ms);
+        clock += ms;
+      },
+      fetch: async (url, init) => {
+        const parsed = new URL(url);
+        const index = calls.length;
+        calls.push({
+          chainid: parsed.searchParams.get("chainid"),
+          action: parsed.searchParams.get("action"),
+          hasKey: parsed.searchParams.has("apikey"),
+        });
+        return handler(index, parsed, init);
+      },
+    });
+  }
+
+  try {
+    install(() => jsonResponse({ jsonrpc: "2.0", id: 1, result: "0x10" }));
+    await scanEthereumUsdt(null, key);
+    await scanPolygonUsdc(null, key);
+    assert.deepEqual(calls, [
+      { chainid: "1", action: "eth_blockNumber", hasKey: true },
+      { chainid: "137", action: "eth_blockNumber", hasKey: true },
+    ]);
+    assert.deepEqual(waits, [400]);
+
+    const bodies = [
+      { jsonrpc: "2.0", id: 1, error: { code: -32005, message: "Max calls per sec rate limit reached (3/sec)" } },
+      { jsonrpc: "2.0", id: 1, result: "0x64" },
+      { status: "0", message: "No records found", result: [] },
+      { status: "0", message: "No records found", result: [] },
+    ];
+    install((index) => jsonResponse(bodies[index]));
+    const scanned = await scanEthereumUsdt({ block: 80, primed: true }, key);
+    assert.deepEqual(calls.map((call) => call.action), ["eth_blockNumber", "eth_blockNumber", "getLogs", "getLogs"]);
+    assert.deepEqual(waits, [1500, 400, 400]);
+    assert.equal(scanned.events.length, 0);
+    assert.equal(JSON.stringify(scanned).includes(key), false);
+
+    const rateLimited = { status: "0", message: "NOTOK", result: "Max calls per sec rate limit reached (3/sec)" };
+    install(() => jsonResponse(rateLimited));
+    await assert.rejects(
+      () => scanEthereumUsdt(null, key),
+      (error) => {
+        assert.match(error.message, /Etherscan eth_blockNumber failed: Max calls per sec rate limit reached \(3\/sec\)/);
+        assert.equal(error.message.includes(key), false);
+        assert.equal(error.message.includes("apikey"), false);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 3);
+    assert.deepEqual(waits, [1500, 1500]);
+
+    install(() => {
+      throw new Error("network down");
+    });
+    await assert.rejects(
+      () => scanEthereumUsdt(null, key),
+      (error) => {
+        assert.match(error.message, /Mint\/burn request failed for https:\/\/api\.etherscan\.io/);
+        assert.equal(error.message.includes(key), false);
+        assert.equal(error.message.includes("apikey"), false);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1);
+  } finally {
+    setEtherscanPace();
+  }
 });
