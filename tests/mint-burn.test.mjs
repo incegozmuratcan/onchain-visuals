@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { importTs } from "./load-ts.mjs";
 import { renderCardHtml, APPROVED_CARD_CSS } from "../lib/mint-burn/card.mjs";
 import { FIXED_LOGOS, planMintBurnLogos } from "../lib/mint-burn/logos.mjs";
-import { redactUrl, scanEthereumUsdt, scanPolygonUsdc, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
+import { redactUrl, scanEthereumUsdt, scanPolygonUsdc, scanSolana, scanTronUsdt, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
 import {
   QUIET_MS,
   THRESHOLDS_USD,
@@ -459,6 +459,130 @@ test("etherscan spaces calls and retries a rate limit", async () => {
         assert.match(error.message, /Mint\/burn request failed for https:\/\/api\.etherscan\.io/);
         assert.equal(error.message.includes(key), false);
         assert.equal(error.message.includes("apikey"), false);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1);
+  } finally {
+    setEtherscanPace();
+  }
+});
+
+test("trongrid and helius space calls, retry 429, and send their keys", async () => {
+  const tronKey = "test-trongrid-key";
+  const heliusKey = "test-helius-key";
+  let clock = 0;
+  const waits = [];
+  const calls = [];
+
+  function jsonResponse(status, body, headers) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: (name) => headers?.[String(name).toLowerCase()] ?? null },
+      json: async () => body,
+    };
+  }
+
+  function install(handler) {
+    clock = 0;
+    waits.length = 0;
+    calls.length = 0;
+    setEtherscanPace({
+      now: () => clock,
+      sleep: async (ms) => {
+        waits.push(ms);
+        clock += ms;
+      },
+      fetch: async (url, init) => {
+        const index = calls.length;
+        calls.push({ url: String(url), init });
+        return handler(index, new URL(url), init);
+      },
+    });
+  }
+
+  function assertTronKey(call) {
+    assert.equal(call.init.headers["TRON-PRO-API-KEY"], tronKey);
+    assert.equal(call.init.headers.accept, "application/json");
+    assert.equal(call.url.includes(tronKey), false);
+  }
+
+  try {
+    const recovered = [
+      jsonResponse(429, { Error: "request rate exceeded" }),
+      jsonResponse(200, { data: [], success: true }),
+      jsonResponse(200, { data: [], success: true }),
+    ];
+    install((index) => recovered[index]);
+    const scanned = await scanTronUsdt({ timestampMs: 1, primed: true }, tronKey);
+    assert.equal(calls.length, 3);
+    for (const call of calls) assertTronKey(call);
+    assert.match(calls[0].url, /event_name=Issue/);
+    assert.match(calls[2].url, /event_name=Redeem/);
+    assert.deepEqual(waits, [1500, 350]);
+    assert.equal(scanned.events.length, 0);
+    assert.equal(JSON.stringify(scanned).includes(tronKey), false);
+
+    const withRetryAfter = [
+      jsonResponse(429, { error: "Too Many Requests" }, { "retry-after": "2" }),
+      jsonResponse(200, { data: [], success: true }),
+      jsonResponse(200, { data: [], success: true }),
+    ];
+    install((index) => withRetryAfter[index]);
+    await scanTronUsdt({ timestampMs: 1, primed: true }, tronKey);
+    for (const call of calls) assertTronKey(call);
+    assert.deepEqual(waits, [2000, 350]);
+
+    const rateLimitedBody = [
+      jsonResponse(200, { success: false, error: "request rate exceeded" }),
+      jsonResponse(200, { data: [], success: true }),
+      jsonResponse(200, { data: [], success: true }),
+    ];
+    install((index) => rateLimitedBody[index]);
+    await scanTronUsdt({ timestampMs: 1, primed: true }, tronKey);
+    assert.deepEqual(waits, [1500, 350]);
+
+    install(() => jsonResponse(429, { Error: "request rate exceeded" }));
+    await assert.rejects(
+      () => scanTronUsdt({ timestampMs: 1, primed: true }, tronKey),
+      (error) => {
+        assert.match(error.message, /Mint\/burn request failed for https:\/\/api\.trongrid\.io\/.* with HTTP 429\./);
+        assert.equal(error.message.includes(tronKey), false);
+        assert.equal(error.message.includes("TRON-PRO-API-KEY"), false);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 3);
+    assert.deepEqual(waits, [1500, 3000]);
+    for (const call of calls) assertTronKey(call);
+
+    install((index) => (index === 0 ? jsonResponse(429, { error: "rate limit" }) : jsonResponse(200, [])));
+    await scanSolana("mint", null, heliusKey);
+    assert.equal(calls.length, 2);
+    assert.deepEqual(waits, [1500]);
+    for (const call of calls) {
+      const parsed = new URL(call.url);
+      assert.equal(parsed.searchParams.get("api-key"), heliusKey);
+      assert.equal(call.url.includes("api.helius.xyz"), true);
+    }
+
+    install(() => jsonResponse(200, []));
+    await scanSolana("mint", null, heliusKey);
+    await scanSolana("burn", null, heliusKey);
+    assert.deepEqual(waits, [250]);
+    assert.equal(new URL(calls[0].url).searchParams.get("api-key"), heliusKey);
+    assert.equal(new URL(calls[1].url).searchParams.get("api-key"), heliusKey);
+
+    install(() => {
+      throw new Error("network down");
+    });
+    await assert.rejects(
+      () => scanSolana("mint", null, heliusKey),
+      (error) => {
+        assert.match(error.message, /Mint\/burn request failed for https:\/\/api\.helius\.xyz/);
+        assert.equal(error.message.includes(heliusKey), false);
+        assert.equal(error.message.includes("api-key"), false);
         return true;
       },
     );
