@@ -1,0 +1,112 @@
+name: X Mint and burn alerts
+
+# Dry-run by default. Watches treasury USDT and USDC mints and burns and
+# writes a 1200×675 card. It does not call X unless dry-run is off and the
+# OAuth 1.0a secrets are present. The post is the image and caption only.
+#
+# cron-job.org is the primary trigger and is not created yet. Do not create
+# that job until the owner says this alert is live.
+#   POST /repos/incegozmuratcan/onchain-visuals/actions/workflows/x-mint-burn.yml/dispatches
+#   ref: main
+#   inputs: { "dry_run": false }
+#
+# Intended cron-job.org schedule, every 5 minutes:
+#   */5 * * * *
+# There is no GitHub cron. A transaction already shared is skipped via this
+# job's posted-state.json. The first run only stores cursors.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (PNG + caption only). Leave true until live posting is intentional."
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: x-mint-burn
+  cancel-in-progress: false
+
+jobs:
+  mint-burn:
+    name: Scan treasury mints and burns
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore the last mint and burn cursor
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/restore-posted-state.mjs mint-burn artifacts/x-mint-burn
+
+      - name: Choose dry-run or live post
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DRY_RUN: ${{ inputs.dry_run }}
+          VAR_X_DRY_RUN: ${{ vars.X_DRY_RUN }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            RAW="$INPUT_DRY_RUN"
+          else
+            RAW="$VAR_X_DRY_RUN"
+          fi
+          case "$(printf '%s' "$RAW" | tr '[:upper:]' '[:lower:]')" in
+            false|0|off)
+              echo "X_DRY_RUN=false" >> "$GITHUB_ENV"
+              echo "Live post requested."
+              ;;
+            *)
+              echo "X_DRY_RUN=true" >> "$GITHUB_ENV"
+              echo "Dry run. X will not be called."
+              ;;
+          esac
+
+      - name: Scan for new treasury mints and burns
+        id: scan
+        env:
+          ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+          TRONGRID_API_KEY: ${{ secrets.TRONGRID_API_KEY }}
+          HELIUS_API_KEY: ${{ secrets.HELIUS_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: node scripts/x-mint-burn.mjs --scan
+
+      - name: Install Playwright Chromium
+        if: steps.scan.outputs.render == 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: Render cards and prepare the post
+        if: steps.scan.outputs.render == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          X_CONSUMER_KEY: ${{ secrets.X_CONSUMER_KEY }}
+          X_CONSUMER_SECRET: ${{ secrets.X_CONSUMER_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+        run: node scripts/x-mint-burn.mjs --render
+
+      - name: Upload PNG, caption, and cursor
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mint-burn
+          path: artifacts/x-mint-burn/
+          if-no-files-found: warn
+          retention-days: 14
