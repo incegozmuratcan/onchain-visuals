@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { importTs } from "./load-ts.mjs";
 import { renderCardHtml, APPROVED_CARD_CSS } from "../lib/mint-burn/card.mjs";
 import { FIXED_LOGOS, planMintBurnLogos } from "../lib/mint-burn/logos.mjs";
-import { redactUrl, scanEthereumUsdt, scanPolygonUsdc, scanSolana, scanTronUsdt, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
+import { redactUrl, scanAll, scanEthereumUsdt, scanPolygonUsdc, scanSolana, scanTronUsdt, setEtherscanPace } from "../lib/mint-burn/sources.mjs";
 import {
   QUIET_MS,
   THRESHOLDS_USD,
@@ -553,9 +553,11 @@ test("trongrid and helius space calls, retry 429, and send their keys", async ()
         return true;
       },
     );
-    assert.equal(calls.length, 3);
-    assert.deepEqual(waits, [1500, 3000]);
-    for (const call of calls) assertTronKey(call);
+    assert.equal(calls.length, 4);
+    assert.deepEqual(waits, [1500, 3000, 350]);
+    for (const call of calls.slice(0, 3)) assertTronKey(call);
+    assert.equal(calls[3].init.headers["TRON-PRO-API-KEY"], undefined);
+    assert.equal(calls[3].url.includes(tronKey), false);
 
     install((index) => (index === 0 ? jsonResponse(429, { error: "rate limit" }) : jsonResponse(200, [])));
     await scanSolana("mint", null, heliusKey);
@@ -588,6 +590,156 @@ test("trongrid and helius space calls, retry 429, and send their keys", async ()
     );
     assert.equal(calls.length, 1);
   } finally {
+    setEtherscanPace();
+  }
+});
+
+test("a tron failure keeps its cursor, logs a redacted body, and a keyless 429 can still succeed", async () => {
+  const tronKey = "test-trongrid-key";
+  const etherscanKey = "test-etherscan-key";
+  const heliusKey = "test-helius-key";
+  const secrets = { etherscan: etherscanKey, tron: tronKey, helius: heliusKey, missing: [] };
+  const tronCursor = { timestampMs: 1_700_000_000_000, primed: true };
+  const calls = [];
+  const warnings = [];
+  const originalWarn = console.warn;
+  let mode = "isolate";
+
+  function jsonResponse(status, body, headers) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      headers: { get: (name) => headers?.[String(name).toLowerCase()] ?? null },
+      json: async () => body,
+    };
+  }
+
+  function install() {
+    calls.length = 0;
+    setEtherscanPace({
+      now: () => 0,
+      sleep: async () => {},
+      fetch: async (url, init) => {
+        const href = String(url);
+        calls.push({ url: href, init });
+        if (href.includes("etherscan.io")) {
+          if (mode === "all-fail") return jsonResponse(429, { message: "slow down", apikey: etherscanKey });
+          return jsonResponse(200, { jsonrpc: "2.0", result: "0x10" });
+        }
+        if (href.includes("trongrid.io")) {
+          const event = new URL(href).searchParams.get("event_name");
+          const hasKey = init?.headers?.["TRON-PRO-API-KEY"] != null;
+          if (mode === "keyless" && event === "Issue") return jsonResponse(200, { data: [], success: true });
+          if (mode === "keyless" && !hasKey) {
+            return jsonResponse(200, {
+              success: true,
+              data: [{
+                event_name: "Redeem",
+                contract_address: TOKEN_CONTRACTS.tron.USDT,
+                transaction_id: "redeemhash",
+                block_timestamp: 1_700_000_000_000,
+                result: { amount: "250000000000000" },
+              }],
+            });
+          }
+          return jsonResponse(429, {
+            Error: "runner ip limited",
+            detail: `blocked ${tronKey} at the edge`,
+            pad: "x".repeat(800),
+          }, { "retry-after": "9" });
+        }
+        if (href.includes("helius.xyz")) {
+          if (mode === "all-fail") return jsonResponse(429, { error: `rate limit ${heliusKey}` });
+          return jsonResponse(200, [{ signature: "new-solana-signature", timestamp: 1_700_000_100 }]);
+        }
+        throw new Error(`unexpected mint/burn url ${href}`);
+      },
+    });
+  }
+
+  console.warn = (...args) => {
+    warnings.push(args.map((part) => String(part)).join(" "));
+  };
+
+  try {
+    mode = "isolate";
+    install();
+    const scanned = await scanAll({
+      cursors: {
+        "tron-usdt": tronCursor,
+        "solana-usdc-mint": { signature: "old-mint-signature", timestampMs: 1, primed: true },
+        "solana-usdc-burn": { signature: "old-burn-signature", timestampMs: 1, primed: true },
+      },
+    }, secrets);
+    assert.deepEqual(scanned.cursors["tron-usdt"], tronCursor);
+    assert.equal(scanned.cursors["solana-usdc-mint"].signature, "new-solana-signature");
+    assert.equal(scanned.cursors["solana-usdc-burn"].signature, "new-solana-signature");
+    assert.deepEqual(scanned.failures, ["tron-usdt"]);
+    assert.match(scanned.notes.join("\n"), /tron-usdt failed and will be retried next run/);
+    assert.equal(calls.some((call) => call.url.includes("helius.xyz")), true);
+    assert.equal(calls.some((call) => call.url.includes("event_name=Redeem")), false);
+    const bodyLines = warnings.filter((line) => line.includes("Body:"));
+    assert.ok(bodyLines.length >= 1);
+    for (const line of bodyLines) {
+      assert.match(line, /Mint\/burn HTTP 429 /);
+      assert.match(line, /Retry-After: 9/);
+      assert.match(line, /runner ip limited/);
+      assert.match(line, /blocked \[redacted\] at the edge/);
+      const body = line.slice(line.indexOf("Body: ") + "Body: ".length);
+      assert.ok(body.length <= 300, body);
+    }
+    for (const line of warnings) {
+      assert.equal(line.includes(tronKey), false, line);
+      assert.equal(line.includes(etherscanKey), false, line);
+      assert.equal(line.includes(heliusKey), false, line);
+    }
+
+    mode = "keyless";
+    warnings.length = 0;
+    install();
+    const recovered = await scanTronUsdt(tronCursor, tronKey);
+    const tronCalls = calls.filter((call) => call.url.includes("trongrid.io"));
+    assert.deepEqual(tronCalls.map((call) => ({
+      event: new URL(call.url).searchParams.get("event_name"),
+      hasKey: call.init.headers["TRON-PRO-API-KEY"] != null,
+    })), [
+      { event: "Issue", hasKey: true },
+      { event: "Redeem", hasKey: true },
+      { event: "Redeem", hasKey: true },
+      { event: "Redeem", hasKey: true },
+      { event: "Redeem", hasKey: false },
+    ]);
+    assert.equal(recovered.events.length, 1);
+    assert.equal(recovered.events[0].kind, "burn");
+    assert.equal(recovered.events[0].txHash, "redeemhash");
+    assert.equal(recovered.cursor.primed, true);
+    assert.equal(JSON.stringify(recovered).includes(tronKey), false);
+    assert.ok(warnings.some((line) => /HTTP 429/.test(line) && /runner ip limited/.test(line) && /Retry-After: 9/.test(line)));
+    for (const line of warnings) assert.equal(line.includes(tronKey), false, line);
+
+    mode = "all-fail";
+    warnings.length = 0;
+    install();
+    const previous = { cursors: { "tron-usdt": { ...tronCursor } } };
+    await assert.rejects(
+      () => scanAll(previous, secrets),
+      (error) => {
+        assert.match(error.message, /Mint\/burn scan failed for every source \(ethereum-usdt, ethereum-usdc, polygon-usdc, tron-usdt, solana-usdc-mint, solana-usdc-burn\)/);
+        assert.equal(error.message.includes(tronKey), false);
+        assert.equal(error.message.includes(etherscanKey), false);
+        assert.equal(error.message.includes(heliusKey), false);
+        return true;
+      },
+    );
+    assert.deepEqual(previous.cursors["tron-usdt"], tronCursor);
+    assert.equal(calls.some((call) => call.url.includes("helius.xyz")), true);
+    for (const line of warnings) {
+      assert.equal(line.includes(tronKey), false, line);
+      assert.equal(line.includes(etherscanKey), false, line);
+      assert.equal(line.includes(heliusKey), false, line);
+    }
+  } finally {
+    console.warn = originalWarn;
     setEtherscanPace();
   }
 });

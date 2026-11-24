@@ -263,7 +263,10 @@ async function scan(state) {
     throw new Error(`Mint/burn scan needs ${secrets.missing.join(", ")}.`);
   }
   const scanned = await scanAll(state, secrets);
-  for (const note of scanned.notes) console.warn(note);
+  for (const note of scanned.notes) {
+    const alreadyLogged = scanned.failures?.some((name) => note.startsWith(`${name} failed and will be retried next run.`));
+    if (!alreadyLogged) console.warn(note);
+  }
   const next = ingestEvents({ ...state, cursors: scanned.cursors }, scanned.events);
   next.cursors = scanned.cursors;
   await saveState(next);
