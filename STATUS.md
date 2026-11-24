@@ -39,6 +39,7 @@ Kod hazır, canlı değil (onay bekliyor). Workflow `.github/workflows/x-mint-bu
 
 ## Son yapılanlar
 
+- 2026-11-24: Tron USDT basım/yakım verisi Tronscan'den çekiliyor, TronGrid yedek.
 - 2026-11-24: Mint/burn taramasında bir ağ hata verirse diğerleri devam ediyor; TronGrid 429'da anahtarsız yedek deneme.
 - 2026-11-24: Mint/burn TronGrid ve Helius istekleri de aralıklı atılıyor, 429'da tekrar deneniyor.
 - 2026-11-24: Mint/burn Etherscan istekleri ~400 ms aralıkla atılıyor, 3/sn limit hatasında 2 kez tekrar deneniyor.
@@ -46,7 +47,6 @@ Kod hazır, canlı değil (onay bekliyor). Workflow `.github/workflows/x-mint-bu
 - 2026-11-24: Stablecoin supply weekly and monthly cards (7D / 1M), captions, handles, and the 4-hour same-day gate for Chain Revenue and stablecoin.
 - 2026-11-23: Chain Revenue daily stopped on X (site only). Weekly posts as soon as the Mon–Sun week passes the gate.
 - 2026-11-23: Chain Revenue gate uses each day's own 20:00 TR cutoff and only waits for top-10 chains that had revenue on all 3 prior days (quai spike fix).
-- 2026-11-22: Chain Revenue cards take logos from Logo Manager, then the posted-state cache, the fixed set, DefiLlama, and an initial badge. A logo no longer skips the card.
 
 ## Sıradakiler
 
