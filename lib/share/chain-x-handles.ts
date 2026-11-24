@@ -2,10 +2,13 @@
  * Approved X handles for chain mentions. Bitcoin is never tagged.
  * A chain missing from this map is written as its plain name.
  * A post uses at most 3 tags. Format is "Name (@handle)".
+ * tether and circle are issuers approved for mint and burn captions.
  */
 
 const HANDLES: Record<string, string> = {
   ethereum: "ethereum",
+  tether: "tether",
+  circle: "circle",
   tron: "trondao",
   "bnb chain": "BNBCHAIN",
   bsc: "BNBCHAIN",

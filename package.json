@@ -28,7 +28,9 @@
     "x:chain-revenue-weekly": "node scripts/x-chain-revenue-period.mjs weekly",
     "x:chain-revenue-monthly": "node scripts/x-chain-revenue-period.mjs monthly",
     "x:chain-stablecoin-supply-weekly": "node scripts/x-stablecoin-supply-period.mjs weekly",
-    "x:chain-stablecoin-supply-monthly": "node scripts/x-stablecoin-supply-period.mjs monthly"
+    "x:chain-stablecoin-supply-monthly": "node scripts/x-stablecoin-supply-period.mjs monthly",
+    "x:mint-burn": "node scripts/x-mint-burn.mjs",
+    "preview:mint-burn": "node scripts/preview-mint-burn-cards.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.1",
