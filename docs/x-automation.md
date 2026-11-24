@@ -8,7 +8,7 @@ Daily X sharing is that combined card only. `.github/workflows/x-btc-etf-daily.y
 
 1. Builds the Next.js app and starts it inside the job.
 2. Refreshes the combined snapshot through `POST /api/admin/onchain/refresh/btc-eth-etf-daily-flowboard?period=daily`. That route calls `refreshDataset`, which loads the Farside BTC and ETH tables together in `buildBtcEthDailySplit`. The card does not read the separate BTC-only or ETH-only flowboard snapshots. The full `POST /api/cron/onchain/refresh` route is still available for a complete refresh; this job does not call it, so a missing Dune or DefiLlama key does not block the card.
-3. Opens `/onchain/btc-eth-etf-daily-flowboard?period=daily&capture=1` in Playwright Chromium and screenshots `[data-capture='share-card']` at 1536×1024.
+3. Opens `/onchain/btc-eth-etf-daily-flowboard?period=daily&capture=1` in Playwright Chromium and screenshots `[data-capture='share-card']`. The CSS card is 1536×1024. deviceScaleFactor is 2, so the PNG is 3072×2048.
 4. Builds a one-sentence caption from the Farside session date drawn on the card: `Here are the Bitcoin and Ethereum ETF flows for Nov 14.`. The date is explicit because a Monday post carries Friday's session, so "yesterday" would be wrong. The sentence is plain English so X's translate button reads cleanly in other languages. It has no amounts, cashtags, issuer lines, source line, or hashtags; the card carries the numbers. BTC and ETH must share the same completed date or the job stops.
 5. Uploads `btc-eth-etf-daily.png`, `caption.txt`, and `result.json` as the `btc-eth-etf-daily` artifact.
 
